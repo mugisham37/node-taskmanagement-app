@@ -76,15 +76,73 @@ export interface DashboardMetrics {
   };
 }
 
+export interface DataAggregationOptions {
+  enableRealTimeAggregation?: boolean;
+  aggregationIntervals?: ('minute' | 'hour' | 'day' | 'week' | 'month')[];
+  retentionPolicies?: {
+    raw: number; // days
+    hourly: number; // days
+    daily: number; // days
+    weekly: number; // days
+    monthly: number; // days
+  };
+  compressionEnabled?: boolean;
+  precomputedMetrics?: string[];
+}
+
+export interface MetricsDataWarehouse {
+  rawMetrics: string;
+  aggregatedMetrics: {
+    minute: string;
+    hour: string;
+    day: string;
+    week: string;
+    month: string;
+  };
+  dimensionTables: {
+    users: string;
+    workspaces: string;
+    projects: string;
+    time: string;
+  };
+}
+
 export class MetricsCollectionService extends BaseService {
   private readonly batchBuffer: MetricRecordRequest[] = [];
   private readonly batchSize = 100;
   private batchTimer: NodeJS.Timeout | null = null;
   private readonly batchInterval = 5000; // 5 seconds
+  private readonly aggregationOptions: DataAggregationOptions;
+  private aggregationTimers: Map<string, NodeJS.Timeout> = new Map();
 
-  constructor(private readonly metricsRepository: IMetricsRepository) {
+  constructor(
+    private readonly metricsRepository: IMetricsRepository,
+    options: DataAggregationOptions = {}
+  ) {
     super('MetricsCollectionService');
+
+    this.aggregationOptions = {
+      enableRealTimeAggregation: true,
+      aggregationIntervals: ['minute', 'hour', 'day', 'week', 'month'],
+      retentionPolicies: {
+        raw: 7,
+        hourly: 30,
+        daily: 365,
+        weekly: 730,
+        monthly: 2555, // ~7 years
+      },
+      compressionEnabled: true,
+      precomputedMetrics: [
+        'task.completion_rate',
+        'user.productivity_score',
+        'project.health_score',
+        'system.performance_metrics',
+      ],
+      ...options,
+    };
+
     this.startBatchProcessor();
+    this.initializeAggregationProcessors();
   }
 
   async recordMetric(request: MetricRecordRequest): Promise<void> {
@@ -539,6 +597,358 @@ export class MetricsCollectionService extends BaseService {
     }
   }
 
+  private initializeAggregationProcessors(): void {
+    if (!this.aggregationOptions.enableRealTimeAggregation) return;
+
+    // Set up aggregation timers for different intervals
+    this.aggregationOptions.aggregationIntervals?.forEach(interval => {
+      const intervalMs = this.getIntervalMilliseconds(interval);
+
+      const timer = setInterval(async () => {
+        await this.performAggregation(interval);
+      }, intervalMs);
+
+      this.aggregationTimers.set(interval, timer);
+    });
+  }
+
+  private getIntervalMilliseconds(interval: string): number {
+    switch (interval) {
+      case 'minute':
+        return 60 * 1000;
+      case 'hour':
+        return 60 * 60 * 1000;
+      case 'day':
+        return 24 * 60 * 60 * 1000;
+      case 'week':
+        return 7 * 24 * 60 * 60 * 1000;
+      case 'month':
+        return 30 * 24 * 60 * 60 * 1000;
+      default:
+        return 60 * 60 * 1000; // Default to hourly
+    }
+  }
+
+  private async performAggregation(
+    interval: 'minute' | 'hour' | 'day' | 'week' | 'month'
+  ): Promise<void> {
+    try {
+      const now = new Date();
+      const startTime = this.getAggregationStartTime(now, interval);
+      const endTime = this.getAggregationEndTime(startTime, interval);
+
+      // Get raw metrics for the period
+      const rawMetrics = await this.metricsRepository.getRawMetrics({
+        startTime,
+        endTime,
+      });
+
+      // Perform aggregation calculations
+      const aggregatedData = await this.calculateAggregations(
+        rawMetrics,
+        interval
+      );
+
+      // Store aggregated data
+      await this.storeAggregatedMetrics(aggregatedData, interval);
+
+      // Clean up old raw data if needed
+      if (interval === 'hour') {
+        await this.cleanupRawMetrics();
+      }
+
+      this.logger.debug('Aggregation completed', {
+        interval,
+        startTime,
+        endTime,
+        rawMetricsCount: rawMetrics.length,
+        aggregatedMetricsCount: aggregatedData.length,
+      });
+    } catch (error) {
+      this.logger.error('Failed to perform aggregation', {
+        error: error.message,
+        interval,
+      });
+    }
+  }
+
+  private getAggregationStartTime(now: Date, interval: string): Date {
+    const date = new Date(now);
+
+    switch (interval) {
+      case 'minute':
+        date.setSeconds(0, 0);
+        date.setMinutes(date.getMinutes() - 1);
+        break;
+      case 'hour':
+        date.setMinutes(0, 0, 0);
+        date.setHours(date.getHours() - 1);
+        break;
+      case 'day':
+        date.setHours(0, 0, 0, 0);
+        date.setDate(date.getDate() - 1);
+        break;
+      case 'week':
+        date.setHours(0, 0, 0, 0);
+        date.setDate(date.getDate() - date.getDay() - 7);
+        break;
+      case 'month':
+        date.setHours(0, 0, 0, 0);
+        date.setDate(1);
+        date.setMonth(date.getMonth() - 1);
+        break;
+    }
+
+    return date;
+  }
+
+  private getAggregationEndTime(startTime: Date, interval: string): Date {
+    const date = new Date(startTime);
+
+    switch (interval) {
+      case 'minute':
+        date.setMinutes(date.getMinutes() + 1);
+        break;
+      case 'hour':
+        date.setHours(date.getHours() + 1);
+        break;
+      case 'day':
+        date.setDate(date.getDate() + 1);
+        break;
+      case 'week':
+        date.setDate(date.getDate() + 7);
+        break;
+      case 'month':
+        date.setMonth(date.getMonth() + 1);
+        break;
+    }
+
+    return date;
+  }
+
+  private async calculateAggregations(
+    rawMetrics: any[],
+    interval: string
+  ): Promise<any[]> {
+    const aggregations: any[] = [];
+
+    // Group metrics by name and tags
+    const groupedMetrics = this.groupMetricsByNameAndTags(rawMetrics);
+
+    for (const [key, metrics] of groupedMetrics.entries()) {
+      const [name, tagsStr] = key.split('|');
+      const tags = tagsStr ? JSON.parse(tagsStr) : {};
+
+      // Calculate various aggregations
+      const aggregation = {
+        name,
+        tags,
+        interval,
+        timestamp: new Date(),
+        aggregations: {
+          sum: metrics.reduce((sum, m) => sum + m.value, 0),
+          avg: metrics.reduce((sum, m) => sum + m.value, 0) / metrics.length,
+          min: Math.min(...metrics.map(m => m.value)),
+          max: Math.max(...metrics.map(m => m.value)),
+          count: metrics.length,
+          p50: this.calculatePercentile(
+            metrics.map(m => m.value),
+            0.5
+          ),
+          p90: this.calculatePercentile(
+            metrics.map(m => m.value),
+            0.9
+          ),
+          p95: this.calculatePercentile(
+            metrics.map(m => m.value),
+            0.95
+          ),
+          p99: this.calculatePercentile(
+            metrics.map(m => m.value),
+            0.99
+          ),
+        },
+      };
+
+      aggregations.push(aggregation);
+    }
+
+    return aggregations;
+  }
+
+  private groupMetricsByNameAndTags(metrics: any[]): Map<string, any[]> {
+    const grouped = new Map<string, any[]>();
+
+    metrics.forEach(metric => {
+      const tagsStr = JSON.stringify(metric.tags || {});
+      const key = `${metric.name}|${tagsStr}`;
+
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
+      }
+
+      grouped.get(key)!.push(metric);
+    });
+
+    return grouped;
+  }
+
+  private calculatePercentile(values: number[], percentile: number): number {
+    const sorted = values.sort((a, b) => a - b);
+    const index = Math.ceil(sorted.length * percentile) - 1;
+    return sorted[Math.max(0, index)];
+  }
+
+  private async storeAggregatedMetrics(
+    aggregations: any[],
+    interval: string
+  ): Promise<void> {
+    try {
+      await this.metricsRepository.storeAggregatedMetrics(
+        aggregations,
+        interval
+      );
+    } catch (error) {
+      this.logger.error('Failed to store aggregated metrics', {
+        error: error.message,
+        interval,
+        aggregationsCount: aggregations.length,
+      });
+      throw error;
+    }
+  }
+
+  private async cleanupRawMetrics(): Promise<void> {
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(
+        cutoffDate.getDate() - this.aggregationOptions.retentionPolicies!.raw
+      );
+
+      const deletedCount =
+        await this.metricsRepository.cleanupRawMetrics(cutoffDate);
+
+      this.logger.info('Raw metrics cleaned up', {
+        deletedCount,
+        cutoffDate,
+      });
+    } catch (error) {
+      this.logger.error('Failed to cleanup raw metrics', {
+        error: error.message,
+      });
+    }
+  }
+
+  async setupDataWarehouse(): Promise<MetricsDataWarehouse> {
+    try {
+      const schema: MetricsDataWarehouse = {
+        rawMetrics: 'metrics_raw',
+        aggregatedMetrics: {
+          minute: 'metrics_agg_minute',
+          hour: 'metrics_agg_hour',
+          day: 'metrics_agg_day',
+          week: 'metrics_agg_week',
+          month: 'metrics_agg_month',
+        },
+        dimensionTables: {
+          users: 'dim_users',
+          workspaces: 'dim_workspaces',
+          projects: 'dim_projects',
+          time: 'dim_time',
+        },
+      };
+
+      // Create warehouse tables
+      await this.createWarehouseTables(schema);
+
+      // Set up indexes for performance
+      await this.createWarehouseIndexes(schema);
+
+      this.logger.info('Metrics data warehouse setup completed', { schema });
+
+      return schema;
+    } catch (error) {
+      this.logger.error('Failed to setup metrics data warehouse', {
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  private async createWarehouseTables(
+    schema: MetricsDataWarehouse
+  ): Promise<void> {
+    // Implementation would create the actual database tables
+    // This is a placeholder for the table creation logic
+  }
+
+  private async createWarehouseIndexes(
+    schema: MetricsDataWarehouse
+  ): Promise<void> {
+    // Implementation would create indexes for optimal query performance
+    // This is a placeholder for the index creation logic
+  }
+
+  async precomputeMetrics(): Promise<void> {
+    try {
+      for (const metricName of this.aggregationOptions.precomputedMetrics ||
+        []) {
+        await this.precomputeMetric(metricName);
+      }
+    } catch (error) {
+      this.logger.error('Failed to precompute metrics', {
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  private async precomputeMetric(metricName: string): Promise<void> {
+    try {
+      switch (metricName) {
+        case 'task.completion_rate':
+          await this.precomputeTaskCompletionRate();
+          break;
+        case 'user.productivity_score':
+          await this.precomputeUserProductivityScore();
+          break;
+        case 'project.health_score':
+          await this.precomputeProjectHealthScore();
+          break;
+        case 'system.performance_metrics':
+          await this.precomputeSystemPerformanceMetrics();
+          break;
+        default:
+          this.logger.warn('Unknown precomputed metric', { metricName });
+      }
+    } catch (error) {
+      this.logger.error('Failed to precompute metric', {
+        error: error.message,
+        metricName,
+      });
+    }
+  }
+
+  private async precomputeTaskCompletionRate(): Promise<void> {
+    // Implementation for precomputing task completion rates
+    // This would calculate and store completion rates for different time periods
+  }
+
+  private async precomputeUserProductivityScore(): Promise<void> {
+    // Implementation for precomputing user productivity scores
+    // This would calculate and store productivity scores for all users
+  }
+
+  private async precomputeProjectHealthScore(): Promise<void> {
+    // Implementation for precomputing project health scores
+    // This would calculate and store health scores for all projects
+  }
+
+  private async precomputeSystemPerformanceMetrics(): Promise<void> {
+    // Implementation for precomputing system performance metrics
+    // This would calculate and store system-wide performance indicators
+  }
+
   private startBatchProcessor(): void {
     this.batchTimer = setInterval(async () => {
       if (this.batchBuffer.length > 0) {
@@ -639,10 +1049,18 @@ export class MetricsCollectionService extends BaseService {
 
   // Cleanup on service shutdown
   destroy(): void {
+    // Clear batch processor timer
     if (this.batchTimer) {
       clearInterval(this.batchTimer);
       this.batchTimer = null;
     }
+
+    // Clear aggregation timers
+    this.aggregationTimers.forEach((timer, interval) => {
+      clearInterval(timer);
+      this.logger.debug('Aggregation timer cleared', { interval });
+    });
+    this.aggregationTimers.clear();
 
     // Process any remaining metrics in buffer
     if (this.batchBuffer.length > 0) {

@@ -8,6 +8,8 @@ import {
 } from '../value-objects/ActivityTypes';
 import { BaseService } from '../../shared/services/BaseService';
 import { DomainError } from '../../shared/errors/DomainError';
+import { EventEmitter } from 'events';
+import { Logger } from '../../../infrastructure/logging/logger';
 
 export interface TrackActivityRequest {
   userId: string;
@@ -66,11 +68,542 @@ export interface UserActivityProfile {
   };
 }
 
+export interface DataProcessingOptions {
+  batchSize?: number;
+  processingInterval?: number;
+  enableRealTimeProcessing?: boolean;
+  enableBatchProcessing?: boolean;
+  retentionPeriodDays?: number;
+  compressionEnabled?: boolean;
+  aggregationLevel?: 'minute' | 'hour' | 'day' | 'week' | 'month';
+}
+
+export interface MetricsAggregation {
+  timestamp: Date;
+  period: string;
+  totalActivities: number;
+  uniqueUsers: number;
+  uniqueSessions: number;
+  averageDuration: number;
+  peakConcurrentUsers: number;
+  errorCount: number;
+  successRate: number;
+  topActions: Array<{ action: string; count: number }>;
+  performanceMetrics: {
+    averageResponseTime: number;
+    p50ResponseTime: number;
+    p95ResponseTime: number;
+    p99ResponseTime: number;
+    throughput: number;
+    errorRate: number;
+  };
+}
+
+export interface DataWarehouseSchema {
+  factTables: {
+    activities: string;
+    userSessions: string;
+    performanceMetrics: string;
+    errorLogs: string;
+  };
+  dimensionTables: {
+    users: string;
+    workspaces: string;
+    projects: string;
+    tasks: string;
+    time: string;
+  };
+  aggregationTables: {
+    hourlyMetrics: string;
+    dailyMetrics: string;
+    weeklyMetrics: string;
+    monthlyMetrics: string;
+  };
+}
+
 export class ActivityTrackingService extends BaseService {
+  private eventEmitter: EventEmitter;
+  private processingQueue: TrackActivityRequest[] = [];
+  private batchProcessor: NodeJS.Timeout | null = null;
+  private readonly dataProcessingOptions: DataProcessingOptions;
+
   constructor(
-    private readonly activityRepository: IActivityTrackingRepository
+    private readonly activityRepository: IActivityTrackingRepository,
+    options: DataProcessingOptions = {}
   ) {
     super('ActivityTrackingService');
+    this.eventEmitter = new EventEmitter();
+    this.dataProcessingOptions = {
+      batchSize: 1000,
+      processingInterval: 5000, // 5 seconds
+      enableRealTimeProcessing: true,
+      enableBatchProcessing: true,
+      retentionPeriodDays: 365,
+      compressionEnabled: true,
+      aggregationLevel: 'hour',
+      ...options,
+    };
+
+    this.initializeBatchProcessor();
+    this.setupEventListeners();
+  }
+
+  private initializeBatchProcessor(): void {
+    if (this.dataProcessingOptions.enableBatchProcessing) {
+      this.batchProcessor = setInterval(
+        () => this.processBatch(),
+        this.dataProcessingOptions.processingInterval
+      );
+    }
+  }
+
+  private setupEventListeners(): void {
+    this.eventEmitter.on(
+      'activity:tracked',
+      this.handleActivityTracked.bind(this)
+    );
+    this.eventEmitter.on(
+      'batch:processed',
+      this.handleBatchProcessed.bind(this)
+    );
+    this.eventEmitter.on(
+      'metrics:aggregated',
+      this.handleMetricsAggregated.bind(this)
+    );
+  }
+
+  private async handleActivityTracked(
+    activity: ActivityTrackingEntity
+  ): Promise<void> {
+    try {
+      // Real-time processing
+      if (this.dataProcessingOptions.enableRealTimeProcessing) {
+        await this.processActivityRealTime(activity);
+      }
+
+      // Emit domain events for other services
+      this.eventEmitter.emit('activity:processed', {
+        activityId: activity.id,
+        userId: activity.userId,
+        type: activity.type,
+        timestamp: activity.createdAt,
+      });
+    } catch (error) {
+      this.logger.error('Failed to handle activity tracked event', {
+        error: error.message,
+        activityId: activity.id,
+      });
+    }
+  }
+
+  private async handleBatchProcessed(batchInfo: {
+    size: number;
+    duration: number;
+  }): Promise<void> {
+    this.logger.info('Batch processed successfully', batchInfo);
+
+    // Trigger aggregation if needed
+    await this.triggerAggregation();
+  }
+
+  private async handleMetricsAggregated(
+    aggregation: MetricsAggregation
+  ): Promise<void> {
+    this.logger.info('Metrics aggregated', {
+      period: aggregation.period,
+      totalActivities: aggregation.totalActivities,
+      timestamp: aggregation.timestamp,
+    });
+  }
+
+  private async processActivityRealTime(
+    activity: ActivityTrackingEntity
+  ): Promise<void> {
+    try {
+      // Update real-time metrics
+      await this.updateRealTimeMetrics(activity);
+
+      // Check for anomalies
+      await this.detectAnomalies(activity);
+
+      // Update user session tracking
+      await this.updateUserSession(activity);
+    } catch (error) {
+      this.logger.error('Failed to process activity in real-time', {
+        error: error.message,
+        activityId: activity.id,
+      });
+    }
+  }
+
+  private async processBatch(): Promise<void> {
+    if (this.processingQueue.length === 0) return;
+
+    const startTime = Date.now();
+    const batchSize = Math.min(
+      this.processingQueue.length,
+      this.dataProcessingOptions.batchSize!
+    );
+
+    const batch = this.processingQueue.splice(0, batchSize);
+
+    try {
+      // Process batch activities
+      const activities = await this.trackBulkActivities(batch);
+
+      // Emit batch processed event
+      this.eventEmitter.emit('batch:processed', {
+        size: activities.length,
+        duration: Date.now() - startTime,
+      });
+    } catch (error) {
+      this.logger.error('Failed to process batch', {
+        error: error.message,
+        batchSize,
+      });
+
+      // Re-queue failed items
+      this.processingQueue.unshift(...batch);
+    }
+  }
+
+  private async updateRealTimeMetrics(
+    activity: ActivityTrackingEntity
+  ): Promise<void> {
+    // Implementation for real-time metrics updates
+    // This would typically update Redis or in-memory cache
+  }
+
+  private async detectAnomalies(
+    activity: ActivityTrackingEntity
+  ): Promise<void> {
+    // Implementation for anomaly detection
+    // Could detect unusual patterns, spikes, or suspicious activities
+  }
+
+  private async updateUserSession(
+    activity: ActivityTrackingEntity
+  ): Promise<void> {
+    // Implementation for user session tracking
+    // Update session duration, activity count, etc.
+  }
+
+  private async triggerAggregation(): Promise<void> {
+    try {
+      const now = new Date();
+      const aggregation = await this.aggregateMetrics(now);
+
+      this.eventEmitter.emit('metrics:aggregated', aggregation);
+    } catch (error) {
+      this.logger.error('Failed to trigger aggregation', {
+        error: error.message,
+      });
+    }
+  }
+
+  async aggregateMetrics(timestamp: Date): Promise<MetricsAggregation> {
+    try {
+      const period = this.getPeriodString(
+        timestamp,
+        this.dataProcessingOptions.aggregationLevel!
+      );
+      const startTime = this.getPeriodStart(
+        timestamp,
+        this.dataProcessingOptions.aggregationLevel!
+      );
+      const endTime = this.getPeriodEnd(
+        timestamp,
+        this.dataProcessingOptions.aggregationLevel!
+      );
+
+      // Get activities for the period
+      const activities = await this.activityRepository.findByDateRange(
+        startTime,
+        endTime
+      );
+
+      // Calculate aggregated metrics
+      const totalActivities = activities.length;
+      const uniqueUsers = new Set(activities.map(a => a.userId)).size;
+      const uniqueSessions = new Set(
+        activities.map(a => a.sessionId).filter(Boolean)
+      ).size;
+
+      const durations = activities
+        .map(a => a.duration)
+        .filter(Boolean) as number[];
+      const averageDuration =
+        durations.length > 0
+          ? durations.reduce((sum, d) => sum + d, 0) / durations.length
+          : 0;
+
+      // Calculate performance metrics
+      const performanceMetrics =
+        await this.calculatePerformanceMetrics(activities);
+
+      // Get top actions
+      const actionCounts = new Map<string, number>();
+      activities.forEach(activity => {
+        const count = actionCounts.get(activity.action) || 0;
+        actionCounts.set(activity.action, count + 1);
+      });
+
+      const topActions = Array.from(actionCounts.entries())
+        .map(([action, count]) => ({ action, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+
+      const aggregation: MetricsAggregation = {
+        timestamp,
+        period,
+        totalActivities,
+        uniqueUsers,
+        uniqueSessions,
+        averageDuration,
+        peakConcurrentUsers: await this.calculatePeakConcurrentUsers(
+          startTime,
+          endTime
+        ),
+        errorCount: activities.filter(a => a.metadata?.error).length,
+        successRate:
+          totalActivities > 0
+            ? ((totalActivities -
+                activities.filter(a => a.metadata?.error).length) /
+                totalActivities) *
+              100
+            : 100,
+        topActions,
+        performanceMetrics,
+      };
+
+      // Store aggregation
+      await this.storeAggregation(aggregation);
+
+      return aggregation;
+    } catch (error) {
+      this.logger.error('Failed to aggregate metrics', {
+        error: error.message,
+        timestamp,
+      });
+      throw error;
+    }
+  }
+
+  private async calculatePerformanceMetrics(
+    activities: ActivityTrackingEntity[]
+  ): Promise<{
+    averageResponseTime: number;
+    p50ResponseTime: number;
+    p95ResponseTime: number;
+    p99ResponseTime: number;
+    throughput: number;
+    errorRate: number;
+  }> {
+    const responseTimes = activities
+      .map(a => a.metadata?.responseTime)
+      .filter(Boolean) as number[];
+
+    if (responseTimes.length === 0) {
+      return {
+        averageResponseTime: 0,
+        p50ResponseTime: 0,
+        p95ResponseTime: 0,
+        p99ResponseTime: 0,
+        throughput: 0,
+        errorRate: 0,
+      };
+    }
+
+    responseTimes.sort((a, b) => a - b);
+
+    const averageResponseTime =
+      responseTimes.reduce((sum, rt) => sum + rt, 0) / responseTimes.length;
+    const p50ResponseTime =
+      responseTimes[Math.floor(responseTimes.length * 0.5)];
+    const p95ResponseTime =
+      responseTimes[Math.floor(responseTimes.length * 0.95)];
+    const p99ResponseTime =
+      responseTimes[Math.floor(responseTimes.length * 0.99)];
+
+    const errorCount = activities.filter(a => a.metadata?.error).length;
+    const errorRate = (errorCount / activities.length) * 100;
+
+    // Calculate throughput (activities per hour)
+    const timeSpanHours = 1; // Assuming 1-hour aggregation
+    const throughput = activities.length / timeSpanHours;
+
+    return {
+      averageResponseTime,
+      p50ResponseTime,
+      p95ResponseTime,
+      p99ResponseTime,
+      throughput,
+      errorRate,
+    };
+  }
+
+  private async calculatePeakConcurrentUsers(
+    startTime: Date,
+    endTime: Date
+  ): Promise<number> {
+    // Implementation to calculate peak concurrent users
+    // This would require session tracking and overlap analysis
+    return 0; // Placeholder
+  }
+
+  private async storeAggregation(
+    aggregation: MetricsAggregation
+  ): Promise<void> {
+    // Store aggregation in data warehouse
+    // Implementation would depend on the data warehouse solution
+  }
+
+  private getPeriodString(timestamp: Date, level: string): string {
+    switch (level) {
+      case 'minute':
+        return timestamp.toISOString().substring(0, 16); // YYYY-MM-DDTHH:MM
+      case 'hour':
+        return timestamp.toISOString().substring(0, 13); // YYYY-MM-DDTHH
+      case 'day':
+        return timestamp.toISOString().substring(0, 10); // YYYY-MM-DD
+      case 'week':
+        const weekStart = new Date(timestamp);
+        weekStart.setDate(timestamp.getDate() - timestamp.getDay());
+        return weekStart.toISOString().substring(0, 10);
+      case 'month':
+        return timestamp.toISOString().substring(0, 7); // YYYY-MM
+      default:
+        return timestamp.toISOString().substring(0, 13);
+    }
+  }
+
+  private getPeriodStart(timestamp: Date, level: string): Date {
+    const date = new Date(timestamp);
+
+    switch (level) {
+      case 'minute':
+        date.setSeconds(0, 0);
+        break;
+      case 'hour':
+        date.setMinutes(0, 0, 0);
+        break;
+      case 'day':
+        date.setHours(0, 0, 0, 0);
+        break;
+      case 'week':
+        date.setDate(date.getDate() - date.getDay());
+        date.setHours(0, 0, 0, 0);
+        break;
+      case 'month':
+        date.setDate(1);
+        date.setHours(0, 0, 0, 0);
+        break;
+    }
+
+    return date;
+  }
+
+  private getPeriodEnd(timestamp: Date, level: string): Date {
+    const date = this.getPeriodStart(timestamp, level);
+
+    switch (level) {
+      case 'minute':
+        date.setMinutes(date.getMinutes() + 1);
+        break;
+      case 'hour':
+        date.setHours(date.getHours() + 1);
+        break;
+      case 'day':
+        date.setDate(date.getDate() + 1);
+        break;
+      case 'week':
+        date.setDate(date.getDate() + 7);
+        break;
+      case 'month':
+        date.setMonth(date.getMonth() + 1);
+        break;
+    }
+
+    return date;
+  }
+
+  async setupDataWarehouse(): Promise<DataWarehouseSchema> {
+    try {
+      const schema: DataWarehouseSchema = {
+        factTables: {
+          activities: 'fact_activities',
+          userSessions: 'fact_user_sessions',
+          performanceMetrics: 'fact_performance_metrics',
+          errorLogs: 'fact_error_logs',
+        },
+        dimensionTables: {
+          users: 'dim_users',
+          workspaces: 'dim_workspaces',
+          projects: 'dim_projects',
+          tasks: 'dim_tasks',
+          time: 'dim_time',
+        },
+        aggregationTables: {
+          hourlyMetrics: 'agg_hourly_metrics',
+          dailyMetrics: 'agg_daily_metrics',
+          weeklyMetrics: 'agg_weekly_metrics',
+          monthlyMetrics: 'agg_monthly_metrics',
+        },
+      };
+
+      // Create data warehouse tables
+      await this.createDataWarehouseTables(schema);
+
+      this.logger.info('Data warehouse setup completed', { schema });
+
+      return schema;
+    } catch (error) {
+      this.logger.error('Failed to setup data warehouse', {
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  private async createDataWarehouseTables(
+    schema: DataWarehouseSchema
+  ): Promise<void> {
+    // Implementation for creating data warehouse tables
+    // This would depend on the specific database/warehouse solution
+  }
+
+  async implementDataRetentionPolicy(): Promise<void> {
+    try {
+      const retentionDate = new Date();
+      retentionDate.setDate(
+        retentionDate.getDate() -
+          this.dataProcessingOptions.retentionPeriodDays!
+      );
+
+      // Archive old data before deletion
+      await this.archiveOldData(retentionDate);
+
+      // Delete old data
+      const deletedCount = await this.cleanupOldActivities(
+        this.dataProcessingOptions.retentionPeriodDays!
+      );
+
+      this.logger.info('Data retention policy executed', {
+        retentionDate,
+        deletedCount,
+        retentionPeriodDays: this.dataProcessingOptions.retentionPeriodDays,
+      });
+    } catch (error) {
+      this.logger.error('Failed to implement data retention policy', {
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  private async archiveOldData(cutoffDate: Date): Promise<void> {
+    // Implementation for archiving old data to cold storage
+    // Could use AWS S3, Google Cloud Storage, etc.
   }
 
   async trackActivity(
@@ -93,6 +626,16 @@ export class ActivityTrackingService extends BaseService {
         );
       }
 
+      // Enrich metadata with processing information
+      const enrichedMetadata = {
+        ...request.metadata,
+        processingTimestamp: new Date(),
+        processingMode: this.dataProcessingOptions.enableRealTimeProcessing
+          ? 'realtime'
+          : 'batch',
+        version: '1.0',
+      };
+
       // Create activity entity
       const activity = ActivityTrackingEntity.create({
         userId: request.userId,
@@ -102,7 +645,7 @@ export class ActivityTrackingService extends BaseService {
         type: request.type,
         action: request.action,
         description: request.description,
-        metadata: request.metadata || {},
+        metadata: enrichedMetadata,
         context: request.context || {},
         ipAddress: request.ipAddress,
         userAgent: request.userAgent,
@@ -110,8 +653,21 @@ export class ActivityTrackingService extends BaseService {
         duration: request.duration,
       });
 
-      // Save to repository
-      const savedActivity = await this.activityRepository.create(activity);
+      let savedActivity: ActivityTrackingEntity;
+
+      if (this.dataProcessingOptions.enableRealTimeProcessing) {
+        // Process immediately for real-time
+        savedActivity = await this.activityRepository.create(activity);
+
+        // Emit event for real-time processing
+        this.eventEmitter.emit('activity:tracked', savedActivity);
+      } else {
+        // Add to batch processing queue
+        this.processingQueue.push(request);
+
+        // Return the activity entity (not yet persisted)
+        savedActivity = activity;
+      }
 
       // Log the tracking event
       this.logger.info('Activity tracked successfully', {
@@ -119,6 +675,9 @@ export class ActivityTrackingService extends BaseService {
         userId: request.userId,
         type: request.type,
         action: request.action,
+        processingMode: this.dataProcessingOptions.enableRealTimeProcessing
+          ? 'realtime'
+          : 'batch',
       });
 
       return savedActivity;
