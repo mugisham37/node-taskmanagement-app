@@ -4,10 +4,9 @@ import { workspaceRoutes } from './workspace-routes';
 import { projectRoutes } from './project-routes';
 import { taskRoutes } from './task-routes';
 import { healthRoutes } from './health-routes';
+import { presenceRoutes } from './presence-routes';
 
-export async function registerRoutes(
-  fastify: FastifyInstance
-): Promise<void> {
+export async function registerRoutes(fastify: FastifyInstance): Promise<void> {
   // Register health routes (no authentication required)
   await fastify.register(healthRoutes, { prefix: '/health' });
 
@@ -22,4 +21,7 @@ export async function registerRoutes(
 
   // Register task routes (authentication required)
   await fastify.register(taskRoutes, { prefix: '/tasks' });
+
+  // Register presence routes (authentication required)
+  await fastify.register(presenceRoutes, { prefix: '/presence' });
 }

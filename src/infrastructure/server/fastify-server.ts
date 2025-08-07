@@ -11,6 +11,8 @@ import { logger } from '@/infrastructure/logging/logger';
 import { registerRoutes } from '@/presentation/routes';
 import { errorHandler } from '@/presentation/middleware/error-handler';
 import authenticationMiddleware from '@/presentation/middleware/authentication';
+import { WebSocketServer } from '@/infrastructure/websocket';
+import { webSocketBroadcastService } from '@/application/services/websocket.service';
 
 export async function createServer(): Promise<FastifyInstance> {
   const server = Fastify({
@@ -51,6 +53,20 @@ export async function createServer(): Promise<FastifyInstance> {
 
   // Register WebSocket support
   await server.register(websocket);
+
+  // Initialize and register WebSocket server
+  const wsServer = new WebSocketServer({
+    heartbeatInterval: 30000,
+    connectionTimeout: 60000,
+    maxConnections: 10000,
+    enableCompression: true,
+    enableMetrics: true,
+  });
+
+  await wsServer.register(server);
+
+  // Initialize WebSocket broadcast service
+  webSocketBroadcastService.initialize(wsServer);
 
   // Register Swagger documentation (only in development)
   if (config.features.apiDocs && config.app.isDevelopment) {

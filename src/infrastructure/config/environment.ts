@@ -6,7 +6,9 @@ dotenv.config();
 
 const environmentSchema = z.object({
   // Application
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  NODE_ENV: z
+    .enum(['development', 'production', 'test'])
+    .default('development'),
   PORT: z.string().transform(Number).default('3000'),
   HOST: z.string().default('0.0.0.0'),
 
@@ -20,7 +22,9 @@ const environmentSchema = z.object({
 
   // JWT
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
-  JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
+  JWT_REFRESH_SECRET: z
+    .string()
+    .min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
   JWT_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
 
@@ -78,7 +82,9 @@ const environmentSchema = z.object({
 
   // Security
   BCRYPT_ROUNDS: z.string().transform(Number).default('12'),
-  SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
+  SESSION_SECRET: z
+    .string()
+    .min(32, 'SESSION_SECRET must be at least 32 characters'),
   CSRF_SECRET: z.string().min(32, 'CSRF_SECRET must be at least 32 characters'),
 
   // Feature Flags
@@ -92,7 +98,9 @@ const environmentSchema = z.object({
   GOOGLE_CALENDAR_ENABLED: z.string().transform(Boolean).default('true'),
 
   // Webhooks
-  WEBHOOK_SECRET: z.string().min(32, 'WEBHOOK_SECRET must be at least 32 characters'),
+  WEBHOOK_SECRET: z
+    .string()
+    .min(32, 'WEBHOOK_SECRET must be at least 32 characters'),
 
   // Background Jobs
   JOB_QUEUE_REDIS_URL: z.string().default('redis://localhost:6379/1'),
@@ -110,8 +118,12 @@ const parseEnvironment = (): Environment => {
     return environmentSchema.parse(process.env);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const missingVars = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
-      throw new Error(`Environment validation failed:\n${missingVars.join('\n')}`);
+      const missingVars = error.errors.map(
+        err => `${err.path.join('.')}: ${err.message}`
+      );
+      throw new Error(
+        `Environment validation failed:\n${missingVars.join('\n')}`
+      );
     }
     throw error;
   }
@@ -137,6 +149,11 @@ export const config = {
   redis: {
     url: env.REDIS_URL,
     password: env.REDIS_PASSWORD,
+  },
+  auth: {
+    jwtSecret: env.JWT_SECRET,
+    jwtIssuer: 'unified-enterprise-platform',
+    jwtAudience: 'unified-enterprise-platform-users',
   },
   jwt: {
     secret: env.JWT_SECRET,
