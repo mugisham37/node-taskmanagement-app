@@ -48,6 +48,10 @@ export class Priority extends ValueObject<PriorityProps> {
     return this.props.value;
   }
 
+  get numericValue(): number {
+    return this.getNumericValue();
+  }
+
   public equals(other: Priority): boolean {
     return this.props.value === other.props.value;
   }

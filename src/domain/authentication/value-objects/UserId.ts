@@ -1,5 +1,5 @@
 import { ValueObject } from '../../shared/value-objects/ValueObject';
-import { createId } from '@paralleldrive/cuid2';
+import { randomUUID } from 'crypto';
 
 export interface UserIdProps {
   value: string;
@@ -10,24 +10,23 @@ export class UserId extends ValueObject<UserIdProps> {
     super(props);
   }
 
-  public static create(value: string): UserId {
-    if (!value || value.trim().length === 0) {
+  public static create(id: string): UserId {
+    if (!id || id.trim().length === 0) {
       throw new Error('UserId cannot be empty');
     }
 
-    if (!this.isValid(value)) {
-      throw new Error('Invalid UserId format');
+    // Validate UUID format (basic validation)
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id.trim())) {
+      throw new Error('UserId must be a valid UUID');
     }
 
-    return new UserId({ value: value.trim() });
+    return new UserId({ value: id.trim() });
   }
 
   public static generate(): UserId {
-    return new UserId({ value: createId() });
-  }
-
-  public static fromString(value: string): UserId {
-    return this.create(value);
+    return new UserId({ value: randomUUID() });
   }
 
   get value(): string {
@@ -42,8 +41,7 @@ export class UserId extends ValueObject<UserIdProps> {
     return this.props.value;
   }
 
-  private static isValid(value: string): boolean {
-    // Basic validation for CUID format
-    return /^[a-z0-9]{24,}$/.test(value);
+  public toShortString(): string {
+    return this.props.value.substring(0, 8);
   }
 }

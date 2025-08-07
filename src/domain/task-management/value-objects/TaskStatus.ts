@@ -73,6 +73,10 @@ export class TaskStatus extends ValueObject<TaskStatusProps> {
     return !this.isCompleted() && !this.isCancelled();
   }
 
+  public isInProgress(): boolean {
+    return this.props.value === TaskStatusEnum.IN_PROGRESS;
+  }
+
   public canTransitionTo(newStatus: TaskStatus): boolean {
     const transitions: Record<TaskStatusEnum, TaskStatusEnum[]> = {
       [TaskStatusEnum.TODO]: [

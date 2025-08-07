@@ -1,13 +1,13 @@
-import { BaseEntity } from '../../shared/entities/BaseEntity';
-import { Email } from '../value-objects/Email';
-import { UserId } from '../value-objects/UserId';
-import { WorkspaceId } from '../../task-management/value-objects/WorkspaceId';
+import { AggregateRoot } from '../../shared/base/aggregate-root';
 import { DomainEvent } from '../../shared/events/DomainEvent';
+import { UserId } from '../value-objects/UserId';
+import { Email } from '../../shared/value-objects/Email';
+import { Phone } from '../../shared/value-objects/Phone';
 
 export interface UserProps {
   id: UserId;
   email: Email;
-  emailVerified?: Date;
+  emailVerified: boolean;
   name?: string;
   image?: string;
   passwordHash?: string;
@@ -24,7 +24,7 @@ export interface UserProps {
   lastLoginIp?: string;
   riskScore: number;
 
-  // Task management extensions
+  // Profile fields
   timezone: string;
   workHours: {
     start: string;
@@ -47,20 +47,26 @@ export interface UserProps {
   avatarColor: string;
 
   // Workspace context
-  activeWorkspaceId?: WorkspaceId;
+  activeWorkspaceId?: string;
   workspacePreferences: Record<string, any>;
 
   createdAt: Date;
   updatedAt: Date;
+  deletedAt?: Date;
 }
 
-export class UserCreatedEvent extends DomainEvent {
+// Domain Events
+export class UserRegisteredEvent extends DomainEvent {
   constructor(
     public readonly userId: UserId,
     public readonly email: Email,
     public readonly name?: string
   ) {
-    super('UserCreated', { userId: userId.value, email: email.value, name });
+    super('UserRegistered', {
+      userId: userId.value,
+      email: email.value,
+      name,
+    });
   }
 }
 
@@ -69,16 +75,38 @@ export class UserEmailVerifiedEvent extends DomainEvent {
     public readonly userId: UserId,
     public readonly email: Email
   ) {
-    super('UserEmailVerified', { userId: userId.value, email: email.value });
+    super('UserEmailVerified', {
+      userId: userId.value,
+      email: email.value,
+    });
   }
 }
 
-export class UserMfaEnabledEvent extends DomainEvent {
+export class UserProfileUpdatedEvent extends DomainEvent {
   constructor(
     public readonly userId: UserId,
-    public readonly method: string
+    public readonly changes: Partial<UserProps>
   ) {
-    super('UserMfaEnabled', { userId: userId.value, method });
+    super('UserProfileUpdated', {
+      userId: userId.value,
+      changes,
+    });
+  }
+}
+
+export class UserMFAEnabledEvent extends DomainEvent {
+  constructor(public readonly userId: UserId) {
+    super('UserMFAEnabled', {
+      userId: userId.value,
+    });
+  }
+}
+
+export class UserMFADisabledEvent extends DomainEvent {
+  constructor(public readonly userId: UserId) {
+    super('UserMFADisabled', {
+      userId: userId.value,
+    });
   }
 }
 
@@ -86,27 +114,25 @@ export class UserLockedEvent extends DomainEvent {
   constructor(
     public readonly userId: UserId,
     public readonly reason: string,
-    public readonly lockedUntil: Date
+    public readonly lockedUntil?: Date
   ) {
-    super('UserLocked', { userId: userId.value, reason, lockedUntil });
-  }
-}
-
-export class UserWorkspaceContextChangedEvent extends DomainEvent {
-  constructor(
-    public readonly userId: UserId,
-    public readonly previousWorkspaceId?: WorkspaceId,
-    public readonly newWorkspaceId?: WorkspaceId
-  ) {
-    super('UserWorkspaceContextChanged', {
+    super('UserLocked', {
       userId: userId.value,
-      previousWorkspaceId: previousWorkspaceId?.value,
-      newWorkspaceId: newWorkspaceId?.value,
+      reason,
+      lockedUntil: lockedUntil?.toISOString(),
     });
   }
 }
 
-export class User extends BaseEntity<UserProps> {
+export class UserUnlockedEvent extends DomainEvent {
+  constructor(public readonly userId: UserId) {
+    super('UserUnlocked', {
+      userId: userId.value,
+    });
+  }
+}
+
+export class User extends AggregateRoot<UserProps> {
   private constructor(props: UserProps) {
     super(props);
   }
@@ -117,11 +143,40 @@ export class User extends BaseEntity<UserProps> {
     const user = new User({
       ...props,
       id: UserId.generate(),
+      emailVerified: false,
+      mfaEnabled: false,
+      backupCodes: [],
+      failedLoginAttempts: 0,
+      riskScore: 0,
+      timezone: props.timezone || 'UTC',
+      workHours: props.workHours || {
+        start: '09:00',
+        end: '17:00',
+        days: [1, 2, 3, 4, 5],
+      },
+      taskViewPreferences: props.taskViewPreferences || {
+        defaultView: 'list',
+        groupBy: 'status',
+      },
+      notificationSettings: props.notificationSettings || {
+        email: true,
+        push: true,
+        desktop: true,
+      },
+      productivitySettings: props.productivitySettings || {
+        pomodoroLength: 25,
+        breakLength: 5,
+      },
+      avatarColor: props.avatarColor || '#3B82F6',
+      workspacePreferences: props.workspacePreferences || {},
       createdAt: new Date(),
       updatedAt: new Date(),
     });
 
-    user.addDomainEvent(new UserCreatedEvent(user.id, user.email, user.name));
+    user.addDomainEvent(
+      new UserRegisteredEvent(user.id, user.email, user.name)
+    );
+
     return user;
   }
 
@@ -138,7 +193,7 @@ export class User extends BaseEntity<UserProps> {
     return this.props.email;
   }
 
-  get emailVerified(): Date | undefined {
+  get emailVerified(): boolean {
     return this.props.emailVerified;
   }
 
@@ -150,36 +205,20 @@ export class User extends BaseEntity<UserProps> {
     return this.props.image;
   }
 
-  get passwordHash(): string | undefined {
-    return this.props.passwordHash;
-  }
-
   get mfaEnabled(): boolean {
     return this.props.mfaEnabled;
-  }
-
-  get totpSecret(): string | undefined {
-    return this.props.totpSecret;
-  }
-
-  get backupCodes(): string[] {
-    return [...this.props.backupCodes];
   }
 
   get failedLoginAttempts(): number {
     return this.props.failedLoginAttempts;
   }
 
-  get lockedUntil(): Date | undefined {
-    return this.props.lockedUntil;
+  get isLocked(): boolean {
+    return !!this.props.lockedUntil && this.props.lockedUntil > new Date();
   }
 
   get lastLoginAt(): Date | undefined {
     return this.props.lastLoginAt;
-  }
-
-  get lastLoginIp(): string | undefined {
-    return this.props.lastLoginIp;
   }
 
   get riskScore(): number {
@@ -190,32 +229,8 @@ export class User extends BaseEntity<UserProps> {
     return this.props.timezone;
   }
 
-  get workHours(): UserProps['workHours'] {
-    return { ...this.props.workHours };
-  }
-
-  get taskViewPreferences(): UserProps['taskViewPreferences'] {
-    return { ...this.props.taskViewPreferences };
-  }
-
-  get notificationSettings(): UserProps['notificationSettings'] {
-    return { ...this.props.notificationSettings };
-  }
-
-  get productivitySettings(): UserProps['productivitySettings'] {
-    return { ...this.props.productivitySettings };
-  }
-
-  get avatarColor(): string {
-    return this.props.avatarColor;
-  }
-
-  get activeWorkspaceId(): WorkspaceId | undefined {
+  get activeWorkspaceId(): string | undefined {
     return this.props.activeWorkspaceId;
-  }
-
-  get workspacePreferences(): Record<string, any> {
-    return { ...this.props.workspacePreferences };
   }
 
   get createdAt(): Date {
@@ -226,21 +241,46 @@ export class User extends BaseEntity<UserProps> {
     return this.props.updatedAt;
   }
 
+  get isDeleted(): boolean {
+    return !!this.props.deletedAt;
+  }
+
   // Business methods
-  public verifyEmail(): void {
-    if (this.props.emailVerified) {
-      throw new Error('Email is already verified');
+  public updateProfile(updates: {
+    name?: string;
+    image?: string;
+    timezone?: string;
+  }): void {
+    if (updates.name !== undefined) {
+      this.props.name = updates.name;
     }
 
-    this.props.emailVerified = new Date();
+    if (updates.image !== undefined) {
+      this.props.image = updates.image;
+    }
+
+    if (updates.timezone !== undefined) {
+      this.props.timezone = updates.timezone;
+    }
+
+    this.props.updatedAt = new Date();
+    this.addDomainEvent(new UserProfileUpdatedEvent(this.id, updates));
+  }
+
+  public verifyEmail(): void {
+    if (this.props.emailVerified) {
+      return; // Already verified
+    }
+
+    this.props.emailVerified = true;
     this.props.updatedAt = new Date();
 
     this.addDomainEvent(new UserEmailVerifiedEvent(this.id, this.email));
   }
 
-  public enableMfa(totpSecret: string, backupCodes: string[]): void {
+  public enableMFA(totpSecret: string, backupCodes: string[]): void {
     if (this.props.mfaEnabled) {
-      throw new Error('MFA is already enabled');
+      throw new Error('MFA is already enabled for this user');
     }
 
     this.props.mfaEnabled = true;
@@ -248,109 +288,77 @@ export class User extends BaseEntity<UserProps> {
     this.props.backupCodes = [...backupCodes];
     this.props.updatedAt = new Date();
 
-    this.addDomainEvent(new UserMfaEnabledEvent(this.id, 'TOTP'));
+    this.addDomainEvent(new UserMFAEnabledEvent(this.id));
   }
 
-  public disableMfa(): void {
+  public disableMFA(): void {
     if (!this.props.mfaEnabled) {
-      throw new Error('MFA is not enabled');
+      throw new Error('MFA is not enabled for this user');
     }
 
     this.props.mfaEnabled = false;
     this.props.totpSecret = undefined;
     this.props.backupCodes = [];
     this.props.updatedAt = new Date();
+
+    this.addDomainEvent(new UserMFADisabledEvent(this.id));
   }
 
   public recordFailedLogin(ipAddress?: string): void {
-    this.props.failedLoginAttempts += 1;
+    this.props.failedLoginAttempts++;
     this.props.lastLoginIp = ipAddress;
     this.props.updatedAt = new Date();
 
-    // Lock user after 5 failed attempts
+    // Auto-lock after 5 failed attempts
     if (this.props.failedLoginAttempts >= 5) {
-      this.lockAccount('Too many failed login attempts');
+      this.lock('Too many failed login attempts', 30); // 30 minutes
     }
   }
 
   public recordSuccessfulLogin(ipAddress?: string): void {
     this.props.failedLoginAttempts = 0;
-    this.props.lockedUntil = undefined;
     this.props.lastLoginAt = new Date();
     this.props.lastLoginIp = ipAddress;
-    this.props.updatedAt = new Date();
-  }
-
-  public lockAccount(reason: string, duration: number = 30 * 60 * 1000): void {
-    const lockedUntil = new Date(Date.now() + duration);
-    this.props.lockedUntil = lockedUntil;
-    this.props.updatedAt = new Date();
-
-    this.addDomainEvent(new UserLockedEvent(this.id, reason, lockedUntil));
-  }
-
-  public unlockAccount(): void {
     this.props.lockedUntil = undefined;
-    this.props.failedLoginAttempts = 0;
     this.props.updatedAt = new Date();
   }
 
-  public isLocked(): boolean {
-    return this.props.lockedUntil ? this.props.lockedUntil > new Date() : false;
-  }
-
-  public updateRiskScore(score: number): void {
-    if (score < 0 || score > 1) {
-      throw new Error('Risk score must be between 0 and 1');
+  public lock(reason: string, durationMinutes?: number): void {
+    if (durationMinutes) {
+      const lockUntil = new Date();
+      lockUntil.setMinutes(lockUntil.getMinutes() + durationMinutes);
+      this.props.lockedUntil = lockUntil;
+    } else {
+      // Permanent lock
+      this.props.lockedUntil = new Date(
+        Date.now() + 100 * 365 * 24 * 60 * 60 * 1000
+      ); // 100 years
     }
 
-    this.props.riskScore = score;
     this.props.updatedAt = new Date();
-  }
-
-  public switchWorkspaceContext(workspaceId?: WorkspaceId): void {
-    const previousWorkspaceId = this.props.activeWorkspaceId;
-    this.props.activeWorkspaceId = workspaceId;
-    this.props.updatedAt = new Date();
-
     this.addDomainEvent(
-      new UserWorkspaceContextChangedEvent(
-        this.id,
-        previousWorkspaceId,
-        workspaceId
-      )
+      new UserLockedEvent(this.id, reason, this.props.lockedUntil)
     );
   }
 
-  public updateProfile(updates: {
-    name?: string;
-    image?: string;
-    timezone?: string;
-    avatarColor?: string;
-  }): void {
-    if (updates.name !== undefined) {
-      this.props.name = updates.name;
-    }
-    if (updates.image !== undefined) {
-      this.props.image = updates.image;
-    }
-    if (updates.timezone !== undefined) {
-      this.props.timezone = updates.timezone;
-    }
-    if (updates.avatarColor !== undefined) {
-      this.props.avatarColor = updates.avatarColor;
+  public unlock(): void {
+    if (!this.isLocked) {
+      return; // Not locked
     }
 
+    this.props.lockedUntil = undefined;
+    this.props.failedLoginAttempts = 0;
     this.props.updatedAt = new Date();
+
+    this.addDomainEvent(new UserUnlockedEvent(this.id));
   }
 
-  public updateTaskViewPreferences(
-    preferences: Partial<UserProps['taskViewPreferences']>
-  ): void {
-    this.props.taskViewPreferences = {
-      ...this.props.taskViewPreferences,
-      ...preferences,
-    };
+  public updateRiskScore(score: number): void {
+    if (score < 0 || score > 100) {
+      throw new Error('Risk score must be between 0 and 100');
+    }
+
+    this.props.riskScore = score;
     this.props.updatedAt = new Date();
   }
 
@@ -362,16 +370,12 @@ export class User extends BaseEntity<UserProps> {
       ...settings,
     };
     this.props.updatedAt = new Date();
-  }
 
-  public updateProductivitySettings(
-    settings: Partial<UserProps['productivitySettings']>
-  ): void {
-    this.props.productivitySettings = {
-      ...this.props.productivitySettings,
-      ...settings,
-    };
-    this.props.updatedAt = new Date();
+    this.addDomainEvent(
+      new UserProfileUpdatedEvent(this.id, {
+        notificationSettings: this.props.notificationSettings,
+      })
+    );
   }
 
   public updateWorkHours(workHours: Partial<UserProps['workHours']>): void {
@@ -380,34 +384,91 @@ export class User extends BaseEntity<UserProps> {
       ...workHours,
     };
     this.props.updatedAt = new Date();
+
+    this.addDomainEvent(
+      new UserProfileUpdatedEvent(this.id, { workHours: this.props.workHours })
+    );
+  }
+
+  public setActiveWorkspace(workspaceId: string): void {
+    this.props.activeWorkspaceId = workspaceId;
+    this.props.updatedAt = new Date();
   }
 
   public updateWorkspacePreferences(
-    workspaceId: WorkspaceId,
+    workspaceId: string,
     preferences: Record<string, any>
   ): void {
-    this.props.workspacePreferences = {
-      ...this.props.workspacePreferences,
-      [workspaceId.value]: preferences,
+    this.props.workspacePreferences[workspaceId] = {
+      ...this.props.workspacePreferences[workspaceId],
+      ...preferences,
     };
     this.props.updatedAt = new Date();
   }
 
-  public getWorkspacePreferences(
-    workspaceId: WorkspaceId
-  ): Record<string, any> {
-    return this.props.workspacePreferences[workspaceId.value] || {};
+  public delete(): void {
+    if (this.props.deletedAt) {
+      throw new Error('User is already deleted');
+    }
+
+    this.props.deletedAt = new Date();
+    this.props.updatedAt = new Date();
   }
 
-  public hasPassword(): boolean {
-    return !!this.props.passwordHash;
+  // Query methods
+  public isInWorkingHours(date: Date = new Date()): boolean {
+    const dayOfWeek = date.getDay();
+    if (!this.props.workHours.days.includes(dayOfWeek)) {
+      return false;
+    }
+
+    const currentTime = date.toTimeString().substring(0, 5); // HH:MM format
+    return (
+      currentTime >= this.props.workHours.start &&
+      currentTime <= this.props.workHours.end
+    );
   }
 
-  public isEmailVerified(): boolean {
-    return !!this.props.emailVerified;
+  public hasHighRiskScore(): boolean {
+    return this.props.riskScore >= 70;
   }
 
-  public canLogin(): boolean {
-    return !this.isLocked() && this.isEmailVerified();
+  public isNewUser(daysThreshold: number = 7): boolean {
+    const daysSinceCreation =
+      (Date.now() - this.props.createdAt.getTime()) / (1000 * 60 * 60 * 24);
+    return daysSinceCreation <= daysThreshold;
+  }
+
+  public isActive(daysThreshold: number = 30): boolean {
+    if (!this.props.lastLoginAt) return false;
+    const daysSinceLastLogin =
+      (Date.now() - this.props.lastLoginAt.getTime()) / (1000 * 60 * 60 * 24);
+    return daysSinceLastLogin <= daysThreshold;
+  }
+
+  // Aggregate root implementation
+  protected validate(): void {
+    if (!this.props.email) {
+      throw new Error('User email is required');
+    }
+
+    if (this.props.riskScore < 0 || this.props.riskScore > 100) {
+      throw new Error('Risk score must be between 0 and 100');
+    }
+
+    if (this.props.failedLoginAttempts < 0) {
+      throw new Error('Failed login attempts cannot be negative');
+    }
+  }
+
+  protected applyBusinessRules(): void {
+    // Auto-verify email for certain domains (if configured)
+    // Auto-enable MFA for high-risk users
+    if (this.props.riskScore >= 80 && !this.props.mfaEnabled) {
+      // This would trigger a recommendation to enable MFA
+    }
+
+    // Update activity timestamp
+    this.props.updatedAt = new Date();
   }
 }

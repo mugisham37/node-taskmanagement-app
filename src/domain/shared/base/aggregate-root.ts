@@ -3,7 +3,6 @@ import { DomainEvent } from '../events/DomainEvent';
 
 export abstract class AggregateRoot<T> extends BaseEntity<T> {
   private _version: number = 0;
-  private _domainEvents: DomainEvent[] = [];
 
   constructor(props: T) {
     super(props);
@@ -17,21 +16,9 @@ export abstract class AggregateRoot<T> extends BaseEntity<T> {
     this._version++;
   }
 
-  protected addDomainEvent(event: DomainEvent): void {
-    this._domainEvents.push(event);
+  protected override addDomainEvent(event: DomainEvent): void {
+    super.addDomainEvent(event);
     this.incrementVersion();
-  }
-
-  public getDomainEvents(): DomainEvent[] {
-    return [...this._domainEvents];
-  }
-
-  public clearDomainEvents(): void {
-    this._domainEvents = [];
-  }
-
-  public hasDomainEvents(): boolean {
-    return this._domainEvents.length > 0;
   }
 
   public markEventsAsCommitted(): void {
