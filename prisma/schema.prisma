@@ -89,6 +89,12 @@ model User {
     // Webhooks
     webhooks Webhook[]
 
+    // Search relations
+    savedSearches    SavedSearch[]
+    savedSearchUsage SavedSearchUsage[]
+    searchAnalytics  SearchAnalytics[]
+    searchHistory    SearchHistory[]
+
     @@map("users")
 }
 
@@ -218,6 +224,13 @@ model Workspace {
     // Webhooks
     webhooks          Webhook[]
     webhookDeliveries WebhookDelivery[]
+
+    // Search relations
+    searchIndexes   SearchIndex[]
+    savedSearches   SavedSearch[]
+    searchAnalytics SearchAnalytics[]
+    searchPresets   SearchPreset[]
+    searchHistory   SearchHistory[]
 
     @@map("workspaces")
 }
@@ -1039,4 +1052,145 @@ model File {
 
     // Search index
     searchIndex FileIndex?
+}
+
+// Search and filtering models
+model SearchIndex {
+    id           String   @id @default(uuid()) @db.Uuid
+    entityType   String   @map("entity_type") @db.VarChar(50)
+    entityId     String   @map("entity_id") @db.Uuid
+    workspaceId  String   @map("workspace_id") @db.Uuid
+    title        String   @db.Text
+    content      String   @db.Text
+    metadata     Json     @default("{}")
+    searchVector String?  @map("search_vector") @db.Text
+    tags         String[] @default([])
+    permissions  String[] @default([])
+    createdAt    DateTime @default(now()) @map("created_at")
+    updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+    // Relations
+    workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+    @@unique([entityType, entityId])
+    @@index([workspaceId])
+    @@index([entityType])
+    @@index([tags])
+    @@index([permissions])
+    @@index([updatedAt(sort: Desc)])
+    @@map("search_index")
+}
+
+model SavedSearch {
+    id          String   @id @default(uuid()) @db.Uuid
+    userId      String   @map("user_id") @db.Uuid
+    workspaceId String   @map("workspace_id") @db.Uuid
+    name        String   @db.VarChar(200)
+    description String?  @db.Text
+    query       String   @db.Text
+    filters     Json     @default("{}")
+    isShared    Boolean  @default(false) @map("is_shared")
+    sharedWith  String[] @default([]) @map("shared_with") @db.Uuid
+    isDefault   Boolean  @default(false) @map("is_default")
+    sortBy      String   @default("relevance") @map("sort_by") @db.VarChar(50)
+    sortOrder   String   @default("desc") @map("sort_order") @db.VarChar(4)
+    createdAt   DateTime @default(now()) @map("created_at")
+    updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+    // Relations
+    user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+    workspace Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+    usage     SavedSearchUsage[]
+
+    @@unique([userId, workspaceId, name])
+    @@index([userId])
+    @@index([workspaceId])
+    @@index([isShared])
+    @@index([userId, workspaceId, isDefault])
+    @@index([updatedAt(sort: Desc)])
+    @@map("saved_search")
+}
+
+model SavedSearchUsage {
+    id            String   @id @default(uuid()) @db.Uuid
+    savedSearchId String   @map("saved_search_id") @db.Uuid
+    userId        String   @map("user_id") @db.Uuid
+    usedAt        DateTime @default(now()) @map("used_at")
+
+    // Relations
+    savedSearch SavedSearch @relation(fields: [savedSearchId], references: [id], onDelete: Cascade)
+    user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([savedSearchId])
+    @@index([userId])
+    @@index([usedAt(sort: Desc)])
+    @@map("saved_search_usage")
+}
+
+model SearchAnalytics {
+    id           String   @id @default(uuid()) @db.Uuid
+    workspaceId  String   @map("workspace_id") @db.Uuid
+    userId       String?  @map("user_id") @db.Uuid
+    query        String   @db.Text
+    entityTypes  String[] @default([]) @map("entity_types")
+    filters      Json     @default("{}")
+    resultCount  Int      @default(0) @map("result_count")
+    responseTime Int      @default(0) @map("response_time")
+    executedAt   DateTime @default(now()) @map("executed_at")
+
+    // Relations
+    workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+    user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+    @@index([workspaceId])
+    @@index([userId])
+    @@index([executedAt(sort: Desc)])
+    @@index([query])
+    @@index([entityTypes])
+    @@map("search_analytics")
+}
+
+model SearchPreset {
+    id          String   @id @default(uuid()) @db.Uuid
+    workspaceId String?  @map("workspace_id") @db.Uuid
+    name        String   @db.VarChar(200)
+    description String?  @db.Text
+    filters     Json     @default("{}")
+    sortBy      String   @default("relevance") @map("sort_by") @db.VarChar(50)
+    sortOrder   String   @default("desc") @map("sort_order") @db.VarChar(4)
+    entityTypes String[] @default([]) @map("entity_types")
+    isSystem    Boolean  @default(false) @map("is_system")
+    isActive    Boolean  @default(true) @map("is_active")
+    createdAt   DateTime @default(now()) @map("created_at")
+    updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+    // Relations
+    workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+    @@unique([workspaceId, name])
+    @@index([workspaceId])
+    @@index([isSystem])
+    @@index([isActive])
+    @@map("search_preset")
+}
+
+model SearchHistory {
+    id          String   @id @default(uuid()) @db.Uuid
+    userId      String   @map("user_id") @db.Uuid
+    workspaceId String   @map("workspace_id") @db.Uuid
+    query       String   @db.Text
+    filters     Json     @default("{}")
+    entityTypes String[] @default([]) @map("entity_types")
+    resultCount Int      @default(0) @map("result_count")
+    executedAt  DateTime @default(now()) @map("executed_at")
+
+    // Relations
+    user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+    @@index([userId])
+    @@index([workspaceId])
+    @@index([executedAt(sort: Desc)])
+    @@index([query])
+    @@map("search_history")
 }
