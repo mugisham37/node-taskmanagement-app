@@ -1,11 +1,19 @@
+import { bootstrap as iocBootstrap } from '@/infrastructure/ioc/bootstrap';
+import { ServiceLocator } from '@/infrastructure/ioc/service-locator';
 import { createServer } from '@/infrastructure/server/fastify-server';
 import { config } from '@/infrastructure/config/environment';
 import { logger } from '@/infrastructure/logging/logger';
 
 async function bootstrap(): Promise<void> {
   try {
+    // Initialize IoC container and services
+    logger.info('🔧 Initializing dependency injection container...');
+    const container = await iocBootstrap.initialize();
+    ServiceLocator.setContainer(container);
+
+    // Create and start server
     const server = await createServer();
-    
+
     const address = await server.listen({
       port: config.server.port,
       host: config.server.host,
@@ -19,8 +27,13 @@ async function bootstrap(): Promise<void> {
     // Graceful shutdown
     const gracefulShutdown = async (signal: string): Promise<void> => {
       logger.info(`📴 Received ${signal}, shutting down gracefully...`);
-      
+
       try {
+        // Shutdown IoC container first
+        await iocBootstrap.shutdown();
+        ServiceLocator.clear();
+
+        // Then close server
         await server.close();
         logger.info('✅ Server closed successfully');
         process.exit(0);
@@ -32,7 +45,6 @@ async function bootstrap(): Promise<void> {
 
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
     process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
   } catch (error) {
     logger.error('❌ Failed to start server:', error);
     process.exit(1);
@@ -46,12 +58,12 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', error => {
   logger.error('Uncaught Exception:', error);
   process.exit(1);
 });
 
-bootstrap().catch((error) => {
+bootstrap().catch(error => {
   logger.error('Bootstrap failed:', error);
   process.exit(1);
 });

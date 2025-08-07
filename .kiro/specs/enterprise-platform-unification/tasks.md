@@ -25,14 +25,14 @@
 
 ## Phase 2: Dependency Injection System Implementation
 
-- [ ] 4. IoC Container Setup
+- [x] 4. IoC Container Setup
   - Create comprehensive dependency injection container with lifecycle management
   - Implement service registration for all components (singleton, transient, scoped)
   - Create interface-to-implementation mapping system
   - Implement service composition and factory patterns
   - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-- [ ] 5. Service Registration and Bootstrap
+- [x] 5. Service Registration and Bootstrap
   - Register all domain services in the IoC container
   - Register all application services with proper dependencies
   - Register all infrastructure services with configuration injection
