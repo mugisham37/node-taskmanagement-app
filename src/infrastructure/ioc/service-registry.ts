@@ -57,6 +57,166 @@ export class ServiceRegistry implements IServiceRegistry {
   }
 
   registerApplicationServices(container: IContainer): void {
+    // CQRS Infrastructure
+    this.registerService(
+      container,
+      'ICommandBus',
+      require('@/application/cqrs/command-bus').CommandBus,
+      ServiceLifetime.SINGLETON
+    );
+    this.registerService(
+      container,
+      'IQueryBus',
+      require('@/application/cqrs/query-bus').QueryBus,
+      ServiceLifetime.SINGLETON
+    );
+    this.registerService(
+      container,
+      'ICommandValidator',
+      require('@/application/cqrs/validation/command-validator')
+        .CommandValidator,
+      ServiceLifetime.SINGLETON
+    );
+    this.registerService(
+      container,
+      'IQueryValidator',
+      require('@/application/cqrs/validation/query-validator').QueryValidator,
+      ServiceLifetime.SINGLETON
+    );
+
+    // Command Handlers
+    this.registerService(
+      container,
+      'CreateTaskCommandHandler',
+      require('@/application/cqrs/handlers/task-command-handlers')
+        .CreateTaskCommandHandler,
+      ServiceLifetime.TRANSIENT
+    );
+    this.registerService(
+      container,
+      'UpdateTaskCommandHandler',
+      require('@/application/cqrs/handlers/task-command-handlers')
+        .UpdateTaskCommandHandler,
+      ServiceLifetime.TRANSIENT
+    );
+    this.registerService(
+      container,
+      'DeleteTaskCommandHandler',
+      require('@/application/cqrs/handlers/task-command-handlers')
+        .DeleteTaskCommandHandler,
+      ServiceLifetime.TRANSIENT
+    );
+    this.registerService(
+      container,
+      'AssignTaskCommandHandler',
+      require('@/application/cqrs/handlers/task-command-handlers')
+        .AssignTaskCommandHandler,
+      ServiceLifetime.TRANSIENT
+    );
+    this.registerService(
+      container,
+      'CompleteTaskCommandHandler',
+      require('@/application/cqrs/handlers/task-command-handlers')
+        .CompleteTaskCommandHandler,
+      ServiceLifetime.TRANSIENT
+    );
+    this.registerService(
+      container,
+      'BulkUpdateTasksCommandHandler',
+      require('@/application/cqrs/handlers/task-command-handlers')
+        .BulkUpdateTasksCommandHandler,
+      ServiceLifetime.TRANSIENT
+    );
+
+    // Query Handlers
+    this.registerService(
+      container,
+      'GetTaskByIdQueryHandler',
+      require('@/application/cqrs/handlers/task-query-handlers')
+        .GetTaskByIdQueryHandler,
+      ServiceLifetime.TRANSIENT
+    );
+    this.registerService(
+      container,
+      'GetTasksQueryHandler',
+      require('@/application/cqrs/handlers/task-query-handlers')
+        .GetTasksQueryHandler,
+      ServiceLifetime.TRANSIENT
+    );
+    this.registerService(
+      container,
+      'GetTasksByProjectQueryHandler',
+      require('@/application/cqrs/handlers/task-query-handlers')
+        .GetTasksByProjectQueryHandler,
+      ServiceLifetime.TRANSIENT
+    );
+    this.registerService(
+      container,
+      'GetTasksByAssigneeQueryHandler',
+      require('@/application/cqrs/handlers/task-query-handlers')
+        .GetTasksByAssigneeQueryHandler,
+      ServiceLifetime.TRANSIENT
+    );
+    this.registerService(
+      container,
+      'GetTaskStatsQueryHandler',
+      require('@/application/cqrs/handlers/task-query-handlers')
+        .GetTaskStatsQueryHandler,
+      ServiceLifetime.TRANSIENT
+    );
+    this.registerService(
+      container,
+      'SearchTasksQueryHandler',
+      require('@/application/cqrs/handlers/task-query-handlers')
+        .SearchTasksQueryHandler,
+      ServiceLifetime.TRANSIENT
+    );
+    this.registerService(
+      container,
+      'GetOverdueTasksQueryHandler',
+      require('@/application/cqrs/handlers/task-query-handlers')
+        .GetOverdueTasksQueryHandler,
+      ServiceLifetime.TRANSIENT
+    );
+    this.registerService(
+      container,
+      'GetTasksWithUpcomingDueDatesQueryHandler',
+      require('@/application/cqrs/handlers/task-query-handlers')
+        .GetTasksWithUpcomingDueDatesQueryHandler,
+      ServiceLifetime.TRANSIENT
+    );
+    this.registerService(
+      container,
+      'GetTaskHistoryQueryHandler',
+      require('@/application/cqrs/handlers/task-query-handlers')
+        .GetTaskHistoryQueryHandler,
+      ServiceLifetime.TRANSIENT
+    );
+    this.registerService(
+      container,
+      'GetTaskDependenciesQueryHandler',
+      require('@/application/cqrs/handlers/task-query-handlers')
+        .GetTaskDependenciesQueryHandler,
+      ServiceLifetime.TRANSIENT
+    );
+
+    // Use Cases
+    this.registerService(
+      container,
+      'TaskManagementUseCase',
+      require('@/application/use-cases/task-use-cases').TaskManagementUseCase,
+      ServiceLifetime.SCOPED
+    );
+
+    // Event Handler Registry
+    this.registerService(
+      container,
+      'EventHandlerRegistry',
+      require('@/application/events/event-handler-registry')
+        .EventHandlerRegistry,
+      ServiceLifetime.SINGLETON
+    );
+
     // Application Services
     this.registerService(
       container,
