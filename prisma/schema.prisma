@@ -847,3 +847,196 @@ enum WebhookDeliveryStatus {
     FAILED
     CANCELLED
 }
+
+// ============================================================================
+// FILE MANAGEMENT DOMAIN
+// ============================================================================
+
+model File {
+    id          String @id @default(cuid())
+    workspaceId String @map("workspace_id")
+    uploadedBy  String @map("uploaded_by")
+
+    // File information
+    originalName String @map("original_name")
+    storagePath  String @unique @map("storage_path")
+    mimeType     String @map("mime_type")
+    size         BigInt
+    checksum     String
+
+    // File metadata
+    metadata Json @default("{}")
+
+    // Access control
+    isPublic       Boolean @default(false) @map("is_public")
+    workspaceLevel Boolean @default(false) @map("workspace_level")
+    projectLevel   Boolean @default(false) @map("project_level")
+
+    // Versioning
+    currentVersion Int @default(1) @map("current_version")
+
+    // Security
+    virusScanStatus String    @default("pending") @map("virus_scan_status") // pending, clean, infected, error
+    virusScanDate   DateTime? @map("virus_scan_date")
+    encryptionKey   String?   @map("encryption_key")
+
+    // Processing status
+    thumbnailGenerated Boolean @default(false) @map("thumbnail_generated")
+    previewGenerated   Boolean @default(false) @map("preview_generated")
+    isCompressed       Boolean @default(false) @map("is_compressed")
+    compressionRatio   Float?  @map("compression_ratio")
+
+    // Lifecycle
+    isDeleted Boolean   @default(false) @map("is_deleted")
+    deletedAt DateTime? @map("deleted_at")
+    deletedBy String?   @map("deleted_by")
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    // Relations
+    workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+    uploader  User      @relation("FileUploader", fields: [uploadedBy], references: [id])
+    deleter   User?     @relation("FileDeleter", fields: [deletedBy], references: [id])
+
+    // File relationships
+    versions    FileVersion[]
+    attachments Attachment[]
+    permissions FilePermission[]
+
+    @@map("files")
+}
+
+model FileVersion {
+    id      String @id @default(cuid())
+    fileId  String @map("file_id")
+    version Int
+
+    // Version information
+    storagePath String @map("storage_path")
+    size        BigInt
+    checksum    String
+    uploadedBy  String @map("uploaded_by")
+
+    // Change tracking
+    changeDescription String? @map("change_description")
+    metadata          Json    @default("{}")
+
+    createdAt DateTime @default(now()) @map("created_at")
+
+    // Relations
+    file     File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+    uploader User @relation(fields: [uploadedBy], references: [id])
+
+    @@unique([fileId, version])
+    @@map("file_versions")
+}
+
+model Attachment {
+    id          String @id @default(cuid())
+    fileId      String @map("file_id")
+    workspaceId String @map("workspace_id")
+
+    // Attachment context
+    attachedTo   String @map("attached_to") // 'task', 'comment', 'project'
+    attachedToId String @map("attached_to_id")
+    attachedBy   String @map("attached_by")
+
+    // Attachment details
+    description String?
+    position    Int     @default(0)
+
+    // Lifecycle
+    isDeleted Boolean   @default(false) @map("is_deleted")
+    deletedAt DateTime? @map("deleted_at")
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    // Relations
+    file           File      @relation(fields: [fileId], references: [id], onDelete: Cascade)
+    workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+    attachedByUser User      @relation(fields: [attachedBy], references: [id])
+
+    @@map("attachments")
+}
+
+model FilePermission {
+    id     String @id @default(cuid())
+    fileId String @map("file_id")
+    userId String @map("user_id")
+
+    // Permissions
+    permissions String[] // 'read', 'write', 'delete', 'share'
+
+    // Inheritance
+    inheritFromParent Boolean @default(false) @map("inherit_from_parent")
+    parentType        String? @map("parent_type") // 'task', 'project', 'comment'
+    parentId          String? @map("parent_id")
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    // Relations
+    file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([fileId, userId])
+    @@map("file_permissions")
+}
+
+model FileIndex {
+    id     String @id @default(cuid())
+    fileId String @map("file_id")
+
+    // Search indexing
+    content  String? // Extracted text content
+    tags     String[] @default([])
+    keywords String[] @default([])
+    language String?
+
+    // OCR results
+    ocrText     String? @map("ocr_text")
+    ocrLanguage String? @map("ocr_language")
+
+    // Processing status
+    isIndexed Boolean   @default(false) @map("is_indexed")
+    indexedAt DateTime? @map("indexed_at")
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    // Relations
+    file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+    @@unique([fileId])
+    @@map("file_indexes")
+}
+
+// Add file relations to existing models
+model User {
+    // ... existing fields ...
+
+    // File relations
+    uploadedFiles   File[]           @relation("FileUploader")
+    deletedFiles    File[]           @relation("FileDeleter")
+    fileVersions    FileVersion[]
+    attachments     Attachment[]
+    filePermissions FilePermission[]
+}
+
+model Workspace {
+    // ... existing fields ...
+
+    // File relations
+    files       File[]
+    attachments Attachment[]
+}
+
+// Add file index relation
+model File {
+    // ... existing fields ...
+
+    // Search index
+    searchIndex FileIndex?
+}
