@@ -86,6 +86,9 @@ model User {
     // Time tracking
     timeEntries TimeEntry[]
 
+    // Webhooks
+    webhooks Webhook[]
+
     @@map("users")
 }
 
@@ -211,6 +214,10 @@ model Workspace {
 
     // Notifications
     notifications Notification[]
+
+    // Webhooks
+    webhooks          Webhook[]
+    webhookDeliveries WebhookDelivery[]
 
     @@map("workspaces")
 }
@@ -728,4 +735,115 @@ enum ActivityType {
     WORKSPACE_UPDATED
     TEAM_CREATED
     TEAM_UPDATED
+}
+
+// ============================================================================
+// WEBHOOK SYSTEM
+// ============================================================================
+
+model Webhook {
+    id          String        @id @default(cuid())
+    workspaceId String        @map("workspace_id")
+    userId      String        @map("user_id")
+    name        String
+    url         String
+    secret      String?
+    status      WebhookStatus @default(ACTIVE)
+    events      String[]
+
+    // HTTP Configuration
+    headers            Json    @default("{}")
+    httpMethod         String  @default("POST") @map("http_method")
+    contentType        String  @default("application/json") @map("content_type")
+    signatureHeader    String? @map("signature_header")
+    signatureAlgorithm String  @default("sha256") @map("signature_algorithm")
+
+    // Retry Configuration
+    timeout    Int @default(30000)
+    maxRetries Int @default(3) @map("max_retries")
+    retryDelay Int @default(1000) @map("retry_delay")
+
+    // Metadata and Statistics
+    metadata     Json @default("{}")
+    successCount Int  @default(0) @map("success_count")
+    failureCount Int  @default(0) @map("failure_count")
+
+    // Status tracking
+    lastDeliveryAt     DateTime? @map("last_delivery_at")
+    lastDeliveryStatus String?   @map("last_delivery_status")
+    lastError          String?   @map("last_error")
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    // Relations
+    workspace  Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+    user       User              @relation(fields: [userId], references: [id])
+    deliveries WebhookDelivery[]
+
+    @@map("webhooks")
+}
+
+model WebhookDelivery {
+    id          String @id @default(cuid())
+    webhookId   String @map("webhook_id")
+    workspaceId String @map("workspace_id")
+
+    // Event information
+    event   String
+    payload Json
+
+    // Delivery status
+    status          WebhookDeliveryStatus @default(PENDING)
+    httpStatusCode  Int?                  @map("http_status_code")
+    responseBody    String?               @map("response_body")
+    responseHeaders Json?                 @map("response_headers")
+    errorMessage    String?               @map("error_message")
+
+    // Retry management
+    attemptCount Int       @default(0) @map("attempt_count")
+    maxAttempts  Int       @default(3) @map("max_attempts")
+    nextRetryAt  DateTime? @map("next_retry_at")
+
+    // Performance tracking
+    deliveredAt DateTime? @map("delivered_at")
+    duration    Int? // Duration in milliseconds
+
+    // Metadata
+    metadata Json @default("{}")
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    // Relations
+    webhook   Webhook   @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+    workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+    @@map("webhook_deliveries")
+}
+
+// Add webhook relations to existing models
+model User {
+    // ... existing fields ...
+    webhooks Webhook[]
+}
+
+model Workspace {
+    // ... existing fields ...
+    webhooks          Webhook[]
+    webhookDeliveries WebhookDelivery[]
+}
+
+enum WebhookStatus {
+    ACTIVE
+    INACTIVE
+    SUSPENDED
+    FAILED
+}
+
+enum WebhookDeliveryStatus {
+    PENDING
+    DELIVERED
+    FAILED
+    CANCELLED
 }

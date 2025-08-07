@@ -1,58 +1,33 @@
-import winston from 'winston';
-import { config } from '@/infrastructure/config/environment';
-
-const logFormat = winston.format.combine(
-  winston.format.timestamp(),
-  winston.format.errors({ stack: true }),
-  config.logging.format === 'json'
-    ? winston.format.json()
-    : winston.format.simple()
-);
-
-export const logger = winston.createLogger({
-  level: config.logging.level,
-  format: logFormat,
-  defaultMeta: {
-    service: 'unified-enterprise-platform',
-    environment: config.app.environment,
-  },
-  transports: [
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple()
-      ),
-    }),
-  ],
-});
-
-// Add file transport in production
-if (config.app.isProduction) {
-  logger.add(
-    new winston.transports.File({
-      filename: 'logs/error.log',
-      level: 'error',
-    })
-  );
-  
-  logger.add(
-    new winston.transports.File({
-      filename: 'logs/combined.log',
-    })
-  );
+export interface LogContext {
+  [key: string]: any;
 }
 
-// Create child loggers for different domains
-export const createDomainLogger = (domain: string): winston.Logger => {
-  return logger.child({ domain });
-};
+export interface Logger {
+  debug(message: string, context?: LogContext): void;
+  info(message: string, context?: LogContext): void;
+  warn(message: string, context?: LogContext): void;
+  error(message: string, context?: LogContext): void;
+  fatal(message: string, context?: LogContext): void;
+}
 
-export const authLogger = createDomainLogger('authentication');
-export const taskLogger = createDomainLogger('task-management');
-export const calendarLogger = createDomainLogger('calendar');
-export const collaborationLogger = createDomainLogger('collaboration');
-export const notificationLogger = createDomainLogger('notification');
-export const analyticsLogger = createDomainLogger('analytics');
-export const auditLogger = createDomainLogger('audit');
-export const fileLogger = createDomainLogger('file-management');
-export const integrationLogger = createDomainLogger('integration');
+export class ConsoleLogger implements Logger {
+  debug(message: string, context?: LogContext): void {
+    console.debug(`[DEBUG] ${message}`, context ? JSON.stringify(context) : '');
+  }
+
+  info(message: string, context?: LogContext): void {
+    console.info(`[INFO] ${message}`, context ? JSON.stringify(context) : '');
+  }
+
+  warn(message: string, context?: LogContext): void {
+    console.warn(`[WARN] ${message}`, context ? JSON.stringify(context) : '');
+  }
+
+  error(message: string, context?: LogContext): void {
+    console.error(`[ERROR] ${message}`, context ? JSON.stringify(context) : '');
+  }
+
+  fatal(message: string, context?: LogContext): void {
+    console.error(`[FATAL] ${message}`, context ? JSON.stringify(context) : '');
+  }
+}

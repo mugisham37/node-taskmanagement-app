@@ -1,5 +1,5 @@
 import { ValueObject } from '../../shared/value-objects/ValueObject';
-import { cuid } from '@paralleldrive/cuid2';
+import { createId } from '@paralleldrive/cuid2';
 
 export interface UserIdProps {
   value: string;
@@ -23,7 +23,7 @@ export class UserId extends ValueObject<UserIdProps> {
   }
 
   public static generate(): UserId {
-    return new UserId({ value: cuid() });
+    return new UserId({ value: createId() });
   }
 
   public static fromString(value: string): UserId {

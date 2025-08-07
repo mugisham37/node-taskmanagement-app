@@ -5,6 +5,7 @@ import { projectRoutes } from './project-routes';
 import { taskRoutes } from './task-routes';
 import { healthRoutes } from './health-routes';
 import { presenceRoutes } from './presence-routes';
+import { webhookRoutes } from '../../routes/webhook.routes';
 
 export async function registerRoutes(fastify: FastifyInstance): Promise<void> {
   // Register health routes (no authentication required)
@@ -24,4 +25,7 @@ export async function registerRoutes(fastify: FastifyInstance): Promise<void> {
 
   // Register presence routes (authentication required)
   await fastify.register(presenceRoutes, { prefix: '/presence' });
+
+  // Register webhook routes (authentication required)
+  await fastify.register(webhookRoutes, { prefix: '/api/v1' });
 }

@@ -1,8 +1,9 @@
-import { scheduleTaskNotificationsJob } from "./task-notifications.job";
-import { scheduleRecurringTasksJob } from "./recurring-tasks.job";
-import { scheduleCalendarRemindersJob } from "./calendar-reminders.job";
-import config from "../config/environment";
-import logger from "../config/logger";
+import { scheduleTaskNotificationsJob } from './task-notifications.job';
+import { scheduleRecurringTasksJob } from './recurring-tasks.job';
+import { scheduleCalendarRemindersJob } from './calendar-reminders.job';
+import { WebhookDeliveryJobManager } from './webhook-delivery.job';
+import config from '../config/environment';
+import logger from '../config/logger';
 
 // Array to store job intervals for cleanup
 const jobIntervals: NodeJS.Timeout[] = [];
@@ -25,17 +26,17 @@ const jobStatuses: Map<string, JobStatus> = new Map();
  * Initialize and schedule all jobs
  */
 export function initializeJobs(): void {
-  if (config.enableJobs !== "true") {
-    logger.info("Job scheduling is disabled. Set ENABLE_JOBS=true to enable.", {
+  if (config.enableJobs !== 'true') {
+    logger.info('Job scheduling is disabled. Set ENABLE_JOBS=true to enable.', {
       enableJobs: config.enableJobs,
-      nodeEnv: config.nodeEnv
+      nodeEnv: config.nodeEnv,
     });
     return;
   }
 
-  logger.info("Initializing scheduled jobs...", {
+  logger.info('Initializing scheduled jobs...', {
     nodeEnv: config.nodeEnv,
-    jobIntervals: config.jobIntervals
+    jobIntervals: config.jobIntervals,
   });
 
   try {
@@ -44,14 +45,14 @@ export function initializeJobs(): void {
       config.jobIntervals.taskNotifications
     );
     jobIntervals.push(taskNotificationsInterval);
-    
+
     jobStatuses.set('task-notifications', {
       name: 'Task Notifications',
       isRunning: true,
       interval: config.jobIntervals.taskNotifications,
       runCount: 0,
       errorCount: 0,
-      nextRun: new Date(Date.now() + config.jobIntervals.taskNotifications)
+      nextRun: new Date(Date.now() + config.jobIntervals.taskNotifications),
     });
 
     // Schedule recurring tasks job
@@ -59,14 +60,14 @@ export function initializeJobs(): void {
       config.jobIntervals.recurringTasks
     );
     jobIntervals.push(recurringTasksInterval);
-    
+
     jobStatuses.set('recurring-tasks', {
       name: 'Recurring Tasks',
       isRunning: true,
       interval: config.jobIntervals.recurringTasks,
       runCount: 0,
       errorCount: 0,
-      nextRun: new Date(Date.now() + config.jobIntervals.recurringTasks)
+      nextRun: new Date(Date.now() + config.jobIntervals.recurringTasks),
     });
 
     // Schedule calendar reminders job
@@ -74,35 +75,34 @@ export function initializeJobs(): void {
       config.jobIntervals.calendarReminders
     );
     jobIntervals.push(calendarRemindersInterval);
-    
+
     jobStatuses.set('calendar-reminders', {
       name: 'Calendar Reminders',
       isRunning: true,
       interval: config.jobIntervals.calendarReminders,
       runCount: 0,
       errorCount: 0,
-      nextRun: new Date(Date.now() + config.jobIntervals.calendarReminders)
+      nextRun: new Date(Date.now() + config.jobIntervals.calendarReminders),
     });
 
-    logger.info("All jobs scheduled successfully", {
+    logger.info('All jobs scheduled successfully', {
       totalJobs: jobIntervals.length,
       jobs: Array.from(jobStatuses.keys()),
       intervals: {
         taskNotifications: config.jobIntervals.taskNotifications / 1000,
         recurringTasks: config.jobIntervals.recurringTasks / 1000,
-        calendarReminders: config.jobIntervals.calendarReminders / 1000
-      }
+        calendarReminders: config.jobIntervals.calendarReminders / 1000,
+      },
     });
 
     // Set up job monitoring
     setupJobMonitoring();
-
   } catch (error) {
-    logger.error("Error initializing jobs", {
+    logger.error('Error initializing jobs', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
     });
-    
+
     // Clean up any partially initialized jobs
     stopJobs();
     throw error;
@@ -113,9 +113,9 @@ export function initializeJobs(): void {
  * Stop all scheduled jobs
  */
 export function stopJobs(): void {
-  logger.info("Stopping all scheduled jobs...", {
+  logger.info('Stopping all scheduled jobs...', {
     activeJobs: jobIntervals.length,
-    jobNames: Array.from(jobStatuses.keys())
+    jobNames: Array.from(jobStatuses.keys()),
   });
 
   try {
@@ -126,7 +126,7 @@ export function stopJobs(): void {
         logger.debug(`Cleared job interval ${index}`);
       } catch (error) {
         logger.error(`Error clearing job interval ${index}`, {
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     });
@@ -140,14 +140,13 @@ export function stopJobs(): void {
       status.nextRun = undefined;
     });
 
-    logger.info("All jobs stopped successfully", {
-      stoppedJobs: Array.from(jobStatuses.keys())
+    logger.info('All jobs stopped successfully', {
+      stoppedJobs: Array.from(jobStatuses.keys()),
     });
-
   } catch (error) {
-    logger.error("Error stopping jobs", {
+    logger.error('Error stopping jobs', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
     });
   }
 }
@@ -159,9 +158,9 @@ export function getJobStatuses(): JobStatus[] {
   return Array.from(jobStatuses.values()).map(status => ({
     ...status,
     // Calculate next run time based on current time and interval
-    nextRun: status.isRunning 
+    nextRun: status.isRunning
       ? new Date(Date.now() + status.interval)
-      : undefined
+      : undefined,
   }));
 }
 
@@ -186,24 +185,30 @@ export function restartJob(jobName: string): boolean {
     logger.info(`Restarting job: ${jobName}`, {
       jobName,
       previousRunCount: status.runCount,
-      previousErrorCount: status.errorCount
+      previousErrorCount: status.errorCount,
     });
 
     // Stop the specific job (this is a simplified approach)
     // In a more sophisticated implementation, you'd track individual intervals
-    
+
     // Restart based on job type
     let newInterval: NodeJS.Timeout;
-    
+
     switch (jobName) {
       case 'task-notifications':
-        newInterval = scheduleTaskNotificationsJob(config.jobIntervals.taskNotifications);
+        newInterval = scheduleTaskNotificationsJob(
+          config.jobIntervals.taskNotifications
+        );
         break;
       case 'recurring-tasks':
-        newInterval = scheduleRecurringTasksJob(config.jobIntervals.recurringTasks);
+        newInterval = scheduleRecurringTasksJob(
+          config.jobIntervals.recurringTasks
+        );
         break;
       case 'calendar-reminders':
-        newInterval = scheduleCalendarRemindersJob(config.jobIntervals.calendarReminders);
+        newInterval = scheduleCalendarRemindersJob(
+          config.jobIntervals.calendarReminders
+        );
         break;
       default:
         logger.error(`Unknown job name for restart: ${jobName}`);
@@ -217,11 +222,10 @@ export function restartJob(jobName: string): boolean {
 
     logger.info(`Job ${jobName} restarted successfully`);
     return true;
-
   } catch (error) {
     logger.error(`Error restarting job ${jobName}`, {
       jobName,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
     return false;
   }
@@ -232,53 +236,56 @@ export function restartJob(jobName: string): boolean {
  */
 function setupJobMonitoring(): void {
   // Set up a monitoring interval to check job health
-  const monitoringInterval = setInterval(() => {
-    try {
-      const now = new Date();
-      let healthyJobs = 0;
-      let unhealthyJobs = 0;
+  const monitoringInterval = setInterval(
+    () => {
+      try {
+        const now = new Date();
+        let healthyJobs = 0;
+        let unhealthyJobs = 0;
 
-      jobStatuses.forEach((status, name) => {
-        if (status.isRunning) {
-          healthyJobs++;
-          
-          // Update next run time
-          status.nextRun = new Date(now.getTime() + status.interval);
-          
-          // Log job health periodically (every hour)
-          if (status.runCount > 0 && status.runCount % 12 === 0) { // Assuming 5-minute intervals
-            logger.debug(`Job health check: ${name}`, {
-              jobName: name,
-              runCount: status.runCount,
-              errorCount: status.errorCount,
-              errorRate: status.errorCount / status.runCount,
-              lastRun: status.lastRun,
-              nextRun: status.nextRun
-            });
+        jobStatuses.forEach((status, name) => {
+          if (status.isRunning) {
+            healthyJobs++;
+
+            // Update next run time
+            status.nextRun = new Date(now.getTime() + status.interval);
+
+            // Log job health periodically (every hour)
+            if (status.runCount > 0 && status.runCount % 12 === 0) {
+              // Assuming 5-minute intervals
+              logger.debug(`Job health check: ${name}`, {
+                jobName: name,
+                runCount: status.runCount,
+                errorCount: status.errorCount,
+                errorRate: status.errorCount / status.runCount,
+                lastRun: status.lastRun,
+                nextRun: status.nextRun,
+              });
+            }
+          } else {
+            unhealthyJobs++;
           }
-        } else {
-          unhealthyJobs++;
-        }
-      });
+        });
 
-      // Log overall job health every 30 minutes
-      const totalJobs = healthyJobs + unhealthyJobs;
-      if (totalJobs > 0) {
-        logger.debug("Job system health check", {
-          totalJobs,
-          healthyJobs,
-          unhealthyJobs,
-          healthPercentage: Math.round((healthyJobs / totalJobs) * 100),
-          timestamp: now.toISOString()
+        // Log overall job health every 30 minutes
+        const totalJobs = healthyJobs + unhealthyJobs;
+        if (totalJobs > 0) {
+          logger.debug('Job system health check', {
+            totalJobs,
+            healthyJobs,
+            unhealthyJobs,
+            healthPercentage: Math.round((healthyJobs / totalJobs) * 100),
+            timestamp: now.toISOString(),
+          });
+        }
+      } catch (error) {
+        logger.error('Error in job monitoring', {
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
-
-    } catch (error) {
-      logger.error("Error in job monitoring", {
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  }, 5 * 60 * 1000); // Run monitoring every 5 minutes
+    },
+    5 * 60 * 1000
+  ); // Run monitoring every 5 minutes
 
   // Store monitoring interval for cleanup
   jobIntervals.push(monitoringInterval);
@@ -287,23 +294,27 @@ function setupJobMonitoring(): void {
 /**
  * Update job status after execution
  */
-export function updateJobStatus(jobName: string, success: boolean, error?: string): void {
+export function updateJobStatus(
+  jobName: string,
+  success: boolean,
+  error?: string
+): void {
   const status = jobStatuses.get(jobName);
   if (status) {
     status.lastRun = new Date();
     status.runCount++;
-    
+
     if (!success) {
       status.errorCount++;
       status.lastError = error;
     }
-    
+
     logger.debug(`Updated job status: ${jobName}`, {
       jobName,
       success,
       runCount: status.runCount,
       errorCount: status.errorCount,
-      lastError: error
+      lastError: error,
     });
   }
 }
@@ -320,14 +331,14 @@ export function getJobMetrics(): {
   uptime: number;
 } {
   const statuses = Array.from(jobStatuses.values());
-  
+
   return {
     totalJobs: statuses.length,
     runningJobs: statuses.filter(s => s.isRunning).length,
     stoppedJobs: statuses.filter(s => !s.isRunning).length,
     totalRuns: statuses.reduce((sum, s) => sum + s.runCount, 0),
     totalErrors: statuses.reduce((sum, s) => sum + s.errorCount, 0),
-    uptime: process.uptime()
+    uptime: process.uptime(),
   };
 }
 
@@ -335,7 +346,7 @@ export function getJobMetrics(): {
 export {
   scheduleTaskNotificationsJob,
   scheduleRecurringTasksJob,
-  scheduleCalendarRemindersJob
+  scheduleCalendarRemindersJob,
 };
 
 // Export types
