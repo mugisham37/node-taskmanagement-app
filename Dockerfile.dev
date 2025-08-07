@@ -1,0 +1,19 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Generate Prisma client
+RUN npm run db:generate
+
+# Expose ports
+EXPOSE 3000 9090
+
+# Start development server
+CMD ["npm", "run", "dev"]

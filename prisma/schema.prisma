@@ -1,0 +1,731 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// AUTHENTICATION DOMAIN
+// ============================================================================
+
+model User {
+    id            String    @id @default(cuid())
+    email         String    @unique
+    emailVerified DateTime? @map("email_verified")
+    name          String?
+    image         String?
+    passwordHash  String?   @map("password_hash")
+    createdAt     DateTime  @default(now()) @map("created_at")
+    updatedAt     DateTime  @updatedAt @map("updated_at")
+
+    // MFA fields
+    mfaEnabled  Boolean  @default(false) @map("mfa_enabled")
+    totpSecret  String?  @map("totp_secret")
+    backupCodes String[] @map("backup_codes")
+
+    // Security fields
+    failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+    lockedUntil         DateTime? @map("locked_until")
+    lastLoginAt         DateTime? @map("last_login_at")
+    lastLoginIp         String?   @map("last_login_ip")
+    riskScore           Float     @default(0.0) @map("risk_score")
+
+    // Task management extensions
+    timezone             String @default("UTC")
+    workHours            Json   @default("{\"start\": \"09:00\", \"end\": \"17:00\", \"days\": [1,2,3,4,5]}")
+    taskViewPreferences  Json   @default("{\"defaultView\": \"list\", \"groupBy\": \"status\"}") @map("task_view_preferences")
+    notificationSettings Json   @default("{\"email\": true, \"push\": true, \"desktop\": true}") @map("notification_settings")
+    productivitySettings Json   @default("{\"pomodoroLength\": 25, \"breakLength\": 5}") @map("productivity_settings")
+    avatarColor          String @default("#3B82F6") @map("avatar_color")
+
+    // Workspace context
+    activeWorkspaceId    String? @map("active_workspace_id")
+    workspacePreferences Json    @default("{}") @map("workspace_preferences")
+
+    // Relations
+    activeWorkspace     Workspace?           @relation("UserActiveWorkspace", fields: [activeWorkspaceId], references: [id])
+    accounts            Account[]
+    sessions            Session[]
+    devices             Device[]
+    webauthnCredentials WebAuthnCredential[]
+
+    // Workspace relations
+    ownedWorkspaces      Workspace[]       @relation("WorkspaceOwner")
+    workspaceMemberships WorkspaceMember[] @relation("WorkspaceMemberUser")
+    invitedMemberships   WorkspaceMember[] @relation("WorkspaceMemberInviter")
+
+    // Project relations
+    ownedProjects      Project[]       @relation("ProjectOwner")
+    projectMemberships ProjectMember[]
+    archivedProjects   Project[]       @relation("ProjectArchiver")
+
+    // Task relations
+    createdTasks  Task[] @relation("TaskCreator")
+    assignedTasks Task[] @relation("TaskAssignee")
+    reportedTasks Task[] @relation("TaskReporter")
+
+    // Team relations
+    teamMemberships TeamMember[]
+
+    // Activity and audit
+    activities Activity[]
+    auditLogs  AuditLog[]
+
+    // Notifications
+    notifications Notification[]
+
+    // Comments
+    comments Comment[]
+
+    // Time tracking
+    timeEntries TimeEntry[]
+
+    @@map("users")
+}
+
+model Account {
+    id                String   @id @default(cuid())
+    userId            String   @map("user_id")
+    type              String
+    provider          String
+    providerAccountId String   @map("provider_account_id")
+    refreshToken      String?  @map("refresh_token") @db.Text
+    accessToken       String?  @map("access_token") @db.Text
+    expiresAt         Int?     @map("expires_at")
+    tokenType         String?  @map("token_type")
+    scope             String?
+    idToken           String?  @map("id_token") @db.Text
+    sessionState      String?  @map("session_state")
+    createdAt         DateTime @default(now()) @map("created_at")
+    updatedAt         DateTime @updatedAt @map("updated_at")
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([provider, providerAccountId])
+    @@map("accounts")
+}
+
+model Session {
+    id           String   @id @default(cuid())
+    sessionToken String   @unique @map("session_token")
+    userId       String   @map("user_id")
+    expires      DateTime
+    workspaceId  String?  @map("workspace_id")
+    deviceId     String?  @map("device_id")
+    ipAddress    String?  @map("ip_address")
+    userAgent    String?  @map("user_agent")
+    createdAt    DateTime @default(now()) @map("created_at")
+    updatedAt    DateTime @updatedAt @map("updated_at")
+
+    user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    workspace Workspace? @relation(fields: [workspaceId], references: [id])
+    device    Device?    @relation(fields: [deviceId], references: [id])
+
+    @@map("sessions")
+}
+
+model Device {
+    id          String    @id @default(cuid())
+    userId      String    @map("user_id")
+    name        String
+    type        String // mobile, desktop, tablet
+    fingerprint String    @unique
+    trusted     Boolean   @default(false)
+    lastUsedAt  DateTime? @map("last_used_at")
+    createdAt   DateTime  @default(now()) @map("created_at")
+    updatedAt   DateTime  @updatedAt @map("updated_at")
+
+    user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    sessions Session[]
+
+    @@map("devices")
+}
+
+model WebAuthnCredential {
+    id           String    @id @default(cuid())
+    userId       String    @map("user_id")
+    credentialId String    @unique @map("credential_id")
+    publicKey    Bytes     @map("public_key")
+    counter      BigInt    @default(0)
+    deviceType   String    @map("device_type")
+    backedUp     Boolean   @default(false) @map("backed_up")
+    transports   String[]  @default([])
+    name         String?
+    createdAt    DateTime  @default(now()) @map("created_at")
+    lastUsedAt   DateTime? @map("last_used_at")
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("webauthn_credentials")
+}
+
+// ============================================================================
+// WORKSPACE AND MULTI-TENANCY
+// ============================================================================
+
+model Workspace {
+    id          String  @id @default(cuid())
+    name        String
+    slug        String  @unique
+    description String?
+
+    // Ownership and billing
+    ownerId          String  @map("owner_id")
+    subscriptionTier String  @default("free") @map("subscription_tier")
+    billingEmail     String? @map("billing_email")
+
+    // Configuration
+    settings         Json @default("{}")
+    branding         Json @default("{}")
+    securitySettings Json @default("{}") @map("security_settings")
+
+    // Status and limits
+    isActive       Boolean @default(true) @map("is_active")
+    memberLimit    Int     @default(10) @map("member_limit")
+    projectLimit   Int     @default(5) @map("project_limit")
+    storageLimitGb Int     @default(1) @map("storage_limit_gb")
+
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime  @updatedAt @map("updated_at")
+    deletedAt DateTime? @map("deleted_at")
+
+    // Relations
+    owner       User              @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+    members     WorkspaceMember[]
+    projects    Project[]
+    tasks       Task[]
+    teams       Team[]
+    roles       WorkspaceRole[]
+    sessions    Session[]
+    activeUsers User[]            @relation("UserActiveWorkspace")
+
+    // Activity and audit
+    activities Activity[]
+    auditLogs  AuditLog[]
+
+    // Notifications
+    notifications Notification[]
+
+    @@map("workspaces")
+}
+
+model WorkspaceRole {
+    id           String   @id @default(cuid())
+    workspaceId  String   @map("workspace_id")
+    name         String
+    description  String?
+    permissions  String[]
+    isSystemRole Boolean  @default(false) @map("is_system_role")
+    createdAt    DateTime @default(now()) @map("created_at")
+
+    workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+    members   WorkspaceMember[]
+
+    @@unique([workspaceId, name])
+    @@map("workspace_roles")
+}
+
+model WorkspaceMember {
+    id          String @id @default(cuid())
+    workspaceId String @map("workspace_id")
+    userId      String @map("user_id")
+    roleId      String @map("role_id")
+
+    // Membership details
+    invitedBy    String?   @map("invited_by")
+    joinedAt     DateTime  @default(now()) @map("joined_at")
+    lastActiveAt DateTime? @map("last_active_at")
+
+    // Status
+    status MemberStatus @default(ACTIVE)
+
+    workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+    user      User          @relation("WorkspaceMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+    role      WorkspaceRole @relation(fields: [roleId], references: [id])
+    inviter   User?         @relation("WorkspaceMemberInviter", fields: [invitedBy], references: [id])
+
+    @@unique([workspaceId, userId])
+    @@map("workspace_members")
+}
+
+// ============================================================================
+// PROJECT MANAGEMENT
+// ============================================================================
+
+model Project {
+    id          String  @id @default(cuid())
+    workspaceId String  @map("workspace_id")
+    name        String
+    description String?
+    color       String  @default("#3B82F6")
+
+    // Project management
+    ownerId  String        @map("owner_id")
+    status   ProjectStatus @default(PLANNING)
+    priority Priority      @default(MEDIUM)
+
+    // Timeline and budget
+    startDate      DateTime? @map("start_date")
+    endDate        DateTime? @map("end_date")
+    budgetAmount   Decimal?  @map("budget_amount") @db.Decimal(10, 2)
+    budgetCurrency String    @default("USD") @map("budget_currency")
+
+    // Configuration
+    settings   Json    @default("{}")
+    templateId String? @map("template_id")
+
+    // Status tracking
+    isArchived Boolean   @default(false) @map("is_archived")
+    archivedAt DateTime? @map("archived_at")
+    archivedBy String?   @map("archived_by")
+
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime  @updatedAt @map("updated_at")
+    deletedAt DateTime? @map("deleted_at")
+
+    // Relations
+    workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+    owner     User             @relation("ProjectOwner", fields: [ownerId], references: [id])
+    template  ProjectTemplate? @relation(fields: [templateId], references: [id])
+    archiver  User?            @relation("ProjectArchiver", fields: [archivedBy], references: [id])
+
+    tasks   Task[]
+    members ProjectMember[]
+    teams   Team[]
+
+    // Activity and audit
+    activities Activity[]
+    comments   Comment[]
+
+    @@map("projects")
+}
+
+model ProjectTemplate {
+    id          String   @id @default(cuid())
+    name        String
+    description String?
+    settings    Json     @default("{}")
+    taskData    Json     @default("[]")
+    isPublic    Boolean  @default(false) @map("is_public")
+    createdAt   DateTime @default(now()) @map("created_at")
+    updatedAt   DateTime @updatedAt @map("updated_at")
+
+    projects Project[]
+
+    @@map("project_templates")
+}
+
+model ProjectMember {
+    id        String            @id @default(cuid())
+    projectId String            @map("project_id")
+    userId    String            @map("user_id")
+    role      ProjectMemberRole @default(MEMBER)
+
+    addedBy String?  @map("added_by")
+    addedAt DateTime @default(now()) @map("added_at")
+
+    project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([projectId, userId])
+    @@map("project_members")
+}
+
+// ============================================================================
+// TASK MANAGEMENT
+// ============================================================================
+
+model Task {
+    id          String  @id @default(cuid())
+    workspaceId String  @map("workspace_id")
+    projectId   String? @map("project_id")
+
+    // Basic task information
+    title       String
+    description String?
+    status      TaskStatus @default(TODO)
+    priority    Priority   @default(MEDIUM)
+
+    // Assignment and ownership
+    assigneeId String? @map("assignee_id")
+    creatorId  String  @map("creator_id")
+    reporterId String? @map("reporter_id")
+
+    // Timeline management
+    dueDate     DateTime? @map("due_date")
+    startDate   DateTime? @map("start_date")
+    completedAt DateTime? @map("completed_at")
+
+    // Effort tracking
+    estimatedHours Decimal? @map("estimated_hours") @db.Decimal(5, 2)
+    actualHours    Decimal? @map("actual_hours") @db.Decimal(5, 2)
+    storyPoints    Int?     @map("story_points")
+
+    // Organization
+    tags         String[] @default([])
+    labels       String[] @default([])
+    epicId       String?  @map("epic_id")
+    parentTaskId String?  @map("parent_task_id")
+
+    // Attachments and links
+    attachments   Json @default("[]")
+    externalLinks Json @default("[]") @map("external_links")
+
+    // Recurring task support
+    recurringTaskId        String?   @map("recurring_task_id")
+    recurrenceInstanceDate DateTime? @map("recurrence_instance_date") @db.Date
+
+    // Collaboration
+    watchers       String[] @default([])
+    lastActivityAt DateTime @default(now()) @map("last_activity_at")
+
+    // Metadata
+    customFields Json @default("{}") @map("custom_fields")
+    position     Int  @default(0)
+
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime  @updatedAt @map("updated_at")
+    deletedAt DateTime? @map("deleted_at")
+
+    // Relations
+    workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+    project       Project?       @relation(fields: [projectId], references: [id])
+    assignee      User?          @relation("TaskAssignee", fields: [assigneeId], references: [id])
+    creator       User           @relation("TaskCreator", fields: [creatorId], references: [id])
+    reporter      User?          @relation("TaskReporter", fields: [reporterId], references: [id])
+    epic          Task?          @relation("TaskEpic", fields: [epicId], references: [id])
+    parentTask    Task?          @relation("TaskParent", fields: [parentTaskId], references: [id])
+    recurringTask RecurringTask? @relation(fields: [recurringTaskId], references: [id])
+
+    // Self-referential relations
+    epicTasks Task[] @relation("TaskEpic")
+    subtasks  Task[] @relation("TaskParent")
+
+    // Dependencies
+    dependsOn  TaskDependency[] @relation("TaskDependsOn")
+    dependents TaskDependency[] @relation("TaskDependent")
+
+    // Activity and collaboration
+    activities Activity[]
+    comments   Comment[]
+
+    // Time tracking
+    timeEntries TimeEntry[]
+
+    @@map("tasks")
+}
+
+model TaskDependency {
+    id          String         @id @default(cuid())
+    taskId      String         @map("task_id")
+    dependsOnId String         @map("depends_on_id")
+    type        DependencyType @default(FINISH_TO_START)
+    createdAt   DateTime       @default(now()) @map("created_at")
+
+    task      Task @relation("TaskDependent", fields: [taskId], references: [id], onDelete: Cascade)
+    dependsOn Task @relation("TaskDependsOn", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+    @@unique([taskId, dependsOnId])
+    @@map("task_dependencies")
+}
+
+model RecurringTask {
+    id          String  @id @default(cuid())
+    workspaceId String  @map("workspace_id")
+    projectId   String? @map("project_id")
+
+    // Recurrence configuration
+    pattern      RecurrencePattern
+    interval     Int               @default(1)
+    daysOfWeek   Int[]             @default([]) @map("days_of_week")
+    daysOfMonth  Int[]             @default([]) @map("days_of_month")
+    monthsOfYear Int[]             @default([]) @map("months_of_year")
+
+    // Timeline
+    startDate   DateTime  @map("start_date")
+    endDate     DateTime? @map("end_date")
+    nextDueDate DateTime? @map("next_due_date")
+
+    // Task template
+    taskTemplate Json @map("task_template")
+
+    // Status
+    isActive Boolean @default(true) @map("is_active")
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    // Relations
+    tasks Task[]
+
+    @@map("recurring_tasks")
+}
+
+// ============================================================================
+// TEAM MANAGEMENT
+// ============================================================================
+
+model Team {
+    id          String  @id @default(cuid())
+    workspaceId String  @map("workspace_id")
+    projectId   String? @map("project_id")
+    name        String
+    description String?
+    color       String  @default("#3B82F6")
+    settings    Json    @default("{}")
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    // Relations
+    workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+    project   Project?     @relation(fields: [projectId], references: [id])
+    members   TeamMember[]
+
+    @@map("teams")
+}
+
+model TeamMember {
+    id       String         @id @default(cuid())
+    teamId   String         @map("team_id")
+    userId   String         @map("user_id")
+    role     TeamMemberRole @default(MEMBER)
+    joinedAt DateTime       @default(now()) @map("joined_at")
+
+    team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([teamId, userId])
+    @@map("team_members")
+}
+
+// ============================================================================
+// COLLABORATION AND COMMUNICATION
+// ============================================================================
+
+model Comment {
+    id          String   @id @default(cuid())
+    content     String
+    authorId    String   @map("author_id")
+    taskId      String?  @map("task_id")
+    projectId   String?  @map("project_id")
+    parentId    String?  @map("parent_id")
+    mentions    String[] @default([])
+    attachments Json     @default("[]")
+
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime  @updatedAt @map("updated_at")
+    deletedAt DateTime? @map("deleted_at")
+
+    // Relations
+    author  User      @relation(fields: [authorId], references: [id])
+    task    Task?     @relation(fields: [taskId], references: [id])
+    project Project?  @relation(fields: [projectId], references: [id])
+    parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+    replies Comment[] @relation("CommentReplies")
+
+    @@map("comments")
+}
+
+// ============================================================================
+// NOTIFICATIONS
+// ============================================================================
+
+model Notification {
+    id          String           @id @default(cuid())
+    userId      String           @map("user_id")
+    workspaceId String?          @map("workspace_id")
+    type        NotificationType
+    title       String
+    message     String
+    data        Json             @default("{}")
+
+    // Delivery status
+    isRead      Boolean   @default(false) @map("is_read")
+    readAt      DateTime? @map("read_at")
+    deliveredAt DateTime? @map("delivered_at")
+
+    // Channels
+    channels String[] @default([])
+
+    createdAt DateTime  @default(now()) @map("created_at")
+    expiresAt DateTime? @map("expires_at")
+
+    // Relations
+    user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    workspace Workspace? @relation(fields: [workspaceId], references: [id])
+
+    @@map("notifications")
+}
+
+// ============================================================================
+// ACTIVITY AND AUDIT
+// ============================================================================
+
+model Activity {
+    id          String  @id @default(cuid())
+    userId      String  @map("user_id")
+    workspaceId String? @map("workspace_id")
+    projectId   String? @map("project_id")
+    taskId      String? @map("task_id")
+
+    type        ActivityType
+    action      String
+    description String
+    metadata    Json         @default("{}")
+
+    createdAt DateTime @default(now()) @map("created_at")
+
+    // Relations
+    user      User       @relation(fields: [userId], references: [id])
+    workspace Workspace? @relation(fields: [workspaceId], references: [id])
+    project   Project?   @relation(fields: [projectId], references: [id])
+    task      Task?      @relation(fields: [taskId], references: [id])
+
+    @@map("activities")
+}
+
+model AuditLog {
+    id          String  @id @default(cuid())
+    userId      String? @map("user_id")
+    workspaceId String? @map("workspace_id")
+
+    action     String
+    resource   String
+    resourceId String? @map("resource_id")
+    oldValues  Json?   @map("old_values")
+    newValues  Json?   @map("new_values")
+
+    ipAddress String? @map("ip_address")
+    userAgent String? @map("user_agent")
+
+    createdAt DateTime @default(now()) @map("created_at")
+
+    // Relations
+    user      User?      @relation(fields: [userId], references: [id])
+    workspace Workspace? @relation(fields: [workspaceId], references: [id])
+
+    @@map("audit_logs")
+}
+
+// ============================================================================
+// TIME TRACKING
+// ============================================================================
+
+model TimeEntry {
+    id     String @id @default(cuid())
+    taskId String @map("task_id")
+    userId String @map("user_id")
+
+    description String?
+    startTime   DateTime  @map("start_time")
+    endTime     DateTime? @map("end_time")
+    duration    Int? // Duration in seconds
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    // Relations
+    task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+    user User @relation(fields: [userId], references: [id])
+
+    @@map("time_entries")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum MemberStatus {
+    ACTIVE
+    INACTIVE
+    PENDING
+    SUSPENDED
+}
+
+enum ProjectStatus {
+    PLANNING
+    ACTIVE
+    ON_HOLD
+    COMPLETED
+    CANCELLED
+}
+
+enum ProjectMemberRole {
+    OWNER
+    ADMIN
+    MEMBER
+    VIEWER
+}
+
+enum TaskStatus {
+    TODO
+    IN_PROGRESS
+    IN_REVIEW
+    DONE
+    CANCELLED
+}
+
+enum Priority {
+    LOW
+    MEDIUM
+    HIGH
+    URGENT
+}
+
+enum DependencyType {
+    FINISH_TO_START
+    START_TO_START
+    FINISH_TO_FINISH
+    START_TO_FINISH
+}
+
+enum RecurrencePattern {
+    DAILY
+    WEEKLY
+    MONTHLY
+    YEARLY
+}
+
+enum TeamMemberRole {
+    LEAD
+    MEMBER
+}
+
+enum NotificationType {
+    TASK_ASSIGNED
+    TASK_UPDATED
+    TASK_COMPLETED
+    TASK_OVERDUE
+    COMMENT_ADDED
+    MENTION
+    PROJECT_UPDATED
+    TEAM_INVITATION
+    WORKSPACE_INVITATION
+    SYSTEM_ALERT
+}
+
+enum ActivityType {
+    TASK_CREATED
+    TASK_UPDATED
+    TASK_COMPLETED
+    TASK_DELETED
+    PROJECT_CREATED
+    PROJECT_UPDATED
+    PROJECT_DELETED
+    COMMENT_ADDED
+    COMMENT_UPDATED
+    COMMENT_DELETED
+    USER_JOINED
+    USER_LEFT
+    WORKSPACE_CREATED
+    WORKSPACE_UPDATED
+    TEAM_CREATED
+    TEAM_UPDATED
+}
