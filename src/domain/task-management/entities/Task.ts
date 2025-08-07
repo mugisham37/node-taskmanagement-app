@@ -1,4 +1,4 @@
-import { BaseEntity } from '../../shared/entities/BaseEntity';
+import { AggregateRoot } from '../../shared/base/aggregate-root';
 import { DomainEvent } from '../../shared/events/DomainEvent';
 import { TaskId } from '../value-objects/TaskId';
 import { ProjectId } from '../value-objects/ProjectId';
@@ -179,7 +179,7 @@ export class TaskWatcherAddedEvent extends DomainEvent {
   }
 }
 
-export class Task extends BaseEntity<TaskProps> {
+export class Task extends AggregateRoot<TaskProps> {
   private constructor(props: TaskProps) {
     super(props);
   }
@@ -387,20 +387,14 @@ export class Task extends BaseEntity<TaskProps> {
 
   // Business methods
   public updateTitle(title: string, updatedBy: UserId): void {
-    if (!title || title.trim().length === 0) {
-      throw new Error('Task title cannot be empty');
-    }
-
-    if (title.length > 500) {
-      throw new Error('Task title cannot exceed 500 characters');
-    }
-
     this.props.title = title.trim();
-    this.updateActivity(updatedBy);
 
-    this.addDomainEvent(
-      new TaskUpdatedEvent(this.id, { title: this.props.title }, updatedBy)
+    const event = new TaskUpdatedEvent(
+      this.id,
+      { title: this.props.title },
+      updatedBy
     );
+    this.applyChange(event);
   }
 
   public updateDescription(
@@ -425,22 +419,24 @@ export class Task extends BaseEntity<TaskProps> {
     const oldStatus = this.props.status;
     this.props.status = newStatus;
 
-    // Set completion timestamp if task is completed
-    if (newStatus.isCompleted() && !this.props.completedAt) {
-      this.props.completedAt = new Date();
-      this.addDomainEvent(
-        new TaskCompletedEvent(this.id, changedBy, this.props.completedAt)
-      );
-    } else if (!newStatus.isCompleted() && this.props.completedAt) {
-      // Clear completion timestamp if task is reopened
-      this.props.completedAt = undefined;
-    }
-
-    this.updateActivity(changedBy);
-
-    this.addDomainEvent(
-      new TaskStatusChangedEvent(this.id, oldStatus, newStatus, changedBy)
+    // Publish status change event
+    const statusEvent = new TaskStatusChangedEvent(
+      this.id,
+      oldStatus,
+      newStatus,
+      changedBy
     );
+    this.applyChange(statusEvent);
+
+    // Publish completion event if task is completed
+    if (newStatus.isCompleted() && !oldStatus.isCompleted()) {
+      const completionEvent = new TaskCompletedEvent(
+        this.id,
+        changedBy,
+        this.props.completedAt!
+      );
+      this.applyChange(completionEvent);
+    }
   }
 
   public updatePriority(priority: Priority, updatedBy: UserId): void {
@@ -680,5 +676,76 @@ export class Task extends BaseEntity<TaskProps> {
 
   public canBeEditedBy(userId: UserId): boolean {
     return this.isCreatedBy(userId) || this.isAssignedTo(userId);
+  }
+
+  // Aggregate root implementation
+  protected validate(): void {
+    if (!this.props.title || this.props.title.trim().length === 0) {
+      throw new Error('Task title cannot be empty');
+    }
+
+    if (this.props.title.length > 500) {
+      throw new Error('Task title cannot exceed 500 characters');
+    }
+
+    if (
+      this.props.startDate &&
+      this.props.dueDate &&
+      this.props.startDate > this.props.dueDate
+    ) {
+      throw new Error('Start date cannot be after due date');
+    }
+
+    if (
+      this.props.estimatedHours !== undefined &&
+      this.props.estimatedHours < 0
+    ) {
+      throw new Error('Estimated hours cannot be negative');
+    }
+
+    if (this.props.actualHours !== undefined && this.props.actualHours < 0) {
+      throw new Error('Actual hours cannot be negative');
+    }
+
+    if (this.props.storyPoints !== undefined && this.props.storyPoints < 0) {
+      throw new Error('Story points cannot be negative');
+    }
+
+    if (this.props.epicId && this.props.epicId.equals(this.props.id)) {
+      throw new Error('Task cannot be its own epic');
+    }
+
+    if (
+      this.props.parentTaskId &&
+      this.props.parentTaskId.equals(this.props.id)
+    ) {
+      throw new Error('Task cannot be its own parent');
+    }
+  }
+
+  protected applyBusinessRules(): void {
+    // Ensure creator is always a watcher
+    if (!this.props.watchers.some(w => w.equals(this.props.creatorId))) {
+      this.props.watchers.push(this.props.creatorId);
+    }
+
+    // Ensure assignee is always a watcher (if assigned)
+    if (
+      this.props.assigneeId &&
+      !this.props.watchers.some(w => w.equals(this.props.assigneeId))
+    ) {
+      this.props.watchers.push(this.props.assigneeId);
+    }
+
+    // Auto-set completion timestamp for completed tasks
+    if (this.props.status.isCompleted() && !this.props.completedAt) {
+      this.props.completedAt = new Date();
+    } else if (!this.props.status.isCompleted() && this.props.completedAt) {
+      this.props.completedAt = undefined;
+    }
+
+    // Update activity timestamp
+    this.props.lastActivityAt = new Date();
+    this.props.updatedAt = new Date();
   }
 }

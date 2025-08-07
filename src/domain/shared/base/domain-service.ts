@@ -1,61 +1,57 @@
-export interface DomainService {
-  readonly name: string;
+/**
+ * Base class for domain services that coordinate complex business logic
+ * across multiple aggregates or handle operations that don't naturally
+ * belong to a single entity.
+ */
+export abstract class DomainService {
+  protected constructor() {}
+
+  /**
+   * Template method for domain service operations
+   * Ensures consistent error handling and logging
+   */
+  protected async executeOperation<T>(
+    operation: () => Promise<T>,
+    operationName: string
+  ): Promise<T> {
+    try {
+      this.beforeOperation(operationName);
+      const result = await operation();
+      this.afterOperation(operationName, true);
+      return result;
+    } catch (error) {
+      this.afterOperation(operationName, false, error);
+      throw error;
+    }
+  }
+
+  protected beforeOperation(operationName: string): void {
+    // Override in subclasses for logging, metrics, etc.
+  }
+
+  protected afterOperation(
+    operationName: string,
+    success: boolean,
+    error?: any
+  ): void {
+    // Override in subclasses for logging, metrics, etc.
+  }
 }
 
-export abstract class BaseDomainService implements DomainService {
-  public readonly name: string;
+/**
+ * Interface for domain services that need to validate business rules
+ */
+export interface IDomainValidator<T> {
+  validate(entity: T): Promise<ValidationResult>;
+}
 
-  constructor(name: string) {
-    this.name = name;
-  }
+export interface ValidationResult {
+  isValid: boolean;
+  errors: ValidationError[];
+}
 
-  protected validateNotNull<T>(
-    value: T | null | undefined,
-    paramName: string
-  ): T {
-    if (value === null || value === undefined) {
-      throw new Error(`${paramName} cannot be null or undefined`);
-    }
-    return value;
-  }
-
-  protected validateNotEmpty(
-    value: string | null | undefined,
-    paramName: string
-  ): string {
-    const validated = this.validateNotNull(value, paramName);
-    if (validated.trim().length === 0) {
-      throw new Error(`${paramName} cannot be empty`);
-    }
-    return validated;
-  }
-
-  protected validatePositive(value: number, paramName: string): number {
-    if (value <= 0) {
-      throw new Error(`${paramName} must be positive`);
-    }
-    return value;
-  }
-
-  protected validateArray<T>(
-    value: T[] | null | undefined,
-    paramName: string
-  ): T[] {
-    const validated = this.validateNotNull(value, paramName);
-    if (!Array.isArray(validated)) {
-      throw new Error(`${paramName} must be an array`);
-    }
-    return validated;
-  }
-
-  protected validateNonEmptyArray<T>(
-    value: T[] | null | undefined,
-    paramName: string
-  ): T[] {
-    const validated = this.validateArray(value, paramName);
-    if (validated.length === 0) {
-      throw new Error(`${paramName} cannot be empty`);
-    }
-    return validated;
-  }
+export interface ValidationError {
+  field: string;
+  message: string;
+  code: string;
 }

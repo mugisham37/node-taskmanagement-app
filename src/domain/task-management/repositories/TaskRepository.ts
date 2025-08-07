@@ -5,6 +5,8 @@ import { WorkspaceId } from '../value-objects/WorkspaceId';
 import { UserId } from '../../authentication/value-objects/UserId';
 import { TaskStatus } from '../value-objects/TaskStatus';
 import { Priority } from '../value-objects/Priority';
+import { IRepository } from '../../shared/base/repository';
+import { Specification } from '../../shared/base/specification';
 
 export interface TaskFilters {
   status?: TaskStatus[];
@@ -42,26 +44,23 @@ export interface TaskSearchOptions {
   offset?: number;
 }
 
-export interface TaskRepository {
+export interface TaskRepository extends IRepository<Task, TaskId> {
   /**
-   * Save a task entity
+   * Find tasks using specification pattern
    */
-  save(task: Task): Promise<void>;
+  findBySpecification(specification: Specification<Task>): Promise<Task[]>;
 
   /**
-   * Save multiple tasks in a transaction
+   * Find single task using specification pattern
    */
-  saveMany(tasks: Task[]): Promise<void>;
+  findOneBySpecification(
+    specification: Specification<Task>
+  ): Promise<Task | null>;
 
   /**
-   * Find task by ID
+   * Count tasks using specification pattern
    */
-  findById(id: TaskId): Promise<Task | null>;
-
-  /**
-   * Find multiple tasks by IDs
-   */
-  findByIds(ids: TaskId[]): Promise<Task[]>;
+  countBySpecification(specification: Specification<Task>): Promise<number>;
 
   /**
    * Find tasks by workspace

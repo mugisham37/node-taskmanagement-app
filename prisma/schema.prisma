@@ -264,6 +264,8 @@ model WorkspaceRole {
     members   WorkspaceMember[]
 
     @@unique([workspaceId, name])
+    @@index([workspaceId])
+    @@index([isSystemRole])
     @@map("workspace_roles")
 }
 
@@ -287,6 +289,14 @@ model WorkspaceMember {
     inviter   User?         @relation("WorkspaceMemberInviter", fields: [invitedBy], references: [id])
 
     @@unique([workspaceId, userId])
+    @@index([workspaceId])
+    @@index([userId])
+    @@index([roleId])
+    @@index([status])
+    @@index([joinedAt])
+    @@index([lastActiveAt])
+    @@index([workspaceId, status])
+    @@index([userId, status])
     @@map("workspace_members")
 }
 
@@ -339,6 +349,22 @@ model Project {
     activities Activity[]
     comments   Comment[]
 
+    // Database indexes for performance optimization
+    @@index([workspaceId])
+    @@index([ownerId])
+    @@index([status])
+    @@index([priority])
+    @@index([isArchived])
+    @@index([createdAt])
+    @@index([updatedAt])
+    @@index([deletedAt])
+    @@index([startDate])
+    @@index([endDate])
+    @@index([templateId])
+    @@index([workspaceId, status])
+    @@index([workspaceId, isArchived])
+    @@index([ownerId, status])
+    @@index([status, priority])
     @@map("projects")
 }
 
@@ -354,6 +380,8 @@ model ProjectTemplate {
 
     projects Project[]
 
+    @@index([isPublic])
+    @@index([createdAt])
     @@map("project_templates")
 }
 
@@ -370,6 +398,10 @@ model ProjectMember {
     user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([projectId, userId])
+    @@index([projectId])
+    @@index([userId])
+    @@index([role])
+    @@index([addedAt])
     @@map("project_members")
 }
 
@@ -454,6 +486,42 @@ model Task {
     // Time tracking
     timeEntries TimeEntry[]
 
+    // Database indexes for performance optimization
+    @@index([workspaceId])
+    @@index([projectId])
+    @@index([assigneeId])
+    @@index([creatorId])
+    @@index([reporterId])
+    @@index([status])
+    @@index([priority])
+    @@index([dueDate])
+    @@index([startDate])
+    @@index([completedAt])
+    @@index([epicId])
+    @@index([parentTaskId])
+    @@index([recurringTaskId])
+    @@index([createdAt])
+    @@index([updatedAt])
+    @@index([deletedAt])
+    @@index([lastActivityAt])
+    @@index([position])
+    // Composite indexes for common query patterns
+    @@index([workspaceId, status])
+    @@index([workspaceId, assigneeId])
+    @@index([workspaceId, creatorId])
+    @@index([workspaceId, priority])
+    @@index([projectId, status])
+    @@index([projectId, assigneeId])
+    @@index([assigneeId, status])
+    @@index([assigneeId, dueDate])
+    @@index([status, priority])
+    @@index([status, dueDate])
+    @@index([dueDate, priority])
+    @@index([workspaceId, status, priority])
+    @@index([workspaceId, assigneeId, status])
+    @@index([projectId, status, priority])
+    // Full-text search indexes
+    @@index([title])
     @@map("tasks")
 }
 
@@ -468,6 +536,10 @@ model TaskDependency {
     dependsOn Task @relation("TaskDependsOn", fields: [dependsOnId], references: [id], onDelete: Cascade)
 
     @@unique([taskId, dependsOnId])
+    @@index([taskId])
+    @@index([dependsOnId])
+    @@index([type])
+    @@index([createdAt])
     @@map("task_dependencies")
 }
 
@@ -500,6 +572,16 @@ model RecurringTask {
     // Relations
     tasks Task[]
 
+    @@index([workspaceId])
+    @@index([projectId])
+    @@index([pattern])
+    @@index([isActive])
+    @@index([startDate])
+    @@index([endDate])
+    @@index([nextDueDate])
+    @@index([workspaceId, isActive])
+    @@index([projectId, isActive])
+    @@index([nextDueDate, isActive])
     @@map("recurring_tasks")
 }
 
@@ -524,6 +606,10 @@ model Team {
     project   Project?     @relation(fields: [projectId], references: [id])
     members   TeamMember[]
 
+    @@index([workspaceId])
+    @@index([projectId])
+    @@index([createdAt])
+    @@index([workspaceId, projectId])
     @@map("teams")
 }
 
@@ -538,6 +624,10 @@ model TeamMember {
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([teamId, userId])
+    @@index([teamId])
+    @@index([userId])
+    @@index([role])
+    @@index([joinedAt])
     @@map("team_members")
 }
 
@@ -566,6 +656,16 @@ model Comment {
     parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
     replies Comment[] @relation("CommentReplies")
 
+    @@index([authorId])
+    @@index([taskId])
+    @@index([projectId])
+    @@index([parentId])
+    @@index([createdAt])
+    @@index([updatedAt])
+    @@index([deletedAt])
+    @@index([taskId, createdAt])
+    @@index([projectId, createdAt])
+    @@index([authorId, createdAt])
     @@map("comments")
 }
 
@@ -597,6 +697,17 @@ model Notification {
     user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
     workspace Workspace? @relation(fields: [workspaceId], references: [id])
 
+    @@index([userId])
+    @@index([workspaceId])
+    @@index([type])
+    @@index([isRead])
+    @@index([createdAt])
+    @@index([expiresAt])
+    @@index([deliveredAt])
+    @@index([userId, isRead])
+    @@index([userId, type])
+    @@index([workspaceId, type])
+    @@index([userId, createdAt])
     @@map("notifications")
 }
 
@@ -624,6 +735,17 @@ model Activity {
     project   Project?   @relation(fields: [projectId], references: [id])
     task      Task?      @relation(fields: [taskId], references: [id])
 
+    @@index([userId])
+    @@index([workspaceId])
+    @@index([projectId])
+    @@index([taskId])
+    @@index([type])
+    @@index([createdAt])
+    @@index([userId, createdAt])
+    @@index([workspaceId, createdAt])
+    @@index([projectId, createdAt])
+    @@index([taskId, createdAt])
+    @@index([type, createdAt])
     @@map("activities")
 }
 
@@ -647,6 +769,16 @@ model AuditLog {
     user      User?      @relation(fields: [userId], references: [id])
     workspace Workspace? @relation(fields: [workspaceId], references: [id])
 
+    @@index([userId])
+    @@index([workspaceId])
+    @@index([action])
+    @@index([resource])
+    @@index([resourceId])
+    @@index([createdAt])
+    @@index([userId, createdAt])
+    @@index([workspaceId, createdAt])
+    @@index([resource, resourceId])
+    @@index([action, createdAt])
     @@map("audit_logs")
 }
 
@@ -671,6 +803,14 @@ model TimeEntry {
     task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
     user User @relation(fields: [userId], references: [id])
 
+    @@index([taskId])
+    @@index([userId])
+    @@index([startTime])
+    @@index([endTime])
+    @@index([createdAt])
+    @@index([taskId, userId])
+    @@index([userId, startTime])
+    @@index([taskId, startTime])
     @@map("time_entries")
 }
 
@@ -810,6 +950,13 @@ model Webhook {
     user       User              @relation(fields: [userId], references: [id])
     deliveries WebhookDelivery[]
 
+    @@index([workspaceId])
+    @@index([userId])
+    @@index([status])
+    @@index([createdAt])
+    @@index([lastDeliveryAt])
+    @@index([workspaceId, status])
+    @@index([userId, status])
     @@map("webhooks")
 }
 
@@ -848,6 +995,16 @@ model WebhookDelivery {
     webhook   Webhook   @relation(fields: [webhookId], references: [id], onDelete: Cascade)
     workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
+    @@index([webhookId])
+    @@index([workspaceId])
+    @@index([status])
+    @@index([event])
+    @@index([createdAt])
+    @@index([deliveredAt])
+    @@index([nextRetryAt])
+    @@index([webhookId, status])
+    @@index([workspaceId, status])
+    @@index([status, nextRetryAt])
     @@map("webhook_deliveries")
 }
 
@@ -933,6 +1090,19 @@ model File {
     attachments Attachment[]
     permissions FilePermission[]
 
+    @@index([workspaceId])
+    @@index([uploadedBy])
+    @@index([mimeType])
+    @@index([isDeleted])
+    @@index([createdAt])
+    @@index([virusScanStatus])
+    @@index([isPublic])
+    @@index([workspaceLevel])
+    @@index([projectLevel])
+    @@index([workspaceId, isDeleted])
+    @@index([uploadedBy, isDeleted])
+    @@index([mimeType, isDeleted])
+    @@index([virusScanStatus, isDeleted])
     @@map("files")
 }
 
@@ -958,6 +1128,9 @@ model FileVersion {
     uploader User @relation(fields: [uploadedBy], references: [id])
 
     @@unique([fileId, version])
+    @@index([fileId])
+    @@index([uploadedBy])
+    @@index([createdAt])
     @@map("file_versions")
 }
 
@@ -987,6 +1160,15 @@ model Attachment {
     workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
     attachedByUser User      @relation(fields: [attachedBy], references: [id])
 
+    @@index([fileId])
+    @@index([workspaceId])
+    @@index([attachedTo])
+    @@index([attachedToId])
+    @@index([attachedBy])
+    @@index([isDeleted])
+    @@index([createdAt])
+    @@index([attachedTo, attachedToId])
+    @@index([workspaceId, isDeleted])
     @@map("attachments")
 }
 
@@ -1011,6 +1193,10 @@ model FilePermission {
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([fileId, userId])
+    @@index([fileId])
+    @@index([userId])
+    @@index([parentType])
+    @@index([parentId])
     @@map("file_permissions")
 }
 
@@ -1039,6 +1225,9 @@ model FileIndex {
     file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
 
     @@unique([fileId])
+    @@index([isIndexed])
+    @@index([indexedAt])
+    @@index([language])
     @@map("file_indexes")
 }
 
@@ -1094,6 +1283,8 @@ model SearchIndex {
     @@index([tags])
     @@index([permissions])
     @@index([updatedAt(sort: Desc)])
+    @@index([workspaceId, entityType])
+    @@index([entityType, updatedAt])
     @@map("search_index")
 }
 
