@@ -9,30 +9,125 @@ services:
       POSTGRES_DB: unified_enterprise_platform
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --lc-collate=C --lc-ctype=C'
     ports:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql
+      - ./scripts/init-extensions.sql:/docker-entrypoint-initdb.d/init-extensions.sql
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      test:
+        ['CMD-SHELL', 'pg_isready -U postgres -d unified_enterprise_platform']
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - unified-platform-network
 
   # Redis Cache
   redis:
     image: redis:7-alpine
     container_name: unified-platform-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
       - '6379:6379'
     volumes:
       - redis_data:/data
+      - ./config/redis.conf:/usr/local/etc/redis/redis.conf
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - unified-platform-network
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: unified-platform-prometheus
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost:9090/-/healthy',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - unified-platform-network
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: unified-platform-grafana
+    ports:
+      - '3001:3000'
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:3000/api/health || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - unified-platform-network
+    depends_on:
+      - prometheus
+
+  # MailHog (Email Testing)
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: unified-platform-mailhog
+    ports:
+      - '1025:1025' # SMTP
+      - '8025:8025' # Web UI
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost:8025',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - unified-platform-network
 
   # Application (for development)
   app:
@@ -42,22 +137,84 @@ services:
     container_name: unified-platform-app
     ports:
       - '3000:3000'
-      - '9090:9090' # Prometheus metrics
+      - '9091:9091' # Application metrics endpoint
     environment:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unified_enterprise_platform
       - DATABASE_URL_TEST=postgresql://postgres:postgres@postgres:5432/unified_enterprise_platform_test
       - REDIS_URL=redis://redis:6379
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+      - PROMETHEUS_ENABLED=true
+      - PROMETHEUS_PORT=9091
+      - LOG_LEVEL=debug
+      - ENABLE_API_DOCS=true
     volumes:
       - .:/app
       - /app/node_modules
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mailhog:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - unified-platform-network
     command: npm run dev
+
+  # Nginx Reverse Proxy (for production-like setup)
+  nginx:
+    image: nginx:alpine
+    container_name: unified-platform-nginx
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/nginx.conf
+      - ./config/nginx/sites-available:/etc/nginx/sites-available
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - app
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost/health',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - unified-platform-network
 
 volumes:
   postgres_data:
+    driver: local
   redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  unified-platform-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

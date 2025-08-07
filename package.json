@@ -31,6 +31,11 @@
     "docker:down": "docker-compose down",
     "dev:setup": "tsx scripts/dev-setup.ts",
     "check:setup": "tsx scripts/check-setup.ts",
+    "setup:dev": "tsx scripts/setup-environment.ts development",
+    "setup:prod": "tsx scripts/setup-environment.ts production",
+    "setup:staging": "tsx scripts/setup-environment.ts staging",
+    "setup:test": "tsx scripts/setup-environment.ts test",
+    "validate:config": "tsx scripts/validate-configuration.ts",
     "prepare": "husky install"
   },
   "keywords": [
