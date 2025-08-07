@@ -12,6 +12,7 @@ import metricsRoutes from './metrics.routes';
 import monitoringRoutes from './monitoring.routes';
 import invitationRoutes from './invitation.routes';
 import notificationRoutes from './notification.routes';
+import performanceRoutes from './performance.routes';
 import projectRoutes from './project.routes';
 import recurringTaskRoutes from './recurring-task.routes';
 import taskTemplateRoutes from './task-template.routes';
@@ -39,6 +40,7 @@ router.use('/metrics', metricsRoutes);
 router.use('/monitoring', monitoringRoutes);
 router.use(`${API_VERSION}/invitations`, invitationRoutes);
 router.use(`${API_VERSION}/notifications`, notificationRoutes);
+router.use(`${API_VERSION}/performance`, performanceRoutes);
 router.use(`${API_VERSION}/projects`, projectRoutes);
 router.use(`${API_VERSION}/recurring-tasks`, recurringTaskRoutes);
 router.use(`${API_VERSION}/task-templates`, taskTemplateRoutes);
@@ -67,6 +69,7 @@ router.get('/', (req, res) => {
       monitoring: '/monitoring',
       invitations: `${API_VERSION}/invitations`,
       notifications: `${API_VERSION}/notifications`,
+      performance: `${API_VERSION}/performance`,
       projects: `${API_VERSION}/projects`,
       recurringTasks: `${API_VERSION}/recurring-tasks`,
       taskTemplates: `${API_VERSION}/task-templates`,
