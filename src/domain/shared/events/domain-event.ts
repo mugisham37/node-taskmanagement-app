@@ -1,35 +1,29 @@
-import { createId } from '@paralleldrive/cuid2';
+import { v4 as uuidv4 } from 'uuid';
 
 export abstract class DomainEvent {
   public readonly eventId: string;
   public readonly eventName: string;
-  public readonly aggregateId: string;
   public readonly occurredAt: Date;
   public readonly version: number;
-  public readonly metadata: Record<string, any>;
 
-  constructor(
-    eventName: string,
-    aggregateId: string,
-    version: number = 1,
-    metadata: Record<string, any> = {}
-  ) {
-    this.eventId = createId();
-    this.eventName = eventName;
-    this.aggregateId = aggregateId;
-    this.occurredAt = new Date();
-    this.version = version;
-    this.metadata = metadata;
+  constructor(occurredOn?: Date) {
+    this.eventId = uuidv4();
+    this.eventName = this.constructor.name;
+    this.occurredAt = occurredOn || new Date();
+    this.version = 1;
   }
+
+  public abstract getAggregateId(): string;
+  public abstract getEventData(): Record<string, any>;
 
   public toJSON(): Record<string, any> {
     return {
       eventId: this.eventId,
       eventName: this.eventName,
-      aggregateId: this.aggregateId,
+      aggregateId: this.getAggregateId(),
       occurredAt: this.occurredAt.toISOString(),
       version: this.version,
-      metadata: this.metadata,
+      data: this.getEventData(),
     };
   }
 

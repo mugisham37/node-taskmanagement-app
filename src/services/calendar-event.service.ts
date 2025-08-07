@@ -1,18 +1,57 @@
-import { eq, and, or, desc, asc, count, ilike, isNull, isNotNull, gte, lte, inArray, between, ne } from 'drizzle-orm';
-import { BaseService, ServiceContext, NotFoundError, ValidationError, ForbiddenError, ConflictError } from './base.service';
-import { 
-  calendarEventRepository, 
-  userRepository, 
-  workspaceRepository, 
+import {
+  eq,
+  and,
+  or,
+  desc,
+  asc,
+  count,
+  ilike,
+  isNull,
+  isNotNull,
+  gte,
+  lte,
+  inArray,
+  between,
+  ne,
+} from 'drizzle-orm';
+import {
+  BaseService,
+  ServiceContext,
+  NotFoundError,
+  ValidationError,
+  ForbiddenError,
+  ConflictError,
+} from './base.service';
+import {
+  calendarEventRepository,
+  userRepository,
+  workspaceRepository,
   teamRepository,
   taskRepository,
   projectRepository,
-  notificationRepository
+  notificationRepository,
 } from '../db/repositories';
-import { CalendarEvent, NewCalendarEvent, EventType } from '../db/schema/calendar-events';
-import { PaginationOptions, PaginatedResult } from '../db/repositories/base/interfaces';
+import {
+  CalendarEvent,
+  NewCalendarEvent,
+  EventType,
+} from '../db/schema/calendar-events';
+import {
+  PaginationOptions,
+  PaginatedResult,
+} from '../db/repositories/base/interfaces';
 import { notificationService, NotificationType } from './notification.service';
 import { activityService } from './activity.service';
+import { CalendarEventDomainService } from '../domain/calendar/services/calendar-event-domain.service';
+import {
+  CalendarEvent as CalendarEventEntity,
+  CreateCalendarEventProps,
+  UpdateCalendarEventProps,
+  EventType as DomainEventType,
+  AttendeeStatus,
+} from '../domain/calendar/entities/calendar-event.entity';
+import { CalendarEventId } from '../domain/calendar/value-objects/calendar-event-id.vo';
+import { UserId } from '../domain/shared/value-objects/user-id.vo';
 
 export interface CalendarEventFilters {
   type?: EventType | EventType[];
@@ -90,18 +129,21 @@ export class CalendarEventService extends BaseService {
       enableCache: true,
       cacheTimeout: 300, // 5 minutes cache for calendar events
       enableAudit: true,
-      enableMetrics: true
+      enableMetrics: true,
     });
   }
 
   // Core CRUD Operations
-  async createCalendarEvent(data: CalendarEventCreateData, context?: ServiceContext): Promise<CalendarEvent> {
+  async createCalendarEvent(
+    data: CalendarEventCreateData,
+    context?: ServiceContext
+  ): Promise<CalendarEvent> {
     const ctx = this.createContext(context);
-    this.logOperation('createCalendarEvent', ctx, { 
-      title: data.title, 
+    this.logOperation('createCalendarEvent', ctx, {
+      title: data.title,
       type: data.type,
       startDate: data.startDate,
-      attendeeCount: data.attendeeIds?.length || 0
+      attendeeCount: data.attendeeIds?.length || 0,
     });
 
     try {
@@ -111,9 +153,13 @@ export class CalendarEventService extends BaseService {
       // Check for scheduling conflicts
       const conflicts = await this.checkSchedulingConflicts(data, ctx.userId!);
       if (conflicts.length > 0) {
-        const highSeverityConflicts = conflicts.filter(c => c.severity === 'high');
+        const highSeverityConflicts = conflicts.filter(
+          c => c.severity === 'high'
+        );
         if (highSeverityConflicts.length > 0) {
-          throw new ConflictError('High severity scheduling conflicts detected');
+          throw new ConflictError(
+            'High severity scheduling conflicts detected'
+          );
         }
       }
 
@@ -160,7 +206,7 @@ export class CalendarEventService extends BaseService {
         taskId: data.taskId,
         isRecurring: data.isRecurring || false,
         recurrenceRule: data.recurrenceRule,
-        metadata: data.metadata || {}
+        metadata: data.metadata || {},
       };
 
       const event = await calendarEventRepository.create(newEvent);
@@ -172,7 +218,11 @@ export class CalendarEventService extends BaseService {
 
       // Add reminders if specified
       if (data.reminderMinutes && data.reminderMinutes.length > 0) {
-        await this.addEventReminders(event.id, ctx.userId!, data.reminderMinutes);
+        await this.addEventReminders(
+          event.id,
+          ctx.userId!,
+          data.reminderMinutes
+        );
       }
 
       // Send invitations to attendees
@@ -181,26 +231,33 @@ export class CalendarEventService extends BaseService {
       }
 
       // Log activity
-      await activityService.createActivity({
-        userId: ctx.userId!,
-        type: 'task_created', // Using closest available type
-        data: {
-          action: 'calendar_event_created',
-          eventTitle: event.title,
-          eventType: event.type,
-          attendeeCount: data.attendeeIds?.length || 0
+      await activityService.createActivity(
+        {
+          userId: ctx.userId!,
+          type: 'task_created', // Using closest available type
+          data: {
+            action: 'calendar_event_created',
+            eventTitle: event.title,
+            eventType: event.type,
+            attendeeCount: data.attendeeIds?.length || 0,
+          },
+          metadata: {
+            eventId: event.id,
+            startDate: event.startDate.toISOString(),
+          },
         },
-        metadata: {
-          eventId: event.id,
-          startDate: event.startDate.toISOString()
-        }
-      }, ctx);
+        ctx
+      );
 
-      await this.recordMetric('calendar_event.created', 1, { 
+      await this.recordMetric('calendar_event.created', 1, {
         type: event.type,
-        hasAttendees: data.attendeeIds && data.attendeeIds.length > 0 ? 'true' : 'false',
+        hasAttendees:
+          data.attendeeIds && data.attendeeIds.length > 0 ? 'true' : 'false',
         isRecurring: event.isRecurring ? 'true' : 'false',
-        hasReminders: data.reminderMinutes && data.reminderMinutes.length > 0 ? 'true' : 'false'
+        hasReminders:
+          data.reminderMinutes && data.reminderMinutes.length > 0
+            ? 'true'
+            : 'false',
       });
 
       return event;
@@ -209,7 +266,10 @@ export class CalendarEventService extends BaseService {
     }
   }
 
-  async getCalendarEventById(id: string, context?: ServiceContext): Promise<CalendarEvent> {
+  async getCalendarEventById(
+    id: string,
+    context?: ServiceContext
+  ): Promise<CalendarEvent> {
     const ctx = this.createContext(context);
     this.logOperation('getCalendarEventById', ctx, { eventId: id });
 
@@ -238,15 +298,18 @@ export class CalendarEventService extends BaseService {
 
     try {
       const paginationOptions = this.validatePagination(options);
-      
+
       // Build where conditions
-      const whereConditions = this.buildEventWhereConditions(filters, ctx.userId!);
-      
+      const whereConditions = this.buildEventWhereConditions(
+        filters,
+        ctx.userId!
+      );
+
       const result = await calendarEventRepository.findMany({
         ...paginationOptions,
         where: whereConditions,
         sortBy: 'startDate',
-        sortOrder: 'asc' // Upcoming events first
+        sortOrder: 'asc', // Upcoming events first
       });
 
       return result;
@@ -255,9 +318,16 @@ export class CalendarEventService extends BaseService {
     }
   }
 
-  async updateCalendarEvent(id: string, data: CalendarEventUpdateData, context?: ServiceContext): Promise<CalendarEvent> {
+  async updateCalendarEvent(
+    id: string,
+    data: CalendarEventUpdateData,
+    context?: ServiceContext
+  ): Promise<CalendarEvent> {
     const ctx = this.createContext(context);
-    this.logOperation('updateCalendarEvent', ctx, { eventId: id, updates: Object.keys(data) });
+    this.logOperation('updateCalendarEvent', ctx, {
+      eventId: id,
+      updates: Object.keys(data),
+    });
 
     try {
       const existingEvent = await calendarEventRepository.findById(id);
@@ -267,7 +337,9 @@ export class CalendarEventService extends BaseService {
 
       // Check permissions - only creator can update
       if (existingEvent.userId !== ctx.userId) {
-        throw new ForbiddenError('Only the event creator can update this event');
+        throw new ForbiddenError(
+          'Only the event creator can update this event'
+        );
       }
 
       // Validate updates
@@ -279,14 +351,22 @@ export class CalendarEventService extends BaseService {
           ...existingEvent,
           ...data,
           startDate: data.startDate || existingEvent.startDate,
-          endDate: data.endDate || existingEvent.endDate
+          endDate: data.endDate || existingEvent.endDate,
         };
-        
-        const conflicts = await this.checkSchedulingConflicts(eventData as any, ctx.userId!, id);
+
+        const conflicts = await this.checkSchedulingConflicts(
+          eventData as any,
+          ctx.userId!,
+          id
+        );
         if (conflicts.length > 0) {
-          const highSeverityConflicts = conflicts.filter(c => c.severity === 'high');
+          const highSeverityConflicts = conflicts.filter(
+            c => c.severity === 'high'
+          );
           if (highSeverityConflicts.length > 0) {
-            throw new ConflictError('High severity scheduling conflicts detected');
+            throw new ConflictError(
+              'High severity scheduling conflicts detected'
+            );
           }
         }
       }
@@ -296,7 +376,7 @@ export class CalendarEventService extends BaseService {
 
       const updatedEvent = await calendarEventRepository.update(id, {
         ...data,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
       if (!updatedEvent) {
@@ -309,22 +389,25 @@ export class CalendarEventService extends BaseService {
       }
 
       // Log activity
-      await activityService.createActivity({
-        userId: ctx.userId!,
-        type: 'task_updated', // Using closest available type
-        data: {
-          action: 'calendar_event_updated',
-          eventTitle: updatedEvent.title,
-          changes: Object.keys(data),
-          dateChanged: isDateChanged
+      await activityService.createActivity(
+        {
+          userId: ctx.userId!,
+          type: 'task_updated', // Using closest available type
+          data: {
+            action: 'calendar_event_updated',
+            eventTitle: updatedEvent.title,
+            changes: Object.keys(data),
+            dateChanged: isDateChanged,
+          },
+          metadata: {
+            eventId: updatedEvent.id,
+          },
         },
-        metadata: {
-          eventId: updatedEvent.id
-        }
-      }, ctx);
+        ctx
+      );
 
-      await this.recordMetric('calendar_event.updated', 1, { 
-        dateChanged: isDateChanged ? 'true' : 'false'
+      await this.recordMetric('calendar_event.updated', 1, {
+        dateChanged: isDateChanged ? 'true' : 'false',
       });
 
       return updatedEvent;
@@ -333,7 +416,10 @@ export class CalendarEventService extends BaseService {
     }
   }
 
-  async deleteCalendarEvent(id: string, context?: ServiceContext): Promise<void> {
+  async deleteCalendarEvent(
+    id: string,
+    context?: ServiceContext
+  ): Promise<void> {
     const ctx = this.createContext(context);
     this.logOperation('deleteCalendarEvent', ctx, { eventId: id });
 
@@ -345,7 +431,9 @@ export class CalendarEventService extends BaseService {
 
       // Check permissions - only creator can delete
       if (event.userId !== ctx.userId) {
-        throw new ForbiddenError('Only the event creator can delete this event');
+        throw new ForbiddenError(
+          'Only the event creator can delete this event'
+        );
       }
 
       // Send cancellation notifications to attendees
@@ -357,17 +445,20 @@ export class CalendarEventService extends BaseService {
       }
 
       // Log activity
-      await activityService.createActivity({
-        userId: ctx.userId!,
-        type: 'calendar_event_deleted',
-        data: {
-          eventTitle: event.title,
-          eventType: event.type
+      await activityService.createActivity(
+        {
+          userId: ctx.userId!,
+          type: 'calendar_event_deleted',
+          data: {
+            eventTitle: event.title,
+            eventType: event.type,
+          },
+          metadata: {
+            eventId: id,
+          },
         },
-        metadata: {
-          eventId: id
-        }
-      }, ctx);
+        ctx
+      );
 
       await this.recordMetric('calendar_event.deleted', 1);
     } catch (error) {
@@ -391,21 +482,25 @@ export class CalendarEventService extends BaseService {
       // Build conditions for overlapping events
       const conditions = [
         eq(calendarEventRepository['table']?.userId, userId),
-        gte(calendarEventRepository['table']?.startDate, eventData.startDate)
+        gte(calendarEventRepository['table']?.startDate, eventData.startDate),
       ];
 
       if (eventData.endDate) {
-        conditions.push(lte(calendarEventRepository['table']?.startDate, eventData.endDate));
+        conditions.push(
+          lte(calendarEventRepository['table']?.startDate, eventData.endDate)
+        );
       }
 
       if (excludeEventId) {
-        conditions.push(ne(calendarEventRepository['table']?.id, excludeEventId));
+        conditions.push(
+          ne(calendarEventRepository['table']?.id, excludeEventId)
+        );
       }
 
       // Get user's events in the time range
       const userEvents = await calendarEventRepository.findMany({
         where: and(...conditions),
-        limit: 1000
+        limit: 1000,
       });
 
       for (const existingEvent of userEvents.data) {
@@ -435,29 +530,36 @@ export class CalendarEventService extends BaseService {
       // Set default date range (last 30 days)
       const range = dateRange || {
         startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        endDate: new Date()
+        endDate: new Date(),
       };
 
       // Build query conditions
       const conditions = [];
-      
+
       if (userId) {
         // Verify user access
         if (userId !== ctx.userId && ctx.userRole !== 'admin') {
-          throw new ForbiddenError('You can only view your own calendar statistics');
+          throw new ForbiddenError(
+            'You can only view your own calendar statistics'
+          );
         }
         conditions.push(eq(calendarEventRepository['table']?.userId, userId));
       }
 
-      conditions.push(gte(calendarEventRepository['table']?.startDate, range.startDate));
-      conditions.push(lte(calendarEventRepository['table']?.startDate, range.endDate));
+      conditions.push(
+        gte(calendarEventRepository['table']?.startDate, range.startDate)
+      );
+      conditions.push(
+        lte(calendarEventRepository['table']?.startDate, range.endDate)
+      );
 
-      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+      const whereClause =
+        conditions.length > 0 ? and(...conditions) : undefined;
 
       // Get all events for analysis
       const allEvents = await calendarEventRepository.findMany({
         where: whereClause,
-        limit: 10000 // Large limit for comprehensive stats
+        limit: 10000, // Large limit for comprehensive stats
       });
 
       const events = allEvents.data;
@@ -470,7 +572,7 @@ export class CalendarEventService extends BaseService {
         pastEvents: events.filter(e => new Date(e.startDate) <= now).length,
         eventsByType: this.groupEventsByType(events),
         averageDuration: this.calculateAverageDuration(events),
-        busyHours: this.calculateBusyHours(events)
+        busyHours: this.calculateBusyHours(events),
       };
 
       return stats;
@@ -480,7 +582,11 @@ export class CalendarEventService extends BaseService {
   }
 
   // Reminder System
-  async processEventReminders(): Promise<{ processed: number; sent: number; failed: number }> {
+  async processEventReminders(): Promise<{
+    processed: number;
+    sent: number;
+    failed: number;
+  }> {
     try {
       const now = new Date();
       const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
@@ -491,7 +597,7 @@ export class CalendarEventService extends BaseService {
           gte(calendarEventRepository['table']?.startDate, now),
           lte(calendarEventRepository['table']?.startDate, oneHourFromNow)
         ),
-        limit: 1000
+        limit: 1000,
       });
 
       let processed = 0;
@@ -505,7 +611,10 @@ export class CalendarEventService extends BaseService {
           sent += remindersSent;
         } catch (error) {
           failed++;
-          console.error(`Failed to process reminders for event ${event.id}:`, error);
+          console.error(
+            `Failed to process reminders for event ${event.id}:`,
+            error
+          );
         }
       }
 
@@ -521,26 +630,35 @@ export class CalendarEventService extends BaseService {
   }
 
   // Private Helper Methods
-  private async verifyEventAccess(event: CalendarEvent, userId: string): Promise<void> {
+  private async verifyEventAccess(
+    event: CalendarEvent,
+    userId: string
+  ): Promise<void> {
     // User can access event if they are:
     // 1. The creator
     // 2. Have access to the workspace/team/project
     // 3. Admin
-    
+
     if (event.userId === userId) {
       return;
     }
 
     // Check workspace/team/project access
-    if (event.workspaceId && await this.hasWorkspaceAccess(userId, event.workspaceId)) {
+    if (
+      event.workspaceId &&
+      (await this.hasWorkspaceAccess(userId, event.workspaceId))
+    ) {
       return;
     }
 
-    if (event.teamId && await this.hasTeamAccess(userId, event.teamId)) {
+    if (event.teamId && (await this.hasTeamAccess(userId, event.teamId))) {
       return;
     }
 
-    if (event.projectId && await this.hasProjectAccess(userId, event.projectId)) {
+    if (
+      event.projectId &&
+      (await this.hasProjectAccess(userId, event.projectId))
+    ) {
       return;
     }
 
@@ -553,7 +671,10 @@ export class CalendarEventService extends BaseService {
     throw new ForbiddenError('You do not have access to this calendar event');
   }
 
-  private async verifyWorkspaceAccess(workspaceId: string, userId: string): Promise<void> {
+  private async verifyWorkspaceAccess(
+    workspaceId: string,
+    userId: string
+  ): Promise<void> {
     const workspace = await workspaceRepository.findById(workspaceId);
     if (!workspace) {
       throw new NotFoundError('Workspace', workspaceId);
@@ -561,7 +682,10 @@ export class CalendarEventService extends BaseService {
     // Add workspace member check logic here
   }
 
-  private async verifyTeamAccess(teamId: string, userId: string): Promise<void> {
+  private async verifyTeamAccess(
+    teamId: string,
+    userId: string
+  ): Promise<void> {
     const team = await teamRepository.findById(teamId);
     if (!team) {
       throw new NotFoundError('Team', teamId);
@@ -569,7 +693,10 @@ export class CalendarEventService extends BaseService {
     // Add team member check logic here
   }
 
-  private async verifyProjectAccess(projectId: string, userId: string): Promise<void> {
+  private async verifyProjectAccess(
+    projectId: string,
+    userId: string
+  ): Promise<void> {
     const project = await projectRepository.findById(projectId);
     if (!project) {
       throw new NotFoundError('Project', projectId);
@@ -577,7 +704,10 @@ export class CalendarEventService extends BaseService {
     // Add project access check logic here
   }
 
-  private async verifyTaskAccess(taskId: string, userId: string): Promise<void> {
+  private async verifyTaskAccess(
+    taskId: string,
+    userId: string
+  ): Promise<void> {
     const task = await taskRepository.findById(taskId);
     if (!task) {
       throw new NotFoundError('Task', taskId);
@@ -585,68 +715,100 @@ export class CalendarEventService extends BaseService {
     // Add task access check logic here
   }
 
-  private async hasWorkspaceAccess(userId: string, workspaceId: string): Promise<boolean> {
+  private async hasWorkspaceAccess(
+    userId: string,
+    workspaceId: string
+  ): Promise<boolean> {
     const workspace = await workspaceRepository.findById(workspaceId);
     if (!workspace) return false;
     // Add workspace member check logic here
     return true; // Placeholder
   }
 
-  private async hasTeamAccess(userId: string, teamId: string): Promise<boolean> {
+  private async hasTeamAccess(
+    userId: string,
+    teamId: string
+  ): Promise<boolean> {
     const team = await teamRepository.findById(teamId);
     if (!team) return false;
     // Add team member check logic here
     return true; // Placeholder
   }
 
-  private async hasProjectAccess(userId: string, projectId: string): Promise<boolean> {
+  private async hasProjectAccess(
+    userId: string,
+    projectId: string
+  ): Promise<boolean> {
     const project = await projectRepository.findById(projectId);
     if (!project) return false;
     // Add project access check logic here
     return true; // Placeholder
   }
 
-  private buildEventWhereConditions(filters: CalendarEventFilters, userId: string): any {
+  private buildEventWhereConditions(
+    filters: CalendarEventFilters,
+    userId: string
+  ): any {
     const conditions = [eq(calendarEventRepository['table']?.userId, userId)];
 
     if (filters.type) {
       if (Array.isArray(filters.type)) {
-        conditions.push(inArray(calendarEventRepository['table']?.type, filters.type));
+        conditions.push(
+          inArray(calendarEventRepository['table']?.type, filters.type)
+        );
       } else {
-        conditions.push(eq(calendarEventRepository['table']?.type, filters.type));
+        conditions.push(
+          eq(calendarEventRepository['table']?.type, filters.type)
+        );
       }
     }
 
     if (filters.startDate) {
-      conditions.push(gte(calendarEventRepository['table']?.startDate, filters.startDate));
+      conditions.push(
+        gte(calendarEventRepository['table']?.startDate, filters.startDate)
+      );
     }
 
     if (filters.endDate) {
-      conditions.push(lte(calendarEventRepository['table']?.startDate, filters.endDate));
+      conditions.push(
+        lte(calendarEventRepository['table']?.startDate, filters.endDate)
+      );
     }
 
     if (filters.workspaceId) {
-      conditions.push(eq(calendarEventRepository['table']?.workspaceId, filters.workspaceId));
+      conditions.push(
+        eq(calendarEventRepository['table']?.workspaceId, filters.workspaceId)
+      );
     }
 
     if (filters.teamId) {
-      conditions.push(eq(calendarEventRepository['table']?.teamId, filters.teamId));
+      conditions.push(
+        eq(calendarEventRepository['table']?.teamId, filters.teamId)
+      );
     }
 
     if (filters.projectId) {
-      conditions.push(eq(calendarEventRepository['table']?.projectId, filters.projectId));
+      conditions.push(
+        eq(calendarEventRepository['table']?.projectId, filters.projectId)
+      );
     }
 
     if (filters.taskId) {
-      conditions.push(eq(calendarEventRepository['table']?.taskId, filters.taskId));
+      conditions.push(
+        eq(calendarEventRepository['table']?.taskId, filters.taskId)
+      );
     }
 
     if (filters.isRecurring !== undefined) {
-      conditions.push(eq(calendarEventRepository['table']?.isRecurring, filters.isRecurring));
+      conditions.push(
+        eq(calendarEventRepository['table']?.isRecurring, filters.isRecurring)
+      );
     }
 
     if (filters.search) {
-      conditions.push(ilike(calendarEventRepository['table']?.title, `%${filters.search}%`));
+      conditions.push(
+        ilike(calendarEventRepository['table']?.title, `%${filters.search}%`)
+      );
     }
 
     return and(...conditions);
@@ -670,11 +832,15 @@ export class CalendarEventService extends BaseService {
     }
 
     if (data.description && data.description.length > 1000) {
-      throw new ValidationError('Event description must be less than 1000 characters');
+      throw new ValidationError(
+        'Event description must be less than 1000 characters'
+      );
     }
 
     if (data.location && data.location.length > 500) {
-      throw new ValidationError('Event location must be less than 500 characters');
+      throw new ValidationError(
+        'Event location must be less than 500 characters'
+      );
     }
 
     if (data.color && !/^#[0-9A-F]{6}$/i.test(data.color)) {
@@ -688,7 +854,9 @@ export class CalendarEventService extends BaseService {
         throw new ValidationError('Event title is required');
       }
       if (data.title.length > 200) {
-        throw new ValidationError('Event title must be less than 200 characters');
+        throw new ValidationError(
+          'Event title must be less than 200 characters'
+        );
       }
     }
 
@@ -696,12 +864,24 @@ export class CalendarEventService extends BaseService {
       throw new ValidationError('End date must be after start date');
     }
 
-    if (data.description !== undefined && data.description && data.description.length > 1000) {
-      throw new ValidationError('Event description must be less than 1000 characters');
+    if (
+      data.description !== undefined &&
+      data.description &&
+      data.description.length > 1000
+    ) {
+      throw new ValidationError(
+        'Event description must be less than 1000 characters'
+      );
     }
 
-    if (data.location !== undefined && data.location && data.location.length > 500) {
-      throw new ValidationError('Event location must be less than 500 characters');
+    if (
+      data.location !== undefined &&
+      data.location &&
+      data.location.length > 500
+    ) {
+      throw new ValidationError(
+        'Event location must be less than 500 characters'
+      );
     }
 
     if (data.color && !/^#[0-9A-F]{6}$/i.test(data.color)) {
@@ -725,9 +905,13 @@ export class CalendarEventService extends BaseService {
     if (!eventData.startDate) return null;
 
     const newStart = new Date(eventData.startDate);
-    const newEnd = eventData.endDate ? new Date(eventData.endDate) : new Date(newStart.getTime() + 60 * 60 * 1000); // Default 1 hour
+    const newEnd = eventData.endDate
+      ? new Date(eventData.endDate)
+      : new Date(newStart.getTime() + 60 * 60 * 1000); // Default 1 hour
     const existingStart = new Date(existingEvent.startDate);
-    const existingEnd = existingEvent.endDate ? new Date(existingEvent.endDate) : new Date(existingStart.getTime() + 60 * 60 * 1000);
+    const existingEnd = existingEvent.endDate
+      ? new Date(existingEvent.endDate)
+      : new Date(existingStart.getTime() + 60 * 60 * 1000);
 
     // Check for overlap
     const hasOverlap = newStart < existingEnd && newEnd > existingStart;
@@ -739,7 +923,7 @@ export class CalendarEventService extends BaseService {
         startDate: existingEvent.startDate,
         endDate: existingEvent.endDate,
         conflictType: 'overlap',
-        severity: 'medium'
+        severity: 'medium',
       };
     }
 
@@ -756,45 +940,63 @@ export class CalendarEventService extends BaseService {
 
   private calculateAverageDuration(events: CalendarEvent[]): number {
     const eventsWithDuration = events.filter(e => e.endDate);
-    
+
     if (eventsWithDuration.length === 0) return 0;
-    
+
     const totalDuration = eventsWithDuration.reduce((sum, event) => {
       const start = new Date(event.startDate).getTime();
       const end = new Date(event.endDate!).getTime();
       return sum + (end - start);
     }, 0);
-    
+
     return totalDuration / eventsWithDuration.length / (1000 * 60 * 60); // Convert to hours
   }
 
-  private calculateBusyHours(events: CalendarEvent[]): Array<{ hour: number; eventCount: number }> {
+  private calculateBusyHours(
+    events: CalendarEvent[]
+  ): Array<{ hour: number; eventCount: number }> {
     const hourCounts: Record<number, number> = {};
-    
+
     events.forEach(event => {
       const hour = new Date(event.startDate).getHours();
       hourCounts[hour] = (hourCounts[hour] || 0) + 1;
     });
-    
-    return Object.entries(hourCounts).map(([hour, count]) => ({
-      hour: parseInt(hour),
-      eventCount: count
-    })).sort((a, b) => a.hour - b.hour);
+
+    return Object.entries(hourCounts)
+      .map(([hour, count]) => ({
+        hour: parseInt(hour),
+        eventCount: count,
+      }))
+      .sort((a, b) => a.hour - b.hour);
   }
 
-  private async addEventAttendees(eventId: string, attendeeIds: string[]): Promise<void> {
+  private async addEventAttendees(
+    eventId: string,
+    attendeeIds: string[]
+  ): Promise<void> {
     // This would typically use a separate attendees repository
     // For now, we'll just log the operation
-    console.log(`Adding attendees ${attendeeIds.join(', ')} to event ${eventId}`);
+    console.log(
+      `Adding attendees ${attendeeIds.join(', ')} to event ${eventId}`
+    );
   }
 
-  private async addEventReminders(eventId: string, userId: string, reminderMinutes: number[]): Promise<void> {
+  private async addEventReminders(
+    eventId: string,
+    userId: string,
+    reminderMinutes: number[]
+  ): Promise<void> {
     // This would typically use a separate reminders repository
     // For now, we'll just log the operation
-    console.log(`Adding reminders ${reminderMinutes.join(', ')} minutes for event ${eventId}`);
+    console.log(
+      `Adding reminders ${reminderMinutes.join(', ')} minutes for event ${eventId}`
+    );
   }
 
-  private async sendEventInvitations(event: CalendarEvent, attendeeIds: string[]): Promise<void> {
+  private async sendEventInvitations(
+    event: CalendarEvent,
+    attendeeIds: string[]
+  ): Promise<void> {
     for (const attendeeId of attendeeIds) {
       try {
         await notificationService.createNotification({
@@ -805,8 +1007,8 @@ export class CalendarEventService extends BaseService {
           data: {
             eventId: event.id,
             eventTitle: event.title,
-            eventDate: event.startDate.toISOString()
-          }
+            eventDate: event.startDate.toISOString(),
+          },
         });
       } catch (error) {
         console.error(`Failed to send invitation to ${attendeeId}:`, error);
@@ -814,16 +1016,24 @@ export class CalendarEventService extends BaseService {
     }
   }
 
-  private async sendEventUpdateNotifications(event: CalendarEvent): Promise<void> {
+  private async sendEventUpdateNotifications(
+    event: CalendarEvent
+  ): Promise<void> {
     // This would typically get attendees from the attendees table
     // For now, we'll just log the operation
-    console.log(`Sending update notifications for event ${event.id}: ${event.title}`);
+    console.log(
+      `Sending update notifications for event ${event.id}: ${event.title}`
+    );
   }
 
-  private async sendEventCancellationNotifications(event: CalendarEvent): Promise<void> {
+  private async sendEventCancellationNotifications(
+    event: CalendarEvent
+  ): Promise<void> {
     // This would typically get attendees from the attendees table
     // For now, we'll just log the operation
-    console.log(`Sending cancellation notifications for event ${event.id}: ${event.title}`);
+    console.log(
+      `Sending cancellation notifications for event ${event.id}: ${event.title}`
+    );
   }
 
   private async processEventReminder(event: CalendarEvent): Promise<number> {
