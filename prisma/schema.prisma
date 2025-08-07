@@ -95,6 +95,13 @@ model User {
     searchAnalytics  SearchAnalytics[]
     searchHistory    SearchHistory[]
 
+    // Database indexes for performance optimization
+    @@index([email])
+    @@index([activeWorkspaceId])
+    @@index([createdAt])
+    @@index([lastLoginAt])
+    @@index([failedLoginAttempts, lockedUntil])
+    @@index([riskScore])
     @@map("users")
 }
 
@@ -232,6 +239,15 @@ model Workspace {
     searchPresets   SearchPreset[]
     searchHistory   SearchHistory[]
 
+    // Database indexes for performance optimization
+    @@index([slug])
+    @@index([ownerId])
+    @@index([subscriptionTier])
+    @@index([isActive])
+    @@index([createdAt])
+    @@index([deletedAt])
+    @@index([ownerId, isActive])
+    @@index([subscriptionTier, isActive])
     @@map("workspaces")
 }
 
