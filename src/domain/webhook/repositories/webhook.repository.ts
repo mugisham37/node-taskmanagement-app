@@ -1,4 +1,4 @@
-import { Repository } from '../../shared/base/repository';
+import { Repository } from '../../../shared/domain/repository';
 import { WebhookEntity } from '../entities/webhook.entity';
 import { WebhookId } from '../value-objects/webhook-id';
 import { WorkspaceId } from '../../task-management/value-objects/workspace-id';

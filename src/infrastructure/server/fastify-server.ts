@@ -6,11 +6,11 @@ import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import websocket from '@fastify/websocket';
 
-import { config } from '@/infrastructure/config/environment';
+import { config } from '../shared/config/environment';
 import { logger } from '@/infrastructure/logging/logger';
 import { registerRoutes } from '@/presentation/routes';
-import { errorHandler } from '@/presentation/middleware/error-handler';
-import authenticationMiddleware from '@/presentation/middleware/authentication';
+import { errorHandler } from '../shared/middleware/error-handler';
+import authenticationMiddleware from '../shared/middleware/authentication';
 import { WebSocketServer } from '@/infrastructure/websocket';
 import { webSocketBroadcastService } from '@/application/services/websocket.service';
 

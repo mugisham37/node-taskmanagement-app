@@ -1,4 +1,4 @@
-import { BaseSpecification } from '../../shared/repositories/IRepository';
+import { BaseSpecification } from '../../../shared/domain/repositories/IRepository';
 import { Task } from '../entities/Task';
 import { TaskStatus } from '../value-objects/TaskStatus';
 import { Priority } from '../value-objects/Priority';

@@ -8,8 +8,8 @@ import {
   configureSecurityMiddleware,
   validateContentType,
 } from './middleware/security.middleware';
-import { performanceMonitor } from './utils/performance-monitor';
-import { requestLogger, stream } from './infrastructure/config/logger';
+import { performanceMonitor } from '../shared/utils/performance-monitor';
+import { requestLogger, stream } from '../shared/config/logger';
 import { apiVersionMiddleware } from './middleware/api-version.middleware';
 import {
   i18nMiddleware,
@@ -17,8 +17,8 @@ import {
   translationMiddleware,
 } from './middleware/i18n.middleware';
 import routes from './routes';
-import config from './infrastructure/config/environment';
-import { setupSwagger } from './infrastructure/config/swagger';
+import config from '../shared/config/environment';
+import { setupSwagger } from '../shared/config/swagger';
 
 // Create Express app
 const app = express();

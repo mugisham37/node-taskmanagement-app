@@ -1,4 +1,4 @@
-import { ValueObject } from '../../shared/value-objects/ValueObject';
+import { ValueObject } from '../../../shared/domain/value-objects/ValueObject';
 
 export enum TaskStatusEnum {
   TODO = 'TODO',

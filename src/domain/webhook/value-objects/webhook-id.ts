@@ -1,4 +1,4 @@
-import { ValueObject } from '../../shared/base/value-object';
+import { ValueObject } from '../../../shared/domain/value-object';
 import { v4 as uuidv4 } from 'uuid';
 
 export class WebhookId extends ValueObject<string> {

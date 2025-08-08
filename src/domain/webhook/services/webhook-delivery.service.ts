@@ -1,4 +1,4 @@
-import { DomainService } from '../../shared/base/domain-service';
+import { DomainService } from '../../../shared/domain/domain-service';
 import { WebhookDeliveryEntity } from '../entities/webhook-delivery.entity';
 import { WebhookEntity } from '../entities/webhook.entity';
 import { WebhookDeliveryId } from '../value-objects/webhook-delivery-id';

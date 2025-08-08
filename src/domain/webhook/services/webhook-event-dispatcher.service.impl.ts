@@ -11,7 +11,7 @@ import { WorkspaceId } from '../../domain/task-management/value-objects/workspac
 import { UserId } from '../../domain/authentication/value-objects/user-id';
 import { WebhookManagementService } from '../../domain/webhook/services/webhook-management.service';
 import { WebhookDeliveryService } from '../../domain/webhook/services/webhook-delivery.service';
-import { DomainEvent } from '../../domain/shared/events/domain-event';
+import { DomainEvent } from '../../../shared/domain/events/domain-event';
 import { Logger } from '../../infrastructure/logging/logger';
 
 @Injectable()

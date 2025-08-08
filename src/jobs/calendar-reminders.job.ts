@@ -1,5 +1,5 @@
 import * as calendarService from '../services/calendar.service';
-import logger from '../infrastructure/config/logger';
+import logger from '../../shared/config/logger';
 
 /**
  * Schedule job to process calendar event reminders

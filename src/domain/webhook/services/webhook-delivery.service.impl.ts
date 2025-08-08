@@ -16,7 +16,7 @@ import { WebhookDeliveryStatus } from '../../domain/webhook/value-objects/webhoo
 import { WebhookRepository } from '../../domain/webhook/repositories/webhook.repository';
 import { WebhookDeliveryRepository } from '../../domain/webhook/repositories/webhook-delivery.repository';
 import { Logger } from '../../infrastructure/logging/logger';
-import { DomainEventBus } from '../../domain/shared/events/domain-event-bus';
+import { DomainEventBus } from '../../../shared/domain/events/domain-event-bus';
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import * as crypto from 'crypto';
 

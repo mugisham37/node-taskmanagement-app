@@ -15,7 +15,7 @@ import * as crypto from 'crypto';
 import { Readable } from 'stream';
 import { createReadStream, createWriteStream } from 'fs';
 import { pipeline } from 'stream/promises';
-import { logger } from '../../utils/logger';
+import { logger } from '../../../shared/utils/logger';
 
 export class EnhancedLocalStorageService implements FileStorageService {
   private readonly basePath: string;

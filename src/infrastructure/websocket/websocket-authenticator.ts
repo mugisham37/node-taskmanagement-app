@@ -2,7 +2,7 @@ import { FastifyRequest } from 'fastify';
 import jwt from 'jsonwebtoken';
 import { logger } from '@/infrastructure/logging/logger';
 import { WebSocketUser } from './websocket-connection';
-import { config } from '@/infrastructure/config/environment';
+import { config } from '../shared/config/environment';
 
 export interface AuthenticationResult {
   success: boolean;

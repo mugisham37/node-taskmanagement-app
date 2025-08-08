@@ -13,7 +13,7 @@ import { BlobServiceClient, ContainerClient } from '@azure/storage-blob';
 import { Readable } from 'stream';
 import * as crypto from 'crypto';
 import * as path from 'path';
-import { logger } from '../../utils/logger';
+import { logger } from '../../../shared/utils/logger';
 
 export interface AzureBlobConfig {
   connectionString: string;

@@ -1,4 +1,4 @@
-import { DomainEvent } from '../../domain/shared/events/domain-event';
+import { DomainEvent } from '../../../shared/domain/events/domain-event';
 
 export interface EventHandler<T extends DomainEvent = DomainEvent> {
   handle(event: T): Promise<void>;

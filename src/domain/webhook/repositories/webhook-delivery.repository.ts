@@ -1,4 +1,4 @@
-import { Repository } from '../../shared/base/repository';
+import { Repository } from '../../../shared/domain/repository';
 import { WebhookDeliveryEntity } from '../entities/webhook-delivery.entity';
 import { WebhookDeliveryId } from '../value-objects/webhook-delivery-id';
 import { WebhookId } from '../value-objects/webhook-id';

@@ -1,5 +1,5 @@
 import { taskService, TaskStatus } from '../services';
-import logger from '../infrastructure/config/logger';
+import logger from '../../shared/config/logger';
 
 /**
  * Schedule job to process task notifications and overdue checks

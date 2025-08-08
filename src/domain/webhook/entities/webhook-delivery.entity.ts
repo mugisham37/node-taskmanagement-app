@@ -1,10 +1,10 @@
-import { Entity } from '../../shared/base/entity';
+import { Entity } from '../../../shared/domain/entity';
 import { WebhookDeliveryId } from '../value-objects/webhook-delivery-id';
 import { WebhookId } from '../value-objects/webhook-id';
 import { WorkspaceId } from '../../task-management/value-objects/workspace-id';
 import { WebhookEvent } from '../value-objects/webhook-event';
 import { WebhookDeliveryStatus } from '../value-objects/webhook-delivery-status';
-import { DomainEvent } from '../../shared/events/domain-event';
+import { DomainEvent } from '../../../shared/domain/events/domain-event';
 
 export interface WebhookDeliveryProps {
   id: WebhookDeliveryId;

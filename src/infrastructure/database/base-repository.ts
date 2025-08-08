@@ -1,11 +1,11 @@
 import { PrismaClient, Prisma } from '@prisma/client';
-import { Entity } from '../../domain/shared/base/entity';
+import { Entity } from '../../../shared/domain/base/entity';
 import {
   IRepository,
   ISpecification,
   IPaginationOptions,
   IPaginatedResult,
-} from '../../domain/shared/repositories/IRepository';
+} from '../../../shared/domain/repositories/IRepository';
 import { prisma } from './prisma-client';
 import { IUnitOfWork } from './unit-of-work';
 import { logger } from '../logging/logger';

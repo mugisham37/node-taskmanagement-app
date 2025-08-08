@@ -2,8 +2,8 @@ import { scheduleTaskNotificationsJob } from './task-notifications.job';
 import { scheduleRecurringTasksJob } from './recurring-tasks.job';
 import { scheduleCalendarRemindersJob } from './calendar-reminders.job';
 import { WebhookDeliveryJobManager } from './webhook-delivery.job';
-import config from '../infrastructure/config/environment';
-import logger from '../infrastructure/config/logger';
+import config from '../../shared/config/environment';
+import logger from '../../shared/config/logger';
 
 // Array to store job intervals for cleanup
 const jobIntervals: NodeJS.Timeout[] = [];

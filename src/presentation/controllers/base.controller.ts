@@ -6,7 +6,7 @@ import {
   NotFoundError,
   UnauthorizedError,
   ForbiddenError,
-} from '../../shared/errors/app-errors';
+} from '../../../shared/domain/errors/app-errors';
 
 export interface StandardResponse<T = any> {
   success: boolean;

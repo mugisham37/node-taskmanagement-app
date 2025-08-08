@@ -1,4 +1,4 @@
-import { ValueObject } from '../../shared/value-objects/ValueObject';
+import { ValueObject } from '../../../shared/domain/value-objects/ValueObject';
 import { cuid } from '@paralleldrive/cuid2';
 
 export interface WorkspaceIdProps {

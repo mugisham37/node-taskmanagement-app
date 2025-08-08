@@ -1,7 +1,7 @@
 import { bootstrap as iocBootstrap } from '@/infrastructure/ioc/bootstrap';
 import { ServiceLocator } from '@/infrastructure/ioc/service-locator';
 import { createServer } from '@/infrastructure/server/fastify-server';
-import { config } from '@/infrastructure/config/environment';
+import { config } from '../shared/config/environment';
 import { logger } from '@/infrastructure/logging/logger';
 
 async function bootstrap(): Promise<void> {

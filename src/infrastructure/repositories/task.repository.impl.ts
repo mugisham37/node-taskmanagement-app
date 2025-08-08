@@ -8,7 +8,7 @@ import { WorkspaceId } from '../../domain/task-management/value-objects/Workspac
 import { UserId } from '../../domain/authentication/value-objects/UserId';
 import { TaskStatus } from '../../domain/task-management/value-objects/TaskStatus';
 import { Priority } from '../../domain/task-management/value-objects/Priority';
-import { ISpecification } from '../../domain/shared/repositories/IRepository';
+import { ISpecification } from '../../../shared/domain/repositories/IRepository';
 
 type PrismaTaskWithRelations = PrismaTask & {
   assignee?: any;

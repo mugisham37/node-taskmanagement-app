@@ -1,4 +1,4 @@
-import { ValueObject } from '../../shared/base/value-object';
+import { ValueObject } from '../../../shared/domain/value-object';
 
 export type WebhookDeliveryStatusValue = 'pending' | 'delivered' | 'failed';
 

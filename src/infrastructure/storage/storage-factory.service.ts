@@ -5,7 +5,7 @@ import {
   AzureBlobStorageService,
   AzureBlobConfig,
 } from './azure-blob-storage.service';
-import { logger } from '../../utils/logger';
+import { logger } from '../../../shared/utils/logger';
 
 export type StorageConfig = {
   type: 'local' | 's3' | 'azure';

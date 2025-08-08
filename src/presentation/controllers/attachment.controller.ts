@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { AttachmentService } from '../application/services/attachment.service';
-import { logger } from '../utils/logger';
+import { logger } from '../../shared/utils/logger';
 import * as z from 'zod';
 
 // Validation schemas

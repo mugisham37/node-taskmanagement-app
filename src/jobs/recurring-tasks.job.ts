@@ -1,5 +1,5 @@
 import * as recurringTaskService from '../services/recurring-task.service';
-import logger from '../infrastructure/config/logger';
+import logger from '../../shared/config/logger';
 
 /**
  * Schedule job to process recurring tasks

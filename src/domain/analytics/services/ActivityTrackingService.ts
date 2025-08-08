@@ -6,8 +6,8 @@ import {
   ActivityContext,
   ActivityTypeValidator,
 } from '../value-objects/ActivityTypes';
-import { BaseService } from '../../shared/services/BaseService';
-import { DomainError } from '../../shared/errors/DomainError';
+import { BaseService } from '../../../shared/domain/services/BaseService';
+import { DomainError } from '../../../shared/domain/errors/DomainError';
 import { EventEmitter } from 'events';
 import { Logger } from '../../../infrastructure/logging/logger';
 

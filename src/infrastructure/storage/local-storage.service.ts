@@ -11,7 +11,7 @@ import {
   DownloadResult,
   StorageBackend,
 } from '../../domain/file-management/services/file-storage.service';
-import { logger } from '../../utils/logger';
+import { logger } from '../../../shared/utils/logger';
 
 export class LocalStorageService implements FileStorageService {
   private readonly basePath: string;

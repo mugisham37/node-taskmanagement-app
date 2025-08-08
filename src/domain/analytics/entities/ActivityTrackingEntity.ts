@@ -1,4 +1,4 @@
-import { BaseEntity } from '../../shared/entities/BaseEntity';
+import { BaseEntity } from '../../../shared/domain/entities/BaseEntity';
 import {
   ActivityType,
   ActivityMetadata,

@@ -14,11 +14,11 @@ import {
 } from 'drizzle-orm';
 import { CalendarEvent } from '../../domain/calendar/entities/calendar-event.entity';
 import { CalendarEventId } from '../../domain/calendar/value-objects/calendar-event-id.vo';
-import { UserId } from '../../domain/shared/value-objects/user-id.vo';
-import { WorkspaceId } from '../../domain/shared/value-objects/workspace-id.vo';
-import { ProjectId } from '../../domain/shared/value-objects/project-id.vo';
-import { TaskId } from '../../domain/shared/value-objects/task-id.vo';
-import { TeamId } from '../../domain/shared/value-objects/team-id.vo';
+import { UserId } from '../../../shared/domain/value-objects/user-id.vo';
+import { WorkspaceId } from '../../../shared/domain/value-objects/workspace-id.vo';
+import { ProjectId } from '../../../shared/domain/value-objects/project-id.vo';
+import { TaskId } from '../../../shared/domain/value-objects/task-id.vo';
+import { TeamId } from '../../../shared/domain/value-objects/team-id.vo';
 import {
   ICalendarEventRepository,
   CalendarEventFilters,

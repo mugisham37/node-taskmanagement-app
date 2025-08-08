@@ -1,4 +1,4 @@
-import { DomainService } from '../../shared/base/domain-service';
+import { DomainService } from '../../../shared/domain/domain-service';
 import { WebhookEvent } from '../value-objects/webhook-event';
 import { WorkspaceId } from '../../task-management/value-objects/workspace-id';
 import { UserId } from '../../authentication/value-objects/user-id';
@@ -7,7 +7,7 @@ import {
   BulkDeliveryResult,
 } from './webhook-delivery.service';
 import { WebhookManagementService } from './webhook-management.service';
-import { DomainEvent } from '../../shared/events/domain-event';
+import { DomainEvent } from '../../../shared/domain/events/domain-event';
 
 export interface EventPayloadBuilder {
   buildPayload(

@@ -15,11 +15,11 @@ import {
   AttendeeStatus,
 } from '../../domain/calendar/entities/calendar-event.entity';
 import { CalendarEventId } from '../../domain/calendar/value-objects/calendar-event-id.vo';
-import { UserId } from '../../domain/shared/value-objects/user-id.vo';
-import { WorkspaceId } from '../../domain/shared/value-objects/workspace-id.vo';
-import { ProjectId } from '../../domain/shared/value-objects/project-id.vo';
-import { TaskId } from '../../domain/shared/value-objects/task-id.vo';
-import { TeamId } from '../../domain/shared/value-objects/team-id.vo';
+import { UserId } from '../../../shared/domain/value-objects/user-id.vo';
+import { WorkspaceId } from '../../../shared/domain/value-objects/workspace-id.vo';
+import { ProjectId } from '../../../shared/domain/value-objects/project-id.vo';
+import { TaskId } from '../../../shared/domain/value-objects/task-id.vo';
+import { TeamId } from '../../../shared/domain/value-objects/team-id.vo';
 import {
   CalendarEventFilters,
   CalendarEventPaginationOptions,
@@ -31,7 +31,7 @@ import {
   NotificationType,
 } from '../../services/notification.service';
 import { activityService } from '../../services/activity.service';
-import { DomainEventBus } from '../../domain/shared/events/domain-event-bus';
+import { DomainEventBus } from '../../../shared/domain/events/domain-event-bus';
 
 export interface CalendarEventCreateData {
   title: string;

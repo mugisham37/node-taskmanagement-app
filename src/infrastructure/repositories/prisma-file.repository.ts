@@ -9,7 +9,7 @@ import {
 import { FileMetadata } from '../../domain/file-management/value-objects/file-metadata.vo';
 import { FileAccessControl } from '../../domain/file-management/value-objects/file-access-control.vo';
 import { FileVersion } from '../../domain/file-management/value-objects/file-version.vo';
-import { logger } from '../../utils/logger';
+import { logger } from '../../../shared/utils/logger';
 
 export class PrismaFileRepository implements FileRepository {
   constructor(private readonly prisma: PrismaClient) {}

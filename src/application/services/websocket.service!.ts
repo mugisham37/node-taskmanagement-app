@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   TypingIndicator,
 } from './presence.service';
-import logger from '../utils/logger';
+import logger from '../../shared/utils/logger';
 import jwt from 'jsonwebtoken';
 
 // JWT verification function (since auth.service doesn't exist yet)

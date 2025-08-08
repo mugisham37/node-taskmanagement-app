@@ -1,4 +1,4 @@
-import { ValueObject } from '../../shared/base/value-object';
+import { ValueObject } from '../../../shared/domain/value-object';
 import * as crypto from 'crypto';
 
 export class WebhookSecret extends ValueObject<string> {

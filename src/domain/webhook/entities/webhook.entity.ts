@@ -1,4 +1,4 @@
-import { Entity } from '../../shared/base/entity';
+import { Entity } from '../../../shared/domain/entity';
 import { WebhookId } from '../value-objects/webhook-id';
 import { UserId } from '../../authentication/value-objects/user-id';
 import { WorkspaceId } from '../../task-management/value-objects/workspace-id';
@@ -6,7 +6,7 @@ import { WebhookUrl } from '../value-objects/webhook-url';
 import { WebhookSecret } from '../value-objects/webhook-secret';
 import { WebhookStatus } from '../value-objects/webhook-status';
 import { WebhookEvent } from '../value-objects/webhook-event';
-import { DomainEvent } from '../../shared/events/domain-event';
+import { DomainEvent } from '../../../shared/domain/events/domain-event';
 
 export interface WebhookProps {
   id: WebhookId;

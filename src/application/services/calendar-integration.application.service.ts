@@ -12,7 +12,7 @@ import {
   SyncDirection,
 } from '../../domain/calendar/entities/calendar-integration.entity';
 import { CalendarIntegrationId } from '../../domain/calendar/value-objects/calendar-integration-id.vo';
-import { UserId } from '../../domain/shared/value-objects/user-id.vo';
+import { UserId } from '../../../shared/domain/value-objects/user-id.vo';
 import {
   CalendarProvider,
   CalendarProviderType,
@@ -27,7 +27,7 @@ import {
   CapacityPlanningResult,
 } from '../../domain/calendar/services/task-calendar-sync.service';
 import { CalendarEventApplicationService } from './calendar-event.application.service';
-import { DomainEventBus } from '../../domain/shared/events/domain-event-bus';
+import { DomainEventBus } from '../../../shared/domain/events/domain-event-bus';
 import {
   notificationService,
   NotificationType,

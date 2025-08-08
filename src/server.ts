@@ -1,11 +1,11 @@
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import app from './app';
-import config from './infrastructure/config/environment';
-import logger from './infrastructure/config/logger';
+import config from '../shared/config/environment';
+import logger from '../shared/config/logger';
 import { setupWebSocketServer } from './services/websocket.service';
 import { initializeJobs, stopJobs } from './jobs';
-import { initI18n } from './infrastructure/config/i18n';
+import { initI18n } from '../shared/config/i18n';
 import {
   connectToDatabase,
   createDatabaseIfNotExists,
