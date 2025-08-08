@@ -1,11 +1,11 @@
-import express from "express"
-import { authenticate } from "../middleware/auth"
-import * as analyticsController from "../controllers/analytics.controller"
+import express from 'express';
+import { authenticate } from '../../../shared/middleware/auth';
+import * as analyticsController from '../controllers/analytics.controller';
 
-const router = express.Router()
+const router = express.Router();
 
 // Apply authentication middleware to all routes
-router.use(authenticate())
+router.use(authenticate());
 
 /**
  * @swagger
@@ -35,7 +35,7 @@ router.use(authenticate())
  *       200:
  *         description: Task completion analytics retrieved successfully
  */
-router.get("/tasks/completion", analyticsController.getTaskAnalytics)
+router.get('/tasks/completion', analyticsController.getTaskAnalytics);
 
 /**
  * @swagger
@@ -60,7 +60,7 @@ router.get("/tasks/completion", analyticsController.getTaskAnalytics)
  *       200:
  *         description: Project analytics retrieved successfully
  */
-router.get("/projects", analyticsController.getProjectAnalytics)
+router.get('/projects', analyticsController.getProjectAnalytics);
 
 /**
  * @swagger
@@ -91,7 +91,7 @@ router.get("/projects", analyticsController.getProjectAnalytics)
  *       200:
  *         description: Specific project analytics retrieved successfully
  */
-router.get("/projects/:id", analyticsController.getProjectAnalytics)
+router.get('/projects/:id', analyticsController.getProjectAnalytics);
 
 /**
  * @swagger
@@ -122,7 +122,7 @@ router.get("/projects/:id", analyticsController.getProjectAnalytics)
  *       200:
  *         description: Team analytics retrieved successfully
  */
-router.get("/teams/:id", analyticsController.getProjectAnalytics)
+router.get('/teams/:id', analyticsController.getProjectAnalytics);
 
 /**
  * @swagger
@@ -152,7 +152,7 @@ router.get("/teams/:id", analyticsController.getProjectAnalytics)
  *       200:
  *         description: User productivity analytics retrieved successfully
  */
-router.get("/productivity", analyticsController.getUserProductivityAnalytics)
+router.get('/productivity', analyticsController.getUserProductivityAnalytics);
 
 /**
  * @swagger
@@ -177,7 +177,7 @@ router.get("/productivity", analyticsController.getUserProductivityAnalytics)
  *       200:
  *         description: Recurring task analytics retrieved successfully
  */
-router.get("/recurring-tasks", analyticsController.getDashboardAnalytics)
+router.get('/recurring-tasks', analyticsController.getDashboardAnalytics);
 
 /**
  * @swagger
@@ -191,6 +191,6 @@ router.get("/recurring-tasks", analyticsController.getDashboardAnalytics)
  *       200:
  *         description: Dashboard analytics retrieved successfully
  */
-router.get("/dashboard", analyticsController.getDashboardAnalytics)
+router.get('/dashboard', analyticsController.getDashboardAnalytics);
 
-export default router
+export default router;

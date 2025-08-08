@@ -1,13 +1,13 @@
-import express from "express"
-import * as dashboardController from "../controllers/dashboard.controller"
-import { authenticate } from "../middleware/auth"
-import { authorize } from "../middleware/auth"
+import express from 'express';
+import * as dashboardController from '../controllers/dashboard.controller';
+import { authenticate } from '../../../shared/middleware/auth';
+import { authorize } from '../../../shared/middleware/auth';
 
-const router = express.Router()
+const router = express.Router();
 
 // Apply authentication and authorization middleware to all routes
-router.use(authenticate())
-router.use(authorize(["admin"]))
+router.use(authenticate());
+router.use(authorize(['admin']));
 
 /**
  * @swagger
@@ -21,7 +21,7 @@ router.use(authorize(["admin"]))
  *       200:
  *         description: System overview retrieved successfully
  */
-router.get("/system-overview", dashboardController.getSystemOverview)
+router.get('/system-overview', dashboardController.getSystemOverview);
 
 /**
  * @swagger
@@ -42,7 +42,7 @@ router.get("/system-overview", dashboardController.getSystemOverview)
  *       200:
  *         description: User activity retrieved successfully
  */
-router.get("/user-activity", dashboardController.getUserActivity)
+router.get('/user-activity', dashboardController.getUserActivity);
 
 /**
  * @swagger
@@ -63,7 +63,7 @@ router.get("/user-activity", dashboardController.getUserActivity)
  *       200:
  *         description: Task statistics retrieved successfully
  */
-router.get("/task-statistics", dashboardController.getTaskStatistics)
+router.get('/task-statistics', dashboardController.getTaskStatistics);
 
 /**
  * @swagger
@@ -84,7 +84,7 @@ router.get("/task-statistics", dashboardController.getTaskStatistics)
  *       200:
  *         description: Project statistics retrieved successfully
  */
-router.get("/project-statistics", dashboardController.getProjectStatistics)
+router.get('/project-statistics', dashboardController.getProjectStatistics);
 
 /**
  * @swagger
@@ -98,7 +98,10 @@ router.get("/project-statistics", dashboardController.getProjectStatistics)
  *       200:
  *         description: Team and workspace statistics retrieved successfully
  */
-router.get("/team-workspace-statistics", dashboardController.getTeamWorkspaceStatistics)
+router.get(
+  '/team-workspace-statistics',
+  dashboardController.getTeamWorkspaceStatistics
+);
 
 /**
  * @swagger
@@ -121,6 +124,6 @@ router.get("/team-workspace-statistics", dashboardController.getTeamWorkspaceSta
  *       200:
  *         description: Dashboard cache invalidated successfully
  */
-router.post("/invalidate-cache", dashboardController.invalidateDashboardCache)
+router.post('/invalidate-cache', dashboardController.invalidateDashboardCache);
 
-export default router
+export default router;

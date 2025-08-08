@@ -1,18 +1,37 @@
-import { eq, and, or, desc, asc, count, sum, avg, gte, lte, between, sql } from 'drizzle-orm';
-import { BaseService, ServiceContext, NotFoundError, ValidationError, ForbiddenError } from './base.service';
-import { 
-  taskRepository, 
-  projectRepository, 
-  userRepository, 
+import {
+  eq,
+  and,
+  or,
+  desc,
+  asc,
+  count,
+  sum,
+  avg,
+  gte,
+  lte,
+  between,
+  sql,
+} from 'drizzle-orm';
+import {
+  BaseService,
+  ServiceContext,
+  NotFoundError,
+  ValidationError,
+  ForbiddenError,
+} from './base.service';
+import {
+  taskRepository,
+  projectRepository,
+  userRepository,
   activityRepository,
   teamRepository,
-  workspaceRepository 
+  workspaceRepository,
 } from '../db/repositories';
-import { tasks } from '../db/schema/tasks';
-import { projects } from '../db/schema/projects';
-import { activities } from '../db/schema/activities';
-import { users } from '../db/schema/users';
-import { db } from '../db/connection';
+import { tasks } from '../../task-management/schemas/tasks';
+import { projects } from '../../task-management/schemas/projects';
+import { activities } from '../schemas/activities';
+import { users } from '../../authentication/schemas/users';
+import { db } from '../../../infrastructure/database/connection';
 
 export interface DateRange {
   startDate: Date;
@@ -41,7 +60,11 @@ export interface ProjectAnalytics {
   averageTasksPerProject: number;
   projectCompletionRate: number;
   projectsByStatus: Record<string, number>;
-  topProjectsByTaskCount: Array<{ projectId: string; projectName: string; taskCount: number }>;
+  topProjectsByTaskCount: Array<{
+    projectId: string;
+    projectName: string;
+    taskCount: number;
+  }>;
 }
 
 export interface UserProductivityAnalytics {
@@ -98,7 +121,11 @@ export interface DashboardAnalytics {
   };
   topMetrics: {
     mostProductiveUser: UserProductivityAnalytics;
-    mostActiveProject: { projectId: string; projectName: string; activityCount: number };
+    mostActiveProject: {
+      projectId: string;
+      projectName: string;
+      activityCount: number;
+    };
     longestStreak: { userId: string; userName: string; streakDays: number };
   };
   recentActivity: Array<{
@@ -116,7 +143,7 @@ export class AnalyticsService extends BaseService {
       enableCache: true,
       cacheTimeout: 600, // 10 minutes cache for analytics
       enableAudit: true,
-      enableMetrics: true
+      enableMetrics: true,
     });
   }
 
@@ -128,18 +155,22 @@ export class AnalyticsService extends BaseService {
     context?: ServiceContext
   ): Promise<TaskAnalytics> {
     const ctx = this.createContext(context);
-    this.logOperation('getTaskAnalytics', ctx, { userId, projectId, dateRange });
+    this.logOperation('getTaskAnalytics', ctx, {
+      userId,
+      projectId,
+      dateRange,
+    });
 
     try {
       // Set default date range (last 30 days)
       const range = dateRange || {
         startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        endDate: new Date()
+        endDate: new Date(),
       };
 
       // Build base query conditions
       const conditions = [];
-      
+
       if (userId) {
         // Verify user access
         if (userId !== ctx.userId && ctx.userRole !== 'admin') {
@@ -164,7 +195,8 @@ export class AnalyticsService extends BaseService {
       conditions.push(gte(tasks.createdAt, range.startDate));
       conditions.push(lte(tasks.createdAt, range.endDate));
 
-      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+      const whereClause =
+        conditions.length > 0 ? and(...conditions) : undefined;
 
       // Get basic task counts
       const [
@@ -172,17 +204,31 @@ export class AnalyticsService extends BaseService {
         completedTasksResult,
         inProgressTasksResult,
         todoTasksResult,
-        overdueTasksResult
+        overdueTasksResult,
       ] = await Promise.all([
         db.select({ count: count() }).from(tasks).where(whereClause),
-        db.select({ count: count() }).from(tasks).where(and(whereClause, eq(tasks.status, 'completed'))),
-        db.select({ count: count() }).from(tasks).where(and(whereClause, eq(tasks.status, 'in_progress'))),
-        db.select({ count: count() }).from(tasks).where(and(whereClause, eq(tasks.status, 'todo'))),
-        db.select({ count: count() }).from(tasks).where(and(
-          whereClause,
-          sql`${tasks.dueDate} < NOW()`,
-          sql`${tasks.status} != 'completed'`
-        ))
+        db
+          .select({ count: count() })
+          .from(tasks)
+          .where(and(whereClause, eq(tasks.status, 'completed'))),
+        db
+          .select({ count: count() })
+          .from(tasks)
+          .where(and(whereClause, eq(tasks.status, 'in_progress'))),
+        db
+          .select({ count: count() })
+          .from(tasks)
+          .where(and(whereClause, eq(tasks.status, 'todo'))),
+        db
+          .select({ count: count() })
+          .from(tasks)
+          .where(
+            and(
+              whereClause,
+              sql`${tasks.dueDate} < NOW()`,
+              sql`${tasks.status} != 'completed'`
+            )
+          ),
       ]);
 
       const totalTasks = totalTasksResult[0]?.count || 0;
@@ -192,66 +238,93 @@ export class AnalyticsService extends BaseService {
       const overdueTasks = overdueTasksResult[0]?.count || 0;
 
       // Calculate completion rate
-      const completionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+      const completionRate =
+        totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
       // Get tasks by priority
       const tasksByPriorityResult = await db
         .select({
           priority: tasks.priority,
-          count: count()
+          count: count(),
         })
         .from(tasks)
         .where(whereClause)
         .groupBy(tasks.priority);
 
-      const tasksByPriority = tasksByPriorityResult.reduce((acc, item) => {
-        acc[item.priority] = item.count;
-        return acc;
-      }, {} as Record<string, number>);
+      const tasksByPriority = tasksByPriorityResult.reduce(
+        (acc, item) => {
+          acc[item.priority] = item.count;
+          return acc;
+        },
+        {} as Record<string, number>
+      );
 
       // Get tasks by status
       const tasksByStatusResult = await db
         .select({
           status: tasks.status,
-          count: count()
+          count: count(),
         })
         .from(tasks)
         .where(whereClause)
         .groupBy(tasks.status);
 
-      const tasksByStatus = tasksByStatusResult.reduce((acc, item) => {
-        acc[item.status] = item.count;
-        return acc;
-      }, {} as Record<string, number>);
+      const tasksByStatus = tasksByStatusResult.reduce(
+        (acc, item) => {
+          acc[item.status] = item.count;
+          return acc;
+        },
+        {} as Record<string, number>
+      );
 
       // Calculate average completion time
       const completedTasksWithTime = await db
         .select({
           createdAt: tasks.createdAt,
-          completedAt: tasks.completedAt
+          completedAt: tasks.completedAt,
         })
         .from(tasks)
-        .where(and(
-          whereClause,
-          eq(tasks.status, 'completed'),
-          sql`${tasks.completedAt} IS NOT NULL`
-        ));
+        .where(
+          and(
+            whereClause,
+            eq(tasks.status, 'completed'),
+            sql`${tasks.completedAt} IS NOT NULL`
+          )
+        );
 
       let averageCompletionTime = 0;
       if (completedTasksWithTime.length > 0) {
-        const totalCompletionTime = completedTasksWithTime.reduce((sum, task) => {
-          const completionTime = task.completedAt!.getTime() - task.createdAt.getTime();
-          return sum + completionTime;
-        }, 0);
-        averageCompletionTime = totalCompletionTime / completedTasksWithTime.length / (1000 * 60 * 60); // Convert to hours
+        const totalCompletionTime = completedTasksWithTime.reduce(
+          (sum, task) => {
+            const completionTime =
+              task.completedAt!.getTime() - task.createdAt.getTime();
+            return sum + completionTime;
+          },
+          0
+        );
+        averageCompletionTime =
+          totalCompletionTime /
+          completedTasksWithTime.length /
+          (1000 * 60 * 60); // Convert to hours
       }
 
       // Get tasks created over time (daily)
-      const tasksCreatedOverTime = await this.getTasksOverTime(whereClause, 'createdAt', range);
-      
+      const tasksCreatedOverTime = await this.getTasksOverTime(
+        whereClause,
+        'createdAt',
+        range
+      );
+
       // Get tasks completed over time (daily)
-      const completedWhereClause = and(whereClause, eq(tasks.status, 'completed'));
-      const tasksCompletedOverTime = await this.getTasksOverTime(completedWhereClause, 'completedAt', range);
+      const completedWhereClause = and(
+        whereClause,
+        eq(tasks.status, 'completed')
+      );
+      const tasksCompletedOverTime = await this.getTasksOverTime(
+        completedWhereClause,
+        'completedAt',
+        range
+      );
 
       const analytics: TaskAnalytics = {
         totalTasks,
@@ -264,13 +337,13 @@ export class AnalyticsService extends BaseService {
         tasksByPriority,
         tasksByStatus,
         tasksCreatedOverTime,
-        tasksCompletedOverTime
+        tasksCompletedOverTime,
       };
 
       await this.recordMetric('analytics.task_analytics_generated', 1, {
         userId: userId || 'all',
         projectId: projectId || 'all',
-        totalTasks: totalTasks.toString()
+        totalTasks: totalTasks.toString(),
       });
 
       return analytics;
@@ -292,12 +365,12 @@ export class AnalyticsService extends BaseService {
       // Set default date range (last 30 days)
       const range = dateRange || {
         startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        endDate: new Date()
+        endDate: new Date(),
       };
 
       // Build base query conditions
       const conditions = [];
-      
+
       if (userId) {
         // Verify user access
         if (userId !== ctx.userId && ctx.userRole !== 'admin') {
@@ -309,17 +382,24 @@ export class AnalyticsService extends BaseService {
       conditions.push(gte(projects.createdAt, range.startDate));
       conditions.push(lte(projects.createdAt, range.endDate));
 
-      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+      const whereClause =
+        conditions.length > 0 ? and(...conditions) : undefined;
 
       // Get basic project counts
       const [
         totalProjectsResult,
         activeProjectsResult,
-        completedProjectsResult
+        completedProjectsResult,
       ] = await Promise.all([
         db.select({ count: count() }).from(projects).where(whereClause),
-        db.select({ count: count() }).from(projects).where(and(whereClause, eq(projects.status, 'active'))),
-        db.select({ count: count() }).from(projects).where(and(whereClause, eq(projects.status, 'completed')))
+        db
+          .select({ count: count() })
+          .from(projects)
+          .where(and(whereClause, eq(projects.status, 'active'))),
+        db
+          .select({ count: count() })
+          .from(projects)
+          .where(and(whereClause, eq(projects.status, 'completed'))),
       ]);
 
       const totalProjects = totalProjectsResult[0]?.count || 0;
@@ -344,32 +424,37 @@ export class AnalyticsService extends BaseService {
         .where(whereClause);
 
       const totalTasksInProjects = totalTasksInProjectsResult[0]?.count || 0;
-      const averageTasksPerProject = totalProjects > 0 ? totalTasksInProjects / totalProjects : 0;
+      const averageTasksPerProject =
+        totalProjects > 0 ? totalTasksInProjects / totalProjects : 0;
 
       // Calculate project completion rate
-      const projectCompletionRate = totalProjects > 0 ? (completedProjects / totalProjects) * 100 : 0;
+      const projectCompletionRate =
+        totalProjects > 0 ? (completedProjects / totalProjects) * 100 : 0;
 
       // Get projects by status
       const projectsByStatusResult = await db
         .select({
           status: projects.status,
-          count: count()
+          count: count(),
         })
         .from(projects)
         .where(whereClause)
         .groupBy(projects.status);
 
-      const projectsByStatus = projectsByStatusResult.reduce((acc, item) => {
-        acc[item.status] = item.count;
-        return acc;
-      }, {} as Record<string, number>);
+      const projectsByStatus = projectsByStatusResult.reduce(
+        (acc, item) => {
+          acc[item.status] = item.count;
+          return acc;
+        },
+        {} as Record<string, number>
+      );
 
       // Get top projects by task count
       const topProjectsByTaskCountResult = await db
         .select({
           projectId: projects.id,
           projectName: projects.name,
-          taskCount: count(tasks.id)
+          taskCount: count(tasks.id),
         })
         .from(projects)
         .leftJoin(tasks, eq(projects.id, tasks.projectId))
@@ -381,7 +466,7 @@ export class AnalyticsService extends BaseService {
       const topProjectsByTaskCount = topProjectsByTaskCountResult.map(item => ({
         projectId: item.projectId,
         projectName: item.projectName,
-        taskCount: item.taskCount
+        taskCount: item.taskCount,
       }));
 
       const analytics: ProjectAnalytics = {
@@ -392,12 +477,12 @@ export class AnalyticsService extends BaseService {
         averageTasksPerProject,
         projectCompletionRate,
         projectsByStatus,
-        topProjectsByTaskCount
+        topProjectsByTaskCount,
       };
 
       await this.recordMetric('analytics.project_analytics_generated', 1, {
         userId: userId || 'all',
-        totalProjects: totalProjects.toString()
+        totalProjects: totalProjects.toString(),
       });
 
       return analytics;
@@ -413,12 +498,17 @@ export class AnalyticsService extends BaseService {
     context?: ServiceContext
   ): Promise<UserProductivityAnalytics> {
     const ctx = this.createContext(context);
-    this.logOperation('getUserProductivityAnalytics', ctx, { userId, dateRange });
+    this.logOperation('getUserProductivityAnalytics', ctx, {
+      userId,
+      dateRange,
+    });
 
     try {
       // Verify user access
       if (userId !== ctx.userId && ctx.userRole !== 'admin') {
-        throw new ForbiddenError('You can only view your own productivity analytics');
+        throw new ForbiddenError(
+          'You can only view your own productivity analytics'
+        );
       }
 
       // Verify user exists
@@ -430,32 +520,44 @@ export class AnalyticsService extends BaseService {
       // Set default date range (last 30 days)
       const range = dateRange || {
         startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        endDate: new Date()
+        endDate: new Date(),
       };
 
       // Get task statistics
-      const [
-        tasksCompletedResult,
-        tasksCreatedResult,
-        activityCountResult
-      ] = await Promise.all([
-        db.select({ count: count() }).from(tasks).where(and(
-          eq(tasks.assigneeId, userId),
-          eq(tasks.status, 'completed'),
-          gte(tasks.completedAt, range.startDate),
-          lte(tasks.completedAt, range.endDate)
-        )),
-        db.select({ count: count() }).from(tasks).where(and(
-          eq(tasks.assigneeId, userId),
-          gte(tasks.createdAt, range.startDate),
-          lte(tasks.createdAt, range.endDate)
-        )),
-        db.select({ count: count() }).from(activities).where(and(
-          eq(activities.userId, userId),
-          gte(activities.createdAt, range.startDate),
-          lte(activities.createdAt, range.endDate)
-        ))
-      ]);
+      const [tasksCompletedResult, tasksCreatedResult, activityCountResult] =
+        await Promise.all([
+          db
+            .select({ count: count() })
+            .from(tasks)
+            .where(
+              and(
+                eq(tasks.assigneeId, userId),
+                eq(tasks.status, 'completed'),
+                gte(tasks.completedAt, range.startDate),
+                lte(tasks.completedAt, range.endDate)
+              )
+            ),
+          db
+            .select({ count: count() })
+            .from(tasks)
+            .where(
+              and(
+                eq(tasks.assigneeId, userId),
+                gte(tasks.createdAt, range.startDate),
+                lte(tasks.createdAt, range.endDate)
+              )
+            ),
+          db
+            .select({ count: count() })
+            .from(activities)
+            .where(
+              and(
+                eq(activities.userId, userId),
+                gte(activities.createdAt, range.startDate),
+                lte(activities.createdAt, range.endDate)
+              )
+            ),
+        ]);
 
       const tasksCompleted = tasksCompletedResult[0]?.count || 0;
       const tasksCreated = tasksCreatedResult[0]?.count || 0;
@@ -465,34 +567,49 @@ export class AnalyticsService extends BaseService {
       const completedTasksWithTime = await db
         .select({
           createdAt: tasks.createdAt,
-          completedAt: tasks.completedAt
+          completedAt: tasks.completedAt,
         })
         .from(tasks)
-        .where(and(
-          eq(tasks.assigneeId, userId),
-          eq(tasks.status, 'completed'),
-          sql`${tasks.completedAt} IS NOT NULL`,
-          gte(tasks.completedAt, range.startDate),
-          lte(tasks.completedAt, range.endDate)
-        ));
+        .where(
+          and(
+            eq(tasks.assigneeId, userId),
+            eq(tasks.status, 'completed'),
+            sql`${tasks.completedAt} IS NOT NULL`,
+            gte(tasks.completedAt, range.startDate),
+            lte(tasks.completedAt, range.endDate)
+          )
+        );
 
       let averageCompletionTime = 0;
       if (completedTasksWithTime.length > 0) {
-        const totalCompletionTime = completedTasksWithTime.reduce((sum, task) => {
-          const completionTime = task.completedAt!.getTime() - task.createdAt.getTime();
-          return sum + completionTime;
-        }, 0);
-        averageCompletionTime = totalCompletionTime / completedTasksWithTime.length / (1000 * 60 * 60); // Convert to hours
+        const totalCompletionTime = completedTasksWithTime.reduce(
+          (sum, task) => {
+            const completionTime =
+              task.completedAt!.getTime() - task.createdAt.getTime();
+            return sum + completionTime;
+          },
+          0
+        );
+        averageCompletionTime =
+          totalCompletionTime /
+          completedTasksWithTime.length /
+          (1000 * 60 * 60); // Convert to hours
       }
 
       // Calculate productivity score (0-100)
-      const productivityScore = this.calculateProductivityScore(tasksCompleted, tasksCreated, averageCompletionTime, activityCount);
+      const productivityScore = this.calculateProductivityScore(
+        tasksCompleted,
+        tasksCreated,
+        averageCompletionTime,
+        activityCount
+      );
 
       // Calculate streak days
       const streakDays = await this.calculateUserStreak(userId, range.endDate);
 
       // Get most productive hour and day
-      const { mostProductiveHour, mostProductiveDay } = await this.getMostProductiveTimePatterns(userId, range);
+      const { mostProductiveHour, mostProductiveDay } =
+        await this.getMostProductiveTimePatterns(userId, range);
 
       const analytics: UserProductivityAnalytics = {
         userId,
@@ -504,13 +621,13 @@ export class AnalyticsService extends BaseService {
         streakDays,
         mostProductiveHour,
         mostProductiveDay,
-        activityCount
+        activityCount,
       };
 
       await this.recordMetric('analytics.user_productivity_generated', 1, {
         userId,
         tasksCompleted: tasksCompleted.toString(),
-        productivityScore: productivityScore.toString()
+        productivityScore: productivityScore.toString(),
       });
 
       return analytics;
@@ -520,7 +637,9 @@ export class AnalyticsService extends BaseService {
   }
 
   // Dashboard Analytics
-  async getDashboardAnalytics(context?: ServiceContext): Promise<DashboardAnalytics> {
+  async getDashboardAnalytics(
+    context?: ServiceContext
+  ): Promise<DashboardAnalytics> {
     const ctx = this.createContext(context);
     this.logOperation('getDashboardAnalytics', ctx);
 
@@ -534,41 +653,63 @@ export class AnalyticsService extends BaseService {
         totalTasksResult,
         completedTasksResult,
         totalProjectsResult,
-        totalUsersResult
+        totalUsersResult,
       ] = await Promise.all([
         db.select({ count: count() }).from(tasks),
-        db.select({ count: count() }).from(tasks).where(eq(tasks.status, 'completed')),
+        db
+          .select({ count: count() })
+          .from(tasks)
+          .where(eq(tasks.status, 'completed')),
         db.select({ count: count() }).from(projects),
-        db.select({ count: count() }).from(users)
+        db.select({ count: count() }).from(users),
       ]);
 
       const totalTasks = totalTasksResult[0]?.count || 0;
       const completedTasks = completedTasksResult[0]?.count || 0;
       const totalProjects = totalProjectsResult[0]?.count || 0;
       const totalUsers = totalUsersResult[0]?.count || 0;
-      const completionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+      const completionRate =
+        totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
       // Get trend data
       const [
         tasksThisWeekResult,
         tasksLastWeekResult,
         completedThisWeekResult,
-        completedLastWeekResult
+        completedLastWeekResult,
       ] = await Promise.all([
-        db.select({ count: count() }).from(tasks).where(gte(tasks.createdAt, thisWeekStart)),
-        db.select({ count: count() }).from(tasks).where(and(
-          gte(tasks.createdAt, lastWeekStart),
-          lte(tasks.createdAt, thisWeekStart)
-        )),
-        db.select({ count: count() }).from(tasks).where(and(
-          eq(tasks.status, 'completed'),
-          gte(tasks.completedAt, thisWeekStart)
-        )),
-        db.select({ count: count() }).from(tasks).where(and(
-          eq(tasks.status, 'completed'),
-          gte(tasks.completedAt, lastWeekStart),
-          lte(tasks.completedAt, thisWeekStart)
-        ))
+        db
+          .select({ count: count() })
+          .from(tasks)
+          .where(gte(tasks.createdAt, thisWeekStart)),
+        db
+          .select({ count: count() })
+          .from(tasks)
+          .where(
+            and(
+              gte(tasks.createdAt, lastWeekStart),
+              lte(tasks.createdAt, thisWeekStart)
+            )
+          ),
+        db
+          .select({ count: count() })
+          .from(tasks)
+          .where(
+            and(
+              eq(tasks.status, 'completed'),
+              gte(tasks.completedAt, thisWeekStart)
+            )
+          ),
+        db
+          .select({ count: count() })
+          .from(tasks)
+          .where(
+            and(
+              eq(tasks.status, 'completed'),
+              gte(tasks.completedAt, lastWeekStart),
+              lte(tasks.completedAt, thisWeekStart)
+            )
+          ),
       ]);
 
       const tasksThisWeek = tasksThisWeekResult[0]?.count || 0;
@@ -576,9 +717,14 @@ export class AnalyticsService extends BaseService {
       const completedThisWeek = completedThisWeekResult[0]?.count || 0;
       const completedLastWeek = completedLastWeekResult[0]?.count || 0;
 
-      const completionRateThisWeek = tasksThisWeek > 0 ? (completedThisWeek / tasksThisWeek) * 100 : 0;
-      const completionRateLastWeek = tasksLastWeek > 0 ? (completedLastWeek / tasksLastWeek) * 100 : 0;
-      const growthRate = tasksLastWeek > 0 ? ((tasksThisWeek - tasksLastWeek) / tasksLastWeek) * 100 : 0;
+      const completionRateThisWeek =
+        tasksThisWeek > 0 ? (completedThisWeek / tasksThisWeek) * 100 : 0;
+      const completionRateLastWeek =
+        tasksLastWeek > 0 ? (completedLastWeek / tasksLastWeek) * 100 : 0;
+      const growthRate =
+        tasksLastWeek > 0
+          ? ((tasksThisWeek - tasksLastWeek) / tasksLastWeek) * 100
+          : 0;
 
       // Get top metrics (simplified for dashboard)
       const mostProductiveUser = await this.getMostProductiveUser();
@@ -594,21 +740,21 @@ export class AnalyticsService extends BaseService {
           completedTasks,
           totalProjects,
           totalUsers,
-          completionRate
+          completionRate,
         },
         trends: {
           tasksThisWeek,
           tasksLastWeek,
           completionRateThisWeek,
           completionRateLastWeek,
-          growthRate
+          growthRate,
         },
         topMetrics: {
           mostProductiveUser,
           mostActiveProject,
-          longestStreak
+          longestStreak,
         },
-        recentActivity
+        recentActivity,
       };
 
       await this.recordMetric('analytics.dashboard_generated', 1);
@@ -620,11 +766,15 @@ export class AnalyticsService extends BaseService {
   }
 
   // Private Helper Methods
-  private async getTasksOverTime(whereClause: any, dateField: string, range: DateRange): Promise<Array<{ date: string; count: number }>> {
+  private async getTasksOverTime(
+    whereClause: any,
+    dateField: string,
+    range: DateRange
+  ): Promise<Array<{ date: string; count: number }>> {
     const result = await db
       .select({
         date: sql`DATE(${sql.identifier(dateField)})`.as('date'),
-        count: count()
+        count: count(),
       })
       .from(tasks)
       .where(whereClause)
@@ -634,13 +784,13 @@ export class AnalyticsService extends BaseService {
     // Fill in missing dates with 0 count
     const dateMap = new Map(result.map(item => [item.date, item.count]));
     const filledData = [];
-    
+
     const currentDate = new Date(range.startDate);
     while (currentDate <= range.endDate) {
       const dateString = currentDate.toISOString().split('T')[0];
       filledData.push({
         date: dateString,
-        count: dateMap.get(dateString) || 0
+        count: dateMap.get(dateString) || 0,
       });
       currentDate.setDate(currentDate.getDate() + 1);
     }
@@ -674,16 +824,21 @@ export class AnalyticsService extends BaseService {
     return Math.round(Math.min(100, Math.max(0, score)));
   }
 
-  private async calculateUserStreak(userId: string, endDate: Date): Promise<number> {
+  private async calculateUserStreak(
+    userId: string,
+    endDate: Date
+  ): Promise<number> {
     // Get user's completed tasks ordered by completion date
     const completedTasks = await db
       .select({ completedAt: tasks.completedAt })
       .from(tasks)
-      .where(and(
-        eq(tasks.assigneeId, userId),
-        eq(tasks.status, 'completed'),
-        sql`${tasks.completedAt} IS NOT NULL`
-      ))
+      .where(
+        and(
+          eq(tasks.assigneeId, userId),
+          eq(tasks.status, 'completed'),
+          sql`${tasks.completedAt} IS NOT NULL`
+        )
+      )
       .orderBy(desc(tasks.completedAt));
 
     if (completedTasks.length === 0) return 0;
@@ -713,21 +868,34 @@ export class AnalyticsService extends BaseService {
     return streak;
   }
 
-  private async getMostProductiveTimePatterns(userId: string, range: DateRange): Promise<{ mostProductiveHour: number; mostProductiveDay: string }> {
+  private async getMostProductiveTimePatterns(
+    userId: string,
+    range: DateRange
+  ): Promise<{ mostProductiveHour: number; mostProductiveDay: string }> {
     const completedTasks = await db
       .select({ completedAt: tasks.completedAt })
       .from(tasks)
-      .where(and(
-        eq(tasks.assigneeId, userId),
-        eq(tasks.status, 'completed'),
-        sql`${tasks.completedAt} IS NOT NULL`,
-        gte(tasks.completedAt, range.startDate),
-        lte(tasks.completedAt, range.endDate)
-      ));
+      .where(
+        and(
+          eq(tasks.assigneeId, userId),
+          eq(tasks.status, 'completed'),
+          sql`${tasks.completedAt} IS NOT NULL`,
+          gte(tasks.completedAt, range.startDate),
+          lte(tasks.completedAt, range.endDate)
+        )
+      );
 
     const hourCounts: Record<number, number> = {};
     const dayCounts: Record<string, number> = {};
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayNames = [
+      'Sunday',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+    ];
 
     completedTasks.forEach(task => {
       const date = new Date(task.completedAt!);
@@ -738,15 +906,16 @@ export class AnalyticsService extends BaseService {
       dayCounts[dayName] = (dayCounts[dayName] || 0) + 1;
     });
 
-    const mostProductiveHour = Object.entries(hourCounts)
-      .sort(([, a], [, b]) => b - a)[0]?.[0] || 9; // Default to 9 AM
+    const mostProductiveHour =
+      Object.entries(hourCounts).sort(([, a], [, b]) => b - a)[0]?.[0] || 9; // Default to 9 AM
 
-    const mostProductiveDay = Object.entries(dayCounts)
-      .sort(([, a], [, b]) => b - a)[0]?.[0] || 'Monday'; // Default to Monday
+    const mostProductiveDay =
+      Object.entries(dayCounts).sort(([, a], [, b]) => b - a)[0]?.[0] ||
+      'Monday'; // Default to Monday
 
     return {
       mostProductiveHour: parseInt(mostProductiveHour.toString()),
-      mostProductiveDay
+      mostProductiveDay,
     };
   }
 
@@ -755,13 +924,18 @@ export class AnalyticsService extends BaseService {
     const result = await db
       .select({
         userId: tasks.assigneeId,
-        count: count()
+        count: count(),
       })
       .from(tasks)
-      .where(and(
-        eq(tasks.status, 'completed'),
-        gte(tasks.completedAt, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
-      ))
+      .where(
+        and(
+          eq(tasks.status, 'completed'),
+          gte(
+            tasks.completedAt,
+            new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+          )
+        )
+      )
       .groupBy(tasks.assigneeId)
       .orderBy(desc(count()))
       .limit(1);
@@ -778,24 +952,33 @@ export class AnalyticsService extends BaseService {
         streakDays: 0,
         mostProductiveHour: 9,
         mostProductiveDay: 'Monday',
-        activityCount: 0
+        activityCount: 0,
       };
     }
 
     return this.getUserProductivityAnalytics(result[0].userId);
   }
 
-  private async getMostActiveProject(): Promise<{ projectId: string; projectName: string; activityCount: number }> {
+  private async getMostActiveProject(): Promise<{
+    projectId: string;
+    projectName: string;
+    activityCount: number;
+  }> {
     const result = await db
       .select({
         projectId: activities.projectId,
-        count: count()
+        count: count(),
       })
       .from(activities)
-      .where(and(
-        sql`${activities.projectId} IS NOT NULL`,
-        gte(activities.createdAt, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
-      ))
+      .where(
+        and(
+          sql`${activities.projectId} IS NOT NULL`,
+          gte(
+            activities.createdAt,
+            new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+          )
+        )
+      )
       .groupBy(activities.projectId)
       .orderBy(desc(count()))
       .limit(1);
@@ -808,58 +991,66 @@ export class AnalyticsService extends BaseService {
     return {
       projectId: result[0].projectId,
       projectName: project?.name || 'Unknown Project',
-      activityCount: result[0].count
+      activityCount: result[0].count,
     };
   }
 
-  private async getLongestStreak(): Promise<{ userId: string; userName: string; streakDays: number }> {
+  private async getLongestStreak(): Promise<{
+    userId: string;
+    userName: string;
+    streakDays: number;
+  }> {
     // Get all users and calculate their streaks
     const allUsers = await userRepository.findMany({ limit: 1000 });
-    
+
     let longestStreak = { userId: '', userName: 'No data', streakDays: 0 };
-    
+
     for (const user of allUsers.data) {
       const streak = await this.calculateUserStreak(user.id, new Date());
       if (streak > longestStreak.streakDays) {
         longestStreak = {
           userId: user.id,
           userName: `${user.firstName} ${user.lastName}`.trim(),
-          streakDays: streak
+          streakDays: streak,
         };
       }
     }
-    
+
     return longestStreak;
   }
 
-  private async getRecentActivity(limit: number = 10): Promise<Array<{
-    type: string;
-    description: string;
-    timestamp: Date;
-    userId: string;
-    userName: string;
-  }>> {
+  private async getRecentActivity(limit: number = 10): Promise<
+    Array<{
+      type: string;
+      description: string;
+      timestamp: Date;
+      userId: string;
+      userName: string;
+    }>
+  > {
     const recentActivities = await db
       .select({
         type: activities.type,
         data: activities.data,
         createdAt: activities.createdAt,
-        userId: activities.userId
+        userId: activities.userId,
       })
       .from(activities)
       .orderBy(desc(activities.createdAt))
       .limit(limit);
 
     const result = [];
-    
+
     for (const activity of recentActivities) {
       const user = await userRepository.findById(activity.userId);
-      const userName = user ? `${user.firstName} ${user.lastName}`.trim() : 'Unknown User';
-      
+      const userName = user
+        ? `${user.firstName} ${user.lastName}`.trim()
+        : 'Unknown User';
+
       // Generate description based on activity type
       let description = '';
       const data = activity.data as any;
-      
+
       switch (activity.type) {
         case 'task_created':
           description = `Created a new task: ${data?.taskTitle || 'Untitled'}`;
@@ -876,16 +1067,16 @@ export class AnalyticsService extends BaseService {
         default:
           description = `Performed action: ${activity.type.replace('_', ' ')}`;
       }
-      
+
       result.push({
         type: activity.type,
         description,
         timestamp: activity.createdAt,
         userId: activity.userId,
-        userName
+        userName,
       });
     }
-    
+
     return result;
   }
 }

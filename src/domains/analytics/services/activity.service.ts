@@ -1,8 +1,35 @@
-import { eq, and, or, desc, asc, count, ilike, isNull, isNotNull, gte, lte, inArray } from 'drizzle-orm';
-import { BaseService, ServiceContext, NotFoundError, ValidationError, ForbiddenError } from './base.service';
-import { activityRepository, userRepository, taskRepository, projectRepository } from '../db/repositories';
-import { Activity, NewActivity, ActivityType } from '../db/schema/activities';
-import { PaginationOptions, PaginatedResult } from '../db/repositories/base/interfaces';
+import {
+  eq,
+  and,
+  or,
+  desc,
+  asc,
+  count,
+  ilike,
+  isNull,
+  isNotNull,
+  gte,
+  lte,
+  inArray,
+} from 'drizzle-orm';
+import {
+  BaseService,
+  ServiceContext,
+  NotFoundError,
+  ValidationError,
+  ForbiddenError,
+} from '../../../shared/utils/base.service';
+import {
+  activityRepository,
+  userRepository,
+  taskRepository,
+  projectRepository,
+} from '../repositories';
+import { Activity, NewActivity, ActivityType } from '../schemas/activities';
+import {
+  PaginationOptions,
+  PaginatedResult,
+} from '../../../shared/utils/interfaces';
 
 export interface ActivityFilters {
   userId?: string;
@@ -41,18 +68,21 @@ export class ActivityService extends BaseService {
       enableCache: true,
       cacheTimeout: 300, // 5 minutes cache for activity logs
       enableAudit: false, // Don't audit activity logs to avoid recursion
-      enableMetrics: true
+      enableMetrics: true,
     });
   }
 
   // Core CRUD Operations
-  async createActivity(data: ActivityCreateData, context?: ServiceContext): Promise<Activity> {
+  async createActivity(
+    data: ActivityCreateData,
+    context?: ServiceContext
+  ): Promise<Activity> {
     const ctx = this.createContext(context);
-    this.logOperation('createActivity', ctx, { 
-      userId: data.userId, 
-      type: data.type, 
+    this.logOperation('createActivity', ctx, {
+      userId: data.userId,
+      type: data.type,
       taskId: data.taskId,
-      projectId: data.projectId 
+      projectId: data.projectId,
     });
 
     try {
@@ -69,16 +99,19 @@ export class ActivityService extends BaseService {
       const newActivity: NewActivity = {
         ...data,
         data: data.data || {},
-        metadata: data.metadata || {}
+        metadata: data.metadata || {},
       };
 
       const activity = await activityRepository.create(newActivity);
 
-      await this.recordMetric('activity.created', 1, { 
+      await this.recordMetric('activity.created', 1, {
         type: activity.type,
         hasTaskId: activity.taskId ? 'true' : 'false',
         hasProjectId: activity.projectId ? 'true' : 'false',
-        hasMetadata: Object.keys(activity.metadata as object || {}).length > 0 ? 'true' : 'false'
+        hasMetadata:
+          Object.keys((activity.metadata as object) || {}).length > 0
+            ? 'true'
+            : 'false',
       });
 
       return activity;
@@ -87,7 +120,10 @@ export class ActivityService extends BaseService {
     }
   }
 
-  async getActivityById(id: string, context?: ServiceContext): Promise<Activity> {
+  async getActivityById(
+    id: string,
+    context?: ServiceContext
+  ): Promise<Activity> {
     const ctx = this.createContext(context);
     this.logOperation('getActivityById', ctx, { activityId: id });
 
@@ -116,15 +152,19 @@ export class ActivityService extends BaseService {
 
     try {
       const paginationOptions = this.validatePagination(options);
-      
+
       // Build where conditions
-      const whereConditions = this.buildActivityWhereConditions(filters, ctx.userId!, ctx.userRole);
-      
+      const whereConditions = this.buildActivityWhereConditions(
+        filters,
+        ctx.userId!,
+        ctx.userRole
+      );
+
       const result = await activityRepository.findMany({
         ...paginationOptions,
         where: whereConditions,
         sortBy: 'createdAt',
-        sortOrder: 'desc' // Most recent first
+        sortOrder: 'desc', // Most recent first
       });
 
       return result;
@@ -142,15 +182,18 @@ export class ActivityService extends BaseService {
     metadata?: Record<string, any>,
     context?: ServiceContext
   ): Promise<Activity> {
-    return this.createActivity({
-      userId,
-      type,
-      taskId,
-      data,
-      metadata,
-      ipAddress: context?.ipAddress,
-      userAgent: context?.userAgent
-    }, context);
+    return this.createActivity(
+      {
+        userId,
+        type,
+        taskId,
+        data,
+        metadata,
+        ipAddress: context?.ipAddress,
+        userAgent: context?.userAgent,
+      },
+      context
+    );
   }
 
   async logProjectActivity(
@@ -161,15 +204,18 @@ export class ActivityService extends BaseService {
     metadata?: Record<string, any>,
     context?: ServiceContext
   ): Promise<Activity> {
-    return this.createActivity({
-      userId,
-      type,
-      projectId,
-      data,
-      metadata,
-      ipAddress: context?.ipAddress,
-      userAgent: context?.userAgent
-    }, context);
+    return this.createActivity(
+      {
+        userId,
+        type,
+        projectId,
+        data,
+        metadata,
+        ipAddress: context?.ipAddress,
+        userAgent: context?.userAgent,
+      },
+      context
+    );
   }
 
   async logWorkspaceActivity(
@@ -180,15 +226,18 @@ export class ActivityService extends BaseService {
     metadata?: Record<string, any>,
     context?: ServiceContext
   ): Promise<Activity> {
-    return this.createActivity({
-      userId,
-      type,
-      workspaceId,
-      data,
-      metadata,
-      ipAddress: context?.ipAddress,
-      userAgent: context?.userAgent
-    }, context);
+    return this.createActivity(
+      {
+        userId,
+        type,
+        workspaceId,
+        data,
+        metadata,
+        ipAddress: context?.ipAddress,
+        userAgent: context?.userAgent,
+      },
+      context
+    );
   }
 
   async logTeamActivity(
@@ -199,15 +248,18 @@ export class ActivityService extends BaseService {
     metadata?: Record<string, any>,
     context?: ServiceContext
   ): Promise<Activity> {
-    return this.createActivity({
-      userId,
-      type,
-      teamId,
-      data,
-      metadata,
-      ipAddress: context?.ipAddress,
-      userAgent: context?.userAgent
-    }, context);
+    return this.createActivity(
+      {
+        userId,
+        type,
+        teamId,
+        data,
+        metadata,
+        ipAddress: context?.ipAddress,
+        userAgent: context?.userAgent,
+      },
+      context
+    );
   }
 
   // Entity-specific activity retrieval
@@ -232,12 +284,12 @@ export class ActivityService extends BaseService {
       }
 
       const paginationOptions = this.validatePagination(options);
-      
+
       const result = await activityRepository.findMany({
         ...paginationOptions,
         where: eq(activityRepository['table']?.taskId, taskId),
         sortBy: 'createdAt',
-        sortOrder: 'desc'
+        sortOrder: 'desc',
       });
 
       return result;
@@ -267,12 +319,12 @@ export class ActivityService extends BaseService {
       }
 
       const paginationOptions = this.validatePagination(options);
-      
+
       const result = await activityRepository.findMany({
         ...paginationOptions,
         where: eq(activityRepository['table']?.projectId, projectId),
         sortBy: 'createdAt',
-        sortOrder: 'desc'
+        sortOrder: 'desc',
       });
 
       return result;
@@ -296,12 +348,12 @@ export class ActivityService extends BaseService {
       }
 
       const paginationOptions = this.validatePagination(options);
-      
+
       const result = await activityRepository.findMany({
         ...paginationOptions,
         where: eq(activityRepository['table']?.userId, userId),
         sortBy: 'createdAt',
-        sortOrder: 'desc'
+        sortOrder: 'desc',
       });
 
       return result;
@@ -326,8 +378,12 @@ export class ActivityService extends BaseService {
 
       // Get all activities matching filters
       const allActivities = await activityRepository.findMany({
-        where: this.buildActivityWhereConditions(filters, ctx.userId!, ctx.userRole),
-        limit: 10000 // Large limit to get comprehensive stats
+        where: this.buildActivityWhereConditions(
+          filters,
+          ctx.userId!,
+          ctx.userRole
+        ),
+        limit: 10000, // Large limit to get comprehensive stats
       });
 
       const activities = allActivities.data;
@@ -357,7 +413,7 @@ export class ActivityService extends BaseService {
           mostActiveUsers.push({
             userId,
             userName: `${user.firstName} ${user.lastName}`.trim(),
-            count: userCounts[userId]
+            count: userCounts[userId],
           });
         }
       }
@@ -366,7 +422,7 @@ export class ActivityService extends BaseService {
         totalActivities: activities.length,
         byType,
         recentActivities,
-        mostActiveUsers
+        mostActiveUsers,
       };
 
       return stats;
@@ -376,14 +432,19 @@ export class ActivityService extends BaseService {
   }
 
   // Cleanup old activities
-  async cleanupOldActivities(daysToKeep: number = 90, context?: ServiceContext): Promise<{ deleted: number }> {
+  async cleanupOldActivities(
+    daysToKeep: number = 90,
+    context?: ServiceContext
+  ): Promise<{ deleted: number }> {
     const ctx = this.createContext(context);
     this.logOperation('cleanupOldActivities', ctx, { daysToKeep });
 
     try {
       // Only admins can cleanup activities
       if (ctx.userRole !== 'admin') {
-        throw new ForbiddenError('Only administrators can cleanup old activities');
+        throw new ForbiddenError(
+          'Only administrators can cleanup old activities'
+        );
       }
 
       const cutoffDate = new Date();
@@ -392,7 +453,7 @@ export class ActivityService extends BaseService {
       // Get old activities
       const oldActivities = await activityRepository.findMany({
         where: lte(activityRepository['table']?.createdAt, cutoffDate),
-        limit: 10000 // Process in batches
+        limit: 10000, // Process in batches
       });
 
       let deleted = 0;
@@ -403,9 +464,9 @@ export class ActivityService extends BaseService {
         if (success) deleted++;
       }
 
-      await this.recordMetric('activity.cleanup', 1, { 
+      await this.recordMetric('activity.cleanup', 1, {
         deleted: deleted.toString(),
-        daysToKeep: daysToKeep.toString()
+        daysToKeep: daysToKeep.toString(),
       });
 
       return { deleted };
@@ -415,12 +476,15 @@ export class ActivityService extends BaseService {
   }
 
   // Private Helper Methods
-  private async verifyActivityAccess(activity: Activity, userId: string): Promise<void> {
+  private async verifyActivityAccess(
+    activity: Activity,
+    userId: string
+  ): Promise<void> {
     // User can access activity if they are:
     // 1. The user who performed the activity
     // 2. Admin
     // 3. Have access to the related entity
-    
+
     if (activity.userId === userId) {
       return;
     }
@@ -447,7 +511,11 @@ export class ActivityService extends BaseService {
     throw new ForbiddenError('You do not have access to this activity');
   }
 
-  private buildActivityWhereConditions(filters: ActivityFilters, userId: string, userRole?: string): any {
+  private buildActivityWhereConditions(
+    filters: ActivityFilters,
+    userId: string,
+    userRole?: string
+  ): any {
     const conditions = [];
 
     // Non-admin users can only see their own activities or activities on entities they own
@@ -464,11 +532,15 @@ export class ActivityService extends BaseService {
     }
 
     if (filters.projectId) {
-      conditions.push(eq(activityRepository['table']?.projectId, filters.projectId));
+      conditions.push(
+        eq(activityRepository['table']?.projectId, filters.projectId)
+      );
     }
 
     if (filters.workspaceId) {
-      conditions.push(eq(activityRepository['table']?.workspaceId, filters.workspaceId));
+      conditions.push(
+        eq(activityRepository['table']?.workspaceId, filters.workspaceId)
+      );
     }
 
     if (filters.teamId) {
@@ -477,18 +549,24 @@ export class ActivityService extends BaseService {
 
     if (filters.type) {
       if (Array.isArray(filters.type)) {
-        conditions.push(inArray(activityRepository['table']?.type, filters.type));
+        conditions.push(
+          inArray(activityRepository['table']?.type, filters.type)
+        );
       } else {
         conditions.push(eq(activityRepository['table']?.type, filters.type));
       }
     }
 
     if (filters.createdFrom) {
-      conditions.push(gte(activityRepository['table']?.createdAt, filters.createdFrom));
+      conditions.push(
+        gte(activityRepository['table']?.createdAt, filters.createdFrom)
+      );
     }
 
     if (filters.createdTo) {
-      conditions.push(lte(activityRepository['table']?.createdAt, filters.createdTo));
+      conditions.push(
+        lte(activityRepository['table']?.createdAt, filters.createdTo)
+      );
     }
 
     return conditions.length > 0 ? and(...conditions) : undefined;
@@ -505,7 +583,9 @@ export class ActivityService extends BaseService {
 
     // At least one entity reference should be provided
     if (!data.taskId && !data.projectId && !data.workspaceId && !data.teamId) {
-      throw new ValidationError('At least one entity reference (taskId, projectId, workspaceId, or teamId) is required');
+      throw new ValidationError(
+        'At least one entity reference (taskId, projectId, workspaceId, or teamId) is required'
+      );
     }
   }
 }

@@ -28,12 +28,12 @@ import {
   workspaceRepository,
   feedbackRepository,
 } from '../db/repositories';
-import { tasks } from '../db/schema/tasks';
-import { projects } from '../db/schema/projects';
-import { users } from '../db/schema/users';
-import { activities } from '../db/schema/activities';
-import { feedback } from '../db/schema/feedback';
-import { db } from '../db/connection';
+import { tasks } from '../../task-management/schemas/tasks';
+import { projects } from '../../task-management/schemas/projects';
+import { users } from '../../authentication/schemas/users';
+import { activities } from '../schemas/activities';
+import { feedback } from '../../../infrastructure/database/drizzle/schema/feedback';
+import { db } from '../../../infrastructure/database/connection';
 
 export interface SystemOverview {
   counts: {

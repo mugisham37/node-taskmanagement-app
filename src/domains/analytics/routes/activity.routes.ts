@@ -1,13 +1,13 @@
-import express from "express"
-import { validate } from "../middleware/validate.middleware"
-import { authenticate } from "../middleware/auth"
-import { activityValidators } from "../validators"
-import * as activityController from "../controllers/activity.controller"
+import express from 'express';
+import { validate } from '../../../shared/middleware/validate.middleware';
+import { authenticate } from '../../../shared/middleware/auth';
+import { activityValidators } from '../validators';
+import * as activityController from '../controllers/activity.controller';
 
-const router = express.Router()
+const router = express.Router();
 
 // All routes require authentication
-router.use(authenticate())
+router.use(authenticate());
 
 /**
  * @swagger
@@ -48,7 +48,11 @@ router.use(authenticate())
  *       401:
  *         description: Not authenticated
  */
-router.get("/", validate(activityValidators.getUserActivities), activityController.getUserActivities)
+router.get(
+  '/',
+  validate(activityValidators.getUserActivities),
+  activityController.getUserActivities
+);
 
 /**
  * @swagger
@@ -71,7 +75,11 @@ router.get("/", validate(activityValidators.getUserActivities), activityControll
  *       404:
  *         description: Activity not found
  */
-router.get("/:id", validate(activityValidators.getActivityById), activityController.getActivityById)
+router.get(
+  '/:id',
+  validate(activityValidators.getActivityById),
+  activityController.getActivityById
+);
 
 /**
  * @swagger
@@ -101,7 +109,11 @@ router.get("/:id", validate(activityValidators.getActivityById), activityControl
  *       200:
  *         description: Activity statistics retrieved successfully
  */
-router.get("/stats", validate(activityValidators.getActivityStats), activityController.getActivityStats)
+router.get(
+  '/stats',
+  validate(activityValidators.getActivityStats),
+  activityController.getActivityStats
+);
 
 /**
  * @swagger
@@ -140,7 +152,11 @@ router.get("/stats", validate(activityValidators.getActivityStats), activityCont
  *       403:
  *         description: Only administrators can manually create activities
  */
-router.post("/", validate(activityValidators.createActivity), activityController.createActivity)
+router.post(
+  '/',
+  validate(activityValidators.createActivity),
+  activityController.createActivity
+);
 
 /**
  * @swagger
@@ -162,6 +178,10 @@ router.post("/", validate(activityValidators.createActivity), activityController
  *       403:
  *         description: Only administrators can cleanup old activities
  */
-router.delete("/cleanup", validate(activityValidators.cleanupOldActivities), activityController.cleanupOldActivities)
+router.delete(
+  '/cleanup',
+  validate(activityValidators.cleanupOldActivities),
+  activityController.cleanupOldActivities
+);
 
-export default router
+export default router;
