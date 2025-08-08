@@ -28,7 +28,7 @@
     "baseUrl": "./src",
     "paths": {
       "@/*": ["*"],
-      "@/domain/*": ["domain/*"],
+      "@/domains/*": ["domains/*"],
       "@/application/*": ["application/*"],
       "@/infrastructure/*": ["infrastructure/*"],
       "@/presentation/*": ["presentation/*"],

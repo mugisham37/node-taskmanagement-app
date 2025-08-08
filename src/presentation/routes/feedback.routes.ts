@@ -1,6 +1,6 @@
 import express from "express"
 import * as feedbackController from "../controllers/feedback.controller"
-import { authenticate, authorize } from "../middleware/auth"
+import { authenticate, authorize } from "../shared/middleware/auth"
 
 const router = express.Router()
 

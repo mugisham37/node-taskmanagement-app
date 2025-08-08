@@ -13,10 +13,10 @@ import {
   ProjectUpdatedIntegrationEvent,
   UserRegisteredIntegrationEvent,
 } from '@/shared/events/integration-events';
-import { IWebhookService } from '@/domain/webhook/services/webhook-service';
+import { IWebhookService } from '@/domains/webhook/services/webhook-service';
 import { IExternalIntegrationService } from '@/domain/integration/services/external-integration-service';
-import { IAnalyticsService } from '@/domain/analytics/services/analytics-service';
-import { INotificationService } from '@/domain/notification/services/notification-service';
+import { IAnalyticsService } from '@/domains/analytics/services/analytics-service';
+import { INotificationService } from '@/domains/notification/services/notification-service';
 import { ILogger } from '@/shared/types/logger';
 import { injectable } from '@/application/decorators/injectable';
 

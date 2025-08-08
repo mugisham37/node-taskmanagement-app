@@ -25,11 +25,11 @@ import {
   Task,
   TaskStatus,
   TaskPriority,
-} from '@/domain/task-management/entities/task';
-import { INotificationService } from '@/domain/notification/services/notification-service';
-import { IAnalyticsService } from '@/domain/analytics/services/analytics-service';
-import { IProjectRepository } from '@/domain/task-management/repositories/project-repository';
-import { IUserRepository } from '@/domain/authentication/repositories/user-repository';
+} from '@/domains/task-management/entities/task';
+import { INotificationService } from '@/domains/notification/services/notification-service';
+import { IAnalyticsService } from '@/domains/analytics/services/analytics-service';
+import { IProjectRepository } from '@/domains/task-management/repositories/project-repository';
+import { IUserRepository } from '@/domains/authentication/repositories/user-repository';
 import { ILogger } from '@/shared/types/logger';
 import { injectable } from '@/application/decorators/injectable';
 import {

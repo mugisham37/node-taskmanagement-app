@@ -15,10 +15,10 @@ import {
   TaskStatusChangedEvent,
   TaskPriorityChangedEvent,
   TaskMovedToProjectEvent,
-} from '@/domain/task-management/events/task-events';
-import { INotificationService } from '@/domain/notification/services/notification-service';
-import { IAnalyticsService } from '@/domain/analytics/services/analytics-service';
-import { ISearchService } from '@/domain/search/services/search-service';
+} from '@/domains/task-management/events/task-events';
+import { INotificationService } from '@/domains/notification/services/notification-service';
+import { IAnalyticsService } from '@/domains/analytics/services/analytics-service';
+import { ISearchService } from '@/domains/search/services/search-service';
 import { IActivityService } from '../../../domains/audit/services/activity-service';
 import { IWebSocketService } from '@/infrastructure/websocket/websocket-service';
 import { IEmailService } from '@/infrastructure/email/email-service';

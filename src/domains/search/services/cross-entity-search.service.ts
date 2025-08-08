@@ -1,15 +1,28 @@
 import { SearchQuery } from '../value-objects/search-query.vo';
-import { SearchResult, SearchResultItem } from '../value-objects/search-result.vo';
+import {
+  SearchResult,
+  SearchResultItem,
+} from '../value-objects/search-result.vo';
 import { SearchIndexRepository } from '../repositories/search-index.repository';
-import { SearchIndexingService, IndexableEntity } from './search-indexing.service';
+import {
+  SearchIndexingService,
+  IndexableEntity,
+} from './search-indexing.service';
 
 export interface EntitySearchAdapter {
   getEntityType(): string;
   findById(id: string): Promise<IndexableEntity | null>;
   findByIds(ids: string[]): Promise<IndexableEntity[]>;
-  findByWorkspace(workspaceId: string, limit?: number, offset?: number): Promise<IndexableEntity[]>;
+  findByWorkspace(
+    workspaceId: string,
+    limit?: number,
+    offset?: number
+  ): Promise<IndexableEntity[]>;
   getSearchableFields(): string[];
-  getPermissionContext(entity: IndexableEntity, userId: string): Promise<string[]>;
+  getPermissionContext(
+    entity: IndexableEntity,
+    userId: string
+  ): Promise<string[]>;
 }
 
 export interface CrossEntitySearchResult {
@@ -56,7 +69,10 @@ export interface CrossEntitySearchService {
   /**
    * Search with entity relationship awareness
    */
-  searchWithRelationships(query: SearchQuery, includeRelated?: boolean): Promise<CrossEntitySearchResult>;
+  searchWithRelationships(
+    query: SearchQuery,
+    includeRelated?: boolean
+  ): Promise<CrossEntitySearchResult>;
 
   /**
    * Register entity search adapter
@@ -76,38 +92,68 @@ export interface CrossEntitySearchService {
   /**
    * Get search analytics for workspace
    */
-  getSearchAnalytics(workspaceId: string, timeRange?: { start: Date; end: Date }): Promise<SearchAnalytics>;
+  getSearchAnalytics(
+    workspaceId: string,
+    timeRange?: { start: Date; end: Date }
+  ): Promise<SearchAnalytics>;
 
   /**
    * Get entity relationship graph
    */
-  getEntityRelationshipGraph(entityId: string, entityType: string, depth?: number): Promise<{
-    nodes: Array<{ id: string; type: string; title: string; metadata: Record<string, any> }>;
-    edges: Array<{ source: string; target: string; relationship: string; weight: number }>;
+  getEntityRelationshipGraph(
+    entityId: string,
+    entityType: string,
+    depth?: number
+  ): Promise<{
+    nodes: Array<{
+      id: string;
+      type: string;
+      title: string;
+      metadata: Record<string, any>;
+    }>;
+    edges: Array<{
+      source: string;
+      target: string;
+      relationship: string;
+      weight: number;
+    }>;
   }>;
 
   /**
    * Find similar entities based on content
    */
-  findSimilarEntities(entityId: string, entityType: string, limit?: number): Promise<SearchResultItem[]>;
+  findSimilarEntities(
+    entityId: string,
+    entityType: string,
+    limit?: number
+  ): Promise<SearchResultItem[]>;
 
   /**
    * Get search suggestions with cross-entity context
    */
-  getContextualSuggestions(partialQuery: string, workspaceId: string, context?: {
-    currentEntity?: { id: string; type: string };
-    recentEntities?: Array<{ id: string; type: string }>;
-  }): Promise<Array<{
-    suggestion: string;
-    type: 'query' | 'entity' | 'filter';
-    entityType?: string;
-    confidence: number;
-  }>>;
+  getContextualSuggestions(
+    partialQuery: string,
+    workspaceId: string,
+    context?: {
+      currentEntity?: { id: string; type: string };
+      recentEntities?: Array<{ id: string; type: string }>;
+    }
+  ): Promise<
+    Array<{
+      suggestion: string;
+      type: 'query' | 'entity' | 'filter';
+      entityType?: string;
+      confidence: number;
+    }>
+  >;
 
   /**
    * Validate search permissions across entities
    */
-  validateCrossEntityPermissions(query: SearchQuery, userId: string): Promise<{
+  validateCrossEntityPermissions(
+    query: SearchQuery,
+    userId: string
+  ): Promise<{
     allowedEntityTypes: string[];
     restrictedFields: string[];
     permissionContext: Record<string, string[]>;
@@ -116,8 +162,16 @@ export interface CrossEntitySearchService {
   /**
    * Export search index for backup/migration
    */
-  exportSearchIndex(workspaceId: string, entityTypes?: string[]): Promise<{
-    metadata: { exportDate: Date; workspaceId: string; entityTypes: string[]; totalDocuments: number };
+  exportSearchIndex(
+    workspaceId: string,
+    entityTypes?: string[]
+  ): Promise<{
+    metadata: {
+      exportDate: Date;
+      workspaceId: string;
+      entityTypes: string[];
+      totalDocuments: number;
+    };
     documents: Array<{ entityType: string; entityId: string; searchData: any }>;
   }>;
 
@@ -125,7 +179,12 @@ export interface CrossEntitySearchService {
    * Import search index from backup
    */
   importSearchIndex(importData: {
-    metadata: { exportDate: Date; workspaceId: string; entityTypes: string[]; totalDocuments: number };
+    metadata: {
+      exportDate: Date;
+      workspaceId: string;
+      entityTypes: string[];
+      totalDocuments: number;
+    };
     documents: Array<{ entityType: string; entityId: string; searchData: any }>;
   }): Promise<void>;
 }
@@ -171,16 +230,25 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
       }
 
       // Find related entities
-      const relatedEntities = await this.findRelatedEntities(unifiedResult.items, query.workspaceId);
+      const relatedEntities = await this.findRelatedEntities(
+        unifiedResult.items,
+        query.workspaceId
+      );
 
       // Get aggregated facets
       const aggregatedFacets = await this.getAggregatedFacets(query);
 
       // Find cross-references
-      const crossReferences = await this.findCrossReferences(unifiedResult.items);
+      const crossReferences = await this.findCrossReferences(
+        unifiedResult.items
+      );
 
       // Record analytics
-      await this.recordSearchAnalytics(query, unifiedResult, Date.now() - startTime);
+      await this.recordSearchAnalytics(
+        query,
+        unifiedResult,
+        Date.now() - startTime
+      );
 
       return {
         unified: unifiedResult,
@@ -189,10 +257,9 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
         aggregatedFacets,
         crossReferences,
       };
-
     } catch (error) {
       console.error('Cross-entity search error:', error);
-      
+
       const emptyResult = SearchResult.empty(query.query, query.filters);
       return {
         unified: emptyResult,
@@ -204,7 +271,10 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     }
   }
 
-  async searchWithRelationships(query: SearchQuery, includeRelated = true): Promise<CrossEntitySearchResult> {
+  async searchWithRelationships(
+    query: SearchQuery,
+    includeRelated = true
+  ): Promise<CrossEntitySearchResult> {
     const baseResult = await this.searchUnified(query);
 
     if (!includeRelated) {
@@ -218,7 +288,10 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
       const relatedItems: SearchResultItem[] = [];
 
       for (const item of items.items) {
-        const related = await this.findDirectlyRelatedEntities(item, query.workspaceId);
+        const related = await this.findDirectlyRelatedEntities(
+          item,
+          query.workspaceId
+        );
         relatedItems.push(...related);
       }
 
@@ -229,7 +302,10 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
 
     return {
       ...baseResult,
-      relatedEntities: { ...baseResult.relatedEntities, ...enhancedRelatedEntities },
+      relatedEntities: {
+        ...baseResult.relatedEntities,
+        ...enhancedRelatedEntities,
+      },
     };
   }
 
@@ -250,7 +326,10 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
         const entities = await adapter.findByWorkspace(workspaceId);
         allEntities.push(...entities);
       } catch (error) {
-        console.error(`Error collecting entities for ${adapter.getEntityType()}:`, error);
+        console.error(
+          `Error collecting entities for ${adapter.getEntityType()}:`,
+          error
+        );
       }
     }
 
@@ -260,27 +339,41 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     }
   }
 
-  async getSearchAnalytics(workspaceId: string, timeRange?: { start: Date; end: Date }): Promise<SearchAnalytics> {
+  async getSearchAnalytics(
+    workspaceId: string,
+    timeRange?: { start: Date; end: Date }
+  ): Promise<SearchAnalytics> {
     // This would typically query an analytics database
     // For now, return mock data based on in-memory storage
-    
+
     const analytics = this.searchAnalytics.get(workspaceId) || [];
-    
+
     let filteredAnalytics = analytics;
     if (timeRange) {
-      filteredAnalytics = analytics.filter(record => 
-        record.timestamp >= timeRange.start && record.timestamp <= timeRange.end
+      filteredAnalytics = analytics.filter(
+        record =>
+          record.timestamp >= timeRange.start &&
+          record.timestamp <= timeRange.end
       );
     }
 
     const totalSearches = filteredAnalytics.length;
-    const uniqueUsers = new Set(filteredAnalytics.map(record => record.userId)).size;
-    const averageResponseTime = filteredAnalytics.reduce((sum, record) => sum + record.responseTime, 0) / totalSearches || 0;
+    const uniqueUsers = new Set(filteredAnalytics.map(record => record.userId))
+      .size;
+    const averageResponseTime =
+      filteredAnalytics.reduce((sum, record) => sum + record.responseTime, 0) /
+        totalSearches || 0;
 
     // Calculate top queries
-    const queryCount = new Map<string, { count: number; totalResults: number }>();
+    const queryCount = new Map<
+      string,
+      { count: number; totalResults: number }
+    >();
     filteredAnalytics.forEach(record => {
-      const existing = queryCount.get(record.query) || { count: 0, totalResults: 0 };
+      const existing = queryCount.get(record.query) || {
+        count: 0,
+        totalResults: 0,
+      };
       queryCount.set(record.query, {
         count: existing.count + 1,
         totalResults: existing.totalResults + record.resultCount,
@@ -305,7 +398,9 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     });
 
     // Calculate performance metrics
-    const responseTimes = filteredAnalytics.map(record => record.responseTime).sort((a, b) => a - b);
+    const responseTimes = filteredAnalytics
+      .map(record => record.responseTime)
+      .sort((a, b) => a - b);
     const p50 = responseTimes[Math.floor(responseTimes.length * 0.5)] || 0;
     const p95 = responseTimes[Math.floor(responseTimes.length * 0.95)] || 0;
     const p99 = responseTimes[Math.floor(responseTimes.length * 0.99)] || 0;
@@ -325,15 +420,41 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     };
   }
 
-  async getEntityRelationshipGraph(entityId: string, entityType: string, depth = 2): Promise<{
-    nodes: Array<{ id: string; type: string; title: string; metadata: Record<string, any> }>;
-    edges: Array<{ source: string; target: string; relationship: string; weight: number }>;
+  async getEntityRelationshipGraph(
+    entityId: string,
+    entityType: string,
+    depth = 2
+  ): Promise<{
+    nodes: Array<{
+      id: string;
+      type: string;
+      title: string;
+      metadata: Record<string, any>;
+    }>;
+    edges: Array<{
+      source: string;
+      target: string;
+      relationship: string;
+      weight: number;
+    }>;
   }> {
     const nodes = new Map<string, any>();
-    const edges: Array<{ source: string; target: string; relationship: string; weight: number }> = [];
+    const edges: Array<{
+      source: string;
+      target: string;
+      relationship: string;
+      weight: number;
+    }> = [];
     const visited = new Set<string>();
 
-    await this.buildRelationshipGraph(entityId, entityType, depth, nodes, edges, visited);
+    await this.buildRelationshipGraph(
+      entityId,
+      entityType,
+      depth,
+      nodes,
+      edges,
+      visited
+    );
 
     return {
       nodes: Array.from(nodes.values()),
@@ -341,7 +462,11 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     };
   }
 
-  async findSimilarEntities(entityId: string, entityType: string, limit = 10): Promise<SearchResultItem[]> {
+  async findSimilarEntities(
+    entityId: string,
+    entityType: string,
+    limit = 10
+  ): Promise<SearchResultItem[]> {
     // Get the source entity
     const adapter = this.entityAdapters.get(entityType);
     if (!adapter) {
@@ -355,7 +480,9 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
 
     // Extract key terms from the source entity
     const searchableContent = sourceEntity.getSearchableContent();
-    const keyTerms = this.extractKeyTerms(searchableContent.title + ' ' + searchableContent.content);
+    const keyTerms = this.extractKeyTerms(
+      searchableContent.title + ' ' + searchableContent.content
+    );
 
     // Search for similar entities
     const similarityQuery = SearchQuery.create({
@@ -366,20 +493,26 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     });
 
     const result = await this.searchIndexRepository.search(similarityQuery);
-    
+
     // Filter out the source entity and return results
     return result.items.filter(item => item.entityId !== entityId);
   }
 
-  async getContextualSuggestions(partialQuery: string, workspaceId: string, context?: {
-    currentEntity?: { id: string; type: string };
-    recentEntities?: Array<{ id: string; type: string }>;
-  }): Promise<Array<{
-    suggestion: string;
-    type: 'query' | 'entity' | 'filter';
-    entityType?: string;
-    confidence: number;
-  }>> {
+  async getContextualSuggestions(
+    partialQuery: string,
+    workspaceId: string,
+    context?: {
+      currentEntity?: { id: string; type: string };
+      recentEntities?: Array<{ id: string; type: string }>;
+    }
+  ): Promise<
+    Array<{
+      suggestion: string;
+      type: 'query' | 'entity' | 'filter';
+      entityType?: string;
+      confidence: number;
+    }>
+  > {
     const suggestions: Array<{
       suggestion: string;
       type: 'query' | 'entity' | 'filter';
@@ -388,12 +521,18 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     }> = [];
 
     // Get basic query suggestions
-    const basicSuggestions = await this.searchIndexRepository.getSuggestions(partialQuery, workspaceId, 5);
-    suggestions.push(...basicSuggestions.map(suggestion => ({
-      suggestion,
-      type: 'query' as const,
-      confidence: 0.8,
-    })));
+    const basicSuggestions = await this.searchIndexRepository.getSuggestions(
+      partialQuery,
+      workspaceId,
+      5
+    );
+    suggestions.push(
+      ...basicSuggestions.map(suggestion => ({
+        suggestion,
+        type: 'query' as const,
+        confidence: 0.8,
+      }))
+    );
 
     // Add entity-specific suggestions based on context
     if (context?.currentEntity) {
@@ -410,12 +549,13 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     suggestions.push(...filterSuggestions);
 
     // Sort by confidence and return top suggestions
-    return suggestions
-      .sort((a, b) => b.confidence - a.confidence)
-      .slice(0, 10);
+    return suggestions.sort((a, b) => b.confidence - a.confidence).slice(0, 10);
   }
 
-  async validateCrossEntityPermissions(query: SearchQuery, userId: string): Promise<{
+  async validateCrossEntityPermissions(
+    query: SearchQuery,
+    userId: string
+  ): Promise<{
     allowedEntityTypes: string[];
     restrictedFields: string[];
     permissionContext: Record<string, string[]>;
@@ -431,7 +571,7 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
         // This would check user permissions for the entity type
         // For now, assume all entity types are allowed
         allowedEntityTypes.push(entityType);
-        
+
         // Get searchable fields for this entity type
         const searchableFields = adapter.getSearchableFields();
         permissionContext[entityType] = searchableFields;
@@ -445,16 +585,32 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     };
   }
 
-  async exportSearchIndex(workspaceId: string, entityTypes?: string[]): Promise<{
-    metadata: { exportDate: Date; workspaceId: string; entityTypes: string[]; totalDocuments: number };
+  async exportSearchIndex(
+    workspaceId: string,
+    entityTypes?: string[]
+  ): Promise<{
+    metadata: {
+      exportDate: Date;
+      workspaceId: string;
+      entityTypes: string[];
+      totalDocuments: number;
+    };
     documents: Array<{ entityType: string; entityId: string; searchData: any }>;
   }> {
-    const exportEntityTypes = entityTypes || Array.from(this.entityAdapters.keys());
-    const documents: Array<{ entityType: string; entityId: string; searchData: any }> = [];
+    const exportEntityTypes =
+      entityTypes || Array.from(this.entityAdapters.keys());
+    const documents: Array<{
+      entityType: string;
+      entityId: string;
+      searchData: any;
+    }> = [];
 
     for (const entityType of exportEntityTypes) {
-      const entityDocuments = await this.searchIndexRepository.getByEntityType(workspaceId, entityType);
-      
+      const entityDocuments = await this.searchIndexRepository.getByEntityType(
+        workspaceId,
+        entityType
+      );
+
       for (const doc of entityDocuments) {
         documents.push({
           entityType: doc.entityType,
@@ -482,7 +638,12 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
   }
 
   async importSearchIndex(importData: {
-    metadata: { exportDate: Date; workspaceId: string; entityTypes: string[]; totalDocuments: number };
+    metadata: {
+      exportDate: Date;
+      workspaceId: string;
+      entityTypes: string[];
+      totalDocuments: number;
+    };
     documents: Array<{ entityType: string; entityId: string; searchData: any }>;
   }): Promise<void> {
     // Clear existing index for the workspace and entity types
@@ -491,7 +652,7 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
         importData.metadata.workspaceId,
         entityType
       );
-      
+
       const identifiers = existingDocs.map(doc => ({
         entityType: doc.entityType,
         entityId: doc.entityId,
@@ -527,7 +688,10 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     }
   }
 
-  private async findRelatedEntities(items: SearchResultItem[], workspaceId: string): Promise<Record<string, SearchResultItem[]>> {
+  private async findRelatedEntities(
+    items: SearchResultItem[],
+    workspaceId: string
+  ): Promise<Record<string, SearchResultItem[]>> {
     const relatedEntities: Record<string, SearchResultItem[]> = {};
 
     // Group items by entity type
@@ -542,9 +706,13 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     // Find related entities for each type
     for (const [entityType, typeItems] of itemsByType) {
       const related: SearchResultItem[] = [];
-      
-      for (const item of typeItems.slice(0, 5)) { // Limit to prevent too many queries
-        const itemRelated = await this.findDirectlyRelatedEntities(item, workspaceId);
+
+      for (const item of typeItems.slice(0, 5)) {
+        // Limit to prevent too many queries
+        const itemRelated = await this.findDirectlyRelatedEntities(
+          item,
+          workspaceId
+        );
         related.push(...itemRelated.slice(0, 3)); // Limit related items per entity
       }
 
@@ -556,12 +724,15 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     return relatedEntities;
   }
 
-  private async findDirectlyRelatedEntities(item: SearchResultItem, workspaceId: string): Promise<SearchResultItem[]> {
+  private async findDirectlyRelatedEntities(
+    item: SearchResultItem,
+    workspaceId: string
+  ): Promise<SearchResultItem[]> {
     const related: SearchResultItem[] = [];
 
     // Find related entities based on metadata relationships
     const metadata = item.metadata;
-    
+
     // Find related by project (if task)
     if (item.entityType === 'task' && metadata.projectId) {
       const projectQuery = SearchQuery.create({
@@ -571,7 +742,8 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
         filters: { id: metadata.projectId },
         limit: 1,
       });
-      const projectResult = await this.searchIndexRepository.search(projectQuery);
+      const projectResult =
+        await this.searchIndexRepository.search(projectQuery);
       related.push(...projectResult.items);
     }
 
@@ -584,8 +756,13 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
         filters: { assigneeId: metadata.assigneeId },
         limit: 3,
       });
-      const assigneeResult = await this.searchIndexRepository.search(assigneeQuery);
-      related.push(...assigneeResult.items.filter(relatedItem => relatedItem.entityId !== item.entityId));
+      const assigneeResult =
+        await this.searchIndexRepository.search(assigneeQuery);
+      related.push(
+        ...assigneeResult.items.filter(
+          relatedItem => relatedItem.entityId !== item.entityId
+        )
+      );
     }
 
     // Find related by tags
@@ -598,22 +775,30 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
         limit: 2,
       });
       const tagResult = await this.searchIndexRepository.search(tagQuery);
-      related.push(...tagResult.items.filter(relatedItem => relatedItem.entityId !== item.entityId));
+      related.push(
+        ...tagResult.items.filter(
+          relatedItem => relatedItem.entityId !== item.entityId
+        )
+      );
     }
 
     return related;
   }
 
-  private async getAggregatedFacets(query: SearchQuery): Promise<Record<string, Record<string, number>>> {
+  private async getAggregatedFacets(
+    query: SearchQuery
+  ): Promise<Record<string, Record<string, number>>> {
     return await this.searchIndexRepository.getFacets(query);
   }
 
-  private async findCrossReferences(items: SearchResultItem[]): Promise<Array<{
-    sourceEntity: SearchResultItem;
-    targetEntity: SearchResultItem;
-    relationship: string;
-    strength: number;
-  }>> {
+  private async findCrossReferences(items: SearchResultItem[]): Promise<
+    Array<{
+      sourceEntity: SearchResultItem;
+      targetEntity: SearchResultItem;
+      relationship: string;
+      strength: number;
+    }>
+  > {
     const crossReferences: Array<{
       sourceEntity: SearchResultItem;
       targetEntity: SearchResultItem;
@@ -642,7 +827,10 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     return crossReferences.sort((a, b) => b.strength - a.strength).slice(0, 10);
   }
 
-  private detectRelationship(source: SearchResultItem, target: SearchResultItem): { type: string; strength: number } | null {
+  private detectRelationship(
+    source: SearchResultItem,
+    target: SearchResultItem
+  ): { type: string; strength: number } | null {
     let strength = 0;
     let relationshipType = '';
 
@@ -660,8 +848,11 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     }
 
     // Check for shared assignee
-    if (source.metadata.assigneeId && target.metadata.assigneeId && 
-        source.metadata.assigneeId === target.metadata.assigneeId) {
+    if (
+      source.metadata.assigneeId &&
+      target.metadata.assigneeId &&
+      source.metadata.assigneeId === target.metadata.assigneeId
+    ) {
       strength += 0.6;
       relationshipType = 'shared_assignee';
     }
@@ -674,7 +865,10 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     }
 
     // Check for content similarity
-    const contentSimilarity = this.calculateContentSimilarity(source.content, target.content);
+    const contentSimilarity = this.calculateContentSimilarity(
+      source.content,
+      target.content
+    );
     if (contentSimilarity > 0.3) {
       strength += contentSimilarity * 0.3;
       relationshipType = relationshipType || 'similar_content';
@@ -683,14 +877,17 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     return strength > 0.3 ? { type: relationshipType, strength } : null;
   }
 
-  private calculateContentSimilarity(content1: string, content2: string): number {
+  private calculateContentSimilarity(
+    content1: string,
+    content2: string
+  ): number {
     // Simple word-based similarity calculation
     const words1 = new Set(content1.toLowerCase().split(/\s+/));
     const words2 = new Set(content2.toLowerCase().split(/\s+/));
-    
+
     const intersection = new Set([...words1].filter(word => words2.has(word)));
     const union = new Set([...words1, ...words2]);
-    
+
     return intersection.size / union.size;
   }
 
@@ -699,10 +896,16 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     entityType: string,
     depth: number,
     nodes: Map<string, any>,
-    edges: Array<{ source: string; target: string; relationship: string; weight: number }>,
-    visited: Set<string></string>): Promise<void> {
+    edges: Array<{
+      source: string;
+      target: string;
+      relationship: string;
+      weight: number;
+    }>,
+    visited: Set<string>
+  ): Promise<void> {
     const nodeKey = `${entityType}:${entityId}`;
-    
+
     if (visited.has(nodeKey) || depth <= 0) {
       return;
     }
@@ -717,7 +920,7 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     if (!entity) return;
 
     const searchableContent = entity.getSearchableContent();
-    
+
     // Add node
     nodes.set(nodeKey, {
       id: nodeKey,
@@ -736,14 +939,16 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
 
     // Add filters based on entity metadata to find related entities
     if (searchableContent.metadata.projectId) {
-      relatedQuery.withFilters({ projectId: searchableContent.metadata.projectId });
+      relatedQuery.withFilters({
+        projectId: searchableContent.metadata.projectId,
+      });
     }
 
     const relatedResult = await this.searchIndexRepository.search(relatedQuery);
-    
+
     for (const relatedItem of relatedResult.items.slice(0, 5)) {
       const relatedNodeKey = `${relatedItem.entityType}:${relatedItem.entityId}`;
-      
+
       if (relatedNodeKey !== nodeKey) {
         // Add edge
         edges.push({
@@ -768,13 +973,25 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
 
   private extractKeyTerms(text: string): string[] {
     // Simple key term extraction
-    const words = text.toLowerCase()
+    const words = text
+      .toLowerCase()
       .replace(/[^\w\s]/g, ' ')
       .split(/\s+/)
       .filter(word => word.length > 3);
 
     // Remove common stop words
-    const stopWords = new Set(['this', 'that', 'with', 'have', 'will', 'from', 'they', 'been', 'were', 'said']);
+    const stopWords = new Set([
+      'this',
+      'that',
+      'with',
+      'have',
+      'will',
+      'from',
+      'they',
+      'been',
+      'were',
+      'said',
+    ]);
     const filteredWords = words.filter(word => !stopWords.has(word));
 
     // Return most frequent terms
@@ -793,12 +1010,14 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     partialQuery: string,
     currentEntity: { id: string; type: string },
     workspaceId: string
-  ): Promise<Array<{
-    suggestion: string;
-    type: 'query' | 'entity' | 'filter';
-    entityType?: string;
-    confidence: number;
-  }>> {
+  ): Promise<
+    Array<{
+      suggestion: string;
+      type: 'query' | 'entity' | 'filter';
+      entityType?: string;
+      confidence: number;
+    }>
+  > {
     const suggestions: Array<{
       suggestion: string;
       type: 'query' | 'entity' | 'filter';
@@ -812,7 +1031,7 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
       const entity = await adapter.findById(currentEntity.id);
       if (entity) {
         const searchableContent = entity.getSearchableContent();
-        
+
         // Suggest related terms from current entity
         const relatedTerms = this.extractKeyTerms(searchableContent.content);
         relatedTerms
@@ -877,7 +1096,11 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     return suggestions;
   }
 
-  private async recordSearchAnalytics(query: SearchQuery, result: SearchResult, responseTime: number): Promise<void> {
+  private async recordSearchAnalytics(
+    query: SearchQuery,
+    result: SearchResult,
+    responseTime: number
+  ): Promise<void> {
     const analyticsRecord = {
       timestamp: new Date(),
       query: query.query,
@@ -892,7 +1115,7 @@ export class CrossEntitySearchServiceImpl implements CrossEntitySearchService {
     if (!this.searchAnalytics.has(query.workspaceId)) {
       this.searchAnalytics.set(query.workspaceId, []);
     }
-    
+
     this.searchAnalytics.get(query.workspaceId)!.push(analyticsRecord);
 
     // Keep only last 1000 records per workspace

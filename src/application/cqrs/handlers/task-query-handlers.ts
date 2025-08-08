@@ -22,9 +22,9 @@ import {
   TaskHistoryEntry,
   TaskDependency,
 } from '../queries/task-queries';
-import { Task } from '@/domain/task-management/entities/task';
-import { ITaskRepository } from '@/domain/task-management/repositories/task-repository';
-import { ITaskReadRepository } from '@/domain/task-management/repositories/task-read-repository';
+import { Task } from '@/domains/task-management/entities/task';
+import { ITaskRepository } from '@/domains/task-management/repositories/task-repository';
+import { ITaskReadRepository } from '@/domains/task-management/repositories/task-read-repository';
 import { ILogger } from '@/shared/types/logger';
 import { injectable } from '@/application/decorators/injectable';
 import { NotFoundError, ForbiddenError } from '@/shared/errors/app-error';

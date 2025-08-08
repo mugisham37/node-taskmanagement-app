@@ -6,11 +6,11 @@
  */
 
 import { Query, PaginationQuery, FilterQuery, PaginatedResult } from '../query';
-import { Task } from '@/domain/task-management/entities/task';
+import { Task } from '@/domains/task-management/entities/task';
 import {
   TaskStatus,
   TaskPriority,
-} from '@/domain/task-management/entities/task';
+} from '@/domains/task-management/entities/task';
 
 export interface TaskFilters {
   status?: TaskStatus | TaskStatus[];

@@ -1,8 +1,8 @@
 import type { Response, NextFunction } from "express"
-import { asyncHandler } from "../utils/async-handler"
-import { successResponse } from "../utils/response-formatter"
+import { asyncHandler } from "../shared/utils/async-handler"
+import { successResponse } from "../shared/utils/response-formatter"
 import { feedbackService } from "../services"
-import type { AuthRequest } from "../middleware/auth"
+import type { AuthRequest } from "../shared/middleware/auth"
 
 /**
  * @desc    Create a new feedback

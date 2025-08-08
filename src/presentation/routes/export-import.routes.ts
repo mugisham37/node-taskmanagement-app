@@ -1,7 +1,7 @@
 import express from "express"
 import * as exportImportController from "../controllers/export-import.controller"
-import { authenticate } from "../middleware/auth"
-import { authorize } from "../middleware/auth"
+import { authenticate } from "../shared/middleware/auth"
+import { authorize } from "../shared/middleware/auth"
 import { auditLogMiddleware } from "../middleware/audit-log.middleware"
 
 const router = express.Router()

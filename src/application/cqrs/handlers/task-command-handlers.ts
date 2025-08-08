@@ -17,10 +17,10 @@ import {
   AddTaskTagsCommand,
   RemoveTaskTagsCommand,
 } from '../commands/task-commands';
-import { Task } from '@/domain/task-management/entities/task';
-import { ITaskRepository } from '@/domain/task-management/repositories/task-repository';
-import { IProjectRepository } from '@/domain/task-management/repositories/project-repository';
-import { IUserRepository } from '@/domain/authentication/repositories/user-repository';
+import { Task } from '@/domains/task-management/entities/task';
+import { ITaskRepository } from '@/domains/task-management/repositories/task-repository';
+import { IProjectRepository } from '@/domains/task-management/repositories/project-repository';
+import { IUserRepository } from '@/domains/authentication/repositories/user-repository';
 import { IDomainEventBus } from '@/shared/events/domain-event-bus';
 import { ILogger } from '@/shared/types/logger';
 import { injectable } from '@/application/decorators/injectable';

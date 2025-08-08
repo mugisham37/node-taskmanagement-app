@@ -9,7 +9,7 @@ import { Command } from '../command';
 import {
   TaskStatus,
   TaskPriority,
-} from '@/domain/task-management/entities/task';
+} from '@/domains/task-management/entities/task';
 
 export class CreateTaskCommand extends Command {
   constructor(
