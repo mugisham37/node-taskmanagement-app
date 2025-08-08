@@ -1,79 +1,8 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { FileManagementService } from '../application/services/file-management.service';
-import { logger } from '../utils/logger';
+import { FileManagementService } from '../services/file-management.service';
+import { logger } from '../../../shared/utils/logger';
+import { FileManagementValidator } from '../validators/file-management.validator';
 import * as z from 'zod';
-
-// Validation schemas
-const uploadFileSchema = z.object({
-  workspaceId: z.string().uuid(),
-  attachTo: z
-    .object({
-      type: z.enum(['task', 'comment', 'project']),
-      id: z.string().uuid(),
-    })
-    .optional(),
-  description: z.string().optional(),
-  generateThumbnail: z.boolean().optional(),
-  generatePreview: z.boolean().optional(),
-  runVirusScan: z.boolean().optional(),
-  compress: z.boolean().optional(),
-  maxSize: z.number().positive().optional(),
-  allowedMimeTypes: z.array(z.string()).optional(),
-  customMetadata: z.record(z.any()).optional(),
-  accessControl: z
-    .object({
-      isPublic: z.boolean().optional(),
-      workspaceLevel: z.boolean().optional(),
-      projectLevel: z.boolean().optional(),
-      specificUsers: z
-        .array(
-          z.object({
-            userId: z.string().uuid(),
-            permissions: z.array(z.string()),
-          })
-        )
-        .optional(),
-    })
-    .optional(),
-});
-
-const downloadFileSchema = z.object({
-  fileId: z.string().uuid(),
-  version: z.number().positive().optional(),
-  thumbnail: z.boolean().optional(),
-  preview: z.boolean().optional(),
-  range: z
-    .object({
-      start: z.number().nonnegative(),
-      end: z.number().positive(),
-    })
-    .optional(),
-});
-
-const searchFilesSchema = z.object({
-  workspaceId: z.string().uuid().optional(),
-  mimeType: z.string().optional(),
-  sizeRange: z
-    .object({
-      min: z.number().nonnegative(),
-      max: z.number().positive(),
-    })
-    .optional(),
-  dateRange: z
-    .object({
-      from: z.string().datetime(),
-      to: z.string().datetime(),
-    })
-    .optional(),
-  tags: z.array(z.string()).optional(),
-  fullTextSearch: z.string().optional(),
-  limit: z.number().positive().max(100).default(20),
-  offset: z.number().nonnegative().default(0),
-});
-
-const uploadVersionSchema = z.object({
-  changeDescription: z.string().optional(),
-});
 
 export class FileManagementController {
   constructor(private readonly fileManagementService: FileManagementService) {}
@@ -122,7 +51,8 @@ export class FileManagementController {
       };
 
       // Validate request data
-      const validatedData = uploadFileSchema.parse(requestData);
+      const validatedData =
+        FileManagementValidator.validateUploadFile(requestData);
 
       // Get user ID from request context (assuming it's set by auth middleware)
       const userId = (request as any).user?.id;
@@ -190,7 +120,7 @@ export class FileManagementController {
   async downloadFile(request: FastifyRequest, reply: FastifyReply) {
     try {
       // Validate request parameters
-      const params = downloadFileSchema.parse({
+      const params = FileManagementValidator.validateDownloadFile({
         fileId: (request.params as any).fileId,
         ...(request.query as any),
       });
@@ -304,7 +234,7 @@ export class FileManagementController {
 
       // Parse and validate form fields
       const fields = data.fields;
-      const requestData = uploadVersionSchema.parse({
+      const requestData = FileManagementValidator.validateUploadVersion({
         changeDescription: fields.changeDescription?.value,
       });
 
@@ -516,7 +446,7 @@ export class FileManagementController {
   async searchFiles(request: FastifyRequest, reply: FastifyReply) {
     try {
       // Validate query parameters
-      const query = searchFilesSchema.parse(request.query);
+      const query = FileManagementValidator.validateSearchFiles(request.query);
 
       // Get user ID from request context
       const userId = (request as any).user?.id;

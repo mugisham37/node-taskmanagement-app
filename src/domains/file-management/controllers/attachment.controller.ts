@@ -1,60 +1,8 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { AttachmentService } from '../application/services/attachment.service';
-import { logger } from '../../shared/utils/logger';
+import { AttachmentService } from '../services/attachment.service';
+import { logger } from '../../../shared/utils/logger';
+import { AttachmentValidator } from '../validators/attachment.validator';
 import * as z from 'zod';
-
-// Validation schemas
-const createAttachmentSchema = z.object({
-  fileId: z.string().uuid(),
-  workspaceId: z.string().uuid(),
-  attachedTo: z.enum(['task', 'comment', 'project']),
-  attachedToId: z.string().uuid(),
-  description: z.string().optional(),
-  position: z.number().int().min(0).optional(),
-});
-
-const updateAttachmentSchema = z.object({
-  description: z.string().optional(),
-  position: z.number().int().min(0).optional(),
-});
-
-const searchAttachmentsSchema = z.object({
-  workspaceId: z.string().uuid().optional(),
-  attachedTo: z.enum(['task', 'comment', 'project']).optional(),
-  attachedToId: z.string().uuid().optional(),
-  attachedBy: z.string().uuid().optional(),
-  fileType: z.string().optional(),
-  dateRange: z
-    .object({
-      from: z.string().datetime(),
-      to: z.string().datetime(),
-    })
-    .optional(),
-  limit: z.number().int().min(1).max(100).default(20),
-  offset: z.number().int().min(0).default(0),
-});
-
-const reorderAttachmentsSchema = z.object({
-  attachmentIds: z.array(z.string().uuid()),
-});
-
-const shareAttachmentSchema = z.object({
-  shareWith: z.array(
-    z.object({
-      userId: z.string().uuid().optional(),
-      email: z.string().email().optional(),
-      permissions: z.array(z.enum(['read', 'write', 'delete'])),
-      expiresAt: z.string().datetime().optional(),
-    })
-  ),
-  message: z.string().optional(),
-});
-
-const previewOptionsSchema = z.object({
-  width: z.number().int().min(1).optional(),
-  height: z.number().int().min(1).optional(),
-  quality: z.number().int().min(1).max(100).optional(),
-});
 
 export class AttachmentController {
   constructor(private readonly attachmentService: AttachmentService) {}
@@ -62,7 +10,9 @@ export class AttachmentController {
   async createAttachment(request: FastifyRequest, reply: FastifyReply) {
     try {
       // Validate request body
-      const validatedData = createAttachmentSchema.parse(request.body);
+      const validatedData = AttachmentValidator.validateCreateAttachment(
+        request.body
+      );
 
       // Get user ID from request context
       const userId = (request as any).user?.id;
@@ -129,7 +79,9 @@ export class AttachmentController {
       const attachmentId = (request.params as any).attachmentId;
 
       // Validate request body
-      const validatedData = updateAttachmentSchema.parse(request.body);
+      const validatedData = AttachmentValidator.validateUpdateAttachment(
+        request.body
+      );
 
       // Get user ID from request context
       const userId = (request as any).user?.id;
@@ -397,7 +349,9 @@ export class AttachmentController {
   async searchAttachments(request: FastifyRequest, reply: FastifyReply) {
     try {
       // Validate query parameters
-      const query = searchAttachmentsSchema.parse(request.query);
+      const query = AttachmentValidator.validateSearchAttachments(
+        request.query
+      );
 
       // Get user ID from request context
       const userId = (request as any).user?.id;
@@ -471,7 +425,9 @@ export class AttachmentController {
       const entityId = (request.params as any).entityId;
 
       // Validate request body
-      const validatedData = reorderAttachmentsSchema.parse(request.body);
+      const validatedData = AttachmentValidator.validateReorderAttachments(
+        request.body
+      );
 
       // Get user ID from request context
       const userId = (request as any).user?.id;
@@ -545,7 +501,9 @@ export class AttachmentController {
       const attachmentId = (request.params as any).attachmentId;
 
       // Validate request body
-      const validatedData = shareAttachmentSchema.parse(request.body);
+      const validatedData = AttachmentValidator.validateShareAttachment(
+        request.body
+      );
 
       // Get user ID from request context
       const userId = (request as any).user?.id;
@@ -630,7 +588,7 @@ export class AttachmentController {
       const attachmentId = (request.params as any).attachmentId;
 
       // Validate query parameters
-      const options = previewOptionsSchema.parse(request.query);
+      const options = AttachmentValidator.validatePreviewOptions(request.query);
 
       // Get user ID from request context
       const userId = (request as any).user?.id;

@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { FileManagementController } from '../controllers/file-management.controller';
 import { AttachmentController } from '../controllers/attachment.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware } from '../../../shared/middleware/auth.middleware';
 
 export async function fileManagementRoutes(fastify: FastifyInstance) {
   const fileController = new FileManagementController(

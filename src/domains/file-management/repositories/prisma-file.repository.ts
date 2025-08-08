@@ -1,14 +1,14 @@
 import { PrismaClient } from '@prisma/client';
-import { FileEntity } from '../../domain/file-management/entities/file.entity';
-import { AttachmentEntity } from '../../domain/file-management/entities/attachment.entity';
+import { FileEntity } from '../entities/file.entity';
+import { AttachmentEntity } from '../entities/attachment.entity';
 import {
   FileRepository,
   FileFilters,
   AttachmentFilters,
-} from '../../domain/file-management/repositories/file.repository';
-import { FileMetadata } from '../../domain/file-management/value-objects/file-metadata.vo';
-import { FileAccessControl } from '../../domain/file-management/value-objects/file-access-control.vo';
-import { FileVersion } from '../../domain/file-management/value-objects/file-version.vo';
+} from './file.repository';
+import { FileMetadata } from '../value-objects/file-metadata.vo';
+import { FileAccessControl } from '../value-objects/file-access-control.vo';
+import { FileVersion } from '../value-objects/file-version.vo';
 import { logger } from '../../../shared/utils/logger';
 
 export class PrismaFileRepository implements FileRepository {

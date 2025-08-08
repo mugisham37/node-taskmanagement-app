@@ -108,14 +108,14 @@
     - Create and move collaboration repositories from infrastructure layer
     - _Requirements: 5.3, 5.4, 5.6, 5.7, 12.4_
 
-- [ ] 8. Migrate File Management Domain
-  - [ ] 8.1 Move file management controllers and routes
+- [x] 8. Migrate File Management Domain
+  - [x] 8.1 Move file management controllers and routes
     - Move file-management.controller.ts, attachment.controller.ts to src/domains/file-management/controllers/
     - Move file-management.routes.ts to src/domains/file-management/routes/
     - Update route imports and controller references
     - _Requirements: 5.1, 5.2, 12.5_
 
-  - [ ] 8.2 Move file management services and entities
+  - [x] 8.2 Move file management services and entities
     - Move src/domain/file-management/services/\* to src/domains/file-management/services/
     - Move src/domain/file-management/entities/\* to src/domains/file-management/entities/
     - Move src/domain/file-management/repositories/\* to src/domains/file-management/repositories/

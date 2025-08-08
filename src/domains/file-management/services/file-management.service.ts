@@ -1,16 +1,16 @@
-import { FileEntity } from '../../domain/file-management/entities/file.entity';
-import { AttachmentEntity } from '../../domain/file-management/entities/attachment.entity';
-import { FileRepository } from '../../domain/file-management/repositories/file.repository';
+import { FileEntity } from '../entities/file.entity';
+import { AttachmentEntity } from '../entities/attachment.entity';
+import { FileRepository } from '../repositories/file.repository';
 import {
   FileStorageService,
   UploadOptions,
   UploadResult,
-} from '../../domain/file-management/services/file-storage.service';
-import { FileMetadata } from '../../domain/file-management/value-objects/file-metadata.vo';
-import { FileAccessControl } from '../../domain/file-management/value-objects/file-access-control.vo';
-import { FileVersion } from '../../domain/file-management/value-objects/file-version.vo';
-import { EnhancedClamAVScannerService } from '../../infrastructure/storage/enhanced-clamav-scanner.service';
-import { logger } from '../../utils/logger';
+} from './file-storage.service';
+import { FileMetadata } from '../value-objects/file-metadata.vo';
+import { FileAccessControl } from '../value-objects/file-access-control.vo';
+import { FileVersion } from '../value-objects/file-version.vo';
+import { EnhancedClamAVScannerService } from '../../../infrastructure/storage/enhanced-clamav-scanner.service';
+import { logger } from '../../../shared/utils/logger';
 import * as crypto from 'crypto';
 
 export interface FileUploadRequest {

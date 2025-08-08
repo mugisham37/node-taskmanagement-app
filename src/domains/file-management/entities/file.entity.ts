@@ -1,4 +1,4 @@
-import { BaseEntity } from '../../shared/entities/base.entity';
+import { BaseEntity } from '../../../shared/domain/entities/base.entity';
 import { FileMetadata } from '../value-objects/file-metadata.vo';
 import { FileAccessControl } from '../value-objects/file-access-control.vo';
 import { FileVersion } from '../value-objects/file-version.vo';

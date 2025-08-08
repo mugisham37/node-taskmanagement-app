@@ -1,4 +1,4 @@
-import { logger } from '../../utils/logger';
+import { logger } from '../../../shared/utils/logger';
 import * as crypto from 'crypto';
 
 export interface FileAuditEvent {

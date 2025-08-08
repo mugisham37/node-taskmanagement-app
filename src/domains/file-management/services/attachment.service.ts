@@ -1,8 +1,8 @@
-import { AttachmentEntity } from '../../domain/file-management/entities/attachment.entity';
-import { FileEntity } from '../../domain/file-management/entities/file.entity';
-import { FileRepository } from '../../domain/file-management/repositories/file.repository';
+import { AttachmentEntity } from '../entities/attachment.entity';
+import { FileEntity } from '../entities/file.entity';
+import { FileRepository } from '../repositories/file.repository';
 import { FileManagementService } from './file-management.service';
-import { logger } from '../../utils/logger';
+import { logger } from '../../../shared/utils/logger';
 import * as crypto from 'crypto';
 
 export interface AttachmentCreateRequest {
