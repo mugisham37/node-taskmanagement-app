@@ -205,14 +205,14 @@
     - Update imports and references
     - _Requirements: 5.8, 5.9, 5.10, 12.8_
 
-- [ ] 12. Migrate Webhook Domain
-  - [ ] 12.1 Move webhook controllers and routes
+- [x] 12. Migrate Webhook Domain
+  - [x] 12.1 Move webhook controllers and routes
     - Move webhook.controller.ts to src/domains/webhook/controllers/
     - Move webhook.routes.ts to src/domains/webhook/routes/
     - Update route imports and controller references
     - _Requirements: 5.1, 5.2, 12.9_
 
-  - [ ] 12.2 Move webhook services and entities
+  - [x] 12.2 Move webhook services and entities
     - Move src/domain/webhook/services/\* to src/domains/webhook/services/
     - Move src/domain/webhook/entities/\* to src/domains/webhook/entities/
     - Move src/domain/webhook/repositories/\* to src/domains/webhook/repositories/
@@ -220,7 +220,7 @@
     - Move src/domain/webhook/value-objects/\* to src/domains/webhook/value-objects/
     - _Requirements: 5.4, 5.5, 5.6, 5.9, 12.9_
 
-  - [ ] 12.3 Move webhook validators
+  - [x] 12.3 Move webhook validators
     - Move webhook.validator.ts to src/domains/webhook/validators/
     - Update validator imports and references
     - _Requirements: 5.3, 12.9_

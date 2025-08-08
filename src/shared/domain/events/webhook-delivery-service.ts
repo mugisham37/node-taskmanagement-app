@@ -1,5 +1,5 @@
 import { IntegrationEvent, EventDeliveryOptions } from './integration-event';
-import { logger } from '@/infrastructure/logging/logger';
+import { logger } from '../../../infrastructure/logging/logger';
 
 export interface WebhookEndpoint {
   id: string;

@@ -1,16 +1,18 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Injectable } from '../application/decorators/injectable';
-import { WebhookManagementService } from '../domain/webhook/services/webhook-management.service';
-import { WebhookDeliveryService } from '../domain/webhook/services/webhook-delivery.service';
-import { WebhookId } from '../domain/webhook/value-objects/webhook-id';
-import { WebhookDeliveryId } from '../domain/webhook/value-objects/webhook-delivery-id';
-import { WorkspaceId } from '../domain/task-management/value-objects/workspace-id';
-import { UserId } from '../domain/authentication/value-objects/user-id';
-import { WebhookUrl } from '../domain/webhook/value-objects/webhook-url';
-import { WebhookSecret } from '../domain/webhook/value-objects/webhook-secret';
-import { WebhookEvent } from '../domain/webhook/value-objects/webhook-event';
-import { Logger } from '../infrastructure/logging/logger';
-import { BaseController } from './base.controller';
+import { Injectable } from '../../../application/decorators/injectable';
+import { WebhookManagementService } from '../services/webhook-management.service';
+import { WebhookDeliveryService } from '../services/webhook-delivery.service';
+import { WebhookId } from '../value-objects/webhook-id';
+import { WebhookDeliveryId } from '../value-objects/webhook-delivery-id';
+import { WorkspaceId } from '../../task-management/value-objects/workspace-id';
+import { UserId } from '../../authentication/value-objects/user-id';
+import { WebhookUrl } from '../value-objects/webhook-url';
+import { WebhookSecret } from '../value-objects/webhook-secret';
+import { WebhookEvent } from '../value-objects/webhook-event';
+import { Logger } from '../../../infrastructure/logging/logger';
+import { BaseController } from '../../../presentation/controllers/base.controller';
+import { WebhookDeliveryStatus } from '../value-objects/webhook-delivery-status';
+import { WebhookDeliveryStatus } from '../value-objects/webhook-delivery-status';
 
 interface CreateWebhookRequest {
   name: string;

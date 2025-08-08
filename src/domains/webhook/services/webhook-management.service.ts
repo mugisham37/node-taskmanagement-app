@@ -1,11 +1,11 @@
-import { Injectable } from '../decorators/injectable';
+import { Injectable } from '../../../application/decorators/injectable';
 import {
   WebhookDeliveryProvider,
   WebhookEndpoint,
-} from '../../infrastructure/webhook/webhook-delivery-provider';
-import { UserId } from '../../domain/authentication/value-objects/user-id';
-import { NotificationType } from '../../domain/notification/value-objects/notification-type';
-import { Logger } from '../../infrastructure/logging/logger';
+} from '../repositories/webhook-delivery-provider';
+import { UserId } from '../../authentication/value-objects/user-id';
+import { NotificationType } from '../../notification/value-objects/notification-type';
+import { Logger } from '../../../infrastructure/logging/logger';
 
 export interface WebhookSubscription {
   id: string;

@@ -1,5 +1,5 @@
 import { Injectable } from '../application/decorators/injectable';
-import { WebhookDeliveryService } from '../domain/webhook/services/webhook-delivery.service';
+import { WebhookDeliveryService } from '../domains/webhook/services/webhook-delivery.service';
 import { Logger } from '../infrastructure/logging/logger';
 
 export interface WebhookDeliveryJobConfig {
