@@ -8,11 +8,18 @@ export {
   SystemHealthCheck,
   ApplicationHealthCheck,
 } from './health-check.service';
+export { performanceMonitor, PerformanceMonitor } from './performance-monitor';
+export { alertingService, AlertingService } from './alerting.service';
+export {
+  observabilityDashboard,
+  ObservabilityDashboard,
+} from './observability-dashboard';
+
+// Legacy monitoring services (for backward compatibility)
 export {
   monitoringDashboard,
   MonitoringDashboardService,
 } from '../../domains/system-monitoring/services/monitoring-dashboard.service';
-export { alertingService, AlertingService } from './alerting.service';
 export {
   monitoringBootstrap,
   MonitoringBootstrapService,
@@ -32,10 +39,10 @@ export type {
 } from './health-check.service';
 
 export type {
-  DashboardMetrics,
-  AlertRule,
-  Alert,
-} from '../../domains/system-monitoring/services/monitoring-dashboard.service';
+  SystemMetrics,
+  PerformanceAlert,
+  PerformanceThresholds,
+} from './performance-monitor';
 
 export type {
   NotificationChannel,
@@ -43,3 +50,17 @@ export type {
   Runbook,
   RunbookStep,
 } from './alerting.service';
+
+export type {
+  DashboardMetrics,
+  AlertSummary,
+  SystemHealth,
+  ObservabilityConfig,
+} from './observability-dashboard';
+
+// Legacy types (for backward compatibility)
+export type {
+  DashboardMetrics as LegacyDashboardMetrics,
+  AlertRule,
+  Alert,
+} from '../../domains/system-monitoring/services/monitoring-dashboard.service';

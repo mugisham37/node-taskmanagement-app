@@ -1,23 +1,19 @@
-// Database exports
-export * from './database/prisma-client';
-export * from './database/unit-of-work';
-export * from './database/base-repository';
+// Consolidated Infrastructure Layer Exports
+
+// Database infrastructure
+export * from './database';
+
+// Caching infrastructure
+export * from './cache';
+
+// Logging infrastructure
+export * from './logging';
 
 // Repository implementations
-export * from './repositories/task.repository.impl';
-export * from './repositories/project.repository.impl';
+export * from './repositories';
 
-// Caching exports
-export * from './cache/redis-client';
-export * from './cache/cache-manager';
-
-// External services exports
-export * from './external-services/circuit-breaker';
-export * from './external-services/service-factory';
-export * from './external-services/email/email-service';
-
-// Logging exports
-export * from './logging/logger';
+// External service integrations
+export * from './external-services';
 
 // Configuration exports
 export * from './config/configuration';

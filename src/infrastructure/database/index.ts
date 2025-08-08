@@ -1,6 +1,23 @@
-// Database infrastructure exports
-export { prisma, checkDatabaseHealth, gracefulShutdown } from './prisma-client';
+// Database infrastructure exports - Consolidated Database Infrastructure
+export { DatabaseConnectionManager } from './database-connection-manager';
+export {
+  prisma,
+  connectPrisma,
+  disconnectPrisma,
+  prismaHealthCheck,
+} from './prisma-client';
 export type { PrismaClient } from './prisma-client';
+
+export { BasePrismaRepository } from './base-repository';
+export { TransactionManager, transactionManager } from './transaction-manager';
+export type {
+  TransactionContext,
+  TransactionOptions,
+  TransactionResult,
+} from './transaction-manager';
+
+export { PrismaUnitOfWork, createUnitOfWork } from './unit-of-work';
+export type { IUnitOfWork } from './unit-of-work';
 
 export {
   runMigrations,

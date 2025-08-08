@@ -1,6 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../logging/logger';
 
+export interface HealthCheckResult {
+  isHealthy: boolean;
+  latency?: number;
+  error?: string;
+}
+
 // Singleton Prisma client with connection pooling and optimization
 class PrismaClientSingleton {
   private static instance: PrismaClient | null = null;
@@ -75,14 +81,44 @@ class PrismaClientSingleton {
     }
   }
 
-  public static async healthCheck(): Promise<boolean> {
+  public static async healthCheck(): Promise<HealthCheckResult> {
+    const startTime = Date.now();
+
     try {
       const client = PrismaClientSingleton.getInstance();
       await client.$queryRaw`SELECT 1`;
-      return true;
+      const latency = Date.now() - startTime;
+
+      return {
+        isHealthy: true,
+        latency,
+      };
     } catch (error) {
-      logger.error('Prisma health check failed', { error });
-      return false;
+      const latency = Date.now() - startTime;
+      logger.error('Prisma health check failed', { error, latency });
+
+      return {
+        isHealthy: false,
+        latency,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  public static isConnected(): boolean {
+    return PrismaClientSingleton.isConnected;
+  }
+
+  public static async gracefulShutdown(): Promise<void> {
+    logger.info('Starting graceful shutdown of Prisma client');
+
+    try {
+      await PrismaClientSingleton.disconnect();
+      PrismaClientSingleton.instance = null;
+      logger.info('Prisma client graceful shutdown completed');
+    } catch (error) {
+      logger.error('Error during Prisma client graceful shutdown', { error });
+      throw error;
     }
   }
 }
@@ -91,3 +127,8 @@ export const prisma = PrismaClientSingleton.getInstance();
 export const connectPrisma = PrismaClientSingleton.connect;
 export const disconnectPrisma = PrismaClientSingleton.disconnect;
 export const prismaHealthCheck = PrismaClientSingleton.healthCheck;
+export const checkDatabaseHealth = PrismaClientSingleton.healthCheck;
+export const gracefulShutdown = PrismaClientSingleton.gracefulShutdown;
+export const isPrismaConnected = PrismaClientSingleton.isConnected;
+
+export type { PrismaClient };
