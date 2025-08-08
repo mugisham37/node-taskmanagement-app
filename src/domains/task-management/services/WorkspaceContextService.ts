@@ -1,6 +1,10 @@
 import { WorkspaceId } from '../value-objects/WorkspaceId';
 import { UserId } from '../../authentication/value-objects/UserId';
-import { WorkspaceService, WorkspaceContext } from './WorkspaceService';
+import {
+  WorkspaceService,
+  WorkspaceContext,
+  workspaceService,
+} from './WorkspaceService';
 import { WorkspacePermissionService } from './WorkspacePermissionService';
 
 export interface UserWorkspaceContext {

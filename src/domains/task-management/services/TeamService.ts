@@ -747,3 +747,12 @@ export class TeamService {
     }
   }
 }
+// TODO: This is a temporary instance export for compatibility during migration
+// In the final architecture, services should be properly injected via DI container
+import { TeamRepository } from '../repositories/TeamRepository';
+
+// Create temporary instances (this should be replaced with proper DI)
+const teamRepository = new TeamRepository();
+const permissionService = new WorkspacePermissionService();
+
+export const teamService = new TeamService(teamRepository, permissionService);

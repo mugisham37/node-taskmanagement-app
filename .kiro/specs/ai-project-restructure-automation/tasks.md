@@ -164,41 +164,41 @@
     - Update validator imports and references
     - _Requirements: 5.3, 12.7_
 
-- [ ] 11. Migrate Task Management Domain (Largest Domain)
-  - [ ] 11.1 Move task management controllers
+- [x] 11. Migrate Task Management Domain (Largest Domain)
+  - [x] 11.1 Move task management controllers
     - Move task.controller.ts, enhanced-task.controller.ts, project.controller.ts, workspace.controller.ts, team.controller.ts, task-template.controller.ts, recurring-task.controller.ts, invitation.controller.ts to src/domains/task-management/controllers/
     - Update controller imports and dependencies
     - _Requirements: 5.1, 12.8_
 
-  - [ ] 11.2 Move task management routes
+  - [x] 11.2 Move task management routes
     - Move all corresponding routes (task.routes.ts, project.routes.ts, workspace.routes.ts, team.routes.ts, task-template.routes.ts, recurring-task.routes.ts, invitation.routes.ts) to src/domains/task-management/routes/
     - Update route imports to reference moved controllers
     - _Requirements: 5.2, 12.8_
 
-  - [ ] 11.3 Move task management validators
+  - [x] 11.3 Move task management validators
     - Move all corresponding validators (task.validator.ts, project.validator.ts, workspace.validator.ts, team.validator.ts, task-template.validator.ts, recurring-task.validator.ts, invitation.validator.ts) to src/domains/task-management/validators/
     - Update validator imports and references
     - _Requirements: 5.3, 12.8_
 
-  - [ ] 11.4 Move task management services and consolidate duplicates
+  - [x] 11.4 Move task management services and consolidate duplicates
     - Move src/domain/task-management/services/\* to src/domains/task-management/services/
     - Identify and remove duplicate services from src/application/services/
     - Consolidate service implementations and update cross-references
     - _Requirements: 5.4, 6.1, 6.2, 6.3, 12.8_
 
-  - [ ] 11.5 Move task management entities and repositories
+  - [x] 11.5 Move task management entities and repositories
     - Move src/domain/task-management/entities/\* to src/domains/task-management/entities/
     - Move src/domain/task-management/repositories/\* to src/domains/task-management/repositories/
     - Move src/infrastructure/repositories/task.repository.impl.ts, project.repository.impl.ts to src/domains/task-management/repositories/
     - Update repository imports and implementations
     - _Requirements: 5.5, 5.6, 12.8_
 
-  - [ ] 11.6 Move task management schemas
+  - [x] 11.6 Move task management schemas
     - Move tasks.ts, projects.ts, workspaces.ts, teams.ts, invitations.ts, task-templates.ts, recurring-tasks.ts schemas to src/domains/task-management/schemas/
     - Update schema imports in repositories and services
     - _Requirements: 5.7, 12.8_
 
-  - [ ] 11.7 Move task management events, specifications, and value objects
+  - [x] 11.7 Move task management events, specifications, and value objects
     - Move src/domain/task-management/events/\* to src/domains/task-management/events/
     - Move src/domain/task-management/specifications/\* to src/domains/task-management/specifications/
     - Move src/domain/task-management/value-objects/\* to src/domains/task-management/value-objects/

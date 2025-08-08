@@ -909,3 +909,14 @@ export class TaskService {
     // This would involve traversing the dependency graph to ensure no cycles
   }
 }
+
+// TODO: This is a temporary instance export for compatibility during migration
+// In the final architecture, services should be properly injected via DI container
+import { PrismaTaskRepository } from '../repositories/task.repository.impl';
+import { WorkspacePermissionService } from './WorkspacePermissionService';
+
+// Create temporary instances (this should be replaced with proper DI)
+const taskRepository = new PrismaTaskRepository();
+const permissionService = new WorkspacePermissionService();
+
+export const taskService = new TaskService(taskRepository, permissionService);

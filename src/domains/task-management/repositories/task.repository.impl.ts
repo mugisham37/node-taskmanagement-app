@@ -1,8 +1,8 @@
 import { PrismaClient, Prisma, Task as PrismaTask } from '@prisma/client';
 import { BasePrismaRepository } from '../database/base-repository';
-import { ITaskRepository } from '../../domain/task-management/repositories/ITaskRepository';
-import { Task } from '../../domain/task-management/entities/Task';
-import { TaskId } from '../../domain/task-management/value-objects/TaskId';
+import { ITaskRepository } from './ITaskRepository';
+import { Task } from '../entities/Task';
+import { TaskId } from '../value-objects/TaskId';
 import { ProjectId } from '../../domain/task-management/value-objects/ProjectId';
 import { WorkspaceId } from '../../domain/task-management/value-objects/WorkspaceId';
 import { UserId } from '../../domain/authentication/value-objects/UserId';

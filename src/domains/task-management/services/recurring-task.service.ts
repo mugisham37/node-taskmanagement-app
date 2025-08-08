@@ -1,16 +1,38 @@
-import { eq, and, or, desc, asc, count, ilike, isNull, isNotNull, gte, lte, inArray } from 'drizzle-orm';
-import { BaseService, ServiceContext, NotFoundError, ValidationError, ForbiddenError } from './base.service';
-import { 
-  recurringTaskRepository, 
-  userRepository, 
+import {
+  eq,
+  and,
+  or,
+  desc,
+  asc,
+  count,
+  ilike,
+  isNull,
+  isNotNull,
+  gte,
+  lte,
+  inArray,
+} from 'drizzle-orm';
+import {
+  BaseService,
+  ServiceContext,
+  NotFoundError,
+  ValidationError,
+  ForbiddenError,
+} from './base.service';
+import {
+  recurringTaskRepository,
+  userRepository,
   projectRepository,
   workspaceRepository,
   teamRepository,
-  taskRepository
+  taskRepository,
 } from '../db/repositories';
 import { RecurringTask, NewRecurringTask } from '../db/schema/recurring-tasks';
-import { PaginationOptions, PaginatedResult } from '../db/repositories/base/interfaces';
-import { taskService } from './task.service';
+import {
+  PaginationOptions,
+  PaginatedResult,
+} from '../db/repositories/base/interfaces';
+import { taskService } from './TaskService';
 import { notificationService, NotificationType } from './notification.service';
 import { activityService } from './activity.service';
 
@@ -18,7 +40,7 @@ export enum RecurrenceFrequency {
   DAILY = 'daily',
   WEEKLY = 'weekly',
   MONTHLY = 'monthly',
-  YEARLY = 'yearly'
+  YEARLY = 'yearly',
 }
 
 export interface RecurringTaskFilters {
@@ -91,17 +113,20 @@ export class RecurringTaskService extends BaseService {
       enableCache: true,
       cacheTimeout: 300,
       enableAudit: true,
-      enableMetrics: true
+      enableMetrics: true,
     });
   }
 
   // Core CRUD Operations
-  async createRecurringTask(data: RecurringTaskCreateData, context?: ServiceContext): Promise<RecurringTask> {
+  async createRecurringTask(
+    data: RecurringTaskCreateData,
+    context?: ServiceContext
+  ): Promise<RecurringTask> {
     const ctx = this.createContext(context);
-    this.logOperation('createRecurringTask', ctx, { 
-      title: data.title, 
+    this.logOperation('createRecurringTask', ctx, {
+      title: data.title,
       frequency: data.frequency,
-      interval: data.interval
+      interval: data.interval,
     });
 
     try {
@@ -131,10 +156,11 @@ export class RecurringTaskService extends BaseService {
         daysOfWeek: data.daysOfWeek || [],
         daysOfMonth: data.daysOfMonth || [],
         monthsOfYear: data.monthsOfYear || [],
-        nextRunDate
+        nextRunDate,
       };
 
-      const recurringTask = await recurringTaskRepository.create(newRecurringTask);
+      const recurringTask =
+        await recurringTaskRepository.create(newRecurringTask);
 
       // Schedule the first task instance if the recurring task is active
       if (recurringTask.active) {
@@ -142,28 +168,31 @@ export class RecurringTaskService extends BaseService {
       }
 
       // Log activity
-      await activityService.createActivity({
-        userId: ctx.userId!,
-        type: 'task_created',
-        projectId: data.projectId,
-        data: {
-          action: 'recurring_task_created',
-          recurringTaskId: recurringTask.id,
-          title: recurringTask.title,
-          frequency: recurringTask.frequency,
-          interval: recurringTask.interval
+      await activityService.createActivity(
+        {
+          userId: ctx.userId!,
+          type: 'task_created',
+          projectId: data.projectId,
+          data: {
+            action: 'recurring_task_created',
+            recurringTaskId: recurringTask.id,
+            title: recurringTask.title,
+            frequency: recurringTask.frequency,
+            interval: recurringTask.interval,
+          },
+          metadata: {
+            recurringTaskId: recurringTask.id,
+            nextRunDate: nextRunDate.toISOString(),
+          },
         },
-        metadata: {
-          recurringTaskId: recurringTask.id,
-          nextRunDate: nextRunDate.toISOString()
-        }
-      }, ctx);
+        ctx
+      );
 
-      await this.recordMetric('recurring_task.created', 1, { 
+      await this.recordMetric('recurring_task.created', 1, {
         frequency: recurringTask.frequency,
         interval: recurringTask.interval.toString(),
         hasProject: recurringTask.projectId ? 'true' : 'false',
-        active: recurringTask.active ? 'true' : 'false'
+        active: recurringTask.active ? 'true' : 'false',
       });
 
       return recurringTask;
@@ -172,7 +201,10 @@ export class RecurringTaskService extends BaseService {
     }
   }
 
-  async getRecurringTaskById(id: string, context?: ServiceContext): Promise<RecurringTask> {
+  async getRecurringTaskById(
+    id: string,
+    context?: ServiceContext
+  ): Promise<RecurringTask> {
     const ctx = this.createContext(context);
     this.logOperation('getRecurringTaskById', ctx, { recurringTaskId: id });
 
@@ -201,15 +233,19 @@ export class RecurringTaskService extends BaseService {
 
     try {
       const paginationOptions = this.validatePagination(options);
-      
+
       // Build where conditions
-      const whereConditions = this.buildRecurringTaskWhereConditions(filters, ctx.userId!, ctx.userRole);
-      
+      const whereConditions = this.buildRecurringTaskWhereConditions(
+        filters,
+        ctx.userId!,
+        ctx.userRole
+      );
+
       const result = await recurringTaskRepository.findMany({
         ...paginationOptions,
         where: whereConditions,
         sortBy: 'createdAt',
-        sortOrder: 'desc'
+        sortOrder: 'desc',
       });
 
       return result;
@@ -218,9 +254,16 @@ export class RecurringTaskService extends BaseService {
     }
   }
 
-  async updateRecurringTask(id: string, data: RecurringTaskUpdateData, context?: ServiceContext): Promise<RecurringTask> {
+  async updateRecurringTask(
+    id: string,
+    data: RecurringTaskUpdateData,
+    context?: ServiceContext
+  ): Promise<RecurringTask> {
     const ctx = this.createContext(context);
-    this.logOperation('updateRecurringTask', ctx, { recurringTaskId: id, updates: Object.keys(data) });
+    this.logOperation('updateRecurringTask', ctx, {
+      recurringTaskId: id,
+      updates: Object.keys(data),
+    });
 
     try {
       const existingRecurringTask = await recurringTaskRepository.findById(id);
@@ -244,7 +287,7 @@ export class RecurringTaskService extends BaseService {
       const updatedRecurringTask = await recurringTaskRepository.update(id, {
         ...data,
         nextRunDate,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
       if (!updatedRecurringTask) {
@@ -256,9 +299,9 @@ export class RecurringTaskService extends BaseService {
         await this.scheduleNextTaskInstance(updatedRecurringTask);
       }
 
-      await this.recordMetric('recurring_task.updated', 1, { 
+      await this.recordMetric('recurring_task.updated', 1, {
         frequencyChanged: data.frequency !== undefined ? 'true' : 'false',
-        activeChanged: data.active !== undefined ? 'true' : 'false'
+        activeChanged: data.active !== undefined ? 'true' : 'false',
       });
 
       return updatedRecurringTask;
@@ -267,7 +310,10 @@ export class RecurringTaskService extends BaseService {
     }
   }
 
-  async deleteRecurringTask(id: string, context?: ServiceContext): Promise<void> {
+  async deleteRecurringTask(
+    id: string,
+    context?: ServiceContext
+  ): Promise<void> {
     const ctx = this.createContext(context);
     this.logOperation('deleteRecurringTask', ctx, { recurringTaskId: id });
 
@@ -291,9 +337,14 @@ export class RecurringTaskService extends BaseService {
     }
   }
 
-  async toggleRecurringTaskActive(id: string, context?: ServiceContext): Promise<RecurringTask> {
+  async toggleRecurringTaskActive(
+    id: string,
+    context?: ServiceContext
+  ): Promise<RecurringTask> {
     const ctx = this.createContext(context);
-    this.logOperation('toggleRecurringTaskActive', ctx, { recurringTaskId: id });
+    this.logOperation('toggleRecurringTaskActive', ctx, {
+      recurringTaskId: id,
+    });
 
     try {
       const recurringTask = await recurringTaskRepository.findById(id);
@@ -307,7 +358,7 @@ export class RecurringTaskService extends BaseService {
       // Toggle active status
       const updatedRecurringTask = await recurringTaskRepository.update(id, {
         active: !recurringTask.active,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
       if (!updatedRecurringTask) {
@@ -319,8 +370,8 @@ export class RecurringTaskService extends BaseService {
         await this.scheduleNextTaskInstance(updatedRecurringTask);
       }
 
-      await this.recordMetric('recurring_task.toggled', 1, { 
-        active: updatedRecurringTask.active ? 'true' : 'false'
+      await this.recordMetric('recurring_task.toggled', 1, {
+        active: updatedRecurringTask.active ? 'true' : 'false',
       });
 
       return updatedRecurringTask;
@@ -329,7 +380,9 @@ export class RecurringTaskService extends BaseService {
     }
   }
 
-  async processRecurringTasks(context?: ServiceContext): Promise<{ tasksCreated: number }> {
+  async processRecurringTasks(
+    context?: ServiceContext
+  ): Promise<{ tasksCreated: number }> {
     const ctx = this.createContext(context);
     this.logOperation('processRecurringTasks', ctx);
 
@@ -342,7 +395,7 @@ export class RecurringTaskService extends BaseService {
           eq(recurringTaskRepository['table']?.active, true),
           lte(recurringTaskRepository['table']?.nextRunDate, now)
         ),
-        limit: 1000
+        limit: 1000,
       });
 
       let tasksCreated = 0;
@@ -369,12 +422,15 @@ export class RecurringTaskService extends BaseService {
 
           tasksCreated++;
         } catch (error) {
-          console.error(`Error processing recurring task ${recurringTask.id}:`, error);
+          console.error(
+            `Error processing recurring task ${recurringTask.id}:`,
+            error
+          );
         }
       }
 
-      await this.recordMetric('recurring_task.processed', 1, { 
-        tasksCreated: tasksCreated.toString()
+      await this.recordMetric('recurring_task.processed', 1, {
+        tasksCreated: tasksCreated.toString(),
       });
 
       return { tasksCreated };
@@ -392,11 +448,15 @@ export class RecurringTaskService extends BaseService {
     this.logOperation('getRecurringTaskStats', ctx, { filters });
 
     try {
-      const whereConditions = this.buildRecurringTaskWhereConditions(filters, ctx.userId!, ctx.userRole);
-      
+      const whereConditions = this.buildRecurringTaskWhereConditions(
+        filters,
+        ctx.userId!,
+        ctx.userRole
+      );
+
       const allRecurringTasks = await recurringTaskRepository.findMany({
         where: whereConditions,
-        limit: 10000
+        limit: 10000,
       });
 
       const recurringTasks = allRecurringTasks.data;
@@ -414,7 +474,7 @@ export class RecurringTaskService extends BaseService {
         .map(task => ({
           id: task.id,
           title: task.title,
-          nextRunDate: task.nextRunDate!
+          nextRunDate: task.nextRunDate!,
         }));
 
       const stats: RecurringTaskStats = {
@@ -423,7 +483,7 @@ export class RecurringTaskService extends BaseService {
         inactive: recurringTasks.filter(t => !t.active).length,
         byFrequency,
         tasksCreated: 0, // Would need to track this separately
-        nextDue
+        nextDue,
       };
 
       return stats;
@@ -433,21 +493,26 @@ export class RecurringTaskService extends BaseService {
   }
 
   // Private Helper Methods
-  private async verifyRecurringTaskAccess(recurringTask: RecurringTask, userId: string): Promise<void> {
+  private async verifyRecurringTaskAccess(
+    recurringTask: RecurringTask,
+    userId: string
+  ): Promise<void> {
     // User can access recurring task if they are:
     // 1. The owner
     // 2. Have access to the project/workspace/team
     // 3. Admin
-    
+
     if (recurringTask.userId === userId) {
       return;
     }
 
     // Check project/workspace/team access
-    if (recurringTask.projectId && await this.hasProjectAccess(userId, recurringTask.projectId)) {
+    if (
+      recurringTask.projectId &&
+      (await this.hasProjectAccess(userId, recurringTask.projectId))
+    ) {
       return;
     }
-
 
     // Check if user is admin
     const user = await userRepository.findById(userId);
@@ -458,7 +523,10 @@ export class RecurringTaskService extends BaseService {
     throw new ForbiddenError('You do not have access to this recurring task');
   }
 
-  private async verifyProjectAccess(projectId: string, userId: string): Promise<void> {
+  private async verifyProjectAccess(
+    projectId: string,
+    userId: string
+  ): Promise<void> {
     const project = await projectRepository.findById(projectId);
     if (!project) {
       throw new NotFoundError('Project', projectId);
@@ -466,7 +534,10 @@ export class RecurringTaskService extends BaseService {
     // Add project access check logic here
   }
 
-  private async verifyWorkspaceAccess(workspaceId: string, userId: string): Promise<void> {
+  private async verifyWorkspaceAccess(
+    workspaceId: string,
+    userId: string
+  ): Promise<void> {
     const workspace = await workspaceRepository.findById(workspaceId);
     if (!workspace) {
       throw new NotFoundError('Workspace', workspaceId);
@@ -474,7 +545,10 @@ export class RecurringTaskService extends BaseService {
     // Add workspace access check logic here
   }
 
-  private async verifyTeamAccess(teamId: string, userId: string): Promise<void> {
+  private async verifyTeamAccess(
+    teamId: string,
+    userId: string
+  ): Promise<void> {
     const team = await teamRepository.findById(teamId);
     if (!team) {
       throw new NotFoundError('Team', teamId);
@@ -482,27 +556,40 @@ export class RecurringTaskService extends BaseService {
     // Add team access check logic here
   }
 
-  private async hasProjectAccess(userId: string, projectId: string): Promise<boolean> {
+  private async hasProjectAccess(
+    userId: string,
+    projectId: string
+  ): Promise<boolean> {
     const project = await projectRepository.findById(projectId);
     if (!project) return false;
     return project.ownerId === userId;
   }
 
-  private async hasWorkspaceAccess(userId: string, workspaceId: string): Promise<boolean> {
+  private async hasWorkspaceAccess(
+    userId: string,
+    workspaceId: string
+  ): Promise<boolean> {
     const workspace = await workspaceRepository.findById(workspaceId);
     if (!workspace) return false;
     // Add workspace member check logic here
     return true; // Placeholder
   }
 
-  private async hasTeamAccess(userId: string, teamId: string): Promise<boolean> {
+  private async hasTeamAccess(
+    userId: string,
+    teamId: string
+  ): Promise<boolean> {
     const team = await teamRepository.findById(teamId);
     if (!team) return false;
     // Add team member check logic here
     return true; // Placeholder
   }
 
-  private buildRecurringTaskWhereConditions(filters: RecurringTaskFilters, userId: string, userRole?: string): any {
+  private buildRecurringTaskWhereConditions(
+    filters: RecurringTaskFilters,
+    userId: string,
+    userRole?: string
+  ): any {
     const conditions = [];
 
     // Non-admin users can only see their own recurring tasks
@@ -511,39 +598,60 @@ export class RecurringTaskService extends BaseService {
     }
 
     if (filters.userId) {
-      conditions.push(eq(recurringTaskRepository['table']?.userId, filters.userId));
+      conditions.push(
+        eq(recurringTaskRepository['table']?.userId, filters.userId)
+      );
     }
 
     if (filters.projectId) {
-      conditions.push(eq(recurringTaskRepository['table']?.projectId, filters.projectId));
+      conditions.push(
+        eq(recurringTaskRepository['table']?.projectId, filters.projectId)
+      );
     }
-
 
     if (filters.frequency) {
       if (Array.isArray(filters.frequency)) {
-        conditions.push(inArray(recurringTaskRepository['table']?.frequency, filters.frequency));
+        conditions.push(
+          inArray(
+            recurringTaskRepository['table']?.frequency,
+            filters.frequency
+          )
+        );
       } else {
-        conditions.push(eq(recurringTaskRepository['table']?.frequency, filters.frequency));
+        conditions.push(
+          eq(recurringTaskRepository['table']?.frequency, filters.frequency)
+        );
       }
     }
 
     if (filters.active !== undefined) {
-      conditions.push(eq(recurringTaskRepository['table']?.active, filters.active));
+      conditions.push(
+        eq(recurringTaskRepository['table']?.active, filters.active)
+      );
     }
 
     if (filters.createdFrom) {
-      conditions.push(gte(recurringTaskRepository['table']?.createdAt, filters.createdFrom));
+      conditions.push(
+        gte(recurringTaskRepository['table']?.createdAt, filters.createdFrom)
+      );
     }
 
     if (filters.createdTo) {
-      conditions.push(lte(recurringTaskRepository['table']?.createdAt, filters.createdTo));
+      conditions.push(
+        lte(recurringTaskRepository['table']?.createdAt, filters.createdTo)
+      );
     }
 
     if (filters.search) {
-      conditions.push(or(
-        ilike(recurringTaskRepository['table']?.title, `%${filters.search}%`),
-        ilike(recurringTaskRepository['table']?.description, `%${filters.search}%`)
-      ));
+      conditions.push(
+        or(
+          ilike(recurringTaskRepository['table']?.title, `%${filters.search}%`),
+          ilike(
+            recurringTaskRepository['table']?.description,
+            `%${filters.search}%`
+          )
+        )
+      );
     }
 
     return conditions.length > 0 ? and(...conditions) : undefined;
@@ -555,10 +663,15 @@ export class RecurringTaskService extends BaseService {
     }
 
     if (data.title.length > 200) {
-      throw new ValidationError('Recurring task title must be less than 200 characters');
+      throw new ValidationError(
+        'Recurring task title must be less than 200 characters'
+      );
     }
 
-    if (!data.frequency || !Object.values(RecurrenceFrequency).includes(data.frequency)) {
+    if (
+      !data.frequency ||
+      !Object.values(RecurrenceFrequency).includes(data.frequency)
+    ) {
       throw new ValidationError('Valid frequency is required');
     }
 
@@ -588,15 +701,23 @@ export class RecurringTaskService extends BaseService {
         throw new ValidationError('Recurring task title is required');
       }
       if (data.title.length > 200) {
-        throw new ValidationError('Recurring task title must be less than 200 characters');
+        throw new ValidationError(
+          'Recurring task title must be less than 200 characters'
+        );
       }
     }
 
-    if (data.frequency && !Object.values(RecurrenceFrequency).includes(data.frequency)) {
+    if (
+      data.frequency &&
+      !Object.values(RecurrenceFrequency).includes(data.frequency)
+    ) {
       throw new ValidationError('Valid frequency is required');
     }
 
-    if (data.interval !== undefined && (data.interval < 1 || data.interval > 365)) {
+    if (
+      data.interval !== undefined &&
+      (data.interval < 1 || data.interval > 365)
+    ) {
       throw new ValidationError('Interval must be between 1 and 365');
     }
 
@@ -605,22 +726,38 @@ export class RecurringTaskService extends BaseService {
     }
   }
 
-  private validateFrequencyFields(data: RecurringTaskCreateData | RecurringTaskUpdateData): void {
+  private validateFrequencyFields(
+    data: RecurringTaskCreateData | RecurringTaskUpdateData
+  ): void {
     if (!data.frequency) return;
 
     switch (data.frequency) {
       case RecurrenceFrequency.WEEKLY:
-        if (!data.daysOfWeek || !Array.isArray(data.daysOfWeek) || data.daysOfWeek.length === 0) {
-          throw new ValidationError('Days of week are required for weekly frequency');
+        if (
+          !data.daysOfWeek ||
+          !Array.isArray(data.daysOfWeek) ||
+          data.daysOfWeek.length === 0
+        ) {
+          throw new ValidationError(
+            'Days of week are required for weekly frequency'
+          );
         }
         if (data.daysOfWeek.some(day => day < 0 || day > 6)) {
-          throw new ValidationError('Days of week must be between 0 (Sunday) and 6 (Saturday)');
+          throw new ValidationError(
+            'Days of week must be between 0 (Sunday) and 6 (Saturday)'
+          );
         }
         break;
 
       case RecurrenceFrequency.MONTHLY:
-        if (!data.daysOfMonth || !Array.isArray(data.daysOfMonth) || data.daysOfMonth.length === 0) {
-          throw new ValidationError('Days of month are required for monthly frequency');
+        if (
+          !data.daysOfMonth ||
+          !Array.isArray(data.daysOfMonth) ||
+          data.daysOfMonth.length === 0
+        ) {
+          throw new ValidationError(
+            'Days of month are required for monthly frequency'
+          );
         }
         if (data.daysOfMonth.some(day => day < 1 || day > 31)) {
           throw new ValidationError('Days of month must be between 1 and 31');
@@ -628,20 +765,30 @@ export class RecurringTaskService extends BaseService {
         break;
 
       case RecurrenceFrequency.YEARLY:
-        if (!data.monthsOfYear || !Array.isArray(data.monthsOfYear) || data.monthsOfYear.length === 0) {
-          throw new ValidationError('Months of year are required for yearly frequency');
+        if (
+          !data.monthsOfYear ||
+          !Array.isArray(data.monthsOfYear) ||
+          data.monthsOfYear.length === 0
+        ) {
+          throw new ValidationError(
+            'Months of year are required for yearly frequency'
+          );
         }
         if (data.monthsOfYear.some(month => month < 0 || month > 11)) {
-          throw new ValidationError('Months of year must be between 0 (January) and 11 (December)');
+          throw new ValidationError(
+            'Months of year must be between 0 (January) and 11 (December)'
+          );
         }
         break;
     }
   }
 
-  private calculateNextRunDate(data: RecurringTaskCreateData | RecurringTask): Date {
+  private calculateNextRunDate(
+    data: RecurringTaskCreateData | RecurringTask
+  ): Date {
     const now = new Date();
     let baseDate = data.startDate;
-    
+
     // If we have a nextRunDate and it's in the future, use it as base
     if ('nextRunDate' in data && data.nextRunDate && data.nextRunDate > now) {
       baseDate = data.nextRunDate;
@@ -657,15 +804,23 @@ export class RecurringTaskService extends BaseService {
         break;
 
       case RecurrenceFrequency.WEEKLY:
-        if (data.daysOfWeek && Array.isArray(data.daysOfWeek) && data.daysOfWeek.length > 0) {
+        if (
+          data.daysOfWeek &&
+          Array.isArray(data.daysOfWeek) &&
+          data.daysOfWeek.length > 0
+        ) {
           const sortedDays = [...data.daysOfWeek].sort((a, b) => a - b);
           const currentDayOfWeek = nextDate.getDay();
-          const nextDayOfWeek = sortedDays.find((day) => day > currentDayOfWeek);
+          const nextDayOfWeek = sortedDays.find(day => day > currentDayOfWeek);
 
           if (nextDayOfWeek !== undefined) {
-            nextDate.setDate(nextDate.getDate() + (nextDayOfWeek - currentDayOfWeek));
+            nextDate.setDate(
+              nextDate.getDate() + (nextDayOfWeek - currentDayOfWeek)
+            );
           } else {
-            nextDate.setDate(nextDate.getDate() + (7 - currentDayOfWeek) + sortedDays[0]);
+            nextDate.setDate(
+              nextDate.getDate() + (7 - currentDayOfWeek) + sortedDays[0]
+            );
           }
         } else {
           nextDate.setDate(nextDate.getDate() + 7 * data.interval);
@@ -673,10 +828,16 @@ export class RecurringTaskService extends BaseService {
         break;
 
       case RecurrenceFrequency.MONTHLY:
-        if (data.daysOfMonth && Array.isArray(data.daysOfMonth) && data.daysOfMonth.length > 0) {
+        if (
+          data.daysOfMonth &&
+          Array.isArray(data.daysOfMonth) &&
+          data.daysOfMonth.length > 0
+        ) {
           const sortedDays = [...data.daysOfMonth].sort((a, b) => a - b);
           const currentDayOfMonth = nextDate.getDate();
-          const nextDayOfMonth = sortedDays.find((day) => day > currentDayOfMonth);
+          const nextDayOfMonth = sortedDays.find(
+            day => day > currentDayOfMonth
+          );
 
           if (nextDayOfMonth !== undefined) {
             nextDate.setDate(nextDayOfMonth);
@@ -690,10 +851,14 @@ export class RecurringTaskService extends BaseService {
         break;
 
       case RecurrenceFrequency.YEARLY:
-        if (data.monthsOfYear && Array.isArray(data.monthsOfYear) && data.monthsOfYear.length > 0) {
+        if (
+          data.monthsOfYear &&
+          Array.isArray(data.monthsOfYear) &&
+          data.monthsOfYear.length > 0
+        ) {
           const sortedMonths = [...data.monthsOfYear].sort((a, b) => a - b);
           const currentMonth = nextDate.getMonth();
-          const nextMonth = sortedMonths.find((month) => month > currentMonth);
+          const nextMonth = sortedMonths.find(month => month > currentMonth);
 
           if (nextMonth !== undefined) {
             nextDate.setMonth(nextMonth);
@@ -710,7 +875,9 @@ export class RecurringTaskService extends BaseService {
     return nextDate;
   }
 
-  private async scheduleNextTaskInstance(recurringTask: RecurringTask): Promise<void> {
+  private async scheduleNextTaskInstance(
+    recurringTask: RecurringTask
+  ): Promise<void> {
     // If the recurring task doesn't have a next run date, calculate it
     if (!recurringTask.nextRunDate) {
       const nextRunDate = this.calculateNextRunDate(recurringTask);
@@ -727,7 +894,9 @@ export class RecurringTaskService extends BaseService {
     }
   }
 
-  private async createTaskFromRecurringTask(recurringTask: RecurringTask): Promise<any> {
+  private async createTaskFromRecurringTask(
+    recurringTask: RecurringTask
+  ): Promise<any> {
     try {
       // Create task data from the recurring task's task template
       const template = recurringTask.taskTemplate as any;
@@ -742,14 +911,14 @@ export class RecurringTaskService extends BaseService {
         assigneeId: recurringTask.userId, // Default to creator
         metadata: {
           recurringTaskId: recurringTask.id,
-          generatedAt: new Date().toISOString()
-        }
+          generatedAt: new Date().toISOString(),
+        },
       };
 
       // Create the task using the task service
       const task = await taskService.createTask(taskData as any, {
         userId: recurringTask.userId,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
 
       // Create notification for the new recurring task
@@ -760,8 +929,8 @@ export class RecurringTaskService extends BaseService {
         message: `A new task "${task.title}" has been created from your recurring task "${recurringTask.title}"`,
         data: {
           taskId: task.id,
-          recurringTaskId: recurringTask.id
-        }
+          recurringTaskId: recurringTask.id,
+        },
       });
 
       return task;

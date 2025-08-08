@@ -1,6 +1,10 @@
 import { WorkspaceId } from '../value-objects/WorkspaceId';
 import { UserId } from '../../authentication/value-objects/UserId';
-import { ProjectService, CreateProjectRequest } from './ProjectService';
+import {
+  ProjectService,
+  CreateProjectRequest,
+  projectService,
+} from './ProjectService';
 import { TaskTemplate } from '../entities/TaskTemplate';
 import { Project } from '../entities/Project';
 import { DomainEvent } from '../../shared/events/DomainEvent';

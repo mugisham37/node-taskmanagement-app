@@ -594,3 +594,16 @@ export class WorkspaceService {
     return Math.random().toString(36).substring(2) + Date.now().toString(36);
   }
 }
+// TODO: This is a temporary instance export for compatibility during migration
+// In the final architecture, services should be properly injected via DI container
+import { WorkspaceRepository } from '../repositories/WorkspaceRepository';
+import { WorkspaceMemberRepository } from '../repositories/WorkspaceMemberRepository';
+
+// Create temporary instances (this should be replaced with proper DI)
+const workspaceRepository = new WorkspaceRepository();
+const memberRepository = new WorkspaceMemberRepository();
+
+export const workspaceService = new WorkspaceService(
+  workspaceRepository,
+  memberRepository
+);

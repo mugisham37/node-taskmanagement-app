@@ -1,16 +1,38 @@
-import { eq, and, or, desc, asc, count, ilike, isNull, isNotNull, gte, lte, inArray } from 'drizzle-orm';
-import { BaseService, ServiceContext, NotFoundError, ValidationError, ForbiddenError } from './base.service';
-import { 
-  taskTemplateRepository, 
-  userRepository, 
-  workspaceRepository, 
+import {
+  eq,
+  and,
+  or,
+  desc,
+  asc,
+  count,
+  ilike,
+  isNull,
+  isNotNull,
+  gte,
+  lte,
+  inArray,
+} from 'drizzle-orm';
+import {
+  BaseService,
+  ServiceContext,
+  NotFoundError,
+  ValidationError,
+  ForbiddenError,
+} from './base.service';
+import {
+  taskTemplateRepository,
+  userRepository,
+  workspaceRepository,
   teamRepository,
   taskRepository,
-  projectRepository
+  projectRepository,
 } from '../db/repositories';
 import { TaskTemplate, NewTaskTemplate } from '../db/schema/task-templates';
-import { PaginationOptions, PaginatedResult } from '../db/repositories/base/interfaces';
-import { taskService } from './task.service';
+import {
+  PaginationOptions,
+  PaginatedResult,
+} from '../db/repositories/base/interfaces';
+import { taskService } from './TaskService';
 import { activityService } from './activity.service';
 
 export interface TaskTemplateFilters {
@@ -102,17 +124,20 @@ export class TaskTemplateService extends BaseService {
       enableCache: true,
       cacheTimeout: 600, // 10 minutes cache for templates
       enableAudit: true,
-      enableMetrics: true
+      enableMetrics: true,
     });
   }
 
   // Core CRUD Operations
-  async createTaskTemplate(data: TaskTemplateCreateData, context?: ServiceContext): Promise<TaskTemplate> {
+  async createTaskTemplate(
+    data: TaskTemplateCreateData,
+    context?: ServiceContext
+  ): Promise<TaskTemplate> {
     const ctx = this.createContext(context);
-    this.logOperation('createTaskTemplate', ctx, { 
-      name: data.name, 
+    this.logOperation('createTaskTemplate', ctx, {
+      name: data.name,
       category: data.category,
-      isPublic: data.isPublic
+      isPublic: data.isPublic,
     });
 
     try {
@@ -147,35 +172,38 @@ export class TaskTemplateService extends BaseService {
         taskData: data.taskData,
         settings: data.settings || {},
         tags: data.tags || [],
-        usageCount: 0
+        usageCount: 0,
       };
 
       const template = await taskTemplateRepository.create(newTemplate);
 
       // Log activity
-      await activityService.createActivity({
-        userId: ctx.userId!,
-        type: 'task_created',
-        workspaceId: data.workspaceId || undefined,
-        teamId: data.teamId || undefined,
-        projectId: data.projectId || undefined,
-        data: {
-          action: 'task_template_created',
-          templateId: template.id,
-          templateName: template.name,
-          category: template.category,
-          isPublic: template.isPublic
+      await activityService.createActivity(
+        {
+          userId: ctx.userId!,
+          type: 'task_created',
+          workspaceId: data.workspaceId || undefined,
+          teamId: data.teamId || undefined,
+          projectId: data.projectId || undefined,
+          data: {
+            action: 'task_template_created',
+            templateId: template.id,
+            templateName: template.name,
+            category: template.category,
+            isPublic: template.isPublic,
+          },
+          metadata: {
+            templateId: template.id,
+          },
         },
-        metadata: {
-          templateId: template.id
-        }
-      }, ctx);
+        ctx
+      );
 
-      await this.recordMetric('task_template.created', 1, { 
+      await this.recordMetric('task_template.created', 1, {
         category: template.category || 'uncategorized',
         isPublic: template.isPublic ? 'true' : 'false',
         hasWorkspace: template.workspaceId ? 'true' : 'false',
-        hasTeam: template.teamId ? 'true' : 'false'
+        hasTeam: template.teamId ? 'true' : 'false',
       });
 
       return template;
@@ -184,7 +212,10 @@ export class TaskTemplateService extends BaseService {
     }
   }
 
-  async getTaskTemplateById(id: string, context?: ServiceContext): Promise<TaskTemplate> {
+  async getTaskTemplateById(
+    id: string,
+    context?: ServiceContext
+  ): Promise<TaskTemplate> {
     const ctx = this.createContext(context);
     this.logOperation('getTaskTemplateById', ctx, { templateId: id });
 
@@ -213,15 +244,18 @@ export class TaskTemplateService extends BaseService {
 
     try {
       const paginationOptions = this.validatePagination(options);
-      
+
       // Build where conditions
-      const whereConditions = this.buildTemplateWhereConditions(filters, ctx.userId!);
-      
+      const whereConditions = this.buildTemplateWhereConditions(
+        filters,
+        ctx.userId!
+      );
+
       const result = await taskTemplateRepository.findMany({
         ...paginationOptions,
         where: whereConditions,
         sortBy: 'createdAt',
-        sortOrder: 'desc'
+        sortOrder: 'desc',
       });
 
       return result;
@@ -230,9 +264,16 @@ export class TaskTemplateService extends BaseService {
     }
   }
 
-  async updateTaskTemplate(id: string, data: TaskTemplateUpdateData, context?: ServiceContext): Promise<TaskTemplate> {
+  async updateTaskTemplate(
+    id: string,
+    data: TaskTemplateUpdateData,
+    context?: ServiceContext
+  ): Promise<TaskTemplate> {
     const ctx = this.createContext(context);
-    this.logOperation('updateTaskTemplate', ctx, { templateId: id, updates: Object.keys(data) });
+    this.logOperation('updateTaskTemplate', ctx, {
+      templateId: id,
+      updates: Object.keys(data),
+    });
 
     try {
       const existingTemplate = await taskTemplateRepository.findById(id);
@@ -242,14 +283,19 @@ export class TaskTemplateService extends BaseService {
 
       // Check permissions - only owner can update
       if (existingTemplate.userId !== ctx.userId) {
-        throw new ForbiddenError('Only the template owner can update this template');
+        throw new ForbiddenError(
+          'Only the template owner can update this template'
+        );
       }
 
       // Validate updates
       this.validateTaskTemplateUpdateData(data);
 
       // Verify access for new workspace/team/project if being changed
-      if (data.workspaceId && data.workspaceId !== existingTemplate.workspaceId) {
+      if (
+        data.workspaceId &&
+        data.workspaceId !== existingTemplate.workspaceId
+      ) {
         await this.verifyWorkspaceAccess(data.workspaceId, ctx.userId!);
       }
 
@@ -266,14 +312,14 @@ export class TaskTemplateService extends BaseService {
       if (data.taskData) {
         updatedTaskData = {
           ...(existingTemplate.taskData as any),
-          ...data.taskData
+          ...data.taskData,
         };
       }
 
       const updatedTemplate = await taskTemplateRepository.update(id, {
         ...data,
         taskData: updatedTaskData,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
       if (!updatedTemplate) {
@@ -281,19 +327,22 @@ export class TaskTemplateService extends BaseService {
       }
 
       // Log activity
-      await activityService.createActivity({
-        userId: ctx.userId!,
-        type: 'task_updated',
-        data: {
-          action: 'task_template_updated',
-          templateId: updatedTemplate.id,
-          templateName: updatedTemplate.name,
-          changes: Object.keys(data)
+      await activityService.createActivity(
+        {
+          userId: ctx.userId!,
+          type: 'task_updated',
+          data: {
+            action: 'task_template_updated',
+            templateId: updatedTemplate.id,
+            templateName: updatedTemplate.name,
+            changes: Object.keys(data),
+          },
+          metadata: {
+            templateId: updatedTemplate.id,
+          },
         },
-        metadata: {
-          templateId: updatedTemplate.id
-        }
-      }, ctx);
+        ctx
+      );
 
       await this.recordMetric('task_template.updated', 1);
 
@@ -303,7 +352,10 @@ export class TaskTemplateService extends BaseService {
     }
   }
 
-  async deleteTaskTemplate(id: string, context?: ServiceContext): Promise<void> {
+  async deleteTaskTemplate(
+    id: string,
+    context?: ServiceContext
+  ): Promise<void> {
     const ctx = this.createContext(context);
     this.logOperation('deleteTaskTemplate', ctx, { templateId: id });
 
@@ -315,7 +367,9 @@ export class TaskTemplateService extends BaseService {
 
       // Check permissions - only owner can delete
       if (template.userId !== ctx.userId) {
-        throw new ForbiddenError('Only the template owner can delete this template');
+        throw new ForbiddenError(
+          'Only the template owner can delete this template'
+        );
       }
 
       const success = await taskTemplateRepository.delete(id);
@@ -324,18 +378,21 @@ export class TaskTemplateService extends BaseService {
       }
 
       // Log activity
-      await activityService.createActivity({
-        userId: ctx.userId!,
-        type: 'task_deleted',
-        data: {
-          action: 'task_template_deleted',
-          templateId: id,
-          templateName: template.name
+      await activityService.createActivity(
+        {
+          userId: ctx.userId!,
+          type: 'task_deleted',
+          data: {
+            action: 'task_template_deleted',
+            templateId: id,
+            templateName: template.name,
+          },
+          metadata: {
+            templateId: id,
+          },
         },
-        metadata: {
-          templateId: id
-        }
-      }, ctx);
+        ctx
+      );
 
       await this.recordMetric('task_template.deleted', 1);
     } catch (error) {
@@ -372,36 +429,41 @@ export class TaskTemplateService extends BaseService {
       // Create task data from template
       const taskData = {
         ...(template.taskData as any),
-        projectId: options.projectId ?? (template.projectId === null ? undefined : template.projectId),
+        projectId:
+          options.projectId ??
+          (template.projectId === null ? undefined : template.projectId),
         assigneeId: options.assigneeId ?? undefined,
         dueDate: options.dueDate ?? undefined,
-        ...options.customData
+        ...options.customData,
       };
 
       // Create the task using task service
       const task = await taskService.createTask(taskData, ctx);
 
       // Log activity
-      await activityService.createActivity({
-        userId: ctx.userId!,
-        type: 'task_created',
-        taskId: task.id,
-        projectId: task.projectId || undefined,
-        data: {
-          action: 'task_created_from_template',
-          templateId: template.id,
-          templateName: template.name,
-          taskTitle: task.title
+      await activityService.createActivity(
+        {
+          userId: ctx.userId!,
+          type: 'task_created',
+          taskId: task.id,
+          projectId: task.projectId || undefined,
+          data: {
+            action: 'task_created_from_template',
+            templateId: template.id,
+            templateName: template.name,
+            taskTitle: task.title,
+          },
+          metadata: {
+            templateId: template.id,
+            taskId: task.id,
+          },
         },
-        metadata: {
-          templateId: template.id,
-          taskId: task.id
-        }
-      }, ctx);
+        ctx
+      );
 
       await this.recordMetric('task_template.used', 1, {
         templateId: template.id,
-        category: template.category || 'uncategorized'
+        category: template.category || 'uncategorized',
       });
 
       return task;
@@ -411,17 +473,22 @@ export class TaskTemplateService extends BaseService {
   }
 
   // Template Categories
-  async getTemplateCategories(context?: ServiceContext): Promise<Array<{ category: string; count: number }>> {
+  async getTemplateCategories(
+    context?: ServiceContext
+  ): Promise<Array<{ category: string; count: number }>> {
     const ctx = this.createContext(context);
     this.logOperation('getTemplateCategories', ctx);
 
     try {
       // Get all templates accessible to user
-      const whereConditions = this.buildTemplateWhereConditions({}, ctx.userId!);
-      
+      const whereConditions = this.buildTemplateWhereConditions(
+        {},
+        ctx.userId!
+      );
+
       const allTemplates = await taskTemplateRepository.findMany({
         where: whereConditions,
-        limit: 10000
+        limit: 10000,
       });
 
       // Group by category
@@ -449,12 +516,12 @@ export class TaskTemplateService extends BaseService {
 
     try {
       const paginationOptions = this.validatePagination(options);
-      
+
       const result = await taskTemplateRepository.findMany({
         ...paginationOptions,
         where: eq(taskTemplateRepository['table']?.isPublic, true),
         sortBy: 'usageCount',
-        sortOrder: 'desc' // Most used first
+        sortOrder: 'desc', // Most used first
       });
 
       return result;
@@ -463,12 +530,16 @@ export class TaskTemplateService extends BaseService {
     }
   }
 
-  async duplicateTemplate(templateId: string, context?: ServiceContext): Promise<TaskTemplate> {
+  async duplicateTemplate(
+    templateId: string,
+    context?: ServiceContext
+  ): Promise<TaskTemplate> {
     const ctx = this.createContext(context);
     this.logOperation('duplicateTemplate', ctx, { templateId });
 
     try {
-      const originalTemplate = await taskTemplateRepository.findById(templateId);
+      const originalTemplate =
+        await taskTemplateRepository.findById(templateId);
       if (!originalTemplate) {
         throw new NotFoundError('Task Template', templateId);
       }
@@ -485,14 +556,18 @@ export class TaskTemplateService extends BaseService {
         workspaceId: originalTemplate.workspaceId || undefined,
         teamId: originalTemplate.teamId || undefined,
         projectId: originalTemplate.projectId || undefined,
-        taskData: originalTemplate.taskData as TaskTemplateCreateData['taskData'],
-        settings: originalTemplate.settings as Record<string, any>
+        taskData:
+          originalTemplate.taskData as TaskTemplateCreateData['taskData'],
+        settings: originalTemplate.settings as Record<string, any>,
       };
 
-      const duplicateTemplate = await this.createTaskTemplate(duplicateData, ctx);
+      const duplicateTemplate = await this.createTaskTemplate(
+        duplicateData,
+        ctx
+      );
 
       await this.recordMetric('task_template.duplicated', 1, {
-        originalTemplateId: templateId
+        originalTemplateId: templateId,
       });
 
       return duplicateTemplate;
@@ -510,11 +585,14 @@ export class TaskTemplateService extends BaseService {
     this.logOperation('getTaskTemplateStats', ctx, { filters });
 
     try {
-      const whereConditions = this.buildTemplateWhereConditions(filters, ctx.userId!);
-      
+      const whereConditions = this.buildTemplateWhereConditions(
+        filters,
+        ctx.userId!
+      );
+
       const allTemplates = await taskTemplateRepository.findMany({
         where: whereConditions,
-        limit: 10000
+        limit: 10000,
       });
 
       const templates = allTemplates.data;
@@ -533,12 +611,15 @@ export class TaskTemplateService extends BaseService {
         .map(template => ({
           templateId: template.id,
           name: template.name,
-          usageCount: template.usageCount
+          usageCount: template.usageCount,
         }));
 
       // Get recent templates
       const recentTemplates = templates
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
         .slice(0, 5);
 
       const stats: TaskTemplateStats = {
@@ -547,7 +628,7 @@ export class TaskTemplateService extends BaseService {
         privateTemplates: templates.filter(t => !t.isPublic).length,
         byCategory,
         mostUsedTemplates,
-        recentTemplates
+        recentTemplates,
       };
 
       return stats;
@@ -557,26 +638,38 @@ export class TaskTemplateService extends BaseService {
   }
 
   // Private Helper Methods
-  private async verifyTemplateAccess(template: TaskTemplate, userId: string): Promise<void> {
+  private async verifyTemplateAccess(
+    template: TaskTemplate,
+    userId: string
+  ): Promise<void> {
     // User can access template if:
     // 1. They own it
     // 2. It's public
     // 3. They have access to the workspace/team/project it belongs to
-    
+
     if (template.userId === userId || template.isPublic) {
       return;
     }
 
     // Check workspace/team/project access
-    if (template.workspaceId && await this.hasWorkspaceAccess(userId, template.workspaceId)) {
+    if (
+      template.workspaceId &&
+      (await this.hasWorkspaceAccess(userId, template.workspaceId))
+    ) {
       return;
     }
 
-    if (template.teamId && await this.hasTeamAccess(userId, template.teamId)) {
+    if (
+      template.teamId &&
+      (await this.hasTeamAccess(userId, template.teamId))
+    ) {
       return;
     }
 
-    if (template.projectId && await this.hasProjectAccess(userId, template.projectId)) {
+    if (
+      template.projectId &&
+      (await this.hasProjectAccess(userId, template.projectId))
+    ) {
       return;
     }
 
@@ -589,7 +682,10 @@ export class TaskTemplateService extends BaseService {
     throw new ForbiddenError('You do not have access to this task template');
   }
 
-  private async verifyWorkspaceAccess(workspaceId: string, userId: string): Promise<void> {
+  private async verifyWorkspaceAccess(
+    workspaceId: string,
+    userId: string
+  ): Promise<void> {
     const workspace = await workspaceRepository.findById(workspaceId);
     if (!workspace) {
       throw new NotFoundError('Workspace', workspaceId);
@@ -597,7 +693,10 @@ export class TaskTemplateService extends BaseService {
     // Add workspace member check logic here
   }
 
-  private async verifyTeamAccess(teamId: string, userId: string): Promise<void> {
+  private async verifyTeamAccess(
+    teamId: string,
+    userId: string
+  ): Promise<void> {
     const team = await teamRepository.findById(teamId);
     if (!team) {
       throw new NotFoundError('Team', teamId);
@@ -605,7 +704,10 @@ export class TaskTemplateService extends BaseService {
     // Add team member check logic here
   }
 
-  private async verifyProjectAccess(projectId: string, userId: string): Promise<void> {
+  private async verifyProjectAccess(
+    projectId: string,
+    userId: string
+  ): Promise<void> {
     const project = await projectRepository.findById(projectId);
     if (!project) {
       throw new NotFoundError('Project', projectId);
@@ -613,85 +715,120 @@ export class TaskTemplateService extends BaseService {
     // Add project access check logic here
   }
 
-  private async hasWorkspaceAccess(userId: string, workspaceId: string): Promise<boolean> {
+  private async hasWorkspaceAccess(
+    userId: string,
+    workspaceId: string
+  ): Promise<boolean> {
     const workspace = await workspaceRepository.findById(workspaceId);
     if (!workspace) return false;
     // Add workspace member check logic here
     return true; // Placeholder
   }
 
-  private async hasTeamAccess(userId: string, teamId: string): Promise<boolean> {
+  private async hasTeamAccess(
+    userId: string,
+    teamId: string
+  ): Promise<boolean> {
     const team = await teamRepository.findById(teamId);
     if (!team) return false;
     // Add team member check logic here
     return true; // Placeholder
   }
 
-  private async hasProjectAccess(userId: string, projectId: string): Promise<boolean> {
+  private async hasProjectAccess(
+    userId: string,
+    projectId: string
+  ): Promise<boolean> {
     const project = await projectRepository.findById(projectId);
     if (!project) return false;
     // Add project access check logic here
     return true; // Placeholder
   }
 
-  private buildTemplateWhereConditions(filters: TaskTemplateFilters, userId: string): any {
+  private buildTemplateWhereConditions(
+    filters: TaskTemplateFilters,
+    userId: string
+  ): any {
     const conditions = [];
 
     // User can see their own templates and public templates
-    conditions.push(or(
-      eq(taskTemplateRepository['table']?.userId, userId),
-      eq(taskTemplateRepository['table']?.isPublic, true)
-    ));
+    conditions.push(
+      or(
+        eq(taskTemplateRepository['table']?.userId, userId),
+        eq(taskTemplateRepository['table']?.isPublic, true)
+      )
+    );
 
     if (filters.userId) {
-      conditions.push(eq(taskTemplateRepository['table']?.userId, filters.userId));
+      conditions.push(
+        eq(taskTemplateRepository['table']?.userId, filters.userId)
+      );
     }
 
     if (filters.workspaceId) {
-      if (filters.workspaceId === "none") {
+      if (filters.workspaceId === 'none') {
         conditions.push(isNull(taskTemplateRepository['table']?.workspaceId));
       } else {
-        conditions.push(eq(taskTemplateRepository['table']?.workspaceId, filters.workspaceId));
+        conditions.push(
+          eq(taskTemplateRepository['table']?.workspaceId, filters.workspaceId)
+        );
       }
     }
 
     if (filters.teamId) {
-      if (filters.teamId === "none") {
+      if (filters.teamId === 'none') {
         conditions.push(isNull(taskTemplateRepository['table']?.teamId));
       } else {
-        conditions.push(eq(taskTemplateRepository['table']?.teamId, filters.teamId));
+        conditions.push(
+          eq(taskTemplateRepository['table']?.teamId, filters.teamId)
+        );
       }
     }
 
     if (filters.projectId) {
-      if (filters.projectId === "none") {
+      if (filters.projectId === 'none') {
         conditions.push(isNull(taskTemplateRepository['table']?.projectId));
       } else {
-        conditions.push(eq(taskTemplateRepository['table']?.projectId, filters.projectId));
+        conditions.push(
+          eq(taskTemplateRepository['table']?.projectId, filters.projectId)
+        );
       }
     }
 
     if (filters.isPublic !== undefined) {
-      conditions.push(eq(taskTemplateRepository['table']?.isPublic, filters.isPublic));
+      conditions.push(
+        eq(taskTemplateRepository['table']?.isPublic, filters.isPublic)
+      );
     }
 
     if (filters.category) {
-      conditions.push(eq(taskTemplateRepository['table']?.category, filters.category));
+      conditions.push(
+        eq(taskTemplateRepository['table']?.category, filters.category)
+      );
     }
 
     if (filters.search) {
-      conditions.push(or(
-        ilike(taskTemplateRepository['table']?.name, `%${filters.search}%`),
-        ilike(taskTemplateRepository['table']?.description, `%${filters.search}%`)
-      ));
+      conditions.push(
+        or(
+          ilike(taskTemplateRepository['table']?.name, `%${filters.search}%`),
+          ilike(
+            taskTemplateRepository['table']?.description,
+            `%${filters.search}%`
+          )
+        )
+      );
     }
 
     if (filters.createdFrom) {
-      conditions.push(gte(taskTemplateRepository['table']?.createdAt, filters.createdFrom));
+      conditions.push(
+        gte(taskTemplateRepository['table']?.createdAt, filters.createdFrom)
+      );
     }
 
     if (filters.createdTo) {
-      conditions.push(lte(taskTemplateRepository['table']?.createdAt, filters.createdTo));
+      conditions.push(
+        lte(taskTemplateRepository['table']?.createdAt, filters.createdTo)
+      );
     }
 
     return conditions.length > 0 ? and(...conditions) : undefined;
@@ -703,11 +840,15 @@ export class TaskTemplateService extends BaseService {
     }
 
     if (data.name.length > 200) {
-      throw new ValidationError('Template name must be less than 200 characters');
+      throw new ValidationError(
+        'Template name must be less than 200 characters'
+      );
     }
 
     if (data.description && data.description.length > 1000) {
-      throw new ValidationError('Template description must be less than 1000 characters');
+      throw new ValidationError(
+        'Template description must be less than 1000 characters'
+      );
     }
 
     if (!data.taskData || !data.taskData.title) {
@@ -719,10 +860,15 @@ export class TaskTemplateService extends BaseService {
     }
 
     if (data.taskData.description && data.taskData.description.length > 5000) {
-      throw new ValidationError('Task description must be less than 5000 characters');
+      throw new ValidationError(
+        'Task description must be less than 5000 characters'
+      );
     }
 
-    if (data.taskData.estimatedHours && (data.taskData.estimatedHours < 0 || data.taskData.estimatedHours > 1000)) {
+    if (
+      data.taskData.estimatedHours &&
+      (data.taskData.estimatedHours < 0 || data.taskData.estimatedHours > 1000)
+    ) {
       throw new ValidationError('Estimated hours must be between 0 and 1000');
     }
   }
@@ -733,12 +879,20 @@ export class TaskTemplateService extends BaseService {
         throw new ValidationError('Template name is required');
       }
       if (data.name.length > 200) {
-        throw new ValidationError('Template name must be less than 200 characters');
+        throw new ValidationError(
+          'Template name must be less than 200 characters'
+        );
       }
     }
 
-    if (data.description !== undefined && data.description && data.description.length > 1000) {
-      throw new ValidationError('Template description must be less than 1000 characters');
+    if (
+      data.description !== undefined &&
+      data.description &&
+      data.description.length > 1000
+    ) {
+      throw new ValidationError(
+        'Template description must be less than 1000 characters'
+      );
     }
 
     if (data.taskData) {
@@ -747,15 +901,28 @@ export class TaskTemplateService extends BaseService {
           throw new ValidationError('Task title is required');
         }
         if (data.taskData.title.length > 500) {
-          throw new ValidationError('Task title must be less than 500 characters');
+          throw new ValidationError(
+            'Task title must be less than 500 characters'
+          );
         }
       }
 
-      if (data.taskData.description !== undefined && data.taskData.description && data.taskData.description.length > 5000) {
-        throw new ValidationError('Task description must be less than 5000 characters');
+      if (
+        data.taskData.description !== undefined &&
+        data.taskData.description &&
+        data.taskData.description.length > 5000
+      ) {
+        throw new ValidationError(
+          'Task description must be less than 5000 characters'
+        );
       }
 
-      if (data.taskData.estimatedHours !== undefined && data.taskData.estimatedHours && (data.taskData.estimatedHours < 0 || data.taskData.estimatedHours > 1000)) {
+      if (
+        data.taskData.estimatedHours !== undefined &&
+        data.taskData.estimatedHours &&
+        (data.taskData.estimatedHours < 0 ||
+          data.taskData.estimatedHours > 1000)
+      ) {
         throw new ValidationError('Estimated hours must be between 0 and 1000');
       }
     }

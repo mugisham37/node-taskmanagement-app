@@ -1,7 +1,7 @@
 import { TeamId } from '../value-objects/TeamId';
 import { TaskId } from '../value-objects/TaskId';
 import { UserId } from '../../authentication/value-objects/UserId';
-import { TeamService } from './TeamService';
+import { TeamService, teamService } from './TeamService';
 import { DomainEvent } from '../../shared/events/DomainEvent';
 
 export interface TeamMention {
