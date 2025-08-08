@@ -1,4 +1,4 @@
-import { Router } from "express"
+import { Router } from 'express';
 import {
   register,
   login,
@@ -7,14 +7,14 @@ import {
   resetPassword,
   verifyEmail,
   getCurrentUser,
-} from "@/controllers/auth.controller"
-import { validate } from "@/middleware/validate.middleware"
-import { authLimiter } from "@/middleware/rate-limiter.middleware"
-import { authValidators } from "@/validators"
-import { authenticate } from "@/middleware/auth"
+} from '../controllers/auth.controller';
+import { validate } from '../../../shared/middleware/validate.middleware';
+import { authLimiter } from '../../../shared/middleware/rate-limiter.middleware';
+import { authValidators } from '../validators';
+import { authenticate } from '../../../shared/middleware/auth';
 import passport from '../config/passport';
 
-const router = Router()
+const router = Router();
 
 /**
  * @swagger
@@ -56,7 +56,7 @@ const router = Router()
  *       409:
  *         description: Email already in use
  */
-router.post("/register", validate(authValidators.register), register)
+router.post('/register', validate(authValidators.register), register);
 
 /**
  * @swagger
@@ -88,7 +88,7 @@ router.post("/register", validate(authValidators.register), register)
  *       401:
  *         description: Invalid credentials
  */
-router.post("/login", authLimiter, validate(authValidators.login), login)
+router.post('/login', authLimiter, validate(authValidators.login), login);
 
 /**
  * @swagger
@@ -113,7 +113,11 @@ router.post("/login", authLimiter, validate(authValidators.login), login)
  *       401:
  *         description: Invalid or expired refresh token
  */
-router.post("/refresh-token", validate(authValidators.refreshToken), refreshToken)
+router.post(
+  '/refresh-token',
+  validate(authValidators.refreshToken),
+  refreshToken
+);
 
 /**
  * @swagger
@@ -140,7 +144,12 @@ router.post("/refresh-token", validate(authValidators.refreshToken), refreshToke
  *       404:
  *         description: User not found
  */
-router.post("/forgot-password", authLimiter, validate(authValidators.forgotPassword), forgotPassword)
+router.post(
+  '/forgot-password',
+  authLimiter,
+  validate(authValidators.forgotPassword),
+  forgotPassword
+);
 
 /**
  * @swagger
@@ -170,7 +179,12 @@ router.post("/forgot-password", authLimiter, validate(authValidators.forgotPassw
  *       401:
  *         description: Invalid or expired token
  */
-router.post("/reset-password", authLimiter, validate(authValidators.resetPassword), resetPassword)
+router.post(
+  '/reset-password',
+  authLimiter,
+  validate(authValidators.resetPassword),
+  resetPassword
+);
 
 /**
  * @swagger
@@ -195,7 +209,7 @@ router.post("/reset-password", authLimiter, validate(authValidators.resetPasswor
  *       401:
  *         description: Invalid or expired token
  */
-router.post("/verify-email", validate(authValidators.verifyEmail), verifyEmail)
+router.post('/verify-email', validate(authValidators.verifyEmail), verifyEmail);
 
 /**
  * @swagger
@@ -211,20 +225,29 @@ router.post("/verify-email", validate(authValidators.verifyEmail), verifyEmail)
  *       401:
  *         description: Not authenticated
  */
-router.get("/me", authenticate(), getCurrentUser)
+router.get('/me', authenticate(), getCurrentUser);
 
 // Google OAuth2 for calendar sync
-router.get('/google', passport.authenticate('google', {
-  scope: ['profile', 'email', 'https://www.googleapis.com/auth/calendar.readonly'],
-  accessType: 'offline',
-  prompt: 'consent',
-}));
+router.get(
+  '/google',
+  passport.authenticate('google', {
+    scope: [
+      'profile',
+      'email',
+      'https://www.googleapis.com/auth/calendar.readonly',
+    ],
+    accessType: 'offline',
+    prompt: 'consent',
+  })
+);
 
-router.get('/google/callback', passport.authenticate('google', { failureRedirect: '/login' }),
+router.get(
+  '/google/callback',
+  passport.authenticate('google', { failureRedirect: '/login' }),
   (req, res) => {
     // Redirect to frontend with success
     res.redirect('/calendar?google=connected');
   }
 );
 
-export default router
+export default router;

@@ -1,13 +1,17 @@
-import { Router } from "express"
-import { getProfile, updateProfile, deleteProfile } from "@/controllers/user.controller"
-import { authenticate } from "@/middleware/auth"
-import { validate } from "@/middleware/validate.middleware"
-import { authValidators } from "@/validators"
+import { Router } from 'express';
+import {
+  getProfile,
+  updateProfile,
+  deleteProfile,
+} from '../controllers/user.controller';
+import { authenticate } from '../../../shared/middleware/auth';
+import { validate } from '../../../shared/middleware/validate.middleware';
+import { authValidators } from '../validators';
 
-const router = Router()
+const router = Router();
 
 // All user routes require authentication
-router.use(authenticate())
+router.use(authenticate());
 
 /**
  * @swagger
@@ -82,7 +86,7 @@ router.use(authenticate())
  *                   type: string
  *                   example: "Authentication required"
  */
-router.get("/profile", getProfile)
+router.get('/profile', getProfile);
 
 /**
  * @swagger
@@ -224,7 +228,7 @@ router.get("/profile", getProfile)
  *                   type: string
  *                   example: "Email already in use"
  */
-router.put("/profile", validate(authValidators.updateProfile), updateProfile)
+router.put('/profile', validate(authValidators.updateProfile), updateProfile);
 
 /**
  * @swagger
@@ -329,6 +333,10 @@ router.put("/profile", validate(authValidators.updateProfile), updateProfile)
  *                   type: string
  *                   example: "Cannot delete account with active admin roles"
  */
-router.delete("/profile", validate(authValidators.deleteProfile), deleteProfile)
+router.delete(
+  '/profile',
+  validate(authValidators.deleteProfile),
+  deleteProfile
+);
 
-export default router
+export default router;

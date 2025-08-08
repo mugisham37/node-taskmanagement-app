@@ -52,21 +52,21 @@
     - Update schema imports in repositories and services
     - _Requirements: 5.3, 5.7, 12.1_
 
-- [ ] 5. Migrate Authentication Domain
+- [x] 5. Migrate Authentication Domain
   - [ ] 5.1 Move authentication controllers and routes
     - Move auth.controller.ts, user.controller.ts to src/domains/authentication/controllers/
     - Move auth.routes.ts, user.routes.ts, unified-auth.routes.ts to src/domains/authentication/routes/
     - Update route imports and controller references
     - _Requirements: 5.1, 5.2, 12.2_
 
-  - [ ] 5.2 Move authentication services and entities
+  - [x] 5.2 Move authentication services and entities
     - Move src/domain/authentication/services/\* to src/domains/authentication/services/
     - Move src/domain/authentication/entities/\* to src/domains/authentication/entities/
     - Move src/domain/authentication/repositories/\* to src/domains/authentication/repositories/
     - Move src/domain/authentication/value-objects/\* to src/domains/authentication/value-objects/
     - _Requirements: 5.4, 5.5, 5.6, 5.9, 12.2_
 
-  - [ ] 5.3 Move authentication schemas and validators
+  - [x] 5.3 Move authentication schemas and validators
     - Move users.ts schema to src/domains/authentication/schemas/
     - Move auth.validator.ts, unified-auth.validators.ts to src/domains/authentication/validators/
     - Update schema imports and validator references
