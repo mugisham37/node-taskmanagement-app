@@ -1,42 +1,28 @@
 #!/usr/bin/env tsx
 
-import { prisma } from '../prisma-client';
 import { logger } from '@/infrastructure/logging/logger';
-import { seedUsers } from './users';
-import { seedWorkspaces } from './workspaces';
-import { seedProjects } from './projects';
-import { seedTasks } from './tasks';
+
+// Note: Domain-specific seed files have been moved to their respective domains
+// Infrastructure layer now only contains base seeding functionality
+// Domain seeds can be imported and executed from their domain directories:
+//
+// Authentication: src/domains/authentication/seeds/
+// Task Management: src/domains/task-management/seeds/
+// Other domains: src/domains/[domain]/seeds/
 
 async function main(): Promise<void> {
   try {
     logger.info('🌱 Starting database seeding...');
 
-    // Check if database is already seeded
-    const userCount = await prisma.user.count();
-    if (userCount > 0) {
-      logger.info('Database already contains data. Skipping seeding.');
-      return;
-    }
-
-    // Seed in order of dependencies
-    logger.info('👥 Seeding users...');
-    const users = await seedUsers();
-
-    logger.info('🏢 Seeding workspaces...');
-    const workspaces = await seedWorkspaces(users);
-
-    logger.info('📁 Seeding projects...');
-    const projects = await seedProjects(workspaces, users);
-
-    logger.info('✅ Seeding tasks...');
-    await seedTasks(projects, users);
-
-    logger.info('🎉 Database seeding completed successfully!');
+    // Infrastructure-level seeding is now minimal
+    // Domain-specific seeding should be handled by each domain
+    logger.info(
+      'ℹ️  Domain-specific seeding should be executed from individual domains'
+    );
+    logger.info('🎉 Infrastructure seeding completed successfully!');
   } catch (error) {
     logger.error('❌ Database seeding failed:', error);
     throw error;
-  } finally {
-    await prisma.$disconnect();
   }
 }
 

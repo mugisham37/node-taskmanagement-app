@@ -237,27 +237,27 @@
     - Update service imports and dependencies
     - _Requirements: 5.4, 12.10_
 
-- [ ] 14. Migrate Audit Domain
-  - [ ] 14.1 Move audit entities and services
+- [x] 14. Migrate Audit Domain
+  - [x] 14.1 Move audit entities and services
     - Move src/domain/audit/entities/\* to src/domains/audit/entities/
     - Move src/domain/audit/services/\* to src/domains/audit/services/
     - Move src/domain/audit/repositories/\* to src/domains/audit/repositories/
     - Move src/domain/audit/value-objects/\* to src/domains/audit/value-objects/
     - _Requirements: 5.4, 5.5, 5.6, 5.9, 12.11_
 
-  - [ ] 14.2 Move audit schemas
+  - [x] 14.2 Move audit schemas
     - Move audit-logs.ts schema to src/domains/audit/schemas/
     - Update schema imports in repositories
     - _Requirements: 5.7, 12.11_
 
-- [ ] 15. Clean Infrastructure Layer
-  - [ ] 15.1 Remove domain-specific files from infrastructure
+- [x] 15. Clean Infrastructure Layer
+  - [x] 15.1 Remove domain-specific files from infrastructure
     - Remove moved repositories from src/infrastructure/repositories/
     - Remove moved schemas from src/infrastructure/database/drizzle/schema/
     - Keep only technical infrastructure: database connection, cache, external-services, monitoring, storage, websocket
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-  - [ ] 15.2 Update infrastructure imports and registrations
+  - [x] 15.2 Update infrastructure imports and registrations
     - Update database connection imports to reference new schema locations
     - Update repository registrations in IoC container
     - Update migration system to reference new schema locations
