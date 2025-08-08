@@ -8,7 +8,7 @@ import {
   taskCommentSchema,
   taskAttachmentSchema,
   taskActivitySchema,
-} from '../schemas/task.schemas';
+} from '../infrastructure/database/schemas/task.schemas';
 
 export class TaskAPIDocumentation {
   private readonly generator: OpenAPIGenerator;

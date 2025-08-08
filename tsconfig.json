@@ -35,6 +35,6 @@
       "@/shared/*": ["shared/*"]
     }
   },
-  "include": ["src/**/*", "prisma/**/*"],
+  "include": ["src/**/*", "src/infrastructure/database/prisma/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
 }

@@ -13,7 +13,7 @@ import {
   TaskQueryParams,
   AssignTaskRequest,
   UpdateTaskStatusRequest,
-} from '../schemas/task.schemas';
+} from '../../infrastructure/database/schemas/task.schemas';
 import { asyncHandler } from '../middleware/enhanced-error.middleware';
 
 export class EnhancedTaskController extends BaseController {

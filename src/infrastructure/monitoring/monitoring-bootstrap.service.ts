@@ -10,7 +10,7 @@ import {
 } from './health-check.service';
 import { alertingService } from './alerting.service';
 import { metricsService } from './metrics.service';
-import { logSystem, logError } from '../../config/logger';
+import { logSystem, logError } from '../config/logger';
 
 export class MonitoringBootstrapService {
   private isInitialized = false;

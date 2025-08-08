@@ -1,26 +1,26 @@
-import swaggerJsdoc from 'swagger-jsdoc'
-import swaggerUi from 'swagger-ui-express'
-import type { Express } from 'express'
-import config from '../config/environment'
-import logger from '../config/logger'
+import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
+import type { Express } from 'express';
+import config from '../infrastructure/config/environment';
+import logger from '../infrastructure/config/logger';
 
 // Define OpenAPI specification type
 interface OpenAPISpec {
-  openapi: string
+  openapi: string;
   info: {
-    title: string
-    version: string
-    description?: string
-    license?: any
-    contact?: any
-    termsOfService?: string
-  }
-  servers?: any[]
-  paths: Record<string, any>
-  components?: any
-  security?: any[]
-  tags?: any[]
-  externalDocs?: any
+    title: string;
+    version: string;
+    description?: string;
+    license?: any;
+    contact?: any;
+    termsOfService?: string;
+  };
+  servers?: any[];
+  paths: Record<string, any>;
+  components?: any;
+  security?: any[];
+  tags?: any[];
+  externalDocs?: any;
 }
 
 /**
@@ -256,7 +256,8 @@ const swaggerDefinition = {
       SortParam: {
         name: 'sort',
         in: 'query',
-        description: 'Sort fields (comma-separated). Prefix with - for descending order',
+        description:
+          'Sort fields (comma-separated). Prefix with - for descending order',
         required: false,
         schema: {
           type: 'string',
@@ -431,7 +432,7 @@ const swaggerDefinition = {
     description: 'Find more info here',
     url: 'https://taskmanagement.com/docs',
   },
-}
+};
 
 // Options for the swagger docs
 const options = {
@@ -443,10 +444,10 @@ const options = {
     './src/models/*.ts',
     './src/db/schema/*.ts',
   ],
-}
+};
 
 // Initialize swagger-jsdoc
-const swaggerSpec = swaggerJsdoc(options) as OpenAPISpec
+const swaggerSpec = swaggerJsdoc(options) as OpenAPISpec;
 
 /**
  * Configure Swagger UI for the Express app
@@ -459,7 +460,7 @@ export const setupSwagger = (app: Express): void => {
     .swagger-ui .info { margin: 50px 0 }
     .swagger-ui .info .title { color: #3b82f6 }
     .swagger-ui .scheme-container { background: #f8fafc; padding: 20px; border-radius: 8px }
-  `
+  `;
 
   // Swagger UI options
   const swaggerUiOptions = {
@@ -475,23 +476,27 @@ export const setupSwagger = (app: Express): void => {
       showCommonExtensions: true,
       tryItOutEnabled: true,
     },
-  }
+  };
 
   // Serve swagger docs
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions))
+  app.use(
+    '/api-docs',
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec, swaggerUiOptions)
+  );
 
   // Serve swagger spec as JSON
   app.get('/api-docs.json', (req, res) => {
-    res.setHeader('Content-Type', 'application/json')
-    res.send(swaggerSpec)
-  })
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
+  });
 
   // Serve swagger spec as YAML
   app.get('/api-docs.yaml', (req, res) => {
-    res.setHeader('Content-Type', 'text/yaml')
-    const yaml = require('js-yaml')
-    res.send(yaml.dump(swaggerSpec))
-  })
+    res.setHeader('Content-Type', 'text/yaml');
+    const yaml = require('js-yaml');
+    res.send(yaml.dump(swaggerSpec));
+  });
 
   // Health check endpoint for API docs
   app.get('/api-docs/health', (req, res) => {
@@ -503,19 +508,25 @@ export const setupSwagger = (app: Express): void => {
         version: swaggerSpec.info.version,
         title: swaggerSpec.info.title,
       },
-    })
-  })
+    });
+  });
 
-  logger.info(`Swagger UI available at http://localhost:${config.port}/api-docs`)
-  logger.info(`Swagger JSON available at http://localhost:${config.port}/api-docs.json`)
-  logger.info(`Swagger YAML available at http://localhost:${config.port}/api-docs.yaml`)
-}
+  logger.info(
+    `Swagger UI available at http://localhost:${config.port}/api-docs`
+  );
+  logger.info(
+    `Swagger JSON available at http://localhost:${config.port}/api-docs.json`
+  );
+  logger.info(
+    `Swagger YAML available at http://localhost:${config.port}/api-docs.yaml`
+  );
+};
 
 /**
  * Get the swagger specification
  * @returns Swagger specification object
  */
-export const getSwaggerSpec = () => swaggerSpec
+export const getSwaggerSpec = () => swaggerSpec;
 
 /**
  * Validate swagger specification
@@ -524,28 +535,34 @@ export const getSwaggerSpec = () => swaggerSpec
 export const validateSwaggerSpec = (): { valid: boolean; errors?: any[] } => {
   try {
     // Basic validation - check if required fields are present
-    if (!swaggerSpec.info || !swaggerSpec.info.title || !swaggerSpec.info.version) {
+    if (
+      !swaggerSpec.info ||
+      !swaggerSpec.info.title ||
+      !swaggerSpec.info.version
+    ) {
       return {
         valid: false,
         errors: ['Missing required info fields (title, version)'],
-      }
+      };
     }
 
     if (!swaggerSpec.paths || Object.keys(swaggerSpec.paths).length === 0) {
       return {
         valid: false,
         errors: ['No API paths defined'],
-      }
+      };
     }
 
-    return { valid: true }
+    return { valid: true };
   } catch (error) {
     return {
       valid: false,
-      errors: [error instanceof Error ? error.message : 'Unknown validation error'],
-    }
+      errors: [
+        error instanceof Error ? error.message : 'Unknown validation error',
+      ],
+    };
   }
-}
+};
 
 /**
  * Generate OpenAPI documentation for a specific route
@@ -559,15 +576,15 @@ export const validateSwaggerSpec = (): { valid: boolean; errors?: any[] } => {
  * @returns OpenAPI documentation object
  */
 export const generateRouteDoc = (options: {
-  method: string
-  path: string
-  summary: string
-  description?: string
-  tags?: string[]
-  parameters?: any[]
-  requestBody?: any
-  responses?: any
-  security?: any[]
+  method: string;
+  path: string;
+  summary: string;
+  description?: string;
+  tags?: string[];
+  parameters?: any[];
+  requestBody?: any;
+  responses?: any;
+  security?: any[];
 }) => {
   const {
     method,
@@ -579,7 +596,7 @@ export const generateRouteDoc = (options: {
     requestBody,
     responses = {},
     security,
-  } = options
+  } = options;
 
   const doc: any = {
     [method.toLowerCase()]: {
@@ -598,18 +615,18 @@ export const generateRouteDoc = (options: {
         ...responses,
       },
     },
-  }
+  };
 
   if (requestBody) {
-    doc[method.toLowerCase()].requestBody = requestBody
+    doc[method.toLowerCase()].requestBody = requestBody;
   }
 
   if (security) {
-    doc[method.toLowerCase()].security = security
+    doc[method.toLowerCase()].security = security;
   }
 
-  return doc
-}
+  return doc;
+};
 
 /**
  * Common parameter definitions
@@ -629,7 +646,7 @@ export const commonParameters = {
     { $ref: '#/components/parameters/SearchParam' },
     { $ref: '#/components/parameters/FieldsParam' },
   ],
-}
+};
 
 /**
  * Common response definitions
@@ -670,7 +687,7 @@ export const commonResponses = {
       description: 'No Content',
     },
   }),
-}
+};
 
 export default {
   setupSwagger,
@@ -679,4 +696,4 @@ export default {
   generateRouteDoc,
   commonParameters,
   commonResponses,
-}
+};

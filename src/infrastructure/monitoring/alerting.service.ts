@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { Alert, AlertRule } from './monitoring-dashboard.service';
-import { logSystem, logError, logSecurity } from '../../config/logger';
+import { logSystem, logError, logSecurity } from '../config/logger';
 
 export interface NotificationChannel {
   id: string;

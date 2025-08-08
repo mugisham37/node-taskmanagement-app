@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { metricsService } from '../../infrastructure/monitoring/metrics.service';
-import { logError } from '../../config/logger';
+import { logError } from '../../infrastructure/config/logger';
 
 export interface MetricsRequest extends Request {
   startTime?: number;

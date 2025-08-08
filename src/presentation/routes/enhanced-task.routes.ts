@@ -12,7 +12,7 @@ import {
   taskParamsSchema,
   assignTaskSchema,
   updateTaskStatusSchema,
-} from '../schemas/task.schemas';
+} from '../../infrastructure/database/schemas/task.schemas';
 import { ILogger } from '../../shared/interfaces/logger.interface';
 
 export class EnhancedTaskRoutes {

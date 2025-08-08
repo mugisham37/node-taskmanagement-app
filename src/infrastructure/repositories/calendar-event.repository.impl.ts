@@ -29,8 +29,8 @@ import {
   calendarEvents,
   calendarEventAttendees,
   calendarEventReminders,
-} from '../../db/schema/calendar-events';
-import { db } from '../../db/connection';
+} from '../database/drizzle/schema/calendar-events';
+import { db } from '../database/drizzle/connection';
 import { EventTitle } from '../../domain/calendar/value-objects/event-title.vo';
 import { EventDescription } from '../../domain/calendar/value-objects/event-description.vo';
 import { EventDateTime } from '../../domain/calendar/value-objects/event-datetime.vo';

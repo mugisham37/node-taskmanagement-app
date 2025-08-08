@@ -1,250 +1,263 @@
-import { z } from 'zod';
-import dotenv from 'dotenv';
+import dotenv from "dotenv"
+import path from "path"
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from .env file in the project root
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') })
 
-const environmentSchema = z.object({
-  // Application
-  NODE_ENV: z
-    .enum(['development', 'production', 'test'])
-    .default('development'),
-  PORT: z.string().transform(Number).default('3000'),
-  HOST: z.string().default('0.0.0.0'),
+interface EnvironmentConfig {
+  // Server Configuration
+  nodeEnv: string
+  port: number
+  apiVersion: string
+  apiUrl: string
+  frontendUrl: string
+  clientUrl: string
 
-  // Database
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
-  DATABASE_URL_TEST: z.string().optional(),
+  // Database Configuration
+  databaseUrl: string
+  
+  // JWT Configuration
+  jwtSecret: string
+  jwtAccessExpiration: string
+  jwtRefreshExpiration: string
+  jwtExpiresIn: string
+  jwtRefreshExpiresIn: string
 
-  // Redis
-  REDIS_URL: z.string().default('redis://localhost:6379'),
-  REDIS_PASSWORD: z.string().optional(),
+  // Redis Configuration
+  redisUrl?: string
+  useRedis: boolean
+  disableCache: string
 
-  // JWT
-  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
-  JWT_REFRESH_SECRET: z
-    .string()
-    .min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
-  JWT_EXPIRES_IN: z.string().default('15m'),
-  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+  // Email Configuration
+  emailService: string
+  emailUser: string
+  emailPassword: string
+  emailFrom: string
+  smtpHost?: string
+  smtpPort?: number
+  smtpUser?: string
+  smtpPass?: string
 
-  // CORS
-  CORS_ORIGIN: z.string().default('http://localhost:3000'),
+  // File Upload Configuration
+  maxFileSize: number
+  uploadPath: string
+  uploadDir: string
 
-  // Rate Limiting
-  RATE_LIMIT_MAX: z.string().transform(Number).default('100'),
-  RATE_LIMIT_WINDOW_MS: z.string().transform(Number).default('900000'),
+  // Logging Configuration
+  logLevel: string
+  logDir: string
 
-  // Email
-  SMTP_HOST: z.string().optional(),
-  SMTP_PORT: z.string().transform(Number).optional(),
-  SMTP_SECURE: z.string().transform(Boolean).optional(),
-  SMTP_USER: z.string().optional(),
-  SMTP_PASS: z.string().optional(),
-  EMAIL_FROM: z.string().optional(),
+  // Rate Limiting Configuration
+  rateLimitWindowMs: number
+  rateLimitMax: number
+  rateLimitSkipSuccessful: string
+  skipRateLimitInDev: string
 
-  // SMS
-  TWILIO_ACCOUNT_SID: z.string().optional(),
-  TWILIO_AUTH_TOKEN: z.string().optional(),
-  TWILIO_PHONE_NUMBER: z.string().optional(),
+  // Auth Rate Limiting
+  authRateLimitWindowMs: string
+  authRateLimitMax: string
 
-  // OAuth
-  GOOGLE_CLIENT_ID: z.string().optional(),
-  GOOGLE_CLIENT_SECRET: z.string().optional(),
-  GOOGLE_REDIRECT_URI: z.string().optional(),
-  GITHUB_CLIENT_ID: z.string().optional(),
-  GITHUB_CLIENT_SECRET: z.string().optional(),
-  GITHUB_REDIRECT_URI: z.string().optional(),
+  // Session Configuration
+  sessionSecret: string
 
-  // WebAuthn
-  WEBAUTHN_RP_NAME: z.string().default('Unified Enterprise Platform'),
-  WEBAUTHN_RP_ID: z.string().default('localhost'),
-  WEBAUTHN_ORIGIN: z.string().default('http://localhost:3000'),
+  // CORS Configuration
+  corsOrigin: string
+  allowedOrigins: string[]
 
-  // File Storage
-  STORAGE_TYPE: z.enum(['local', 's3', 'azure']).default('local'),
-  STORAGE_PATH: z.string().default('./uploads'),
-  MAX_FILE_SIZE: z.string().transform(Number).default('10485760'),
+  // Security Configuration
+  enableHelmet: string
+  enableCors: string
+  trustProxy: string
 
-  // AWS S3
-  AWS_ACCESS_KEY_ID: z.string().optional(),
-  AWS_SECRET_ACCESS_KEY: z.string().optional(),
-  AWS_REGION: z.string().optional(),
-  AWS_S3_BUCKET: z.string().optional(),
+  // API Versioning
+  defaultApiVersion: string
+  supportedApiVersions: string[]
 
-  // Monitoring
-  PROMETHEUS_ENABLED: z.string().transform(Boolean).default('true'),
-  PROMETHEUS_PORT: z.string().transform(Number).default('9090'),
+  // Internationalization
+  defaultLanguage: string
+  supportedLanguages: string[]
 
-  // Logging
-  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
-  LOG_FORMAT: z.enum(['json', 'simple']).default('json'),
+  // Audit Configuration
+  enableAuditLog: string
+  auditLogRetentionDays: number
 
-  // Security
-  BCRYPT_ROUNDS: z.string().transform(Number).default('12'),
-  SESSION_SECRET: z
-    .string()
-    .min(32, 'SESSION_SECRET must be at least 32 characters'),
-  CSRF_SECRET: z.string().min(32, 'CSRF_SECRET must be at least 32 characters'),
-
-  // Feature Flags
-  ENABLE_REGISTRATION: z.string().transform(Boolean).default('true'),
-  ENABLE_MFA: z.string().transform(Boolean).default('true'),
-  ENABLE_OAUTH: z.string().transform(Boolean).default('true'),
-  ENABLE_WEBAUTHN: z.string().transform(Boolean).default('true'),
-  ENABLE_EMAIL_VERIFICATION: z.string().transform(Boolean).default('true'),
-
-  // Calendar
-  GOOGLE_CALENDAR_ENABLED: z.string().transform(Boolean).default('true'),
-
-  // Webhooks
-  WEBHOOK_SECRET: z
-    .string()
-    .min(32, 'WEBHOOK_SECRET must be at least 32 characters'),
-
-  // Background Jobs
-  JOB_QUEUE_REDIS_URL: z.string().default('redis://localhost:6379/1'),
-  JOB_CONCURRENCY: z.string().transform(Number).default('5'),
-
-  // Development
-  SEED_DATABASE: z.string().transform(Boolean).default('false'),
-  ENABLE_API_DOCS: z.string().transform(Boolean).default('true'),
-});
-
-type Environment = z.infer<typeof environmentSchema>;
-
-const parseEnvironment = (): Environment => {
-  try {
-    return environmentSchema.parse(process.env);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const missingVars = error.errors.map(
-        err => `${err.path.join('.')}: ${err.message}`
-      );
-      throw new Error(
-        `Environment validation failed:\n${missingVars.join('\n')}`
-      );
-    }
-    throw error;
+  // Job Configuration
+  enableJobs: boolean
+  jobIntervals: {
+    taskNotifications: number
+    recurringTasks: number
+    calendarReminders: number
+    overdueTaskCheck: number
   }
-};
 
-const env = parseEnvironment();
+  // Monitoring Configuration
+  enableMonitoring: boolean
+  monitoringInterval: number
 
-export const config = {
-  app: {
-    environment: env.NODE_ENV,
-    isDevelopment: env.NODE_ENV === 'development',
-    isProduction: env.NODE_ENV === 'production',
-    isTest: env.NODE_ENV === 'test',
+  // Cache Configuration
+  cacheDefaultTtl: number
+  cacheMaxKeys: number
+}
+
+const config: EnvironmentConfig = {
+  // Server Configuration
+  nodeEnv: process.env.NODE_ENV || "development",
+  port: Number.parseInt(process.env.PORT || "3000", 10),
+  apiVersion: process.env.API_VERSION || "v1",
+  apiUrl: process.env.API_URL || `http://localhost:${process.env.PORT || 3000}/api/${process.env.API_VERSION || "v1"}`,
+  frontendUrl: process.env.FRONTEND_URL || "http://localhost:3000",
+  clientUrl: process.env.CLIENT_URL || "http://localhost:3000",
+
+  // Database Configuration
+  databaseUrl: process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/taskmanagement",
+
+  // JWT Configuration
+  jwtSecret: process.env.JWT_SECRET || "your-super-secret-jwt-key-change-this-in-production",
+  jwtAccessExpiration: process.env.JWT_ACCESS_EXPIRATION || "15m",
+  jwtRefreshExpiration: process.env.JWT_REFRESH_EXPIRATION || "7d",
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || "24h",
+  jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+
+  // Redis Configuration
+  redisUrl: process.env.REDIS_URL || "",
+  useRedis: process.env.USE_REDIS === "true",
+  disableCache: process.env.DISABLE_CACHE || "false",
+
+  // Email Configuration
+  emailService: process.env.EMAIL_SERVICE || "gmail",
+  emailUser: process.env.EMAIL_USER || "",
+  emailPassword: process.env.EMAIL_PASSWORD || "",
+  emailFrom: process.env.EMAIL_FROM || "noreply@taskmanagement.com",
+  smtpHost: process.env.SMTP_HOST,
+  smtpPort: process.env.SMTP_PORT ? Number.parseInt(process.env.SMTP_PORT, 10) : undefined,
+  smtpUser: process.env.SMTP_USER,
+  smtpPass: process.env.SMTP_PASS,
+
+  // File Upload Configuration
+  maxFileSize: Number.parseInt(process.env.MAX_FILE_SIZE || "5242880", 10), // 5MB
+  uploadPath: process.env.UPLOAD_PATH || "uploads",
+  uploadDir: process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads"),
+
+  // Logging Configuration
+  logLevel: process.env.LOG_LEVEL || "info",
+  logDir: process.env.LOG_DIR || path.join(process.cwd(), "logs"),
+
+  // Rate Limiting Configuration
+  rateLimitWindowMs: Number.parseInt(process.env.RATE_LIMIT_WINDOW_MS || "15000", 10),
+  rateLimitMax: Number.parseInt(process.env.RATE_LIMIT_MAX || "100", 10),
+  rateLimitSkipSuccessful: process.env.RATE_LIMIT_SKIP_SUCCESSFUL || "false",
+  skipRateLimitInDev: process.env.SKIP_RATE_LIMIT_IN_DEV || "true",
+
+  // Auth Rate Limiting
+  authRateLimitWindowMs: process.env.AUTH_RATE_LIMIT_WINDOW_MS || "900000", // 15 minutes
+  authRateLimitMax: process.env.AUTH_RATE_LIMIT_MAX || "10",
+
+  // Session Configuration
+  sessionSecret: process.env.SESSION_SECRET || "your-session-secret-change-this-in-production",
+
+  // CORS Configuration
+  corsOrigin: process.env.CORS_ORIGIN || "*",
+  allowedOrigins: process.env.ALLOWED_ORIGINS?.split(",") || ["http://localhost:3000"],
+
+  // Security Configuration
+  enableHelmet: process.env.ENABLE_HELMET || "true",
+  enableCors: process.env.ENABLE_CORS || "true",
+  trustProxy: process.env.TRUST_PROXY || "false",
+
+  // API Versioning
+  defaultApiVersion: process.env.DEFAULT_API_VERSION || "v1",
+  supportedApiVersions: process.env.SUPPORTED_API_VERSIONS?.split(",") || ["v1", "v2"],
+
+  // Internationalization
+  defaultLanguage: process.env.DEFAULT_LANGUAGE || "en",
+  supportedLanguages: (process.env.SUPPORTED_LANGUAGES || "en,fr,es,de,zh").split(","),
+
+  // Audit Configuration
+  enableAuditLog: process.env.ENABLE_AUDIT_LOG || "true",
+  auditLogRetentionDays: Number.parseInt(process.env.AUDIT_LOG_RETENTION_DAYS || "90", 10),
+
+  // Job Configuration
+  enableJobs: process.env.ENABLE_JOBS !== "false",
+  jobIntervals: {
+    taskNotifications: Number.parseInt(process.env.TASK_NOTIFICATIONS_INTERVAL || "300000", 10), // 5 minutes
+    recurringTasks: Number.parseInt(process.env.RECURRING_TASKS_INTERVAL || "300000", 10), // 5 minutes
+    calendarReminders: Number.parseInt(process.env.CALENDAR_REMINDERS_INTERVAL || "300000", 10), // 5 minutes
+    overdueTaskCheck: Number.parseInt(process.env.OVERDUE_TASK_CHECK_INTERVAL || "3600000", 10), // 1 hour
   },
-  server: {
-    port: env.PORT,
-    host: env.HOST,
-  },
-  database: {
-    url: env.DATABASE_URL,
-    testUrl: env.DATABASE_URL_TEST,
-  },
-  redis: {
-    url: env.REDIS_URL,
-    password: env.REDIS_PASSWORD,
-  },
-  auth: {
-    jwtSecret: env.JWT_SECRET,
-    jwtIssuer: 'unified-enterprise-platform',
-    jwtAudience: 'unified-enterprise-platform-users',
-  },
-  jwt: {
-    secret: env.JWT_SECRET,
-    refreshSecret: env.JWT_REFRESH_SECRET,
-    expiresIn: env.JWT_EXPIRES_IN,
-    refreshExpiresIn: env.JWT_REFRESH_EXPIRES_IN,
-  },
-  cors: {
-    origin: env.CORS_ORIGIN.split(',').map(origin => origin.trim()),
-  },
-  rateLimit: {
-    max: env.RATE_LIMIT_MAX,
-    windowMs: env.RATE_LIMIT_WINDOW_MS,
-  },
-  email: {
-    smtp: {
-      host: env.SMTP_HOST,
-      port: env.SMTP_PORT,
-      secure: env.SMTP_SECURE,
-      user: env.SMTP_USER,
-      pass: env.SMTP_PASS,
-    },
-    from: env.EMAIL_FROM,
-  },
-  sms: {
-    twilio: {
-      accountSid: env.TWILIO_ACCOUNT_SID,
-      authToken: env.TWILIO_AUTH_TOKEN,
-      phoneNumber: env.TWILIO_PHONE_NUMBER,
-    },
-  },
-  oauth: {
-    google: {
-      clientId: env.GOOGLE_CLIENT_ID,
-      clientSecret: env.GOOGLE_CLIENT_SECRET,
-      redirectUri: env.GOOGLE_REDIRECT_URI,
-    },
-    github: {
-      clientId: env.GITHUB_CLIENT_ID,
-      clientSecret: env.GITHUB_CLIENT_SECRET,
-      redirectUri: env.GITHUB_REDIRECT_URI,
-    },
-  },
-  webauthn: {
-    rpName: env.WEBAUTHN_RP_NAME,
-    rpId: env.WEBAUTHN_RP_ID,
-    origin: env.WEBAUTHN_ORIGIN,
-  },
-  storage: {
-    type: env.STORAGE_TYPE,
-    path: env.STORAGE_PATH,
-    maxFileSize: env.MAX_FILE_SIZE,
-    aws: {
-      accessKeyId: env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
-      region: env.AWS_REGION,
-      bucket: env.AWS_S3_BUCKET,
-    },
-  },
-  monitoring: {
-    prometheus: {
-      enabled: env.PROMETHEUS_ENABLED,
-      port: env.PROMETHEUS_PORT,
-    },
-  },
-  logging: {
-    level: env.LOG_LEVEL,
-    format: env.LOG_FORMAT,
-  },
-  security: {
-    bcryptRounds: env.BCRYPT_ROUNDS,
-    sessionSecret: env.SESSION_SECRET,
-    csrfSecret: env.CSRF_SECRET,
-  },
-  features: {
-    registration: env.ENABLE_REGISTRATION,
-    mfa: env.ENABLE_MFA,
-    oauth: env.ENABLE_OAUTH,
-    webauthn: env.ENABLE_WEBAUTHN,
-    emailVerification: env.ENABLE_EMAIL_VERIFICATION,
-    googleCalendar: env.GOOGLE_CALENDAR_ENABLED,
-    apiDocs: env.ENABLE_API_DOCS,
-  },
-  webhooks: {
-    secret: env.WEBHOOK_SECRET,
-  },
-  jobs: {
-    redisUrl: env.JOB_QUEUE_REDIS_URL,
-    concurrency: env.JOB_CONCURRENCY,
-  },
-  development: {
-    seedDatabase: env.SEED_DATABASE,
-  },
-} as const;
+
+  // Monitoring Configuration
+  enableMonitoring: process.env.ENABLE_MONITORING !== "false",
+  monitoringInterval: Number.parseInt(process.env.MONITORING_INTERVAL || "60000", 10), // 1 minute
+
+  // Cache Configuration
+  cacheDefaultTtl: Number.parseInt(process.env.CACHE_DEFAULT_TTL || "3600", 10), // 1 hour
+  cacheMaxKeys: Number.parseInt(process.env.CACHE_MAX_KEYS || "1000", 10),
+}
+
+// Enhanced validation with detailed error messages
+const validateConfig = (): void => {
+  const errors: string[] = []
+  const warnings: string[] = []
+
+  // Critical validations for production
+  if (config.nodeEnv === "production") {
+    if (!config.jwtSecret || config.jwtSecret === "your-super-secret-jwt-key-change-this-in-production") {
+      errors.push("JWT_SECRET must be set in production")
+    }
+
+    if (!config.sessionSecret || config.sessionSecret === "your-session-secret-change-this-in-production") {
+      errors.push("SESSION_SECRET must be set in production")
+    }
+
+    if (!config.databaseUrl || config.databaseUrl.includes("localhost")) {
+      errors.push("DATABASE_URL must be set to a production database in production")
+    }
+
+    if (config.emailUser === "" || config.emailPassword === "") {
+      warnings.push("Email configuration is incomplete. Email features may not work properly.")
+    }
+  } else {
+    // Development warnings
+    if (!config.jwtSecret || config.jwtSecret === "your-super-secret-jwt-key-change-this-in-production") {
+      warnings.push("Using default JWT_SECRET. Please set a secure JWT_SECRET in production.")
+    }
+
+    if (!config.sessionSecret || config.sessionSecret === "your-session-secret-change-this-in-production") {
+      warnings.push("Using default SESSION_SECRET. Please set a secure SESSION_SECRET in production.")
+    }
+  }
+
+  // Port validation
+  if (config.port < 1 || config.port > 65535) {
+    errors.push("PORT must be between 1 and 65535")
+  }
+
+  // File size validation
+  if (config.maxFileSize < 1024) {
+    warnings.push("MAX_FILE_SIZE is very small (< 1KB). This may cause issues with file uploads.")
+  }
+
+  // Rate limiting validation
+  if (config.rateLimitMax < 1) {
+    errors.push("RATE_LIMIT_MAX must be greater than 0")
+  }
+
+  // Log errors and warnings
+  if (errors.length > 0) {
+    console.error("❌ Configuration errors:")
+    errors.forEach(error => console.error(`  - ${error}`))
+    throw new Error(`Configuration validation failed: ${errors.join(", ")}`)
+  }
+
+  if (warnings.length > 0) {
+    console.warn("⚠️  Configuration warnings:")
+    warnings.forEach(warning => console.warn(`  - ${warning}`))
+  }
+
+  console.log("✅ Configuration validated successfully")
+}
+
+// Validate configuration on load
+validateConfig()
+
+export default config

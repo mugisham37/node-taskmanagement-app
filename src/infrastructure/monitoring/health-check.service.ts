@@ -2,7 +2,7 @@ import { EventEmitter } from 'events';
 import { PrismaClient } from '@prisma/client';
 import Redis from 'ioredis';
 import { metricsService } from './metrics.service';
-import { logSystem, logError } from '../../config/logger';
+import { logSystem, logError } from '../config/logger';
 
 export interface HealthCheckResult {
   name: string;
