@@ -39,7 +39,6 @@ export {
   TaskTemplateRepository,
   taskTemplateRepository,
 } from './task-template.repository';
-export { AuditRepository, auditRepository } from './audit.repository';
 
 // Import repository instances
 import { userRepository } from './user.repository';
@@ -56,7 +55,6 @@ import { calendarIntegrationRepository } from './calendar-integration.repository
 import { feedbackRepository } from './feedback.repository';
 import { recurringTaskRepository } from './recurring-task.repository';
 import { taskTemplateRepository } from './task-template.repository';
-import { auditRepository } from './audit.repository';
 
 // Repository instances for easy access
 export const repositories = {
@@ -74,7 +72,6 @@ export const repositories = {
   feedback: feedbackRepository,
   recurringTask: recurringTaskRepository,
   taskTemplate: taskTemplateRepository,
-  audit: auditRepository,
 } as const;
 
 // Type exports for repository instances
