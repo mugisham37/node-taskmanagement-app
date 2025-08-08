@@ -1,6 +1,4 @@
-// Export all presentation layer components
-export * from './controllers';
-export * from './routes';
-export * from './dtos';
-export * from './middleware';
+export * from './api/controllers';
+export * from './api/routes';
+export * from './api/middleware';
 export * from './websocket';

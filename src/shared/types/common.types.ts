@@ -2,68 +2,43 @@
  * Common types used across the application
  */
 
-/**
- * Generic ID type
- */
-export type ID = string;
+export interface PaginationParams {
+  page: number;
+  limit: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
 
-/**
- * Timestamp type
- */
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export type UUID = string;
 export type Timestamp = Date;
 
-/**
- * Optional properties helper
- */
-export type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
-
-/**
- * Required properties helper
- */
-export type RequiredFields<T, K extends keyof T> = T & Required<Pick<T, K>>;
-
-/**
- * Pagination options
- */
-export interface PaginationOptions {
-  page: number;
-  limit: number;
-  offset: number;
+export interface BaseEntity {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-/**
- * Paginated result
- */
-export interface PaginatedResult<T> {
-  data: T[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-  hasNext: boolean;
-  hasPrevious: boolean;
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  errors?: string[];
 }
 
-/**
- * Sort options
- */
-export interface SortOptions {
-  field: string;
-  direction: 'asc' | 'desc';
-}
-
-/**
- * Filter options
- */
-export interface FilterOptions {
-  [key: string]: any;
-}
-
-/**
- * Search options
- */
-export interface SearchOptions extends PaginationOptions {
-  query?: string;
-  filters?: FilterOptions;
-  sort?: SortOptions[];
+export interface QueryOptions {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  filter?: Record<string, any>;
 }
