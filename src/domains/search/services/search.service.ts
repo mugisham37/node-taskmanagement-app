@@ -1,18 +1,18 @@
-import { SearchQuery } from '../domain/search/value-objects/search-query.vo';
-import { SearchResult } from '../domain/search/value-objects/search-result.vo';
-import { SavedSearch } from '../domain/search/entities/saved-search.entity';
-import { SearchQueryService } from '../domain/search/services/search-query.service';
+import { SearchQuery } from '../value-objects/search-query.vo';
+import { SearchResult } from '../value-objects/search-result.vo';
+import { SavedSearch } from '../entities/saved-search.entity';
+import { SearchQueryService } from './search-query.service';
 import {
   AdvancedFilteringService,
   FilterGroup,
-} from '../domain/search/services/advanced-filtering.service';
+} from './advanced-filtering.service';
 import {
   CrossEntitySearchService,
   CrossEntitySearchResult,
-} from '../domain/search/services/cross-entity-search.service';
-import { SearchIndexingService } from '../domain/search/services/search-indexing.service';
-import { SavedSearchRepository } from '../domain/search/repositories/saved-search.repository';
-import { BaseService } from './base.service';
+} from './cross-entity-search.service';
+import { SearchIndexingService } from './search-indexing.service';
+import { SavedSearchRepository } from '../repositories/saved-search.repository';
+import { BaseService } from '../../../shared/utils/base.service';
 
 export interface SearchServiceInterface {
   // Basic search operations

@@ -1,10 +1,10 @@
-import { SearchIndex } from '../../domain/search/entities/search-index.entity';
-import { SearchIndexRepository } from '../../domain/search/repositories/search-index.repository';
-import { SearchQuery } from '../../domain/search/value-objects/search-query.vo';
+import { SearchIndex } from '../entities/search-index.entity';
+import { SearchIndexRepository } from './search-index.repository';
+import { SearchQuery } from '../value-objects/search-query.vo';
 import {
   SearchResult,
   SearchResultItem,
-} from '../../domain/search/value-objects/search-result.vo';
+} from '../value-objects/search-result.vo';
 import { PrismaClient } from '@prisma/client';
 
 export class PostgreSQLSearchIndexRepository implements SearchIndexRepository {

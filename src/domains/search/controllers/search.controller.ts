@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { SearchService } from '../services/search.service';
-import { FilterGroup } from '../domain/search/services/advanced-filtering.service';
-import { BaseController } from './base.controller';
+import { FilterGroup } from '../services/advanced-filtering.service';
+import { BaseController } from '../../../shared/utils/base.controller';
 
 interface SearchRequest extends FastifyRequest {
   query: {

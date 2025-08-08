@@ -144,14 +144,14 @@
     - Update schema imports and validator references
     - _Requirements: 5.3, 5.7, 12.6_
 
-- [ ] 10. Migrate Search Domain
-  - [ ] 10.1 Move search controllers and routes
+- [x] 10. Migrate Search Domain
+  - [x] 10.1 Move search controllers and routes
     - Move search.controller.ts to src/domains/search/controllers/
     - Move search.routes.ts to src/domains/search/routes/
     - Update route imports and controller references
     - _Requirements: 5.1, 5.2, 12.7_
 
-  - [ ] 10.2 Move search services and entities
+  - [x] 10.2 Move search services and entities
     - Move src/domain/search/services/\* to src/domains/search/services/
     - Move src/domain/search/entities/\* to src/domains/search/entities/
     - Move src/domain/search/repositories/\* to src/domains/search/repositories/
@@ -159,7 +159,7 @@
     - Move src/domain/search/value-objects/\* to src/domains/search/value-objects/
     - _Requirements: 5.4, 5.5, 5.6, 5.9, 12.7_
 
-  - [ ] 10.3 Move search validators
+  - [x] 10.3 Move search validators
     - Move search.validator.ts to src/domains/search/validators/
     - Update validator imports and references
     - _Requirements: 5.3, 12.7_

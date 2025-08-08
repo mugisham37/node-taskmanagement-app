@@ -1,5 +1,5 @@
-import { SavedSearch } from '../../domain/search/entities/saved-search.entity';
-import { SavedSearchRepository } from '../../domain/search/repositories/saved-search.repository';
+import { SavedSearch } from '../entities/saved-search.entity';
+import { SavedSearchRepository } from './saved-search.repository';
 import { PrismaClient } from '@prisma/client';
 
 export class PostgreSQLSavedSearchRepository implements SavedSearchRepository {

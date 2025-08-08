@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { SearchController } from '../controllers/search.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware } from '../../../shared/middleware/auth.middleware';
 import {
   searchQuerySchema,
   advancedSearchSchema,

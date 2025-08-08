@@ -1,7 +1,7 @@
 import { SearchIndex } from '../entities/search-index.entity';
 import { SearchIndexRepository } from '../repositories/search-index.repository';
-import { DomainEvent } from '../../shared/events/domain-event';
-import { EventBus } from '../../shared/events/event-bus';
+import { DomainEvent } from '../../../shared/domain/domain-event';
+import { EventBus } from '../../../shared/domain/event-bus';
 
 export interface IndexableEntity {
   id: string;

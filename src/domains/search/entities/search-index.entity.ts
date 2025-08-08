@@ -1,4 +1,4 @@
-import { BaseEntity } from '../../shared/base/base.entity';
+import { BaseEntity } from '../../../shared/domain/base.entity';
 
 export interface SearchIndexProps {
   id?: string;
