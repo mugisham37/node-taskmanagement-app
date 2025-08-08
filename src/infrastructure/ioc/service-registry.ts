@@ -400,7 +400,8 @@ export class ServiceRegistry implements IServiceRegistry {
     this.registerService(
       container,
       'ICommentRepository',
-      require('@/db/repositories/comment.repository').CommentRepository,
+      require('@/domains/collaboration/repositories/comment.repository')
+        .CommentRepository,
       ServiceLifetime.SCOPED
     );
     this.registerService(

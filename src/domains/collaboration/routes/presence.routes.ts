@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { presenceController } from '../controllers/presence.controller';
-import { authenticateToken } from '../middleware/auth.middleware';
+import { authenticateToken } from '../../../shared/middleware/auth.middleware';
 
 export async function presenceRoutes(fastify: FastifyInstance): Promise<void> {
   // Apply authentication middleware to all routes

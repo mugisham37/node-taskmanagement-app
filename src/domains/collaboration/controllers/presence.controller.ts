@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { presenceService, webSocketService } from '../services';
-import { BaseController } from './base.controller';
+import { presenceService } from '../services/presence.service';
+import { webSocketService } from '../../../shared/services/websocket.service';
+import { BaseController } from '../../../shared/controllers/base.controller';
 import { z } from 'zod';
 
 // Validation schemas

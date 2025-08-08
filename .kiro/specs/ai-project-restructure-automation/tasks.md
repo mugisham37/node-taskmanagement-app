@@ -94,14 +94,14 @@
     - Move src/domain/calendar/value-objects/\* to src/domains/calendar/value-objects/
     - _Requirements: 5.3, 5.7, 5.8, 5.9, 12.3_
 
-- [ ] 7. Migrate Collaboration Domain
-  - [ ] 7.1 Move collaboration controllers and routes
+- [x] 7. Migrate Collaboration Domain
+  - [x] 7.1 Move collaboration controllers and routes
     - Move comment.controller.ts, presence.controller.ts to src/domains/collaboration/controllers/
     - Move comment.routes.ts, presence.routes.ts to src/domains/collaboration/routes/
     - Update route imports and controller references
     - _Requirements: 5.1, 5.2, 12.4_
 
-  - [ ] 7.2 Move collaboration services and schemas
+  - [x] 7.2 Move collaboration services and schemas
     - Move src/domain/collaboration/services/\* to src/domains/collaboration/services/
     - Move comments.ts schema to src/domains/collaboration/schemas/
     - Move comment.validator.ts to src/domains/collaboration/validators/

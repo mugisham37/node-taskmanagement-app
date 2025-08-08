@@ -1,8 +1,22 @@
-import { eq, and, or, ilike, isNull, isNotNull, desc, asc, inArray } from 'drizzle-orm';
-import { BaseRepository } from './base/base.repository';
-import { comments, Comment, NewComment } from '../schema/comments';
-import { PaginationOptions, PaginatedResult, SearchOptions } from './base/interfaces';
-import { RepositoryException } from './base/types';
+import {
+  eq,
+  and,
+  or,
+  ilike,
+  isNull,
+  isNotNull,
+  desc,
+  asc,
+  inArray,
+} from 'drizzle-orm';
+import { BaseRepository } from '../../../infrastructure/database/drizzle/repositories/base/base.repository';
+import { comments, Comment, NewComment } from '../schemas/comments';
+import {
+  PaginationOptions,
+  PaginatedResult,
+  SearchOptions,
+} from '../../../infrastructure/database/drizzle/repositories/base/interfaces';
+import { RepositoryException } from '../../../infrastructure/database/drizzle/repositories/base/types';
 
 export class CommentRepository extends BaseRepository<Comment, NewComment> {
   protected table = comments;
@@ -16,26 +30,32 @@ export class CommentRepository extends BaseRepository<Comment, NewComment> {
   }
 
   // Comment-specific methods
-  async findByTask(taskId: string, options: PaginationOptions = {}): Promise<PaginatedResult<Comment>> {
+  async findByTask(
+    taskId: string,
+    options: PaginationOptions = {}
+  ): Promise<PaginatedResult<Comment>> {
     try {
       return await this.findMany({
         where: eq(comments.taskId, taskId),
         ...options,
         sortBy: 'createdAt',
-        sortOrder: 'asc' // Comments usually shown chronologically
+        sortOrder: 'asc', // Comments usually shown chronologically
       });
     } catch (error) {
       throw this.handleError(error, 'findByTask');
     }
   }
 
-  async findByAuthor(authorId: string, options: PaginationOptions = {}): Promise<PaginatedResult<Comment>> {
+  async findByAuthor(
+    authorId: string,
+    options: PaginationOptions = {}
+  ): Promise<PaginatedResult<Comment>> {
     try {
       return await this.findMany({
         where: eq(comments.authorId, authorId),
         ...options,
         sortBy: 'createdAt',
-        sortOrder: 'desc'
+        sortOrder: 'desc',
       });
     } catch (error) {
       throw this.handleError(error, 'findByAuthor');
@@ -44,7 +64,13 @@ export class CommentRepository extends BaseRepository<Comment, NewComment> {
 
   async search(options: SearchOptions): Promise<PaginatedResult<Comment>> {
     try {
-      const { query, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = options;
+      const {
+        query,
+        page = 1,
+        limit = 10,
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
+      } = options;
       const searchPattern = `%${query}%`;
 
       const whereCondition = ilike(comments.content, searchPattern);
@@ -54,45 +80,52 @@ export class CommentRepository extends BaseRepository<Comment, NewComment> {
         page,
         limit,
         sortBy,
-        sortOrder
+        sortOrder,
       });
     } catch (error) {
       throw this.handleError(error, 'search');
     }
   }
 
-  async getCommentStats(taskId?: string, authorId?: string): Promise<{
+  async getCommentStats(
+    taskId?: string,
+    authorId?: string
+  ): Promise<{
     total: number;
     recent: number;
   }> {
     try {
       let baseWhere;
-      
+
       if (taskId && authorId) {
-        baseWhere = and(eq(comments.taskId, taskId), eq(comments.authorId, authorId));
+        baseWhere = and(
+          eq(comments.taskId, taskId),
+          eq(comments.authorId, authorId)
+        );
       } else if (taskId) {
         baseWhere = eq(comments.taskId, taskId);
       } else if (authorId) {
         baseWhere = eq(comments.authorId, authorId);
       }
 
-      const [total] = await Promise.all([
-        this.count({ where: baseWhere })
-      ]);
+      const [total] = await Promise.all([this.count({ where: baseWhere })]);
 
       // For recent comments, we'd need proper date comparison
       const recent = 0; // Placeholder
 
       return {
         total,
-        recent
+        recent,
       };
     } catch (error) {
       throw this.handleError(error, 'getCommentStats');
     }
   }
 
-  async findRecentComments(days: number = 7, options: PaginationOptions = {}): Promise<PaginatedResult<Comment>> {
+  async findRecentComments(
+    days: number = 7,
+    options: PaginationOptions = {}
+  ): Promise<PaginatedResult<Comment>> {
     try {
       const daysAgo = new Date();
       daysAgo.setDate(daysAgo.getDate() - days);
@@ -101,18 +134,20 @@ export class CommentRepository extends BaseRepository<Comment, NewComment> {
       return await this.findMany({
         ...options,
         sortBy: 'createdAt',
-        sortOrder: 'desc'
+        sortOrder: 'desc',
       });
     } catch (error) {
       throw this.handleError(error, 'findRecentComments');
     }
   }
 
-  async bulkDeleteByTask(taskId: string): Promise<{ success: boolean; count: number }> {
+  async bulkDeleteByTask(
+    taskId: string
+  ): Promise<{ success: boolean; count: number }> {
     try {
       const commentsToDelete = await this.findByTask(taskId, { limit: 1000 }); // Get all comments for the task
       const commentIds = commentsToDelete.data.map(comment => comment.id);
-      
+
       if (commentIds.length === 0) {
         return { success: true, count: 0 };
       }
@@ -123,11 +158,15 @@ export class CommentRepository extends BaseRepository<Comment, NewComment> {
     }
   }
 
-  async bulkDeleteByAuthor(authorId: string): Promise<{ success: boolean; count: number }> {
+  async bulkDeleteByAuthor(
+    authorId: string
+  ): Promise<{ success: boolean; count: number }> {
     try {
-      const commentsToDelete = await this.findByAuthor(authorId, { limit: 1000 }); // Get all comments by author
+      const commentsToDelete = await this.findByAuthor(authorId, {
+        limit: 1000,
+      }); // Get all comments by author
       const commentIds = commentsToDelete.data.map(comment => comment.id);
-      
+
       if (commentIds.length === 0) {
         return { success: true, count: 0 };
       }
@@ -143,7 +182,10 @@ export class CommentRepository extends BaseRepository<Comment, NewComment> {
     try {
       // Add any comment-specific validation here
       if (!data.content || data.content.trim().length === 0) {
-        throw new RepositoryException('VALIDATION_ERROR', 'Comment content cannot be empty');
+        throw new RepositoryException(
+          'VALIDATION_ERROR',
+          'Comment content cannot be empty'
+        );
       }
 
       return await super.create(data);
@@ -164,7 +206,10 @@ export class CommentRepository extends BaseRepository<Comment, NewComment> {
       delete (updateData as any).authorId;
 
       if (!updateData.content || updateData.content.trim().length === 0) {
-        throw new RepositoryException('VALIDATION_ERROR', 'Comment content cannot be empty');
+        throw new RepositoryException(
+          'VALIDATION_ERROR',
+          'Comment content cannot be empty'
+        );
       }
 
       return await super.update(id, updateData);
