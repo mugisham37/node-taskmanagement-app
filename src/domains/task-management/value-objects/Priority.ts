@@ -1,73 +1,51 @@
-import { ValueObject } from '../../../shared/domain/value-objects/ValueObject';
+import { StringValueObject } from '../../../shared/domain/value-object';
 
 export enum PriorityEnum {
-  LOW = 'LOW',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
-  URGENT = 'URGENT',
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  CRITICAL = 'critical',
 }
 
-export interface PriorityProps {
-  value: PriorityEnum;
-}
-
-export class Priority extends ValueObject<PriorityProps> {
-  private constructor(props: PriorityProps) {
-    super(props);
+export class Priority extends StringValueObject {
+  private constructor(value: PriorityEnum) {
+    super(value);
   }
 
-  public static create(value: PriorityEnum): Priority {
-    return new Priority({ value });
-  }
-
-  public static fromString(value: string): Priority {
-    const upperValue = value.toUpperCase();
-    if (!Object.values(PriorityEnum).includes(upperValue as PriorityEnum)) {
-      throw new Error(`Invalid priority: ${value}`);
-    }
-    return new Priority({ value: upperValue as PriorityEnum });
+  public static create(priority: PriorityEnum): Priority {
+    return new Priority(priority);
   }
 
   public static low(): Priority {
-    return new Priority({ value: PriorityEnum.LOW });
+    return new Priority(PriorityEnum.LOW);
   }
 
   public static medium(): Priority {
-    return new Priority({ value: PriorityEnum.MEDIUM });
+    return new Priority(PriorityEnum.MEDIUM);
   }
 
   public static high(): Priority {
-    return new Priority({ value: PriorityEnum.HIGH });
+    return new Priority(PriorityEnum.HIGH);
   }
 
-  public static urgent(): Priority {
-    return new Priority({ value: PriorityEnum.URGENT });
+  public static critical(): Priority {
+    return new Priority(PriorityEnum.CRITICAL);
   }
 
-  get value(): PriorityEnum {
-    return this.props.value;
-  }
-
-  get numericValue(): number {
-    return this.getNumericValue();
-  }
-
-  public equals(other: Priority): boolean {
-    return this.props.value === other.props.value;
-  }
-
-  public toString(): string {
-    return this.props.value;
+  protected validateString(value: string): void {
+    if (!Object.values(PriorityEnum).includes(value as PriorityEnum)) {
+      throw new Error(`Invalid priority: ${value}`);
+    }
   }
 
   public getNumericValue(): number {
-    const priorityMap = {
+    const values = {
       [PriorityEnum.LOW]: 1,
       [PriorityEnum.MEDIUM]: 2,
       [PriorityEnum.HIGH]: 3,
-      [PriorityEnum.URGENT]: 4,
+      [PriorityEnum.CRITICAL]: 4,
     };
-    return priorityMap[this.props.value];
+    return values[this.value as PriorityEnum];
   }
 
   public isHigherThan(other: Priority): boolean {
@@ -76,5 +54,27 @@ export class Priority extends ValueObject<PriorityProps> {
 
   public isLowerThan(other: Priority): boolean {
     return this.getNumericValue() < other.getNumericValue();
+  }
+
+  public isCritical(): boolean {
+    return this.value === PriorityEnum.CRITICAL;
+  }
+
+  public isHigh(): boolean {
+    return this.value === PriorityEnum.HIGH;
+  }
+
+  public isMedium(): boolean {
+    return this.value === PriorityEnum.MEDIUM;
+  }
+
+  public isLow(): boolean {
+    return this.value === PriorityEnum.LOW;
+  }
+
+  public requiresUrgentAttention(): boolean {
+    return [PriorityEnum.HIGH, PriorityEnum.CRITICAL].includes(
+      this.value as PriorityEnum
+    );
   }
 }

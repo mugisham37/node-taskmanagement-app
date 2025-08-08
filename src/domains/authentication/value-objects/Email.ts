@@ -1,46 +1,31 @@
-import { ValueObject } from '../../shared/value-objects/ValueObject';
+import { StringValueObject } from '../../../shared/domain/value-object';
 
-export interface EmailProps {
-  value: string;
-}
-
-export class Email extends ValueObject<EmailProps> {
-  private constructor(props: EmailProps) {
-    super(props);
+export class Email extends StringValueObject {
+  private constructor(value: string) {
+    super(value);
   }
 
   public static create(value: string): Email {
+    const normalizedEmail = value.trim().toLowerCase();
+    return new Email(normalizedEmail);
+  }
+
+  protected validateString(value: string): void {
     if (!value || value.trim().length === 0) {
       throw new Error('Email cannot be empty');
     }
 
-    const normalizedEmail = value.trim().toLowerCase();
-
-    if (!this.isValid(normalizedEmail)) {
+    if (!this.isValid(value)) {
       throw new Error('Invalid email format');
     }
-
-    return new Email({ value: normalizedEmail });
-  }
-
-  get value(): string {
-    return this.props.value;
   }
 
   get domain(): string {
-    return this.props.value.split('@')[1];
+    return this.value.split('@')[1];
   }
 
   get localPart(): string {
-    return this.props.value.split('@')[0];
-  }
-
-  public equals(other: Email): boolean {
-    return this.props.value === other.props.value;
-  }
-
-  public toString(): string {
-    return this.props.value;
+    return this.value.split('@')[0];
   }
 
   public isFromDomain(domain: string): boolean {
@@ -65,7 +50,7 @@ export class Email extends ValueObject<EmailProps> {
     return !this.isPersonalEmail();
   }
 
-  private static isValid(email: string): boolean {
+  private isValid(email: string): boolean {
     // RFC 5322 compliant email regex (simplified)
     const emailRegex =
       /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;

@@ -5,9 +5,15 @@
 
 // Base classes and interfaces
 export { BaseEntity } from './base-entity';
+export { AggregateRoot } from './aggregate-root';
 export {
   ValueObject,
   SingleValueObject,
+  StringValueObject,
+  NumberValueObject,
+  DateValueObject,
+  LegacyValueObject,
+  LegacySingleValueObject,
   Email,
   PhoneNumber,
   Money,
@@ -18,6 +24,14 @@ export {
   DomainEventHandler,
   DomainEventBus,
 } from './domain-event';
+
+// Domain event publishing
+export {
+  DomainEventPublisher,
+  DomainEventHandlerDecorator,
+  DomainEventAwareRepository,
+  BaseDomainEventAwareRepository,
+} from './domain-event-publisher';
 
 // Repository patterns
 export {

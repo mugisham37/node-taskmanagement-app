@@ -1,28 +1,33 @@
 import { StringValueObject } from '../../../shared/domain/value-object';
 import { randomUUID } from 'crypto';
 
-export class NotificationId extends StringValueObject {
+export class ProjectId extends StringValueObject {
   private constructor(value: string) {
     super(value);
   }
 
-  public static create(id: string): NotificationId {
-    return new NotificationId(id);
+  public static create(id: string): ProjectId {
+    return new ProjectId(id);
   }
 
-  public static generate(): NotificationId {
-    return new NotificationId(randomUUID());
+  public static generate(): ProjectId {
+    return new ProjectId(randomUUID());
   }
 
   protected validateString(value: string): void {
     if (!value || value.trim().length === 0) {
-      throw new Error('NotificationId cannot be empty');
+      throw new Error('ProjectId cannot be empty');
     }
 
+    // Validate UUID format (basic validation)
     const uuidRegex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(value.trim())) {
-      throw new Error('NotificationId must be a valid UUID');
+      throw new Error('ProjectId must be a valid UUID');
     }
+  }
+
+  public toShortString(): string {
+    return this.value.substring(0, 8);
   }
 }

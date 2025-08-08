@@ -1,12 +1,269 @@
 /**
  * Base class for Value Objects in Domain-Driven Design
- * Value objects are immutable objects that represent a descriptive aspect of the domain
+ * Value objects are immutable and defined by their attributes rather than identity
  */
-export abstract class ValueObject {
+export abstract class ValueObject<T> {
+  protected readonly _value: T;
+
+  protected constructor(value: T) {
+    this.validate(value);
+    this._value = Object.freeze(this.deepFreeze(value));
+  }
+
+  /**
+   * Gets the value of this value object
+   */
+  get value(): T {
+    return this._value;
+  }
+
+  /**
+   * Validates the value object's constraints
+   * Must be implemented by concrete value objects
+   */
+  protected abstract validate(value: T): void;
+
+  /**
+   * Checks if two value objects are equal
+   */
+  equals(other: ValueObject<T>): boolean {
+    if (!other) return false;
+    if (this.constructor !== other.constructor) return false;
+    return this.isEqual(this._value, other._value);
+  }
+
+  /**
+   * Converts the value object to a primitive representation
+   */
+  toPrimitive(): T {
+    return this._value;
+  }
+
+  /**
+   * Creates a string representation of the value object
+   */
+  toString(): string {
+    return JSON.stringify(this._value);
+  }
+
+  /**
+   * Creates a hash code for the value object (useful for collections)
+   */
+  hashCode(): string {
+    return this.toString();
+  }
+
+  /**
+   * Deep equality check for complex values
+   */
+  private isEqual(a: any, b: any): boolean {
+    if (a === b) return true;
+    if (a == null || b == null) return false;
+    if (typeof a !== typeof b) return false;
+
+    if (Array.isArray(a) && Array.isArray(b)) {
+      if (a.length !== b.length) return false;
+      return a.every((item, index) => this.isEqual(item, b[index]));
+    }
+
+    if (typeof a === 'object') {
+      const keysA = Object.keys(a);
+      const keysB = Object.keys(b);
+
+      if (keysA.length !== keysB.length) return false;
+
+      for (const key of keysA) {
+        if (!keysB.includes(key)) return false;
+        if (!this.isEqual(a[key], b[key])) return false;
+      }
+
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Deep freeze an object to ensure immutability
+   */
+  private deepFreeze(obj: any): any {
+    if (obj === null || typeof obj !== 'object') {
+      return obj;
+    }
+
+    if (Array.isArray(obj)) {
+      return Object.freeze(obj.map(item => this.deepFreeze(item)));
+    }
+
+    const frozen: any = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        frozen[key] = this.deepFreeze(obj[key]);
+      }
+    }
+
+    return Object.freeze(frozen);
+  }
+}
+
+/**
+ * Simple value object for single primitive values
+ */
+export abstract class SingleValueObject<
+  T extends string | number | boolean | Date,
+> extends ValueObject<T> {
+  protected constructor(value: T) {
+    super(value);
+  }
+
+  /**
+   * Implicit conversion to primitive value
+   */
+  valueOf(): T {
+    return this._value;
+  }
+}
+
+/**
+ * Value object for string values with common validations
+ */
+export abstract class StringValueObject extends SingleValueObject<string> {
+  protected constructor(value: string) {
+    super(value);
+  }
+
+  protected validate(value: string): void {
+    if (typeof value !== 'string') {
+      throw new Error('Value must be a string');
+    }
+    this.validateString(value);
+  }
+
+  protected abstract validateString(value: string): void;
+
+  /**
+   * Gets the length of the string
+   */
+  get length(): number {
+    return this._value.length;
+  }
+
+  /**
+   * Checks if the string is empty
+   */
+  isEmpty(): boolean {
+    return this._value.length === 0;
+  }
+
+  /**
+   * Checks if the string contains only whitespace
+   */
+  isWhitespace(): boolean {
+    return this._value.trim().length === 0;
+  }
+}
+
+/**
+ * Value object for numeric values with common validations
+ */
+export abstract class NumberValueObject extends SingleValueObject<number> {
+  protected constructor(value: number) {
+    super(value);
+  }
+
+  protected validate(value: number): void {
+    if (typeof value !== 'number' || isNaN(value)) {
+      throw new Error('Value must be a valid number');
+    }
+    this.validateNumber(value);
+  }
+
+  protected abstract validateNumber(value: number): void;
+
+  /**
+   * Checks if the number is positive
+   */
+  isPositive(): boolean {
+    return this._value > 0;
+  }
+
+  /**
+   * Checks if the number is negative
+   */
+  isNegative(): boolean {
+    return this._value < 0;
+  }
+
+  /**
+   * Checks if the number is zero
+   */
+  isZero(): boolean {
+    return this._value === 0;
+  }
+
+  /**
+   * Checks if the number is an integer
+   */
+  isInteger(): boolean {
+    return Number.isInteger(this._value);
+  }
+}
+
+/**
+ * Value object for date values with common validations
+ */
+export abstract class DateValueObject extends SingleValueObject<Date> {
+  protected constructor(value: Date) {
+    super(value);
+  }
+
+  protected validate(value: Date): void {
+    if (!(value instanceof Date) || isNaN(value.getTime())) {
+      throw new Error('Value must be a valid Date');
+    }
+    this.validateDate(value);
+  }
+
+  protected abstract validateDate(value: Date): void;
+
+  /**
+   * Checks if the date is in the past
+   */
+  isPast(): boolean {
+    return this._value < new Date();
+  }
+
+  /**
+   * Checks if the date is in the future
+   */
+  isFuture(): boolean {
+    return this._value > new Date();
+  }
+
+  /**
+   * Checks if the date is today
+   */
+  isToday(): boolean {
+    const today = new Date();
+    return this._value.toDateString() === today.toDateString();
+  }
+
+  /**
+   * Gets the ISO string representation
+   */
+  toISOString(): string {
+    return this._value.toISOString();
+  }
+}
+
+/**
+ * Legacy value object base class for backward compatibility
+ */
+export abstract class LegacyValueObject {
   /**
    * Checks if two value objects are equal based on their properties
    */
-  abstract equals(other: ValueObject): boolean;
+  abstract equals(other: LegacyValueObject): boolean;
 
   /**
    * Converts the value object to a primitive representation
@@ -47,9 +304,9 @@ export abstract class ValueObject {
 }
 
 /**
- * Simple value object for single primitive values
+ * Legacy simple value object for single primitive values
  */
-export abstract class SingleValueObject<T> extends ValueObject {
+export abstract class LegacySingleValueObject<T> extends LegacyValueObject {
   protected constructor(protected readonly value: T) {
     super();
     this.validate();
@@ -59,8 +316,8 @@ export abstract class SingleValueObject<T> extends ValueObject {
     return this.value;
   }
 
-  equals(other: ValueObject): boolean {
-    if (!(other instanceof SingleValueObject)) return false;
+  equals(other: LegacyValueObject): boolean {
+    if (!(other instanceof LegacySingleValueObject)) return false;
     return this.value === other.value;
   }
 
@@ -77,7 +334,7 @@ export abstract class SingleValueObject<T> extends ValueObject {
  * Example implementations of common value objects
  */
 
-export class Email extends SingleValueObject<string> {
+export class Email extends LegacySingleValueObject<string> {
   private static readonly EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   constructor(value: string) {
@@ -98,7 +355,7 @@ export class Email extends SingleValueObject<string> {
   }
 }
 
-export class PhoneNumber extends SingleValueObject<string> {
+export class PhoneNumber extends LegacySingleValueObject<string> {
   private static readonly PHONE_REGEX = /^\+?[\d\s\-\(\)]+$/;
 
   constructor(value: string) {
@@ -119,7 +376,7 @@ export class PhoneNumber extends SingleValueObject<string> {
   }
 }
 
-export class Money extends ValueObject {
+export class Money extends LegacyValueObject {
   constructor(
     private readonly amount: number,
     private readonly currency: string
@@ -136,7 +393,7 @@ export class Money extends ValueObject {
     return this.currency;
   }
 
-  equals(other: ValueObject): boolean {
+  equals(other: LegacyValueObject): boolean {
     if (!(other instanceof Money)) return false;
     return this.amount === other.amount && this.currency === other.currency;
   }
