@@ -1,15 +1,15 @@
-import { Injectable } from '../decorators/injectable';
-import { NotificationEntity } from '../../domain/notification/entities/notification.entity';
-import { NotificationPreferencesEntity } from '../../domain/notification/entities/notification-preferences.entity';
-import { NotificationId } from '../../domain/notification/value-objects/notification-id';
-import { UserId } from '../../domain/authentication/value-objects/user-id';
-import { NotificationType } from '../../domain/notification/value-objects/notification-type';
-import { NotificationChannel } from '../../domain/notification/value-objects/notification-channel';
-import { NotificationPriority } from '../../domain/notification/value-objects/notification-priority';
-import { NotificationStatus } from '../../domain/notification/value-objects/notification-status';
-import { NotificationRepository } from '../../domain/notification/repositories/notification.repository';
-import { NotificationPreferencesRepository } from '../../domain/notification/repositories/notification-preferences.repository';
-import { NotificationTemplateService } from '../../domain/notification/services/notification-template.service';
+import { Injectable } from '../../../shared/decorators/injectable';
+import { NotificationEntity } from '../entities/notification.entity';
+import { NotificationPreferencesEntity } from '../entities/notification-preferences.entity';
+import { NotificationId } from '../value-objects/notification-id';
+import { UserId } from '../../authentication/value-objects/user-id';
+import { NotificationType } from '../value-objects/notification-type';
+import { NotificationChannel } from '../value-objects/notification-channel';
+import { NotificationPriority } from '../value-objects/notification-priority';
+import { NotificationStatus } from '../value-objects/notification-status';
+import { NotificationRepository } from '../repositories/notification.repository';
+import { NotificationPreferencesRepository } from '../repositories/notification-preferences.repository';
+import { NotificationTemplateService } from './notification-template.service';
 import {
   NotificationDeliveryService,
   DeliveryResult,

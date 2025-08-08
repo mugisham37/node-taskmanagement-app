@@ -123,14 +123,14 @@
     - Move src/domain/file-management/value-objects/\* to src/domains/file-management/value-objects/
     - _Requirements: 5.4, 5.5, 5.6, 5.9, 12.5_
 
-- [ ] 9. Migrate Notification Domain
-  - [ ] 9.1 Move notification controllers and routes
+- [x] 9. Migrate Notification Domain
+  - [x] 9.1 Move notification controllers and routes
     - Move notification.controller.ts to src/domains/notification/controllers/
     - Move notification.routes.ts to src/domains/notification/routes/
     - Update route imports and controller references
     - _Requirements: 5.1, 5.2, 12.6_
 
-  - [ ] 9.2 Move notification services and entities
+  - [x] 9.2 Move notification services and entities
     - Move src/domain/notification/services/\* to src/domains/notification/services/
     - Move src/application/services/email.service.ts to src/domains/notification/services/
     - Move src/domain/notification/entities/\* to src/domains/notification/entities/
@@ -138,7 +138,7 @@
     - Move src/domain/notification/value-objects/\* to src/domains/notification/value-objects/
     - _Requirements: 5.4, 5.5, 5.6, 5.9, 6.1, 6.2, 12.6_
 
-  - [ ] 9.3 Move notification schemas and validators
+  - [x] 9.3 Move notification schemas and validators
     - Move notifications.ts schema to src/domains/notification/schemas/
     - Move notification.validator.ts to src/domains/notification/validators/
     - Update schema imports and validator references

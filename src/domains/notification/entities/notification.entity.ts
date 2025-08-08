@@ -1,11 +1,11 @@
-import { Entity } from '../../shared/base/entity';
+import { Entity } from '../../../shared/domain/entity';
 import { NotificationId } from '../value-objects/notification-id';
 import { UserId } from '../../authentication/value-objects/user-id';
 import { NotificationType } from '../value-objects/notification-type';
 import { NotificationChannel } from '../value-objects/notification-channel';
 import { NotificationPriority } from '../value-objects/notification-priority';
 import { NotificationStatus } from '../value-objects/notification-status';
-import { DomainEvent } from '../../shared/events/domain-event';
+import { DomainEvent } from '../../../shared/domain/domain-event';
 
 export interface NotificationProps {
   id: NotificationId;

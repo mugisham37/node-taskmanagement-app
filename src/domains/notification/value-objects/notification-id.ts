@@ -1,4 +1,4 @@
-import { ValueObject } from '../../shared/base/value-object';
+import { ValueObject } from '../../../shared/domain/value-object';
 import { createId } from '@paralleldrive/cuid2';
 
 export class NotificationId extends ValueObject<string> {

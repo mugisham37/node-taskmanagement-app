@@ -1,8 +1,31 @@
-import { eq, and, or, desc, asc, count, ilike, isNull, isNotNull, gte, lte, inArray } from 'drizzle-orm';
-import { BaseService, ServiceContext, NotFoundError, ValidationError, ForbiddenError } from './base.service';
-import { notificationRepository, userRepository } from '../db/repositories';
-import { Notification, NewNotification } from '../db/schema/notifications';
-import { PaginationOptions, PaginatedResult } from '../db/repositories/base/interfaces';
+import {
+  eq,
+  and,
+  or,
+  desc,
+  asc,
+  count,
+  ilike,
+  isNull,
+  isNotNull,
+  gte,
+  lte,
+  inArray,
+} from 'drizzle-orm';
+import {
+  BaseService,
+  ServiceContext,
+  NotFoundError,
+  ValidationError,
+  ForbiddenError,
+} from '../../../shared/services/base.service';
+import { notificationRepository } from '../repositories/notification.repository';
+import { userRepository } from '../../authentication/repositories/user.repository';
+import { Notification, NewNotification } from '../schemas/notifications';
+import {
+  PaginationOptions,
+  PaginatedResult,
+} from '../db/repositories/base/interfaces';
 
 export enum NotificationType {
   TASK_ASSIGNED = 'task_assigned',
@@ -14,7 +37,7 @@ export enum NotificationType {
   TEAM_INVITATION = 'team_invitation',
   CALENDAR_REMINDER = 'calendar_reminder',
   SYSTEM = 'system',
-  REMINDER = 'reminder'
+  REMINDER = 'reminder',
 }
 
 export interface NotificationFilters {
@@ -52,17 +75,20 @@ export class NotificationService extends BaseService {
       enableCache: true,
       cacheTimeout: 60, // Short cache for real-time notifications
       enableAudit: true,
-      enableMetrics: true
+      enableMetrics: true,
     });
   }
 
   // Core CRUD Operations
-  async createNotification(data: NotificationCreateData, context?: ServiceContext): Promise<Notification> {
+  async createNotification(
+    data: NotificationCreateData,
+    context?: ServiceContext
+  ): Promise<Notification> {
     const ctx = this.createContext(context);
-    this.logOperation('createNotification', ctx, { 
-      userId: data.userId, 
-      type: data.type, 
-      title: data.title 
+    this.logOperation('createNotification', ctx, {
+      userId: data.userId,
+      type: data.type,
+      title: data.title,
     });
 
     try {
@@ -79,14 +105,17 @@ export class NotificationService extends BaseService {
       const newNotification: NewNotification = {
         ...data,
         isRead: data.isRead || false,
-        data: data.data || {}
+        data: data.data || {},
       };
 
       const notification = await notificationRepository.create(newNotification);
 
-      await this.recordMetric('notification.created', 1, { 
+      await this.recordMetric('notification.created', 1, {
         type: notification.type,
-        hasData: Object.keys(notification.data as object || {}).length > 0 ? 'true' : 'false'
+        hasData:
+          Object.keys((notification.data as object) || {}).length > 0
+            ? 'true'
+            : 'false',
       });
 
       return notification;
@@ -95,7 +124,10 @@ export class NotificationService extends BaseService {
     }
   }
 
-  async getNotificationById(id: string, context?: ServiceContext): Promise<Notification> {
+  async getNotificationById(
+    id: string,
+    context?: ServiceContext
+  ): Promise<Notification> {
     const ctx = this.createContext(context);
     this.logOperation('getNotificationById', ctx, { notificationId: id });
 
@@ -124,15 +156,18 @@ export class NotificationService extends BaseService {
 
     try {
       const paginationOptions = this.validatePagination(options);
-      
+
       // Build where conditions - user can only see their own notifications
-      const whereConditions = this.buildNotificationWhereConditions(filters, ctx.userId!);
-      
+      const whereConditions = this.buildNotificationWhereConditions(
+        filters,
+        ctx.userId!
+      );
+
       const result = await notificationRepository.findMany({
         ...paginationOptions,
         where: whereConditions,
         sortBy: 'createdAt',
-        sortOrder: 'desc' // Most recent first
+        sortOrder: 'desc', // Most recent first
       });
 
       return result;
@@ -141,7 +176,10 @@ export class NotificationService extends BaseService {
     }
   }
 
-  async markAsRead(id: string, context?: ServiceContext): Promise<Notification> {
+  async markAsRead(
+    id: string,
+    context?: ServiceContext
+  ): Promise<Notification> {
     const ctx = this.createContext(context);
     this.logOperation('markAsRead', ctx, { notificationId: id });
 
@@ -162,15 +200,15 @@ export class NotificationService extends BaseService {
       const updatedNotification = await notificationRepository.update(id, {
         isRead: true,
         readAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
       if (!updatedNotification) {
         throw new NotFoundError('Notification', id);
       }
 
-      await this.recordMetric('notification.marked_read', 1, { 
-        type: updatedNotification.type 
+      await this.recordMetric('notification.marked_read', 1, {
+        type: updatedNotification.type,
       });
 
       return updatedNotification;
@@ -179,7 +217,10 @@ export class NotificationService extends BaseService {
     }
   }
 
-  async markAllAsRead(userId?: string, context?: ServiceContext): Promise<{ updated: number }> {
+  async markAllAsRead(
+    userId?: string,
+    context?: ServiceContext
+  ): Promise<{ updated: number }> {
     const ctx = this.createContext(context);
     const targetUserId = userId || ctx.userId!;
     this.logOperation('markAllAsRead', ctx, { userId: targetUserId });
@@ -187,7 +228,9 @@ export class NotificationService extends BaseService {
     try {
       // Verify user access
       if (targetUserId !== ctx.userId && ctx.userRole !== 'admin') {
-        throw new ForbiddenError('You can only mark your own notifications as read');
+        throw new ForbiddenError(
+          'You can only mark your own notifications as read'
+        );
       }
 
       // Get all unread notifications for the user
@@ -196,7 +239,7 @@ export class NotificationService extends BaseService {
           eq(notificationRepository['table']?.userId, targetUserId),
           eq(notificationRepository['table']?.isRead, false)
         ),
-        limit: 10000 // Large limit to get all unread notifications
+        limit: 10000, // Large limit to get all unread notifications
       });
 
       let updated = 0;
@@ -207,14 +250,14 @@ export class NotificationService extends BaseService {
         const result = await notificationRepository.update(notification.id, {
           isRead: true,
           readAt: now,
-          updatedAt: now
+          updatedAt: now,
         });
         if (result) updated++;
       }
 
-      await this.recordMetric('notification.mark_all_read', 1, { 
+      await this.recordMetric('notification.mark_all_read', 1, {
         updated: updated.toString(),
-        userId: targetUserId 
+        userId: targetUserId,
       });
 
       return { updated };
@@ -223,7 +266,10 @@ export class NotificationService extends BaseService {
     }
   }
 
-  async deleteNotification(id: string, context?: ServiceContext): Promise<void> {
+  async deleteNotification(
+    id: string,
+    context?: ServiceContext
+  ): Promise<void> {
     const ctx = this.createContext(context);
     this.logOperation('deleteNotification', ctx, { notificationId: id });
 
@@ -241,8 +287,8 @@ export class NotificationService extends BaseService {
         throw new NotFoundError('Notification', id);
       }
 
-      await this.recordMetric('notification.deleted', 1, { 
-        type: notification.type 
+      await this.recordMetric('notification.deleted', 1, {
+        type: notification.type,
       });
     } catch (error) {
       this.handleError(error, 'deleteNotification', ctx);
@@ -250,7 +296,10 @@ export class NotificationService extends BaseService {
   }
 
   // Statistics
-  async getNotificationStats(userId?: string, context?: ServiceContext): Promise<NotificationStats> {
+  async getNotificationStats(
+    userId?: string,
+    context?: ServiceContext
+  ): Promise<NotificationStats> {
     const ctx = this.createContext(context);
     const targetUserId = userId || ctx.userId!;
     this.logOperation('getNotificationStats', ctx, { userId: targetUserId });
@@ -258,13 +307,15 @@ export class NotificationService extends BaseService {
     try {
       // Verify user access
       if (targetUserId !== ctx.userId && ctx.userRole !== 'admin') {
-        throw new ForbiddenError('You can only view your own notification stats');
+        throw new ForbiddenError(
+          'You can only view your own notification stats'
+        );
       }
 
       // Get all notifications for the user
       const allNotifications = await notificationRepository.findMany({
         where: eq(notificationRepository['table']?.userId, targetUserId),
-        limit: 10000 // Large limit to get all notifications
+        limit: 10000, // Large limit to get all notifications
       });
 
       const notifications = allNotifications.data;
@@ -279,7 +330,7 @@ export class NotificationService extends BaseService {
         total: notifications.length,
         unread: notifications.filter(n => !n.isRead).length,
         read: notifications.filter(n => n.isRead).length,
-        byType
+        byType,
       };
 
       return stats;
@@ -290,9 +341,9 @@ export class NotificationService extends BaseService {
 
   // Specialized notification creators
   async createTaskDueSoonNotification(
-    userId: string, 
-    taskId: string, 
-    taskTitle: string, 
+    userId: string,
+    taskId: string,
+    taskTitle: string,
     dueDate: Date,
     context?: ServiceContext
   ): Promise<Notification> {
@@ -305,16 +356,19 @@ export class NotificationService extends BaseService {
       minute: '2-digit',
     });
 
-    return this.createNotification({
-      userId,
-      type: NotificationType.TASK_DUE_SOON,
-      title: 'Task Due Soon',
-      message: `Your task "${taskTitle}" is due on ${formattedDate}`,
-      data: {
-        taskId,
-        dueDate: dueDate.toISOString(),
+    return this.createNotification(
+      {
+        userId,
+        type: NotificationType.TASK_DUE_SOON,
+        title: 'Task Due Soon',
+        message: `Your task "${taskTitle}" is due on ${formattedDate}`,
+        data: {
+          taskId,
+          dueDate: dueDate.toISOString(),
+        },
       },
-    }, context);
+      context
+    );
   }
 
   async createTaskOverdueNotification(
@@ -323,15 +377,18 @@ export class NotificationService extends BaseService {
     taskTitle: string,
     context?: ServiceContext
   ): Promise<Notification> {
-    return this.createNotification({
-      userId,
-      type: NotificationType.TASK_OVERDUE,
-      title: 'Task Overdue',
-      message: `Your task "${taskTitle}" is now overdue`,
-      data: {
-        taskId,
+    return this.createNotification(
+      {
+        userId,
+        type: NotificationType.TASK_OVERDUE,
+        title: 'Task Overdue',
+        message: `Your task "${taskTitle}" is now overdue`,
+        data: {
+          taskId,
+        },
       },
-    }, context);
+      context
+    );
   }
 
   async createTaskCompletedNotification(
@@ -340,15 +397,18 @@ export class NotificationService extends BaseService {
     taskTitle: string,
     context?: ServiceContext
   ): Promise<Notification> {
-    return this.createNotification({
-      userId,
-      type: NotificationType.TASK_COMPLETED,
-      title: 'Task Completed',
-      message: `You've completed the task "${taskTitle}"`,
-      data: {
-        taskId,
+    return this.createNotification(
+      {
+        userId,
+        type: NotificationType.TASK_COMPLETED,
+        title: 'Task Completed',
+        message: `You've completed the task "${taskTitle}"`,
+        data: {
+          taskId,
+        },
       },
-    }, context);
+      context
+    );
   }
 
   async createSystemNotification(
@@ -358,21 +418,27 @@ export class NotificationService extends BaseService {
     data: Record<string, any> = {},
     context?: ServiceContext
   ): Promise<Notification> {
-    return this.createNotification({
-      userId,
-      type: NotificationType.SYSTEM,
-      title,
-      message,
-      data,
-    }, context);
+    return this.createNotification(
+      {
+        userId,
+        type: NotificationType.SYSTEM,
+        title,
+        message,
+        data,
+      },
+      context
+    );
   }
 
   // Private Helper Methods
-  private async verifyNotificationAccess(notification: Notification, userId: string): Promise<void> {
+  private async verifyNotificationAccess(
+    notification: Notification,
+    userId: string
+  ): Promise<void> {
     // User can access notification if they are:
     // 1. The recipient
     // 2. Admin (would need to check user role)
-    
+
     if (notification.userId === userId) {
       return;
     }
@@ -386,27 +452,40 @@ export class NotificationService extends BaseService {
     throw new ForbiddenError('You do not have access to this notification');
   }
 
-  private buildNotificationWhereConditions(filters: NotificationFilters, userId: string): any {
+  private buildNotificationWhereConditions(
+    filters: NotificationFilters,
+    userId: string
+  ): any {
     const conditions = [eq(notificationRepository['table']?.userId, userId)];
 
     if (filters.type) {
       if (Array.isArray(filters.type)) {
-        conditions.push(inArray(notificationRepository['table']?.type, filters.type));
+        conditions.push(
+          inArray(notificationRepository['table']?.type, filters.type)
+        );
       } else {
-        conditions.push(eq(notificationRepository['table']?.type, filters.type));
+        conditions.push(
+          eq(notificationRepository['table']?.type, filters.type)
+        );
       }
     }
 
     if (filters.isRead !== undefined) {
-      conditions.push(eq(notificationRepository['table']?.isRead, filters.isRead));
+      conditions.push(
+        eq(notificationRepository['table']?.isRead, filters.isRead)
+      );
     }
 
     if (filters.createdFrom) {
-      conditions.push(gte(notificationRepository['table']?.createdAt, filters.createdFrom));
+      conditions.push(
+        gte(notificationRepository['table']?.createdAt, filters.createdFrom)
+      );
     }
 
     if (filters.createdTo) {
-      conditions.push(lte(notificationRepository['table']?.createdAt, filters.createdTo));
+      conditions.push(
+        lte(notificationRepository['table']?.createdAt, filters.createdTo)
+      );
     }
 
     return and(...conditions);
@@ -426,7 +505,9 @@ export class NotificationService extends BaseService {
     }
 
     if (data.title.length > 255) {
-      throw new ValidationError('Notification title must be less than 255 characters');
+      throw new ValidationError(
+        'Notification title must be less than 255 characters'
+      );
     }
 
     if (!data.message || data.message.trim().length === 0) {
@@ -434,7 +515,9 @@ export class NotificationService extends BaseService {
     }
 
     if (data.message.length > 1000) {
-      throw new ValidationError('Notification message must be less than 1000 characters');
+      throw new ValidationError(
+        'Notification message must be less than 1000 characters'
+      );
     }
   }
 }

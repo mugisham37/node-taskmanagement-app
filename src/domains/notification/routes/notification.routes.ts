@@ -1,18 +1,18 @@
-import { Router } from "express"
+import { Router } from 'express';
 import {
   getNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
   deleteNotification,
-} from "../controllers/notification.controller"
-import { authenticate } from "../middleware/auth"
-import { validate } from "../middleware/validate.middleware"
-import { notificationValidators } from "../validators"
+} from '../controllers/notification.controller';
+import { authenticate } from '../../../shared/middleware/auth';
+import { validate } from '../../../shared/middleware/validate.middleware';
+import * as notificationValidators from '../validators/notification.validator';
 
-const router = Router()
+const router = Router();
 
 // All notification routes require authentication
-router.use(authenticate())
+router.use(authenticate());
 
 /**
  * @swagger
@@ -52,7 +52,11 @@ router.use(authenticate())
  *       401:
  *         description: Not authenticated
  */
-router.get("/", validate(notificationValidators.getNotifications), getNotifications)
+router.get(
+  '/',
+  validate(notificationValidators.getNotifications),
+  getNotifications
+);
 
 /**
  * @swagger
@@ -68,7 +72,11 @@ router.get("/", validate(notificationValidators.getNotifications), getNotificati
  *       401:
  *         description: Not authenticated
  */
-router.patch("/read-all", validate(notificationValidators.markAllNotificationsAsRead), markAllNotificationsAsRead)
+router.patch(
+  '/read-all',
+  validate(notificationValidators.markAllNotificationsAsRead),
+  markAllNotificationsAsRead
+);
 
 /**
  * @swagger
@@ -95,7 +103,11 @@ router.patch("/read-all", validate(notificationValidators.markAllNotificationsAs
  *       404:
  *         description: Notification not found
  */
-router.patch("/:id/read", validate(notificationValidators.markNotificationAsRead), markNotificationAsRead)
+router.patch(
+  '/:id/read',
+  validate(notificationValidators.markNotificationAsRead),
+  markNotificationAsRead
+);
 
 /**
  * @swagger
@@ -122,6 +134,10 @@ router.patch("/:id/read", validate(notificationValidators.markNotificationAsRead
  *       404:
  *         description: Notification not found
  */
-router.delete("/:id", validate(notificationValidators.deleteNotification), deleteNotification)
+router.delete(
+  '/:id',
+  validate(notificationValidators.deleteNotification),
+  deleteNotification
+);
 
-export default router
+export default router;

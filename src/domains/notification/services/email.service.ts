@@ -1,5 +1,12 @@
-import { BaseService, ServiceContext, ValidationError } from './base.service';
-import { userRepository, invitationRepository, teamRepository, taskRepository } from '../db/repositories';
+import {
+  BaseService,
+  ServiceContext,
+  ValidationError,
+} from '../../../shared/services/base.service';
+import { userRepository } from '../../authentication/repositories/user.repository';
+import { invitationRepository } from '../../task-management/repositories/invitation.repository';
+import { teamRepository } from '../../task-management/repositories/team.repository';
+import { taskRepository } from '../../task-management/repositories/task.repository';
 
 export interface EmailConfig {
   service: string;
@@ -24,7 +31,7 @@ export class EmailService extends BaseService {
     super('EmailService', {
       enableCache: false,
       enableAudit: true,
-      enableMetrics: true
+      enableMetrics: true,
     });
 
     this.config = {
@@ -33,7 +40,7 @@ export class EmailService extends BaseService {
       password: process.env.EMAIL_PASSWORD || '',
       from: process.env.EMAIL_FROM || 'noreply@taskmanagement.com',
       appName: process.env.APP_NAME || 'Task Management',
-      frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000'
+      frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
     };
   }
 
@@ -52,9 +59,9 @@ export class EmailService extends BaseService {
       console.log(`[EMAIL] Subject: ${data.subject}`);
       console.log(`[EMAIL] HTML: ${data.html.substring(0, 100)}...`);
 
-      await this.recordMetric('email.sent', 1, { 
+      await this.recordMetric('email.sent', 1, {
         to: data.to.split('@')[1], // Domain only for privacy
-        subject_length: data.subject.length.toString()
+        subject_length: data.subject.length.toString(),
       });
 
       return true;
@@ -66,7 +73,11 @@ export class EmailService extends BaseService {
   /**
    * Send verification email
    */
-  async sendVerificationEmail(to: string, token: string, context?: ServiceContext): Promise<boolean> {
+  async sendVerificationEmail(
+    to: string,
+    token: string,
+    context?: ServiceContext
+  ): Promise<boolean> {
     const verificationUrl = `${this.config.frontendUrl}/verify-email?token=${token}`;
     const subject = `${this.config.appName} - Verify Your Email`;
     const html = this.generateVerificationEmailHtml(verificationUrl);
@@ -77,7 +88,11 @@ export class EmailService extends BaseService {
   /**
    * Send password reset email
    */
-  async sendPasswordResetEmail(to: string, token: string, context?: ServiceContext): Promise<boolean> {
+  async sendPasswordResetEmail(
+    to: string,
+    token: string,
+    context?: ServiceContext
+  ): Promise<boolean> {
     const resetUrl = `${this.config.frontendUrl}/reset-password?token=${token}`;
     const subject = `${this.config.appName} - Reset Your Password`;
     const html = this.generatePasswordResetEmailHtml(resetUrl);
@@ -88,7 +103,10 @@ export class EmailService extends BaseService {
   /**
    * Send team invitation email
    */
-  async sendInvitationEmail(invitationId: string, context?: ServiceContext): Promise<boolean> {
+  async sendInvitationEmail(
+    invitationId: string,
+    context?: ServiceContext
+  ): Promise<boolean> {
     const ctx = this.createContext(context);
     this.logOperation('sendInvitationEmail', ctx, { invitationId });
 
@@ -110,7 +128,11 @@ export class EmailService extends BaseService {
 
       const invitationUrl = `${this.config.frontendUrl}/invitations/${invitation.token}`;
       const subject = `${this.config.appName} - You've Been Invited to Join ${team.name}`;
-      const html = this.generateInvitationEmailHtml(team.name, inviter.firstName || 'Someone', invitationUrl);
+      const html = this.generateInvitationEmailHtml(
+        team.name,
+        inviter.firstName || 'Someone',
+        invitationUrl
+      );
 
       return this.sendEmail({ to: invitation.email, subject, html }, context);
     } catch (error) {
@@ -128,13 +150,17 @@ export class EmailService extends BaseService {
     context?: ServiceContext
   ): Promise<boolean> {
     const ctx = this.createContext(context);
-    this.logOperation('sendTaskAssignmentEmail', ctx, { userId, taskId, assignerId });
+    this.logOperation('sendTaskAssignmentEmail', ctx, {
+      userId,
+      taskId,
+      assignerId,
+    });
 
     try {
       const [user, task, assigner] = await Promise.all([
         userRepository.findById(userId),
         taskRepository.findById(taskId),
-        userRepository.findById(assignerId)
+        userRepository.findById(assignerId),
       ]);
 
       if (!user || !task || !assigner) {
@@ -169,7 +195,7 @@ export class EmailService extends BaseService {
     try {
       const [user, task] = await Promise.all([
         userRepository.findById(userId),
-        taskRepository.findById(taskId)
+        taskRepository.findById(taskId),
       ]);
 
       if (!user || !task) {
@@ -178,7 +204,11 @@ export class EmailService extends BaseService {
 
       const taskUrl = `${this.config.frontendUrl}/tasks/${taskId}`;
       const subject = `${this.config.appName} - Task Due Soon`;
-      const html = this.generateTaskReminderEmailHtml(task.title, task.dueDate, taskUrl);
+      const html = this.generateTaskReminderEmailHtml(
+        task.title,
+        task.dueDate,
+        taskUrl
+      );
 
       return this.sendEmail({ to: user.email, subject, html }, context);
     } catch (error) {
@@ -237,7 +267,11 @@ export class EmailService extends BaseService {
     `;
   }
 
-  private generateInvitationEmailHtml(teamName: string, inviterName: string, invitationUrl: string): string {
+  private generateInvitationEmailHtml(
+    teamName: string,
+    inviterName: string,
+    invitationUrl: string
+  ): string {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #4f46e5;">Team Invitation</h2>
@@ -255,7 +289,11 @@ export class EmailService extends BaseService {
     `;
   }
 
-  private generateTaskAssignmentEmailHtml(taskTitle: string, assignerName: string, taskUrl: string): string {
+  private generateTaskAssignmentEmailHtml(
+    taskTitle: string,
+    assignerName: string,
+    taskUrl: string
+  ): string {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #4f46e5;">New Task Assignment</h2>
@@ -272,9 +310,13 @@ export class EmailService extends BaseService {
     `;
   }
 
-  private generateTaskReminderEmailHtml(taskTitle: string, dueDate: Date | null, taskUrl: string): string {
+  private generateTaskReminderEmailHtml(
+    taskTitle: string,
+    dueDate: Date | null,
+    taskUrl: string
+  ): string {
     const dueDateStr = dueDate ? dueDate.toLocaleDateString() : 'soon';
-    
+
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #4f46e5;">Task Due Soon</h2>
