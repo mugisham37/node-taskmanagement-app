@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { performanceController } from '../controllers/performance.controller';
-import { authenticate } from '../middleware/auth.middleware';
-import { authorize } from '../middleware/authorization.middleware';
-import { validateRequest } from '../middleware/validation.middleware';
+import { authenticate } from '../../../shared/middleware/auth.middleware';
+import { authorize } from '../../../shared/middleware/authorization.middleware';
+import { validateRequest } from '../../../shared/middleware/validation.middleware';
 import { z } from 'zod';
 
 const router = Router();

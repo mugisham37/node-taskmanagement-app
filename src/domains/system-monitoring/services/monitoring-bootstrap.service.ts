@@ -8,9 +8,9 @@ import {
   SystemHealthCheck,
   ApplicationHealthCheck,
 } from './health-check.service';
-import { alertingService } from './alerting.service';
-import { metricsService } from './metrics.service';
-import { logSystem, logError } from '../config/logger';
+import { alertingService } from '../../../infrastructure/monitoring/alerting.service';
+import { metricsService } from '../../../infrastructure/monitoring/metrics.service';
+import { logSystem, logError } from '../../../shared/config/logger';
 
 export class MonitoringBootstrapService {
   private isInitialized = false;

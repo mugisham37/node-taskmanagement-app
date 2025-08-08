@@ -1,8 +1,8 @@
-import express from "express"
-import * as healthController from "../controllers/health.controller"
-import { authenticate } from "../middleware/auth"
+import express from 'express';
+import * as healthController from '../controllers/health.controller';
+import { authenticate } from '../../../shared/middleware/auth';
 
-const router = express.Router()
+const router = express.Router();
 
 /**
  * @swagger
@@ -15,7 +15,7 @@ const router = express.Router()
  *       200:
  *         description: API is healthy
  */
-router.get("/", healthController.basicHealth)
+router.get('/', healthController.basicHealth);
 
 /**
  * @swagger
@@ -32,7 +32,7 @@ router.get("/", healthController.basicHealth)
  *       503:
  *         description: System is unhealthy
  */
-router.get("/detailed", authenticate, healthController.detailedHealth)
+router.get('/detailed', authenticate, healthController.detailedHealth);
 
 /**
  * @swagger
@@ -47,7 +47,7 @@ router.get("/detailed", authenticate, healthController.detailedHealth)
  *       200:
  *         description: Current system metrics
  */
-router.get("/metrics", authenticate, healthController.getMetrics)
+router.get('/metrics', authenticate, healthController.getMetrics);
 
 /**
  * @swagger
@@ -62,7 +62,11 @@ router.get("/metrics", authenticate, healthController.getMetrics)
  *       200:
  *         description: Historical system metrics
  */
-router.get("/metrics/history", authenticate, healthController.getMetricsHistory)
+router.get(
+  '/metrics/history',
+  authenticate,
+  healthController.getMetricsHistory
+);
 
 /**
  * @swagger
@@ -77,7 +81,7 @@ router.get("/metrics/history", authenticate, healthController.getMetricsHistory)
  *       200:
  *         description: Database status
  */
-router.get("/database", authenticate, healthController.getDatabaseStatus)
+router.get('/database', authenticate, healthController.getDatabaseStatus);
 
 /**
  * @swagger
@@ -92,6 +96,6 @@ router.get("/database", authenticate, healthController.getDatabaseStatus)
  *       200:
  *         description: System information
  */
-router.get("/system", authenticate, healthController.getSystemInfo)
+router.get('/system', authenticate, healthController.getSystemInfo);
 
-export default router
+export default router;

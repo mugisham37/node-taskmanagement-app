@@ -1,8 +1,11 @@
 import { EventEmitter } from 'events';
-import { metricsService } from './metrics.service';
-import { healthMonitor, HealthStatus } from './health-check.service';
-import { systemMonitoringService } from '../../application/services/system-monitoring.service';
-import { logSystem, logError } from '../config/logger';
+import { metricsService } from '../../../infrastructure/monitoring/metrics.service';
+import {
+  healthMonitor,
+  HealthStatus,
+} from '../../../infrastructure/monitoring/health-check.service';
+import { systemMonitoringService } from './system-monitoring.service';
+import { logSystem, logError } from '../../../shared/config/logger';
 
 export interface DashboardMetrics {
   timestamp: Date;

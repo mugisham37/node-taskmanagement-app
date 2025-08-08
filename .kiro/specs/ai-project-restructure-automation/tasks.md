@@ -225,14 +225,14 @@
     - Update validator imports and references
     - _Requirements: 5.3, 12.9_
 
-- [ ] 13. Migrate System Monitoring Domain
-  - [ ] 13.1 Move monitoring controllers and routes
+- [x] 13. Migrate System Monitoring Domain
+  - [x] 13.1 Move monitoring controllers and routes
     - Move monitoring.controller.ts, health.controller.ts, performance.controller.ts to src/domains/system-monitoring/controllers/
     - Move monitoring.routes.ts, health.routes.ts, performance.routes.ts, metrics.routes.ts to src/domains/system-monitoring/routes/
     - Update route imports and controller references
     - _Requirements: 5.1, 5.2, 12.10_
 
-  - [ ] 13.2 Move monitoring services
+  - [x] 13.2 Move monitoring services
     - Move src/domain/system-monitoring/services/\* to src/domains/system-monitoring/services/
     - Update service imports and dependencies
     - _Requirements: 5.4, 12.10_

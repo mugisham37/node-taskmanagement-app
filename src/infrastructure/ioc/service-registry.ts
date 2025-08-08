@@ -338,7 +338,7 @@ export class ServiceRegistry implements IServiceRegistry {
     this.registerService(
       container,
       'ISystemMonitoringService',
-      require('@/application/services/system-monitoring.service')
+      require('@/domains/system-monitoring/services/system-monitoring.service')
         .SystemMonitoringService,
       ServiceLifetime.SINGLETON
     );

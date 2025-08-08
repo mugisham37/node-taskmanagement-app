@@ -11,12 +11,12 @@ export {
 export {
   monitoringDashboard,
   MonitoringDashboardService,
-} from './monitoring-dashboard.service';
+} from '../../domains/system-monitoring/services/monitoring-dashboard.service';
 export { alertingService, AlertingService } from './alerting.service';
 export {
   monitoringBootstrap,
   MonitoringBootstrapService,
-} from './monitoring-bootstrap.service';
+} from '../../domains/system-monitoring/services/monitoring-bootstrap.service';
 
 // Types and interfaces
 export type {
@@ -35,7 +35,7 @@ export type {
   DashboardMetrics,
   AlertRule,
   Alert,
-} from './monitoring-dashboard.service';
+} from '../../domains/system-monitoring/services/monitoring-dashboard.service';
 
 export type {
   NotificationChannel,

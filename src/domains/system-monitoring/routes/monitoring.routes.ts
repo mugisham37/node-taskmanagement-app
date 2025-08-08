@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { monitoringDashboard } from '../../infrastructure/monitoring/monitoring-dashboard.service';
-import { alertingService } from '../../infrastructure/monitoring/alerting.service';
-import { authenticate } from '../middleware/auth';
-import { asyncHandler } from '../utils/async-handler';
-import { successResponse } from '../utils/response-formatter';
+import { monitoringDashboard } from '../services/monitoring-dashboard.service';
+import { alertingService } from '../../../infrastructure/monitoring/alerting.service';
+import { authenticate } from '../../../shared/middleware/auth';
+import { asyncHandler } from '../../../shared/utils/async-handler';
+import { successResponse } from '../../../shared/utils/response-formatter';
 
 const router = Router();
 

@@ -35,7 +35,7 @@ export type {
   SystemAlert,
   SystemThresholds,
   PerformanceReport,
-} from './system-monitoring.service';
+} from '../../domains/system-monitoring/services/system-monitoring.service';
 
 // Base service exports
 export * from './base.service';

@@ -1,8 +1,17 @@
-import os from 'os';
+import * as os from 'os';
 import { EventEmitter } from 'events';
-import { BaseService, ServiceContext, NotFoundError, ValidationError, ForbiddenError } from './base.service';
-import { db } from '../db/connection';
-import { checkDatabaseHealth, getDatabaseMetrics } from '../db/health';
+import {
+  BaseService,
+  ServiceContext,
+  NotFoundError,
+  ValidationError,
+  ForbiddenError,
+} from '../../../shared/services/base.service';
+import { prisma as db } from '../../../infrastructure/database/prisma-client';
+import {
+  checkDatabaseHealth,
+  getDatabaseMetrics,
+} from '../../../infrastructure/database/health-check';
 import { sql } from 'drizzle-orm';
 
 export interface SystemMetrics {
@@ -124,7 +133,7 @@ export class SystemMonitoringService extends BaseService {
   private monitoringInterval: NodeJS.Timeout | null = null;
   private readonly MAX_HISTORY_LENGTH = 1440; // 24 hours at 1-minute intervals
   private readonly MAX_ALERTS_HISTORY = 1000;
-  
+
   private readonly defaultThresholds: SystemThresholds = {
     cpu: { warning: 70, critical: 90 },
     memory: { warning: 80, critical: 95 },
@@ -133,12 +142,12 @@ export class SystemMonitoringService extends BaseService {
       connectionWarning: 80,
       connectionCritical: 95,
       queryTimeWarning: 1000,
-      queryTimeCritical: 5000
+      queryTimeCritical: 5000,
     },
     application: {
       errorRateWarning: 5,
-      errorRateCritical: 10
-    }
+      errorRateCritical: 10,
+    },
   };
 
   private currentThresholds: SystemThresholds;
@@ -151,7 +160,7 @@ export class SystemMonitoringService extends BaseService {
     super('SystemMonitoringService', {
       enableCache: false,
       enableAudit: true,
-      enableMetrics: true
+      enableMetrics: true,
     });
 
     this.eventEmitter = new EventEmitter();
@@ -159,7 +168,10 @@ export class SystemMonitoringService extends BaseService {
   }
 
   // Core Monitoring Operations
-  async startMonitoring(intervalMs: number = 60000, context?: ServiceContext): Promise<void> {
+  async startMonitoring(
+    intervalMs: number = 60000,
+    context?: ServiceContext
+  ): Promise<void> {
     const ctx = this.createContext(context);
     this.logOperation('startMonitoring', ctx, { intervalMs });
 
@@ -177,14 +189,14 @@ export class SystemMonitoringService extends BaseService {
         try {
           const metrics = await this.collectMetrics();
           this.addMetricsToHistory(metrics);
-          
+
           // Check for alerts
           const alerts = this.checkThresholds(metrics);
           alerts.forEach(alert => this.addAlert(alert));
 
           // Emit metrics event
           this.eventEmitter.emit('metrics', metrics);
-          
+
           // Emit alerts if any
           if (alerts.length > 0) {
             this.eventEmitter.emit('alerts', alerts);
@@ -195,7 +207,7 @@ export class SystemMonitoringService extends BaseService {
       }, intervalMs);
 
       await this.recordMetric('system.monitoring.started', 1, {
-        interval: intervalMs.toString()
+        interval: intervalMs.toString(),
       });
 
       console.log(`System monitoring started with ${intervalMs}ms interval`);
@@ -247,11 +259,15 @@ export class SystemMonitoringService extends BaseService {
       let filteredMetrics = [...this.metricsHistory];
 
       if (startTime) {
-        filteredMetrics = filteredMetrics.filter(m => m.timestamp >= startTime.getTime());
+        filteredMetrics = filteredMetrics.filter(
+          m => m.timestamp >= startTime.getTime()
+        );
       }
 
       if (endTime) {
-        filteredMetrics = filteredMetrics.filter(m => m.timestamp <= endTime.getTime());
+        filteredMetrics = filteredMetrics.filter(
+          m => m.timestamp <= endTime.getTime()
+        );
       }
 
       return filteredMetrics;
@@ -291,7 +307,9 @@ export class SystemMonitoringService extends BaseService {
         filteredAlerts = filteredAlerts.filter(a => a.timestamp <= endTime);
       }
 
-      return filteredAlerts.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      return filteredAlerts.sort(
+        (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+      );
     } catch (error) {
       this.handleError(error, 'getAlertsHistory', ctx);
     }
@@ -316,7 +334,7 @@ export class SystemMonitoringService extends BaseService {
 
       await this.recordMetric('system.alert.resolved', 1, {
         type: alert.type,
-        severity: alert.severity
+        severity: alert.severity,
       });
     } catch (error) {
       this.handleError(error, 'resolveAlert', ctx);
@@ -324,20 +342,25 @@ export class SystemMonitoringService extends BaseService {
   }
 
   // Threshold Management
-  async updateThresholds(thresholds: Partial<SystemThresholds>, context?: ServiceContext): Promise<SystemThresholds> {
+  async updateThresholds(
+    thresholds: Partial<SystemThresholds>,
+    context?: ServiceContext
+  ): Promise<SystemThresholds> {
     const ctx = this.createContext(context);
     this.logOperation('updateThresholds', ctx, thresholds);
 
     try {
       // Only admins can update thresholds
       if (ctx.userRole !== 'admin') {
-        throw new ForbiddenError('Only administrators can update system thresholds');
+        throw new ForbiddenError(
+          'Only administrators can update system thresholds'
+        );
       }
 
       // Merge with current thresholds
       this.currentThresholds = {
         ...this.currentThresholds,
-        ...thresholds
+        ...thresholds,
       };
 
       await this.recordMetric('system.thresholds.updated', 1);
@@ -366,7 +389,9 @@ export class SystemMonitoringService extends BaseService {
     try {
       // Only admins can reset thresholds
       if (ctx.userRole !== 'admin') {
-        throw new ForbiddenError('Only administrators can reset system thresholds');
+        throw new ForbiddenError(
+          'Only administrators can reset system thresholds'
+        );
       }
 
       this.currentThresholds = { ...this.defaultThresholds };
@@ -391,11 +416,14 @@ export class SystemMonitoringService extends BaseService {
     try {
       // Only admins can generate performance reports
       if (ctx.userRole !== 'admin') {
-        throw new ForbiddenError('Only administrators can generate performance reports');
+        throw new ForbiddenError(
+          'Only administrators can generate performance reports'
+        );
       }
 
       const metricsInPeriod = this.metricsHistory.filter(
-        m => m.timestamp >= startTime.getTime() && m.timestamp <= endTime.getTime()
+        m =>
+          m.timestamp >= startTime.getTime() && m.timestamp <= endTime.getTime()
       );
 
       const alertsInPeriod = this.alertsHistory.filter(
@@ -403,13 +431,17 @@ export class SystemMonitoringService extends BaseService {
       );
 
       if (metricsInPeriod.length === 0) {
-        throw new ValidationError('No metrics data available for the specified period');
+        throw new ValidationError(
+          'No metrics data available for the specified period'
+        );
       }
 
       // Calculate summary statistics
       const cpuUsages = metricsInPeriod.map(m => m.cpu.usage);
       const memoryUsages = metricsInPeriod.map(m => m.memory.usedPercent);
-      const requests = metricsInPeriod.map(m => m.application.requestsPerMinute);
+      const requests = metricsInPeriod.map(
+        m => m.application.requestsPerMinute
+      );
       const errors = metricsInPeriod.map(m => m.application.errorRate);
 
       const summary = {
@@ -419,27 +451,45 @@ export class SystemMonitoringService extends BaseService {
         peakMemoryUsage: Math.max(...memoryUsages),
         totalRequests: requests.reduce((sum, r) => sum + r, 0),
         totalErrors: errors.reduce((sum, e) => sum + e, 0),
-        averageResponseTime: this.responseTimeCount > 0 ? this.responseTimeSum / this.responseTimeCount : 0,
-        uptime: process.uptime()
+        averageResponseTime:
+          this.responseTimeCount > 0
+            ? this.responseTimeSum / this.responseTimeCount
+            : 0,
+        uptime: process.uptime(),
       };
 
       // Generate trends
       const trends = {
-        cpuTrend: metricsInPeriod.map(m => ({ timestamp: m.timestamp, value: m.cpu.usage })),
-        memoryTrend: metricsInPeriod.map(m => ({ timestamp: m.timestamp, value: m.memory.usedPercent })),
-        requestTrend: metricsInPeriod.map(m => ({ timestamp: m.timestamp, value: m.application.requestsPerMinute })),
-        errorTrend: metricsInPeriod.map(m => ({ timestamp: m.timestamp, value: m.application.errorRate }))
+        cpuTrend: metricsInPeriod.map(m => ({
+          timestamp: m.timestamp,
+          value: m.cpu.usage,
+        })),
+        memoryTrend: metricsInPeriod.map(m => ({
+          timestamp: m.timestamp,
+          value: m.memory.usedPercent,
+        })),
+        requestTrend: metricsInPeriod.map(m => ({
+          timestamp: m.timestamp,
+          value: m.application.requestsPerMinute,
+        })),
+        errorTrend: metricsInPeriod.map(m => ({
+          timestamp: m.timestamp,
+          value: m.application.errorRate,
+        })),
       };
 
       // Generate recommendations
-      const recommendations = this.generateRecommendations(summary, alertsInPeriod);
+      const recommendations = this.generateRecommendations(
+        summary,
+        alertsInPeriod
+      );
 
       const report: PerformanceReport = {
         period: { start: startTime, end: endTime },
         summary,
         trends,
         alerts: alertsInPeriod,
-        recommendations
+        recommendations,
       };
 
       await this.recordMetric('system.performance_report.generated', 1);
@@ -488,7 +538,7 @@ export class SystemMonitoringService extends BaseService {
     // CPU metrics
     const cpus = os.cpus();
     const loadAvg = os.loadavg();
-    
+
     // Calculate CPU usage (simplified)
     const cpuUsage = Math.min(100, (loadAvg[0] / cpus.length) * 100);
 
@@ -506,12 +556,17 @@ export class SystemMonitoringService extends BaseService {
     try {
       const dbHealth = await checkDatabaseHealth();
       databaseMetrics = {
-        status: dbHealth.isConnected ? 'connected' as const : 'disconnected' as const,
+        status: dbHealth.isConnected
+          ? ('connected' as const)
+          : ('disconnected' as const),
         connectionCount: dbHealth.connectionCount,
         activeConnections: dbHealth.activeConnections,
         slowQueries: dbHealth.slowQueries,
         averageQueryTime: dbHealth.averageQueryTime,
-        poolUtilization: dbHealth.maxConnections > 0 ? (dbHealth.connectionCount / dbHealth.maxConnections) * 100 : 0
+        poolUtilization:
+          dbHealth.maxConnections > 0
+            ? (dbHealth.connectionCount / dbHealth.maxConnections) * 100
+            : 0,
       };
     } catch (error) {
       databaseMetrics = {
@@ -520,14 +575,15 @@ export class SystemMonitoringService extends BaseService {
         activeConnections: 0,
         slowQueries: 0,
         averageQueryTime: 0,
-        poolUtilization: 0
+        poolUtilization: 0,
       };
     }
 
     // Application metrics
     const currentMinute = Math.floor(timestamp / 60000);
     const requestsPerMinute = this.requestCount; // Reset counter after reading
-    const errorRate = this.requestCount > 0 ? (this.errorCount / this.requestCount) * 100 : 0;
+    const errorRate =
+      this.requestCount > 0 ? (this.errorCount / this.requestCount) * 100 : 0;
 
     // Reset counters
     this.requestCount = 0;
@@ -538,32 +594,32 @@ export class SystemMonitoringService extends BaseService {
       cpu: {
         usage: cpuUsage,
         loadAvg,
-        cores: cpus.length
+        cores: cpus.length,
       },
       memory: {
         total: totalMem,
         free: freeMem,
         used: usedMem,
         usedPercent: usedMemPercent,
-        available: freeMem
+        available: freeMem,
       },
       disk: {
         total: 0, // Would need additional library for disk metrics
         free: 0,
         used: 0,
-        usedPercent: 0
+        usedPercent: 0,
       },
       network: {
         bytesReceived: 0, // Would need additional library for network metrics
         bytesSent: 0,
         packetsReceived: 0,
-        packetsSent: 0
+        packetsSent: 0,
       },
       process: {
         memory: processMemory,
         uptime: process.uptime(),
         pid: process.pid,
-        version: process.version
+        version: process.version,
       },
       database: databaseMetrics,
       application: {
@@ -572,8 +628,8 @@ export class SystemMonitoringService extends BaseService {
         environment: process.env.NODE_ENV || 'development',
         activeConnections: 0, // Would need WebSocket connection tracking
         requestsPerMinute,
-        errorRate
-      }
+        errorRate,
+      },
     };
 
     return metrics;
@@ -581,7 +637,7 @@ export class SystemMonitoringService extends BaseService {
 
   private addMetricsToHistory(metrics: SystemMetrics): void {
     this.metricsHistory.push(metrics);
-    
+
     // Maintain history size
     if (this.metricsHistory.length > this.MAX_HISTORY_LENGTH) {
       this.metricsHistory.shift();
@@ -594,36 +650,146 @@ export class SystemMonitoringService extends BaseService {
 
     // CPU alerts
     if (metrics.cpu.usage >= this.currentThresholds.cpu.critical) {
-      alerts.push(this.createAlert('cpu', 'critical', `CPU usage is critically high: ${metrics.cpu.usage.toFixed(1)}%`, metrics.cpu.usage, this.currentThresholds.cpu.critical, timestamp));
+      alerts.push(
+        this.createAlert(
+          'cpu',
+          'critical',
+          `CPU usage is critically high: ${metrics.cpu.usage.toFixed(1)}%`,
+          metrics.cpu.usage,
+          this.currentThresholds.cpu.critical,
+          timestamp
+        )
+      );
     } else if (metrics.cpu.usage >= this.currentThresholds.cpu.warning) {
-      alerts.push(this.createAlert('cpu', 'medium', `CPU usage is high: ${metrics.cpu.usage.toFixed(1)}%`, metrics.cpu.usage, this.currentThresholds.cpu.warning, timestamp));
+      alerts.push(
+        this.createAlert(
+          'cpu',
+          'medium',
+          `CPU usage is high: ${metrics.cpu.usage.toFixed(1)}%`,
+          metrics.cpu.usage,
+          this.currentThresholds.cpu.warning,
+          timestamp
+        )
+      );
     }
 
     // Memory alerts
     if (metrics.memory.usedPercent >= this.currentThresholds.memory.critical) {
-      alerts.push(this.createAlert('memory', 'critical', `Memory usage is critically high: ${metrics.memory.usedPercent.toFixed(1)}%`, metrics.memory.usedPercent, this.currentThresholds.memory.critical, timestamp));
-    } else if (metrics.memory.usedPercent >= this.currentThresholds.memory.warning) {
-      alerts.push(this.createAlert('memory', 'medium', `Memory usage is high: ${metrics.memory.usedPercent.toFixed(1)}%`, metrics.memory.usedPercent, this.currentThresholds.memory.warning, timestamp));
+      alerts.push(
+        this.createAlert(
+          'memory',
+          'critical',
+          `Memory usage is critically high: ${metrics.memory.usedPercent.toFixed(1)}%`,
+          metrics.memory.usedPercent,
+          this.currentThresholds.memory.critical,
+          timestamp
+        )
+      );
+    } else if (
+      metrics.memory.usedPercent >= this.currentThresholds.memory.warning
+    ) {
+      alerts.push(
+        this.createAlert(
+          'memory',
+          'medium',
+          `Memory usage is high: ${metrics.memory.usedPercent.toFixed(1)}%`,
+          metrics.memory.usedPercent,
+          this.currentThresholds.memory.warning,
+          timestamp
+        )
+      );
     }
 
     // Database alerts
-    if (metrics.database.poolUtilization >= this.currentThresholds.database.connectionCritical) {
-      alerts.push(this.createAlert('database', 'critical', `Database connection pool utilization is critically high: ${metrics.database.poolUtilization.toFixed(1)}%`, metrics.database.poolUtilization, this.currentThresholds.database.connectionCritical, timestamp));
-    } else if (metrics.database.poolUtilization >= this.currentThresholds.database.connectionWarning) {
-      alerts.push(this.createAlert('database', 'medium', `Database connection pool utilization is high: ${metrics.database.poolUtilization.toFixed(1)}%`, metrics.database.poolUtilization, this.currentThresholds.database.connectionWarning, timestamp));
+    if (
+      metrics.database.poolUtilization >=
+      this.currentThresholds.database.connectionCritical
+    ) {
+      alerts.push(
+        this.createAlert(
+          'database',
+          'critical',
+          `Database connection pool utilization is critically high: ${metrics.database.poolUtilization.toFixed(1)}%`,
+          metrics.database.poolUtilization,
+          this.currentThresholds.database.connectionCritical,
+          timestamp
+        )
+      );
+    } else if (
+      metrics.database.poolUtilization >=
+      this.currentThresholds.database.connectionWarning
+    ) {
+      alerts.push(
+        this.createAlert(
+          'database',
+          'medium',
+          `Database connection pool utilization is high: ${metrics.database.poolUtilization.toFixed(1)}%`,
+          metrics.database.poolUtilization,
+          this.currentThresholds.database.connectionWarning,
+          timestamp
+        )
+      );
     }
 
-    if (metrics.database.averageQueryTime >= this.currentThresholds.database.queryTimeCritical) {
-      alerts.push(this.createAlert('database', 'critical', `Database query time is critically slow: ${metrics.database.averageQueryTime}ms`, metrics.database.averageQueryTime, this.currentThresholds.database.queryTimeCritical, timestamp));
-    } else if (metrics.database.averageQueryTime >= this.currentThresholds.database.queryTimeWarning) {
-      alerts.push(this.createAlert('database', 'medium', `Database query time is slow: ${metrics.database.averageQueryTime}ms`, metrics.database.averageQueryTime, this.currentThresholds.database.queryTimeWarning, timestamp));
+    if (
+      metrics.database.averageQueryTime >=
+      this.currentThresholds.database.queryTimeCritical
+    ) {
+      alerts.push(
+        this.createAlert(
+          'database',
+          'critical',
+          `Database query time is critically slow: ${metrics.database.averageQueryTime}ms`,
+          metrics.database.averageQueryTime,
+          this.currentThresholds.database.queryTimeCritical,
+          timestamp
+        )
+      );
+    } else if (
+      metrics.database.averageQueryTime >=
+      this.currentThresholds.database.queryTimeWarning
+    ) {
+      alerts.push(
+        this.createAlert(
+          'database',
+          'medium',
+          `Database query time is slow: ${metrics.database.averageQueryTime}ms`,
+          metrics.database.averageQueryTime,
+          this.currentThresholds.database.queryTimeWarning,
+          timestamp
+        )
+      );
     }
 
     // Application alerts
-    if (metrics.application.errorRate >= this.currentThresholds.application.errorRateCritical) {
-      alerts.push(this.createAlert('application', 'critical', `Application error rate is critically high: ${metrics.application.errorRate.toFixed(1)}%`, metrics.application.errorRate, this.currentThresholds.application.errorRateCritical, timestamp));
-    } else if (metrics.application.errorRate >= this.currentThresholds.application.errorRateWarning) {
-      alerts.push(this.createAlert('application', 'medium', `Application error rate is high: ${metrics.application.errorRate.toFixed(1)}%`, metrics.application.errorRate, this.currentThresholds.application.errorRateWarning, timestamp));
+    if (
+      metrics.application.errorRate >=
+      this.currentThresholds.application.errorRateCritical
+    ) {
+      alerts.push(
+        this.createAlert(
+          'application',
+          'critical',
+          `Application error rate is critically high: ${metrics.application.errorRate.toFixed(1)}%`,
+          metrics.application.errorRate,
+          this.currentThresholds.application.errorRateCritical,
+          timestamp
+        )
+      );
+    } else if (
+      metrics.application.errorRate >=
+      this.currentThresholds.application.errorRateWarning
+    ) {
+      alerts.push(
+        this.createAlert(
+          'application',
+          'medium',
+          `Application error rate is high: ${metrics.application.errorRate.toFixed(1)}%`,
+          metrics.application.errorRate,
+          this.currentThresholds.application.errorRateWarning,
+          timestamp
+        )
+      );
     }
 
     return alerts;
@@ -645,28 +811,31 @@ export class SystemMonitoringService extends BaseService {
       value,
       threshold,
       timestamp,
-      resolved: false
+      resolved: false,
     };
   }
 
   private addAlert(alert: SystemAlert): void {
     // Check if similar alert already exists and is not resolved
-    const existingAlert = this.alertsHistory.find(a => 
-      a.type === alert.type && 
-      a.severity === alert.severity && 
-      !a.resolved &&
-      (alert.timestamp.getTime() - a.timestamp.getTime()) < 300000 // Within 5 minutes
+    const existingAlert = this.alertsHistory.find(
+      a =>
+        a.type === alert.type &&
+        a.severity === alert.severity &&
+        !a.resolved &&
+        alert.timestamp.getTime() - a.timestamp.getTime() < 300000 // Within 5 minutes
     );
 
     if (!existingAlert) {
       this.alertsHistory.push(alert);
-      
+
       // Maintain alerts history size
       if (this.alertsHistory.length > this.MAX_ALERTS_HISTORY) {
         this.alertsHistory.shift();
       }
 
-      console.warn(`[SYSTEM ALERT] ${alert.severity.toUpperCase()}: ${alert.message}`);
+      console.warn(
+        `[SYSTEM ALERT] ${alert.severity.toUpperCase()}: ${alert.message}`
+      );
     }
   }
 
@@ -675,36 +844,49 @@ export class SystemMonitoringService extends BaseService {
     return values.reduce((sum, val) => sum + val, 0) / values.length;
   }
 
-  private generateRecommendations(summary: PerformanceReport['summary'], alerts: SystemAlert[]): string[] {
+  private generateRecommendations(
+    summary: PerformanceReport['summary'],
+    alerts: SystemAlert[]
+  ): string[] {
     const recommendations: string[] = [];
 
     // CPU recommendations
     if (summary.averageCpuUsage > 70) {
-      recommendations.push('Consider scaling up CPU resources or optimizing CPU-intensive operations');
+      recommendations.push(
+        'Consider scaling up CPU resources or optimizing CPU-intensive operations'
+      );
     }
 
     // Memory recommendations
     if (summary.averageMemoryUsage > 80) {
-      recommendations.push('Consider increasing memory allocation or optimizing memory usage');
+      recommendations.push(
+        'Consider increasing memory allocation or optimizing memory usage'
+      );
     }
 
     // Error rate recommendations
     if (summary.totalErrors > 0) {
       const errorRate = (summary.totalErrors / summary.totalRequests) * 100;
       if (errorRate > 5) {
-        recommendations.push('High error rate detected. Review application logs and fix recurring errors');
+        recommendations.push(
+          'High error rate detected. Review application logs and fix recurring errors'
+        );
       }
     }
 
     // Database recommendations
     const dbAlerts = alerts.filter(a => a.type === 'database');
     if (dbAlerts.length > 0) {
-      recommendations.push('Database performance issues detected. Consider optimizing queries or scaling database resources');
+      recommendations.push(
+        'Database performance issues detected. Consider optimizing queries or scaling database resources'
+      );
     }
 
     // General recommendations
     if (alerts.filter(a => a.severity === 'critical').length > 0) {
-      recommendations.push('Critical alerts detected. Immediate attention required to prevent service degradation');
+      recommendations.push(
+        'Critical alerts detected. Immediate attention required to prevent service degradation'
+      );
     }
 
     if (recommendations.length === 0) {

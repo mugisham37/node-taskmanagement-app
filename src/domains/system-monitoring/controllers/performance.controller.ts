@@ -1,14 +1,14 @@
 import { Request, Response } from 'express';
-import { performanceOptimizationService } from '../../infrastructure/performance/performance-optimization-service';
-import { performanceMonitor } from '../../infrastructure/monitoring/performance-monitor';
-import { queryOptimizer } from '../../infrastructure/database/query-optimizer';
-import { connectionPoolManager } from '../../infrastructure/database/connection-pool-manager';
-import { apiOptimizer } from '../../infrastructure/performance/api-optimizer';
-import { logger } from '../../infrastructure/logging/logger';
+import { performanceOptimizationService } from '../../../infrastructure/performance/performance-optimization-service';
+import { performanceMonitor } from '../../../infrastructure/monitoring/performance-monitor';
+import { queryOptimizer } from '../../../infrastructure/database/query-optimizer';
+import { connectionPoolManager } from '../../../infrastructure/database/connection-pool-manager';
+import { apiOptimizer } from '../../../infrastructure/performance/api-optimizer';
+import { logger } from '../../../infrastructure/logging/logger';
 import {
   formatSuccessResponse,
   formatErrorResponse,
-} from '../../utils/response-formatter';
+} from '../../../shared/utils/response-formatter';
 
 /**
  * Performance Controller

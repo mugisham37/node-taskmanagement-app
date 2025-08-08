@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { metricsService } from '../../infrastructure/monitoring/metrics.service';
-import { healthMonitor } from '../../infrastructure/monitoring/health-check.service';
-import { monitoringDashboard } from '../../infrastructure/monitoring/monitoring-dashboard.service';
-import { authenticate } from '../middleware/auth';
-import { asyncHandler } from '../utils/async-handler';
-import { successResponse } from '../utils/response-formatter';
+import { metricsService } from '../../../infrastructure/monitoring/metrics.service';
+import { healthMonitor } from '../../../infrastructure/monitoring/health-check.service';
+import { monitoringDashboard } from '../services/monitoring-dashboard.service';
+import { authenticate } from '../../../shared/middleware/auth';
+import { asyncHandler } from '../../../shared/utils/async-handler';
+import { successResponse } from '../../../shared/utils/response-formatter';
 
 const router = Router();
 
