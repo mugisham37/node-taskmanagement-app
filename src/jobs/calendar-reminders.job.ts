@@ -1,5 +1,5 @@
-import * as calendarService from '../services/calendar.service';
-import logger from '../../shared/config/logger';
+import { calendarService } from '../domains/calendar/services/calendar.service';
+import logger from '../shared/config/logger';
 
 /**
  * Schedule job to process calendar event reminders
@@ -36,11 +36,10 @@ async function processCalendarReminders(): Promise<void> {
     });
 
     // Process event reminders using the calendar service
-    const remindersSent =
-      await calendarService.calendarService.processEventReminders({
-        userId: 'system', // System context for job processing
-        timestamp: new Date(),
-      });
+    const remindersSent = await calendarService.processEventReminders({
+      userId: 'system', // System context for job processing
+      timestamp: new Date(),
+    });
 
     const processingTime = Date.now() - startTime;
 
@@ -84,11 +83,10 @@ export async function processCalendarRemindersNow(): Promise<{
       timestamp: new Date().toISOString(),
     });
 
-    const remindersSent =
-      await calendarService.calendarService.processEventReminders({
-        userId: 'system',
-        timestamp: new Date(),
-      });
+    const remindersSent = await calendarService.processEventReminders({
+      userId: 'system',
+      timestamp: new Date(),
+    });
 
     const processingTime = Date.now() - startTime;
 

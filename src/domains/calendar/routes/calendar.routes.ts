@@ -1,15 +1,15 @@
-import express from "express"
-import { validate } from "../middleware/validate.middleware"
-import { authenticate } from "../middleware/auth"
-import * as calendarController from "../controllers/calendar.controller"
-import { calendarValidators } from "../validators"
+import express from 'express';
+import { validate } from '../../../shared/middleware/validate.middleware';
+import { authenticate } from '../../../shared/middleware/auth';
+import * as calendarController from '../controllers/calendar.controller';
+import * as calendarValidators from '../validators/calendar.validator';
 import { Router, Request, Response } from 'express';
 import { google } from 'googleapis';
 
-const router = express.Router()
+const router = express.Router();
 
 // Apply authentication middleware to all routes
-router.use(authenticate())
+router.use(authenticate());
 
 /**
  * @swagger
@@ -57,7 +57,11 @@ router.use(authenticate())
  *       201:
  *         description: Calendar event created successfully
  */
-router.post("/events", validate(calendarValidators.createCalendarEvent), calendarController.createCalendarEvent)
+router.post(
+  '/events',
+  validate(calendarValidators.createCalendarEvent),
+  calendarController.createCalendarEvent
+);
 
 /**
  * @swagger
@@ -96,7 +100,7 @@ router.post("/events", validate(calendarValidators.createCalendarEvent), calenda
  *       200:
  *         description: Calendar events retrieved successfully
  */
-router.get("/events", calendarController.getCalendarEvents)
+router.get('/events', calendarController.getCalendarEvents);
 
 /**
  * @swagger
@@ -119,7 +123,7 @@ router.get("/events", calendarController.getCalendarEvents)
  *       404:
  *         description: Calendar event not found
  */
-router.get("/events/:id", calendarController.getCalendarEventById)
+router.get('/events/:id', calendarController.getCalendarEventById);
 
 /**
  * @swagger
@@ -167,7 +171,11 @@ router.get("/events/:id", calendarController.getCalendarEventById)
  *       404:
  *         description: Calendar event not found
  */
-router.put("/events/:id", validate(calendarValidators.updateCalendarEvent), calendarController.updateCalendarEvent)
+router.put(
+  '/events/:id',
+  validate(calendarValidators.updateCalendarEvent),
+  calendarController.updateCalendarEvent
+);
 
 /**
  * @swagger
@@ -190,7 +198,7 @@ router.put("/events/:id", validate(calendarValidators.updateCalendarEvent), cale
  *       404:
  *         description: Calendar event not found
  */
-router.delete("/events/:id", calendarController.deleteCalendarEvent)
+router.delete('/events/:id', calendarController.deleteCalendarEvent);
 
 /**
  * @swagger
@@ -232,41 +240,45 @@ router.delete("/events/:id", calendarController.deleteCalendarEvent)
 //   calendarController.respondToEventInvitation,
 // )
 
-router.get('/sync/google', authenticate(), async (req: Request, res: Response) => {
+router.get(
+  '/sync/google',
+  authenticate(),
+  async (req: Request, res: Response) => {
     try {
-        // Get user's tokens from DB (assume req.user has tokens)
-        const { googleAccessToken, googleRefreshToken } = req.user;
-        const oauth2Client = new google.auth.OAuth2(
-            process.env.GOOGLE_CLIENT_ID,
-            process.env.GOOGLE_CLIENT_SECRET,
-            process.env.GOOGLE_REDIRECT_URI
-        );
-        oauth2Client.setCredentials({
-            access_token: googleAccessToken,
-            refresh_token: googleRefreshToken,
-        });
-        const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-        const events = await calendar.events.list({
-            calendarId: 'primary',
-            timeMin: (new Date()).toISOString(),
-            maxResults: 100,
-            singleEvents: true,
-            orderBy: 'startTime',
-        });
-        // Normalize and store events in your DB, mark as external
-        // For demo, just return normalized events
-        const normalized = (events.data.items || []).map(e => ({
-            id: e.id,
-            title: e.summary,
-            start: e.start?.dateTime || e.start?.date,
-            end: e.end?.dateTime || e.end?.date,
-            external: true,
-            source: 'google',
-        }));
-        res.json({ events: normalized });
+      // Get user's tokens from DB (assume req.user has tokens)
+      const { googleAccessToken, googleRefreshToken } = req.user;
+      const oauth2Client = new google.auth.OAuth2(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+        process.env.GOOGLE_REDIRECT_URI
+      );
+      oauth2Client.setCredentials({
+        access_token: googleAccessToken,
+        refresh_token: googleRefreshToken,
+      });
+      const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+      const events = await calendar.events.list({
+        calendarId: 'primary',
+        timeMin: new Date().toISOString(),
+        maxResults: 100,
+        singleEvents: true,
+        orderBy: 'startTime',
+      });
+      // Normalize and store events in your DB, mark as external
+      // For demo, just return normalized events
+      const normalized = (events.data.items || []).map(e => ({
+        id: e.id,
+        title: e.summary,
+        start: e.start?.dateTime || e.start?.date,
+        end: e.end?.dateTime || e.end?.date,
+        external: true,
+        source: 'google',
+      }));
+      res.json({ events: normalized });
     } catch (err) {
-        res.status(500).json({ error: 'Failed to sync Google Calendar events.' });
+      res.status(500).json({ error: 'Failed to sync Google Calendar events.' });
     }
-});
+  }
+);
 
-export default router
+export default router;

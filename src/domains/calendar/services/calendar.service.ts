@@ -1,14 +1,21 @@
 import { eq, and, gte, lte } from 'drizzle-orm';
-import { BaseService, ServiceContext, NotFoundError } from './base.service';
+import {
+  BaseService,
+  ServiceContext,
+  NotFoundError,
+} from '../../../shared/services/base.service';
 import {
   calendarEventRepository,
   notificationRepository,
   userRepository,
-} from '../db/repositories';
-import { CalendarEvent } from '../db/schema/calendar-events';
-import { notificationService, NotificationType } from './notification.service';
-import { CalendarEventApplicationService } from '../application/services/calendar-event.application.service';
-import logger from '../config/logger';
+} from '../../../infrastructure/database/drizzle/repositories';
+import { CalendarEvent } from '../schemas/calendar-events';
+import {
+  notificationService,
+  NotificationType,
+} from '../../../domains/notification/services/notification.service';
+import { CalendarEventApplicationService } from './calendar-event.application.service';
+import logger from '../../../shared/config/logger';
 
 export interface EventReminderResult {
   eventId: string;

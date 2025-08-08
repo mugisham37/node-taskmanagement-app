@@ -15,7 +15,7 @@ export {
   bulkAssignTasks,
   bulkMoveTasks,
   bulkDeleteTasks,
-  getTaskAnalytics as getTaskAnalyticsFromTask
+  getTaskAnalytics as getTaskAnalyticsFromTask,
 } from './task.controller';
 
 // Task Template Controller
@@ -38,11 +38,10 @@ export {
   getTaskAnalytics,
   getProjectAnalytics,
   getUserProductivityAnalytics,
-  getDashboardAnalytics
+  getDashboardAnalytics,
 } from './analytics.controller';
 
-// Calendar Controller
-export * from './calendar.controller';
+// Calendar Controller - moved to domains/calendar/controllers/
 
 // Comment Controller
 export * from './comment.controller';

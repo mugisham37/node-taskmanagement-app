@@ -1,6 +1,6 @@
 /**
  * Validators Index
- * 
+ *
  * This file exports all validation middleware for the application.
  * These validators use express-validator and are designed to work with PostgreSQL/UUID-based data.
  */
@@ -14,11 +14,11 @@ export * as activityValidators from './activity.validator';
 // Authentication validators
 export * as authValidators from './auth.validator';
 
-// Calendar event validators
-export * as calendarEventValidators from './calendar-event.validator';
+// Calendar event validators - moved to domains/calendar/validators/
+// export * as calendarEventValidators from './calendar-event.validator';
 
-// Calendar validators (combined calendar event and calendar service validators)
-export * as calendarValidators from './calendar.validator';
+// Calendar validators - moved to domains/calendar/validators/
+// export * as calendarValidators from './calendar.validator';
 
 // Comment validators
 export * as commentValidators from './comment.validator';
@@ -203,7 +203,6 @@ export {
   addTaskDependencies,
   removeTaskDependencies,
 } from './task.validator';
-
 
 export {
   // Team validators

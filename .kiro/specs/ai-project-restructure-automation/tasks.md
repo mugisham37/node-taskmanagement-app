@@ -72,14 +72,14 @@
     - Update schema imports and validator references
     - _Requirements: 5.3, 5.7, 12.2_
 
-- [ ] 6. Migrate Calendar Domain
-  - [ ] 6.1 Move calendar controllers and routes
+- [x] 6. Migrate Calendar Domain
+  - [x] 6.1 Move calendar controllers and routes
     - Move calendar.controller.ts to src/domains/calendar/controllers/
     - Move calendar.routes.ts to src/domains/calendar/routes/
     - Update route imports and controller references
     - _Requirements: 5.1, 5.2, 12.3_
 
-  - [ ] 6.2 Move calendar services and entities
+  - [x] 6.2 Move calendar services and entities
     - Move src/domain/calendar/services/\* to src/domains/calendar/services/
     - Move src/application/services/calendar-\*.service.ts to src/domains/calendar/services/
     - Move src/domain/calendar/entities/\* to src/domains/calendar/entities/
@@ -87,7 +87,7 @@
     - Move src/infrastructure/repositories/calendar-event.repository.impl.ts to src/domains/calendar/repositories/
     - _Requirements: 5.4, 5.5, 5.6, 6.1, 6.2, 6.3, 12.3_
 
-  - [ ] 6.3 Move calendar schemas, events, and validators
+  - [x] 6.3 Move calendar schemas, events, and validators
     - Move calendar-events.ts, calendar-integrations.ts schemas to src/domains/calendar/schemas/
     - Move calendar.validator.ts, calendar-event.validator.ts to src/domains/calendar/validators/
     - Move src/domain/calendar/events/\* to src/domains/calendar/events/

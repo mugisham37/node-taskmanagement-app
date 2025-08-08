@@ -2,7 +2,7 @@ import { Router } from 'express';
 import activityRoutes from './activity.routes';
 import analyticsRoutes from './analytics.routes';
 import authRoutes from './auth.routes';
-import calendarRoutes from './calendar.routes';
+import calendarRoutes from '../../domains/calendar/routes/calendar.routes';
 import commentRoutes from './comment.routes';
 import dashboardRoutes from './dashboard.routes';
 import exportImportRoutes from './export-import.routes';

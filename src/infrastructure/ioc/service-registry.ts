@@ -290,7 +290,7 @@ export class ServiceRegistry implements IServiceRegistry {
     this.registerService(
       container,
       'ICalendarService',
-      require('@/application/services/calendar.service').CalendarService,
+      require('@/domains/calendar/services/calendar.service').CalendarService,
       ServiceLifetime.SCOPED
     );
     this.registerService(
@@ -578,7 +578,7 @@ export class ServiceRegistry implements IServiceRegistry {
     this.registerService(
       container,
       'CalendarController',
-      require('@/presentation/controllers/calendar.controller')
+      require('@/domains/calendar/controllers/calendar.controller')
         .CalendarController,
       ServiceLifetime.SCOPED
     );

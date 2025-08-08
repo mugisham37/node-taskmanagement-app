@@ -11,8 +11,7 @@ export * from './activity.service';
 export * from './invitation.service';
 export * from './recurring-task.service';
 export * from './task-template.service';
-export * from './calendar-event.service';
-export * from './calendar.service';
+// Calendar services moved to domains/calendar/services/
 export * from './analytics.service';
 export * from './feedback.service';
 export * from './dashboard.service';
@@ -62,8 +61,7 @@ export { activityService } from './activity.service';
 export { invitationService } from './invitation.service';
 export { recurringTaskService } from './recurring-task.service';
 export { taskTemplateService } from './task-template.service';
-export { calendarEventService } from './calendar-event.service';
-export { calendarService } from './calendar.service';
+// Calendar services moved to domains/calendar/services/
 export { analyticsService } from './analytics.service';
 export { webSocketService } from './websocket.service';
 export { presenceService } from './presence.service';
