@@ -1,0 +1,2 @@
+# Domain Aggregates
+This directory contains aggregate roots that maintain consistency boundaries.

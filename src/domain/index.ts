@@ -1,8 +1,8 @@
-export * from './aggregates';
+// Export all domain building blocks
 export * from './entities';
 export * from './value-objects';
-export * from './services';
-export * from './repositories';
+export * from './aggregates';
 export * from './events';
+export * from './services';
 export * from './specifications';
-export * from './factories';
+export * from './repositories';
