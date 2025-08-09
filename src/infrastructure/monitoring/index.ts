@@ -25,6 +25,23 @@ export type {
   ErrorSummary,
 } from './error-tracking';
 
+export { APIPerformanceMonitor } from './api-performance-monitor';
+export type {
+  APIPerformanceMetrics,
+  EndpointStatistics,
+  PerformanceAlert,
+  PerformanceConfig,
+} from './api-performance-monitor';
+
+export { ComprehensiveMonitoring } from './comprehensive-monitoring';
+export type {
+  SystemHealthStatus,
+  ServiceHealthStatus,
+  SystemMetrics,
+  Alert,
+  MonitoringConfig,
+} from './comprehensive-monitoring';
+
 // Factory function to create monitoring services with default configurations
 export function createMonitoringServices(config: {
   logging: Partial<LoggingConfig>;

@@ -1,25 +1,33 @@
 /**
- * Server setup and configuration
- * Sets up Fastify server with all middleware and routes
+ * Server entry point
+ * Starts the application with dependency injection and full integration
  */
 
-import Fastify from 'fastify';
+import { Application } from './app';
 
-const fastify = Fastify({
-  logger: true,
-});
-
-export async function startServer() {
+async function start() {
   try {
-    const port = process.env['PORT'] ? parseInt(process.env['PORT']) : 3000;
-    const host = process.env['HOST'] || '0.0.0.0';
+    const app = new Application();
+    await app.initialize();
+    await app.start();
 
-    await fastify.listen({ port, host });
-    console.log(`Server running on http://${host}:${port}`);
+    console.log('🚀 Task Management System started successfully');
   } catch (error) {
-    fastify.log.error(error);
+    console.error('❌ Failed to start application:', error);
     process.exit(1);
   }
 }
 
-export { fastify };
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', error => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
+});
+
+start();

@@ -12,3 +12,6 @@ export * from './security';
 
 // Monitoring
 export * from './monitoring';
+
+// Performance Optimization
+export * from './performance-optimization-service';

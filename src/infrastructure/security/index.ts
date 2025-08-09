@@ -22,9 +22,23 @@ export {
   AuthMiddlewareConfig,
   PermissionConfig,
 } from './auth-middleware';
+export {
+  InputSanitizer,
+  SanitizationOptions,
+  SanitizationResult,
+} from './input-sanitizer';
+export {
+  AuditLogger,
+  AuditEvent,
+  AuditEventType,
+  AuditSeverity,
+  AuditContext,
+} from './audit-logger';
 
 // Re-export for convenience
 export * from './jwt-service';
 export * from './password-service';
 export * from './rate-limit-service';
 export * from './auth-middleware';
+export * from './input-sanitizer';
+export * from './audit-logger';

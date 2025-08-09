@@ -40,6 +40,17 @@ export type {
   TableStatistics,
 } from './query-optimizer';
 
+// Export performance optimization
+export {
+  DatabasePerformanceOptimizer,
+  createDatabasePerformanceOptimizer,
+} from './performance-optimizer';
+export type {
+  DatabasePerformanceConfig,
+  ConnectionPoolMetrics,
+  DatabaseIndexInfo,
+} from './performance-optimizer';
+
 // Export seeding utilities
 export { DatabaseSeeder } from './seeds';
 export type { SeedOptions } from './seeds';
