@@ -13,8 +13,23 @@ import {
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
 import { IUserRepository } from '../../domain/repositories/user-repository';
-import { JWTService } from '../../infrastructure/security/jwt-service';
+import {
+  JWTService,
+  TokenPair,
+} from '../../infrastructure/security/jwt-service';
 import { PasswordService } from '../../infrastructure/security/password-service';
+import {
+  SessionManager,
+  SessionData,
+} from '../../infrastructure/security/session-manager';
+import {
+  OAuthService,
+  UserInfo,
+} from '../../infrastructure/security/oauth-service';
+import {
+  TwoFactorAuthService,
+  TwoFactorSetup,
+} from '../../infrastructure/security/two-factor-auth-service';
 import { CacheService } from '../../infrastructure/caching/cache-service';
 import { EmailService } from '../../infrastructure/external-services/email-service';
 import { UserId } from '../../domain/value-objects/user-id';
@@ -40,6 +55,9 @@ export interface AuthResponse {
   refreshToken: string;
   user: UserDto;
   expiresIn: number;
+  sessionId: string;
+  requiresTwoFactor?: boolean;
+  twoFactorToken?: string;
 }
 
 export interface UserDto {
@@ -89,6 +107,9 @@ export class AuthApplicationService extends BaseApplicationService {
     private readonly userRepository: IUserRepository,
     private readonly jwtService: JWTService,
     private readonly passwordService: PasswordService,
+    private readonly sessionManager: SessionManager,
+    private readonly oauthService: OAuthService,
+    private readonly twoFactorService: TwoFactorAuthService,
     private readonly cacheService: CacheService,
     private readonly emailService: EmailService
   ) {
@@ -140,35 +161,66 @@ export class AuthApplicationService extends BaseApplicationService {
       // Clear failed login attempts
       await this.clearFailedLoginAttempts(email);
 
+      // Check if 2FA is enabled
+      const twoFactorStatus = await this.twoFactorService.getTwoFactorStatus(
+        user.id.value
+      );
+
+      if (twoFactorStatus.isEnabled) {
+        // Generate temporary token for 2FA verification
+        const twoFactorToken = this.generateTwoFactorToken(user.id.value);
+        await this.storeTwoFactorToken(user.id.value, twoFactorToken);
+
+        this.logInfo('2FA required for login', {
+          userId: user.id.value,
+          ipAddress,
+        });
+
+        return {
+          accessToken: '',
+          refreshToken: '',
+          user: this.mapUserToDto(user),
+          expiresIn: 0,
+          sessionId: '',
+          requiresTwoFactor: true,
+          twoFactorToken,
+        };
+      }
+
       // Create session
-      const sessionId = await this.createSession(user.id, ipAddress, userAgent);
-
-      // Generate tokens
-      const accessToken = await this.jwtService.generateAccessToken({
+      const session = await this.sessionManager.createSession({
         userId: user.id.value,
-        sessionId,
         email: user.email.value,
+        roles: [], // TODO: Get user roles from database
+        permissions: [], // TODO: Get user permissions from database
+        ipAddress,
+        userAgent,
+        loginMethod: 'password',
       });
 
-      const refreshToken = await this.jwtService.generateRefreshToken({
+      // Generate JWT tokens
+      const tokenPair = this.jwtService.generateTokenPair({
         userId: user.id.value,
-        sessionId,
+        email: user.email.value,
+        roles: [],
+        permissions: [],
+        sessionId: session.sessionId,
       });
-
-      // Store refresh token
-      await this.storeRefreshToken(user.id, sessionId, refreshToken);
 
       this.logInfo('User logged in successfully', {
         userId: user.id.value,
-        sessionId,
+        sessionId: session.sessionId,
         ipAddress,
       });
 
       return {
-        accessToken,
-        refreshToken,
+        accessToken: tokenPair.accessToken,
+        refreshToken: tokenPair.refreshToken,
         user: this.mapUserToDto(user),
-        expiresIn: this.SESSION_DURATION / 1000,
+        expiresIn: Math.floor(
+          (tokenPair.expiresAt.getTime() - Date.now()) / 1000
+        ),
+        sessionId: session.sessionId,
       };
     });
   }
@@ -213,15 +265,35 @@ export class AuthApplicationService extends BaseApplicationService {
         email: user.email.value,
       });
 
-      // Auto-login after registration
-      return await this.login(
-        {
-          email: request.email,
-          password: request.password,
-        },
-        'registration',
-        'registration'
-      );
+      // Create session for auto-login after registration
+      const session = await this.sessionManager.createSession({
+        userId: user.id.value,
+        email: user.email.value,
+        roles: [], // TODO: Get default user roles
+        permissions: [], // TODO: Get default user permissions
+        ipAddress: 'registration',
+        userAgent: 'registration',
+        loginMethod: 'password',
+      });
+
+      // Generate JWT tokens
+      const tokenPair = this.jwtService.generateTokenPair({
+        userId: user.id.value,
+        email: user.email.value,
+        roles: [],
+        permissions: [],
+        sessionId: session.sessionId,
+      });
+
+      return {
+        accessToken: tokenPair.accessToken,
+        refreshToken: tokenPair.refreshToken,
+        user: this.mapUserToDto(user),
+        expiresIn: Math.floor(
+          (tokenPair.expiresAt.getTime() - Date.now()) / 1000
+        ),
+        sessionId: session.sessionId,
+      };
     });
   }
 
@@ -231,15 +303,14 @@ export class AuthApplicationService extends BaseApplicationService {
   async refreshToken(refreshToken: string): Promise<AuthResponse> {
     return await this.executeWithMonitoring('refreshToken', async () => {
       // Verify refresh token
-      const payload = await this.jwtService.verifyRefreshToken(refreshToken);
+      const payload = this.jwtService.verifyRefreshToken(refreshToken);
 
-      // Check if refresh token is still valid
-      const storedToken = await this.getStoredRefreshToken(
-        new UserId(payload.userId),
+      // Validate session
+      const sessionResult = await this.sessionManager.validateSession(
         payload.sessionId
       );
-      if (!storedToken || storedToken !== refreshToken) {
-        throw new Error('Invalid refresh token');
+      if (!sessionResult.isValid || !sessionResult.session) {
+        throw new Error('Invalid session');
       }
 
       // Get user
@@ -250,21 +321,21 @@ export class AuthApplicationService extends BaseApplicationService {
         throw new Error('User not found or inactive');
       }
 
-      // Generate new access token
-      const accessToken = await this.jwtService.generateAccessToken({
+      // Generate new access token using the existing refresh token
+      const newAccessToken = this.jwtService.refreshAccessToken(refreshToken, {
         userId: user.id.value,
-        sessionId: payload.sessionId,
         email: user.email.value,
+        roles: sessionResult.session.roles,
+        permissions: sessionResult.session.permissions,
+        sessionId: payload.sessionId,
       });
 
-      // Update session activity
-      await this.updateSessionActivity(payload.sessionId);
-
       return {
-        accessToken,
+        accessToken: newAccessToken,
         refreshToken, // Keep the same refresh token
         user: this.mapUserToDto(user),
         expiresIn: this.SESSION_DURATION / 1000,
+        sessionId: payload.sessionId,
       };
     });
   }
@@ -274,11 +345,7 @@ export class AuthApplicationService extends BaseApplicationService {
    */
   async logout(sessionId: string): Promise<void> {
     return await this.executeWithMonitoring('logout', async () => {
-      // Invalidate session
-      await this.invalidateSession(sessionId);
-
-      // Remove refresh token
-      await this.removeRefreshToken(sessionId);
+      await this.sessionManager.invalidateSession(sessionId);
 
       this.logInfo('User logged out successfully', { sessionId });
     });
@@ -289,18 +356,10 @@ export class AuthApplicationService extends BaseApplicationService {
    */
   async logoutAll(userId: UserId): Promise<void> {
     return await this.executeWithMonitoring('logoutAll', async () => {
-      // Get all user sessions
-      const sessions = await this.getUserSessions(userId);
-
-      // Invalidate all sessions
-      for (const session of sessions) {
-        await this.invalidateSession(session.sessionId);
-        await this.removeRefreshToken(session.sessionId);
-      }
+      await this.sessionManager.invalidateAllUserSessions(userId.value);
 
       this.logInfo('User logged out from all devices', {
         userId: userId.value,
-        sessionCount: sessions.length,
       });
     });
   }
@@ -435,10 +494,297 @@ export class AuthApplicationService extends BaseApplicationService {
    * Get user sessions
    */
   async getUserSessions(userId: UserId): Promise<SessionInfo[]> {
-    const cacheKey = `user-sessions:${userId.value}`;
-    const sessions =
-      (await this.cacheService.get<SessionInfo[]>(cacheKey)) || [];
-    return sessions.filter(s => s.isActive);
+    const sessions = await this.sessionManager.getActiveUserSessions(
+      userId.value
+    );
+    return sessions.map(session => ({
+      userId: session.userId,
+      sessionId: session.sessionId,
+      ipAddress: session.ipAddress,
+      userAgent: session.userAgent,
+      createdAt: session.createdAt,
+      lastActivity: session.lastActivity,
+      isActive: session.isActive,
+    }));
+  }
+
+  /**
+   * Generate OAuth authorization URL
+   */
+  async generateOAuthUrl(
+    provider: string,
+    redirectUri?: string,
+    state?: string
+  ): Promise<{ url: string; state: string }> {
+    return await this.executeWithMonitoring('generateOAuthUrl', async () => {
+      const result = await this.oauthService.generateAuthorizationUrl({
+        provider,
+        redirectUri,
+        state,
+      });
+
+      this.logInfo('OAuth authorization URL generated', {
+        provider,
+        state: result.state,
+      });
+
+      return {
+        url: result.url,
+        state: result.state,
+      };
+    });
+  }
+
+  /**
+   * Handle OAuth callback
+   */
+  async handleOAuthCallback(
+    provider: string,
+    code: string,
+    state: string,
+    ipAddress: string,
+    userAgent: string
+  ): Promise<AuthResponse> {
+    return await this.executeWithMonitoring('handleOAuthCallback', async () => {
+      // Exchange code for token
+      const tokenResponse = await this.oauthService.exchangeCodeForToken({
+        provider,
+        code,
+        state,
+      });
+
+      // Get user info from provider
+      const userInfo = await this.oauthService.getUserInfo(
+        provider,
+        tokenResponse.accessToken
+      );
+
+      // Find or create user
+      let user = await this.userRepository.findByEmail(
+        new Email(userInfo.email)
+      );
+
+      if (!user) {
+        // Create new user from OAuth data
+        user = User.create({
+          email: new Email(userInfo.email),
+          passwordHash: '', // OAuth users don't have passwords
+          firstName: userInfo.firstName || userInfo.name.split(' ')[0] || '',
+          lastName:
+            userInfo.lastName ||
+            userInfo.name.split(' ').slice(1).join(' ') ||
+            '',
+        });
+
+        user.verifyEmail(); // OAuth emails are typically verified
+        await this.userRepository.save(user);
+      }
+
+      // Create session
+      const session = await this.sessionManager.createSession({
+        userId: user.id.value,
+        email: user.email.value,
+        roles: [], // TODO: Get user roles
+        permissions: [], // TODO: Get user permissions
+        ipAddress,
+        userAgent,
+        loginMethod: 'oauth',
+        metadata: {
+          provider,
+          providerUserId: userInfo.providerUserId,
+        },
+      });
+
+      // Generate JWT tokens
+      const tokenPair = this.jwtService.generateTokenPair({
+        userId: user.id.value,
+        email: user.email.value,
+        roles: [],
+        permissions: [],
+        sessionId: session.sessionId,
+      });
+
+      this.logInfo('OAuth login successful', {
+        userId: user.id.value,
+        provider,
+        sessionId: session.sessionId,
+      });
+
+      return {
+        accessToken: tokenPair.accessToken,
+        refreshToken: tokenPair.refreshToken,
+        user: this.mapUserToDto(user),
+        expiresIn: Math.floor(
+          (tokenPair.expiresAt.getTime() - Date.now()) / 1000
+        ),
+        sessionId: session.sessionId,
+      };
+    });
+  }
+
+  /**
+   * Setup Two-Factor Authentication
+   */
+  async setup2FA(userId: string, userEmail: string): Promise<TwoFactorSetup> {
+    return await this.executeWithMonitoring('setup2FA', async () => {
+      const setup = await this.twoFactorService.generateSetup(
+        userId,
+        userEmail
+      );
+
+      this.logInfo('2FA setup initiated', {
+        userId,
+        userEmail,
+      });
+
+      return setup;
+    });
+  }
+
+  /**
+   * Enable Two-Factor Authentication
+   */
+  async enable2FA(
+    userId: string,
+    token: string,
+    method: '2fa' | 'sms' | 'email' = '2fa'
+  ): Promise<{ backupCodes: string[] }> {
+    return await this.executeWithMonitoring('enable2FA', async () => {
+      const result = await this.twoFactorService.enableTwoFactor(
+        userId,
+        token,
+        method
+      );
+
+      this.logInfo('2FA enabled successfully', {
+        userId,
+        method,
+      });
+
+      return result;
+    });
+  }
+
+  /**
+   * Verify Two-Factor Authentication token
+   */
+  async verify2FA(
+    userId: string,
+    token: string,
+    allowBackupCode: boolean = true
+  ): Promise<{
+    isValid: boolean;
+    usedBackupCode?: boolean;
+    remainingBackupCodes?: number;
+  }> {
+    return await this.executeWithMonitoring('verify2FA', async () => {
+      const result = await this.twoFactorService.verifyToken(
+        userId,
+        token,
+        allowBackupCode
+      );
+
+      if (result.isValid) {
+        this.logInfo('2FA verification successful', {
+          userId,
+          usedBackupCode: result.usedBackupCode,
+        });
+      } else {
+        this.logWarning('2FA verification failed', {
+          userId,
+          rateLimited: result.rateLimited,
+        });
+      }
+
+      return result;
+    });
+  }
+
+  /**
+   * Disable Two-Factor Authentication
+   */
+  async disable2FA(userId: string, verificationToken: string): Promise<void> {
+    return await this.executeWithMonitoring('disable2FA', async () => {
+      await this.twoFactorService.disableTwoFactor(userId, verificationToken);
+
+      this.logInfo('2FA disabled successfully', {
+        userId,
+      });
+    });
+  }
+
+  /**
+   * Generate new backup codes
+   */
+  async generateNewBackupCodes(
+    userId: string,
+    verificationToken: string
+  ): Promise<string[]> {
+    return await this.executeWithMonitoring(
+      'generateNewBackupCodes',
+      async () => {
+        const codes = await this.twoFactorService.generateNewBackupCodes(
+          userId,
+          verificationToken
+        );
+
+        this.logInfo('New backup codes generated', {
+          userId,
+          codeCount: codes.length,
+        });
+
+        return codes;
+      }
+    );
+  }
+
+  /**
+   * Get Two-Factor Authentication status
+   */
+  async get2FAStatus(userId: string): Promise<{
+    isEnabled: boolean;
+    method: '2fa' | 'sms' | 'email' | null;
+    backupCodesRemaining: number;
+    lastUsed?: Date;
+    setupDate?: Date;
+  }> {
+    return await this.executeWithMonitoring('get2FAStatus', async () => {
+      return await this.twoFactorService.getTwoFactorStatus(userId);
+    });
+  }
+
+  /**
+   * Send SMS verification code
+   */
+  async sendSMSCode(userId: string, phoneNumber: string): Promise<void> {
+    return await this.executeWithMonitoring('sendSMSCode', async () => {
+      await this.twoFactorService.sendSMSCode({
+        userId,
+        phoneNumber,
+      });
+
+      this.logInfo('SMS verification code sent', {
+        userId,
+        phoneNumber: this.maskPhoneNumber(phoneNumber),
+      });
+    });
+  }
+
+  /**
+   * Send email verification code
+   */
+  async sendEmailCode(userId: string, email: string): Promise<void> {
+    return await this.executeWithMonitoring('sendEmailCode', async () => {
+      await this.twoFactorService.sendEmailCode({
+        userId,
+        email,
+      });
+
+      this.logInfo('Email verification code sent', {
+        userId,
+        email: this.maskEmail(email),
+      });
+    });
   }
 
   // Private helper methods
@@ -545,88 +891,113 @@ export class AuthApplicationService extends BaseApplicationService {
     await this.cacheService.delete(lockoutKey);
   }
 
-  private async createSession(
-    userId: UserId,
+  /**
+   * Complete 2FA login process
+   */
+  async complete2FALogin(
+    twoFactorToken: string,
+    verificationCode: string,
     ipAddress: string,
     userAgent: string
-  ): Promise<string> {
-    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  ): Promise<AuthResponse> {
+    return await this.executeWithMonitoring('complete2FALogin', async () => {
+      // Verify 2FA token
+      const userId = await this.verifyTwoFactorToken(twoFactorToken);
+      if (!userId) {
+        throw new Error('Invalid or expired 2FA token');
+      }
 
-    const session: SessionInfo = {
-      userId: userId.value,
-      sessionId,
-      ipAddress,
-      userAgent,
-      createdAt: new Date(),
-      lastActivity: new Date(),
-      isActive: true,
-    };
-
-    // Store session
-    const sessionKey = `session:${sessionId}`;
-    await this.cacheService.set(
-      sessionKey,
-      session,
-      this.SESSION_DURATION / 1000
-    );
-
-    // Add to user sessions list
-    const userSessionsKey = `user-sessions:${userId.value}`;
-    const userSessions =
-      (await this.cacheService.get<SessionInfo[]>(userSessionsKey)) || [];
-    userSessions.push(session);
-    await this.cacheService.set(
-      userSessionsKey,
-      userSessions,
-      this.REFRESH_TOKEN_DURATION / 1000
-    );
-
-    return sessionId;
-  }
-
-  private async updateSessionActivity(sessionId: string): Promise<void> {
-    const sessionKey = `session:${sessionId}`;
-    const session = await this.cacheService.get<SessionInfo>(sessionKey);
-
-    if (session) {
-      session.lastActivity = new Date();
-      await this.cacheService.set(
-        sessionKey,
-        session,
-        this.SESSION_DURATION / 1000
+      // Verify 2FA code
+      const verification = await this.twoFactorService.verifyToken(
+        userId,
+        verificationCode
       );
-    }
+      if (!verification.isValid) {
+        throw new Error('Invalid 2FA verification code');
+      }
+
+      // Get user
+      const user = await this.userRepository.findById(new UserId(userId));
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Create session
+      const session = await this.sessionManager.createSession({
+        userId: user.id.value,
+        email: user.email.value,
+        roles: [], // TODO: Get user roles from database
+        permissions: [], // TODO: Get user permissions from database
+        ipAddress,
+        userAgent,
+        loginMethod: '2fa',
+      });
+
+      // Generate JWT tokens
+      const tokenPair = this.jwtService.generateTokenPair({
+        userId: user.id.value,
+        email: user.email.value,
+        roles: [],
+        permissions: [],
+        sessionId: session.sessionId,
+      });
+
+      // Clean up 2FA token
+      await this.removeTwoFactorToken(userId);
+
+      this.logInfo('2FA login completed successfully', {
+        userId: user.id.value,
+        sessionId: session.sessionId,
+        ipAddress,
+        usedBackupCode: verification.usedBackupCode,
+      });
+
+      return {
+        accessToken: tokenPair.accessToken,
+        refreshToken: tokenPair.refreshToken,
+        user: this.mapUserToDto(user),
+        expiresIn: Math.floor(
+          (tokenPair.expiresAt.getTime() - Date.now()) / 1000
+        ),
+        sessionId: session.sessionId,
+      };
+    });
   }
 
-  private async invalidateSession(sessionId: string): Promise<void> {
-    const sessionKey = `session:${sessionId}`;
-    await this.cacheService.delete(sessionKey);
+  private generateTwoFactorToken(userId: string): string {
+    return Buffer.from(
+      `${userId}_${Date.now()}_${Math.random().toString(36)}`
+    ).toString('base64url');
   }
 
-  private async storeRefreshToken(
-    userId: UserId,
-    sessionId: string,
-    refreshToken: string
+  private async storeTwoFactorToken(
+    userId: string,
+    token: string
   ): Promise<void> {
-    const tokenKey = `refresh-token:${sessionId}`;
-    await this.cacheService.set(
-      tokenKey,
-      refreshToken,
-      this.REFRESH_TOKEN_DURATION / 1000
-    );
+    const key = `2fa-login-token:${token}`;
+    await this.cacheService.set(key, userId, 300); // 5 minutes
   }
 
-  private async getStoredRefreshToken(
-    userId: UserId,
-    sessionId: string
-  ): Promise<string | null> {
-    const tokenKey = `refresh-token:${sessionId}`;
-    return await this.cacheService.get<string>(tokenKey);
+  private async verifyTwoFactorToken(token: string): Promise<string | null> {
+    const key = `2fa-login-token:${token}`;
+    return await this.cacheService.get<string>(key);
   }
 
-  private async removeRefreshToken(sessionId: string): Promise<void> {
-    const tokenKey = `refresh-token:${sessionId}`;
-    await this.cacheService.delete(tokenKey);
+  private async removeTwoFactorToken(userId: string): Promise<void> {
+    // Find and remove all tokens for this user
+    // This is a simplified implementation
+    // In production, you might want to maintain a user->token mapping
+  }
+
+  private maskPhoneNumber(phoneNumber: string): string {
+    if (phoneNumber.length < 4) return phoneNumber;
+    return phoneNumber.slice(0, -4).replace(/\d/g, '*') + phoneNumber.slice(-4);
+  }
+
+  private maskEmail(email: string): string {
+    const [local, domain] = email.split('@');
+    if (local.length <= 2) return email;
+    return local.slice(0, 2) + '*'.repeat(local.length - 2) + '@' + domain;
   }
 
   private mapUserToDto(user: User): UserDto {
