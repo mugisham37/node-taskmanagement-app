@@ -500,6 +500,28 @@ export class MetricsService {
   }
 
   /**
+   * Record a generic metric (for backward compatibility)
+   */
+  async recordMetric(
+    name: string,
+    value: number,
+    labels?: Record<string, string>
+  ): Promise<void> {
+    // Try to determine metric type based on name patterns
+    if (name.includes('_total') || name.includes('_count')) {
+      this.incrementCounter(name, labels, value);
+    } else if (
+      name.includes('_duration') ||
+      name.includes('_time') ||
+      name.includes('_latency')
+    ) {
+      this.observeHistogram(name, value, labels);
+    } else {
+      this.setGauge(name, value, labels);
+    }
+  }
+
+  /**
    * Get metrics in Prometheus format
    */
   async getMetrics(): Promise<string> {

@@ -8,6 +8,21 @@ import {
   HealthCheckFunction,
 } from './health-service';
 import { LoggingService, LoggingConfig, LogContext } from './logging-service';
+import {
+  DistributedTracingService,
+  TraceContext,
+  SpanOptions,
+} from './distributed-tracing-service';
+import {
+  CorrelationIdService,
+  CorrelationContext,
+} from './correlation-id-service';
+import {
+  AlertingService,
+  AlertingConfig,
+  Alert,
+  AlertRule,
+} from './alerting-service';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
 
 export interface SystemHealthStatus {
@@ -77,6 +92,8 @@ export interface MonitoringConfig {
   };
   enableDistributedTracing: boolean;
   enableBusinessMetrics: boolean;
+  enableCorrelationIds: boolean;
+  enableAlerting: boolean;
   retentionPeriod: number; // days
 }
 
@@ -91,12 +108,16 @@ export class ComprehensiveMonitoring {
   private metricsService: MetricsService;
   private healthService: HealthService;
   private loggingService: LoggingService;
+  private tracingService: DistributedTracingService;
+  private correlationService: CorrelationIdService;
+  private alertingService: AlertingService;
 
   constructor(
     private readonly config: MonitoringConfig,
     private readonly loggingConfig: LoggingConfig,
     private readonly metricsConfig: MetricsConfig,
     private readonly healthConfig: HealthCheckConfig,
+    private readonly alertingConfig: AlertingConfig,
     private readonly appVersion: string = '1.0.0',
     private readonly environment: string = 'development'
   ) {
@@ -110,14 +131,58 @@ export class ComprehensiveMonitoring {
     );
     this.apiMonitor = new APIPerformanceMonitor();
 
+    // Initialize new services
+    this.correlationService = new CorrelationIdService();
+    this.tracingService = new DistributedTracingService(
+      this.loggingService,
+      this.metricsService
+    );
+    this.alertingService = new AlertingService(
+      alertingConfig,
+      this.loggingService,
+      this.metricsService
+    );
+
+    this.setupEventHandlers();
     this.startMonitoring();
+  }
+
+  /**
+   * Setup event handlers for integrated services
+   */
+  private setupEventHandlers(): void {
+    // Listen to alerting events
+    this.alertingService.on('alert', (alert: Alert) => {
+      this.loggingService.warn('Alert triggered', {
+        alertId: alert.id,
+        severity: alert.severity,
+        message: alert.message,
+        correlationId: this.getCurrentCorrelationId(),
+      });
+
+      // Record alert in metrics
+      this.metricsService.incrementCounter('monitoring_alerts_total', {
+        severity: alert.severity,
+        rule: alert.ruleName,
+      });
+    });
+
+    this.alertingService.on('alertResolved', (alert: Alert) => {
+      this.loggingService.info('Alert resolved', {
+        alertId: alert.id,
+        severity: alert.severity,
+        correlationId: this.getCurrentCorrelationId(),
+      });
+    });
   }
 
   /**
    * Start comprehensive monitoring
    */
   startMonitoring(): void {
-    this.loggingService.info('Starting comprehensive monitoring system');
+    this.loggingService.info('Starting comprehensive monitoring system', {
+      correlationId: this.getCurrentCorrelationId(),
+    });
 
     // Register default health checks
     this.registerDefaultHealthChecks();
@@ -127,6 +192,7 @@ export class ComprehensiveMonitoring {
       await this.performHealthChecks();
       await this.collectSystemMetrics();
       await this.checkAlertThresholds();
+      await this.updateAlertingMetrics();
     }, this.config.healthCheckInterval);
   }
 
@@ -206,7 +272,7 @@ export class ComprehensiveMonitoring {
     value: number,
     labels?: Record<string, string>
   ): void {
-    this.metricsService.recordHistogram(name, value, labels);
+    this.metricsService.observeHistogram(name, value, labels);
   }
 
   /**
@@ -237,6 +303,115 @@ export class ComprehensiveMonitoring {
    */
   async getSystemHealth(): Promise<SystemHealth> {
     return this.healthService.checkHealth();
+  }
+
+  // ===== DISTRIBUTED TRACING METHODS =====
+
+  /**
+   * Start a new trace span
+   */
+  startSpan(options: SpanOptions): TraceContext {
+    return this.tracingService.startSpan(options);
+  }
+
+  /**
+   * Finish a trace span
+   */
+  finishSpan(span: TraceContext, error?: Error): void {
+    this.tracingService.finishSpan(span, error);
+  }
+
+  /**
+   * Run function with trace span
+   */
+  async runWithSpan<T>(
+    options: SpanOptions,
+    fn: (span: TraceContext) => Promise<T>
+  ): Promise<T> {
+    return this.tracingService.runWithSpan(options, fn);
+  }
+
+  /**
+   * Get current trace span
+   */
+  getCurrentSpan(): TraceContext | undefined {
+    return this.tracingService.getCurrentSpan();
+  }
+
+  /**
+   * Get trace statistics
+   */
+  getTraceStatistics() {
+    return this.tracingService.getTraceStatistics();
+  }
+
+  // ===== CORRELATION ID METHODS =====
+
+  /**
+   * Get current correlation context
+   */
+  getCurrentCorrelationContext(): CorrelationContext | undefined {
+    return this.correlationService.getCurrentContext();
+  }
+
+  /**
+   * Get current correlation ID
+   */
+  getCurrentCorrelationId(): string | undefined {
+    return this.correlationService.getCurrentCorrelationId();
+  }
+
+  /**
+   * Get correlation middleware
+   */
+  getCorrelationMiddleware() {
+    return this.correlationService.middleware();
+  }
+
+  /**
+   * Get correlation headers for outgoing requests
+   */
+  getCorrelationHeaders(): Record<string, string> {
+    return this.correlationService.getCorrelationHeaders();
+  }
+
+  // ===== ALERTING METHODS =====
+
+  /**
+   * Add alert rule
+   */
+  addAlertRule(
+    rule: Omit<AlertRule, 'id' | 'createdAt' | 'updatedAt'>
+  ): AlertRule {
+    return this.alertingService.addRule(rule);
+  }
+
+  /**
+   * Get active alerts
+   */
+  getActiveAlerts(): Alert[] {
+    return this.alertingService.getActiveAlerts();
+  }
+
+  /**
+   * Resolve alert
+   */
+  resolveAlert(alertId: string, resolvedBy?: string): boolean {
+    return this.alertingService.resolveAlert(alertId, resolvedBy);
+  }
+
+  /**
+   * Record metric value for alerting
+   */
+  recordMetricForAlerting(metric: string, value: number): void {
+    this.alertingService.recordMetricValue(metric, value);
+  }
+
+  /**
+   * Get alert statistics
+   */
+  getAlertStatistics() {
+    return this.alertingService.getAlertStatistics();
   }
 
   // ===== COMPREHENSIVE MONITORING METHODS =====
@@ -455,5 +630,79 @@ export class ComprehensiveMonitoring {
         'system-monitor'
       );
     }
+
+    // Check response time
+    if (
+      this.systemMetrics.application.averageResponseTime >
+      alertThresholds.responseTime
+    ) {
+      this.createAlert(
+        'PERFORMANCE',
+        'HIGH',
+        `High average response time: ${this.systemMetrics.application.averageResponseTime.toFixed(2)}ms`,
+        'system-monitor'
+      );
+    }
+
+    // Check error rate
+    if (this.systemMetrics.application.errorRate > alertThresholds.errorRate) {
+      this.createAlert(
+        'ERROR',
+        'CRITICAL',
+        `High error rate: ${this.systemMetrics.application.errorRate.toFixed(2)}%`,
+        'system-monitor'
+      );
+    }
+  }
+
+  /**
+   * Update alerting metrics
+   */
+  private async updateAlertingMetrics(): Promise<void> {
+    // Record system metrics for alerting
+    if (this.systemMetrics) {
+      this.alertingService.recordMetricValue(
+        'memory_usage_percentage',
+        this.systemMetrics.memory.percentage
+      );
+      this.alertingService.recordMetricValue(
+        'cpu_usage',
+        this.systemMetrics.cpu.usage
+      );
+      this.alertingService.recordMetricValue(
+        'response_time_ms',
+        this.systemMetrics.application.averageResponseTime
+      );
+      this.alertingService.recordMetricValue(
+        'error_rate_percentage',
+        this.systemMetrics.application.errorRate
+      );
+      this.alertingService.recordMetricValue(
+        'requests_per_second',
+        this.systemMetrics.application.requestsPerSecond
+      );
+    }
+
+    // Record health check metrics
+    for (const [name, status] of this.healthChecks) {
+      const healthValue =
+        status.status === 'up' ? 1 : status.status === 'degraded' ? 0.5 : 0;
+      this.alertingService.recordMetricValue(
+        `health_check_${name}`,
+        healthValue
+      );
+    }
+
+    // Record alert statistics
+    const alertStats = this.alertingService.getAlertStatistics();
+    this.metricsService.setGauge('alerts_active_total', alertStats.active);
+    this.metricsService.setGauge('alerts_resolved_total', alertStats.resolved);
+
+    // Record alerts by severity
+    Object.entries(alertStats.bySeverity).forEach(([severity, count]) => {
+      this.metricsService.setGauge('alerts_by_severity', count, {
+        severity: severity.toLowerCase(),
+      });
+    });
   }
 }
