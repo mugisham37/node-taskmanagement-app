@@ -7,6 +7,7 @@ import { projectRoutes } from './project-routes';
 import { workspaceRoutes } from './workspace-routes';
 import { userRoutes } from './user-routes';
 import { healthRoutes } from './health-routes';
+import { setupMigrationRoutes } from '../../infrastructure/migration/migration-routes';
 
 /**
  * Setup all routes for the Fastify application using dependency injection
@@ -64,6 +65,14 @@ export async function setupRoutes(
       },
       { prefix: `${apiPrefix}/users` }
     );
+
+    // Migration routes
+    await fastify.register(
+      async fastify => {
+        await setupMigrationRoutes(fastify, container);
+      },
+      { prefix: `${apiPrefix}` }
+    );
   });
 
   // Add API root endpoint
@@ -78,6 +87,7 @@ export async function setupRoutes(
         projects: `${apiPrefix}/projects`,
         workspaces: `${apiPrefix}/workspaces`,
         users: `${apiPrefix}/users`,
+        migration: `${apiPrefix}/migration`,
         health: '/health',
         metrics: '/metrics',
       },

@@ -71,6 +71,9 @@ import { AuthController } from '../../presentation/controllers/auth-controller';
 import { EventBus } from '../../application/events/event-bus';
 import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
 
+// Migration Services
+import { registerMigrationServices } from '../../infrastructure/migration/migration-service-registration';
+
 /**
  * Register all services with the container
  */
@@ -101,6 +104,9 @@ export function registerServices(container: Container): void {
 
   // Register event handling
   registerEventHandling(container);
+
+  // Register migration services
+  registerMigrationServices(container);
 
   // Validate all dependencies
   container.validateDependencies();
