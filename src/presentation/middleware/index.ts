@@ -9,3 +9,7 @@ export { setupMiddleware } from './setup';
 // Enhanced middleware from migration
 export * from './enhanced-rate-limiter-middleware';
 export * from './comprehensive-security-middleware';
+
+// Phase 7 comprehensive middleware
+export * from './comprehensive-validation-middleware';
+export * from './standardized-response-middleware';

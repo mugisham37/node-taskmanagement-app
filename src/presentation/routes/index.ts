@@ -7,6 +7,15 @@ import { projectRoutes } from './project-routes';
 import { workspaceRoutes } from './workspace-routes';
 import { userRoutes } from './user-routes';
 import { healthRoutes } from './health-routes';
+import { notificationRoutes } from './notification-routes';
+import { webhookRoutes } from './webhook-routes';
+import { analyticsRoutes } from './analytics-routes';
+import { calendarRoutes } from './calendar-routes';
+import { fileManagementRoutes } from './file-management-routes';
+import { searchRoutes } from './search-routes';
+import { collaborationRoutes } from './collaboration-routes';
+import { monitoringRoutes } from './monitoring-routes';
+import { bulkOperationsRoutes } from './bulk-operations-routes';
 import { setupMigrationRoutes } from '../../infrastructure/migration/migration-routes';
 
 /**
@@ -66,6 +75,78 @@ export async function setupRoutes(
       { prefix: `${apiPrefix}/users` }
     );
 
+    // Notification routes
+    await fastify.register(
+      async fastify => {
+        await notificationRoutes(fastify, container);
+      },
+      { prefix: `${apiPrefix}/notifications` }
+    );
+
+    // Webhook routes
+    await fastify.register(
+      async fastify => {
+        await webhookRoutes(fastify, container);
+      },
+      { prefix: `${apiPrefix}/webhooks` }
+    );
+
+    // Analytics routes
+    await fastify.register(
+      async fastify => {
+        await analyticsRoutes(fastify, container);
+      },
+      { prefix: `${apiPrefix}/analytics` }
+    );
+
+    // Calendar routes
+    await fastify.register(
+      async fastify => {
+        await calendarRoutes(fastify, container);
+      },
+      { prefix: `${apiPrefix}/calendar` }
+    );
+
+    // File management routes
+    await fastify.register(
+      async fastify => {
+        await fileManagementRoutes(fastify, container);
+      },
+      { prefix: `${apiPrefix}/files` }
+    );
+
+    // Search routes
+    await fastify.register(
+      async fastify => {
+        await searchRoutes(fastify, container);
+      },
+      { prefix: `${apiPrefix}/search` }
+    );
+
+    // Collaboration routes
+    await fastify.register(
+      async fastify => {
+        await collaborationRoutes(fastify, container);
+      },
+      { prefix: `${apiPrefix}/collaboration` }
+    );
+
+    // Monitoring routes
+    await fastify.register(
+      async fastify => {
+        await monitoringRoutes(fastify, container);
+      },
+      { prefix: `${apiPrefix}/monitoring` }
+    );
+
+    // Bulk operations routes
+    await fastify.register(
+      async fastify => {
+        await bulkOperationsRoutes(fastify, container);
+      },
+      { prefix: `${apiPrefix}/bulk` }
+    );
+
     // Migration routes
     await fastify.register(
       async fastify => {
@@ -87,6 +168,15 @@ export async function setupRoutes(
         projects: `${apiPrefix}/projects`,
         workspaces: `${apiPrefix}/workspaces`,
         users: `${apiPrefix}/users`,
+        notifications: `${apiPrefix}/notifications`,
+        webhooks: `${apiPrefix}/webhooks`,
+        analytics: `${apiPrefix}/analytics`,
+        calendar: `${apiPrefix}/calendar`,
+        files: `${apiPrefix}/files`,
+        search: `${apiPrefix}/search`,
+        collaboration: `${apiPrefix}/collaboration`,
+        monitoring: `${apiPrefix}/monitoring`,
+        bulk: `${apiPrefix}/bulk`,
         migration: `${apiPrefix}/migration`,
         health: '/health',
         metrics: '/metrics',
@@ -132,3 +222,12 @@ export * from './project-routes';
 export * from './workspace-routes';
 export * from './user-routes';
 export * from './health-routes';
+export * from './notification-routes';
+export * from './webhook-routes';
+export * from './analytics-routes';
+export * from './calendar-routes';
+export * from './file-management-routes';
+export * from './search-routes';
+export * from './collaboration-routes';
+export * from './monitoring-routes';
+export * from './bulk-operations-routes';
