@@ -2,17 +2,11 @@
  * User-related constants and enums
  */
 
-export enum UserStatus {
-  ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE',
-  SUSPENDED = 'SUSPENDED',
-  PENDING_VERIFICATION = 'PENDING_VERIFICATION',
-}
+import { Status, UserRole } from '../enums/common.enums';
 
-export enum UserRole {
-  ADMIN = 'ADMIN',
-  USER = 'USER',
-}
+// Re-export enums for convenience
+export const UserStatus = Status;
+export { UserRole };
 
 /**
  * User validation constants
@@ -40,11 +34,13 @@ export const USER_BUSINESS_RULES = {
 /**
  * User status transitions
  */
-export const USER_STATUS_TRANSITIONS: Record<UserStatus, UserStatus[]> = {
+export const USER_STATUS_TRANSITIONS: Record<Status, Status[]> = {
   [UserStatus.PENDING_VERIFICATION]: [UserStatus.ACTIVE, UserStatus.INACTIVE],
   [UserStatus.ACTIVE]: [UserStatus.INACTIVE, UserStatus.SUSPENDED],
   [UserStatus.INACTIVE]: [UserStatus.ACTIVE],
   [UserStatus.SUSPENDED]: [UserStatus.ACTIVE, UserStatus.INACTIVE],
+  [UserStatus.PENDING]: [UserStatus.ACTIVE, UserStatus.INACTIVE],
+  [UserStatus.DELETED]: [],
 };
 
 /**

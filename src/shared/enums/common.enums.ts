@@ -46,56 +46,60 @@ export enum EventType {
  * Priority levels
  */
 export enum Priority {
-  LOW = 'low',
-  MEDIUM = 'medium',
-  HIGH = 'high',
-  CRITICAL = 'critical',
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  CRITICAL = 'CRITICAL',
+  URGENT = 'URGENT',
 }
 
 /**
  * Status types
  */
 export enum Status {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-  PENDING = 'pending',
-  SUSPENDED = 'suspended',
-  DELETED = 'deleted',
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  PENDING = 'PENDING',
+  SUSPENDED = 'SUSPENDED',
+  DELETED = 'DELETED',
+  PENDING_VERIFICATION = 'PENDING_VERIFICATION',
 }
 
 /**
  * Task status enumeration
  */
 export enum TaskStatus {
-  TODO = 'todo',
-  IN_PROGRESS = 'in_progress',
-  IN_REVIEW = 'in_review',
-  COMPLETED = 'completed',
-  CANCELLED = 'cancelled',
-  ON_HOLD = 'on_hold',
+  TODO = 'TODO',
+  IN_PROGRESS = 'IN_PROGRESS',
+  IN_REVIEW = 'IN_REVIEW',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+  ON_HOLD = 'ON_HOLD',
 }
 
 /**
  * Project status enumeration
  */
 export enum ProjectStatus {
-  PLANNING = 'planning',
-  ACTIVE = 'active',
-  ON_HOLD = 'on_hold',
-  COMPLETED = 'completed',
-  CANCELLED = 'cancelled',
-  ARCHIVED = 'archived',
+  PLANNING = 'PLANNING',
+  ACTIVE = 'ACTIVE',
+  ON_HOLD = 'ON_HOLD',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+  ARCHIVED = 'ARCHIVED',
 }
 
 /**
  * User role enumeration
  */
 export enum UserRole {
-  ADMIN = 'admin',
-  MANAGER = 'manager',
-  MEMBER = 'member',
-  VIEWER = 'viewer',
-  GUEST = 'guest',
+  ADMIN = 'ADMIN',
+  MANAGER = 'MANAGER',
+  MEMBER = 'MEMBER',
+  VIEWER = 'VIEWER',
+  GUEST = 'GUEST',
+  OWNER = 'OWNER',
+  USER = 'USER',
 }
 
 /**

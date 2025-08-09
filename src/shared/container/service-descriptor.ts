@@ -1,5 +1,8 @@
 import { ServiceLifetime } from './types';
 
+// Re-export ServiceLifetime for external use
+export { ServiceLifetime };
+
 /**
  * Service descriptor containing registration information
  */

@@ -55,26 +55,7 @@ export interface QueryOptions {
 }
 
 // Enhanced types for better type safety
-export interface DomainEvent {
-  readonly eventId: string;
-  readonly occurredOn: Date;
-  readonly eventVersion: number;
-}
-
-export interface IntegrationEvent extends DomainEvent {
-  readonly correlationId: string;
-  readonly causationId: string;
-}
-
-export interface EventMetadata {
-  eventId: string;
-  occurredOn: Date;
-  eventVersion: number;
-  correlationId?: string;
-  causationId?: string;
-  userId?: string;
-  sessionId?: string;
-}
+// Note: DomainEvent, IntegrationEvent, and EventMetadata are defined in event.interface.ts
 
 // SQL types for Drizzle ORM
 export type OptionalSQL = import('drizzle-orm').SQL | null | undefined;
@@ -100,11 +81,7 @@ export interface ErrorDetails {
   value?: any;
 }
 
-export interface ValidationError {
-  field: string;
-  message: string;
-  value?: any;
-}
+// Note: ValidationError is defined in validator.interface.ts
 
 // Request/Response types
 export interface RequestContext {
@@ -124,15 +101,7 @@ export interface ServiceResponse<T = any> {
 }
 
 // Configuration types
-export interface DatabaseConfig {
-  host: string;
-  port: number;
-  database: string;
-  username: string;
-  password: string;
-  ssl?: boolean;
-  poolSize?: number;
-}
+// Note: DatabaseConfig is defined in config/app-config.ts
 
 export interface CacheConfig {
   type: 'memory' | 'redis' | 'hybrid';
@@ -141,12 +110,7 @@ export interface CacheConfig {
   redisUrl?: string;
 }
 
-export interface LoggerConfig {
-  level: 'debug' | 'info' | 'warn' | 'error';
-  format: 'json' | 'text';
-  outputs: ('console' | 'file')[];
-  filePath?: string;
-}
+// Note: LoggerConfig is defined in logger.interface.ts
 
 // Audit types
 export interface AuditLog {

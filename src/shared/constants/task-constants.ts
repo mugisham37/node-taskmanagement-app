@@ -2,20 +2,11 @@
  * Task-related constants and enums
  */
 
-export enum TaskStatus {
-  TODO = 'TODO',
-  IN_PROGRESS = 'IN_PROGRESS',
-  IN_REVIEW = 'IN_REVIEW',
-  COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED',
-}
+import { TaskStatus, Priority } from '../enums/common.enums';
 
-export enum TaskPriority {
-  LOW = 'LOW',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
-  URGENT = 'URGENT',
-}
+// Re-export enums for convenience
+export { TaskStatus };
+export const TaskPriority = Priority;
 
 /**
  * Task status transitions - defines which status transitions are allowed
@@ -26,6 +17,7 @@ export const TASK_STATUS_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
     TaskStatus.IN_REVIEW,
     TaskStatus.TODO,
     TaskStatus.CANCELLED,
+    TaskStatus.ON_HOLD,
   ],
   [TaskStatus.IN_REVIEW]: [
     TaskStatus.COMPLETED,
@@ -34,16 +26,18 @@ export const TASK_STATUS_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   ],
   [TaskStatus.COMPLETED]: [], // Completed tasks cannot transition to other states
   [TaskStatus.CANCELLED]: [TaskStatus.TODO], // Cancelled tasks can be reopened
+  [TaskStatus.ON_HOLD]: [TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED],
 };
 
 /**
  * Task priority weights for sorting
  */
-export const TASK_PRIORITY_WEIGHTS: Record<TaskPriority, number> = {
+export const TASK_PRIORITY_WEIGHTS: Record<Priority, number> = {
   [TaskPriority.LOW]: 1,
   [TaskPriority.MEDIUM]: 2,
   [TaskPriority.HIGH]: 3,
   [TaskPriority.URGENT]: 4,
+  [TaskPriority.CRITICAL]: 5,
 };
 
 /**

@@ -2,7 +2,8 @@
  * Logger interfaces for consistent logging across the application
  */
 
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+import { LogLevel } from '../enums/common.enums';
+export { LogLevel };
 
 export interface LogContext {
   requestId?: string;

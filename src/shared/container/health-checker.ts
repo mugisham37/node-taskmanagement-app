@@ -62,8 +62,8 @@ export class ContainerHealthChecker {
       const service = this.container.resolve(token);
 
       // Check if service has health check method
-      if (service && typeof service.healthCheck === 'function') {
-        const isHealthy = await service.healthCheck();
+      if (service && typeof (service as any).healthCheck === 'function') {
+        const isHealthy = await (service as any).healthCheck();
         return {
           token,
           status: isHealthy ? 'healthy' : 'unhealthy',

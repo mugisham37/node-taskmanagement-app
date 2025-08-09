@@ -2,20 +2,11 @@
  * Project-related constants and enums
  */
 
-export enum ProjectStatus {
-  ACTIVE = 'ACTIVE',
-  ON_HOLD = 'ON_HOLD',
-  COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED',
-  ARCHIVED = 'ARCHIVED',
-}
+import { ProjectStatus, UserRole } from '../enums/common.enums';
 
-export enum ProjectRole {
-  OWNER = 'OWNER',
-  MANAGER = 'MANAGER',
-  MEMBER = 'MEMBER',
-  VIEWER = 'VIEWER',
-}
+// Re-export enums for convenience
+export { ProjectStatus };
+export const ProjectRole = UserRole;
 
 /**
  * Project status transitions
@@ -24,6 +15,7 @@ export const PROJECT_STATUS_TRANSITIONS: Record<
   ProjectStatus,
   ProjectStatus[]
 > = {
+  [ProjectStatus.PLANNING]: [ProjectStatus.ACTIVE, ProjectStatus.CANCELLED],
   [ProjectStatus.ACTIVE]: [
     ProjectStatus.ON_HOLD,
     ProjectStatus.COMPLETED,

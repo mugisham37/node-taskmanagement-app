@@ -2,26 +2,16 @@
  * Workspace-related constants and enums
  */
 
-export enum WorkspaceStatus {
-  ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE',
-  SUSPENDED = 'SUSPENDED',
-}
+import { Status, UserRole } from '../enums/common.enums';
 
-export enum WorkspaceRole {
-  OWNER = 'OWNER',
-  ADMIN = 'ADMIN',
-  MEMBER = 'MEMBER',
-  GUEST = 'GUEST',
-}
+// Re-export enums for convenience
+export const WorkspaceStatus = Status;
+export const WorkspaceRole = UserRole;
 
 /**
  * Workspace status transitions
  */
-export const WORKSPACE_STATUS_TRANSITIONS: Record<
-  WorkspaceStatus,
-  WorkspaceStatus[]
-> = {
+export const WORKSPACE_STATUS_TRANSITIONS: Record<Status, Status[]> = {
   [WorkspaceStatus.ACTIVE]: [
     WorkspaceStatus.INACTIVE,
     WorkspaceStatus.SUSPENDED,
@@ -31,6 +21,12 @@ export const WORKSPACE_STATUS_TRANSITIONS: Record<
     WorkspaceStatus.ACTIVE,
     WorkspaceStatus.INACTIVE,
   ],
+  [WorkspaceStatus.PENDING]: [WorkspaceStatus.ACTIVE],
+  [WorkspaceStatus.PENDING_VERIFICATION]: [
+    WorkspaceStatus.ACTIVE,
+    WorkspaceStatus.INACTIVE,
+  ],
+  [WorkspaceStatus.DELETED]: [],
 };
 
 /**

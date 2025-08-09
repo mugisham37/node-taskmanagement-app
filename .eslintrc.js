@@ -16,7 +16,14 @@ module.exports = {
     node: true,
     jest: true,
   },
-  ignorePatterns: ['.eslintrc.js', 'dist/', 'node_modules/', 'prisma/migrations/'],
+  ignorePatterns: [
+    '.eslintrc.js',
+    'dist/',
+    'node_modules/',
+    'drizzle/',
+    '**/*.config.ts',
+    '**/*.config.js',
+  ],
   rules: {
     '@typescript-eslint/interface-name-prefix': 'off',
     '@typescript-eslint/explicit-function-return-type': 'error',
@@ -30,7 +37,7 @@ module.exports = {
     'prefer-const': 'error',
     'no-var': 'error',
     'no-console': 'warn',
-    'eqeqeq': 'error',
-    'curly': 'error',
+    eqeqeq: 'error',
+    curly: 'error',
   },
 };

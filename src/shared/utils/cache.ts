@@ -1,4 +1,4 @@
-import NodeCache from 'node-cache';
+import * as NodeCache from 'node-cache';
 import { createClient, RedisClientType } from 'redis';
 
 // Cache TTL in seconds
@@ -94,7 +94,7 @@ export const get = async (key: string): Promise<any | undefined> => {
       const value = await redisClient.get(key);
       if (value !== null) {
         try {
-          return JSON.parse(value);
+          return JSON.parse(value as string);
         } catch {
           return value; // Return as string if not JSON
         }

@@ -1,5 +1,5 @@
 import type { Response } from 'express';
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 
 /**
  * Enhanced API response formatting utilities

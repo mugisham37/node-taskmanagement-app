@@ -134,7 +134,7 @@ export class DIContainer implements Container {
     const visited = new Set<string>();
     const visiting = new Set<string>();
 
-    for (const [token] of this.services) {
+    for (const token of Array.from(this.services.keys())) {
       this.validateServiceDependencies(token, visited, visiting);
     }
   }
@@ -161,12 +161,12 @@ export class DIContainer implements Container {
     const scopedContainer = new DIContainer();
 
     // Copy service registrations
-    for (const [token, descriptor] of this.services) {
+    for (const [token, descriptor] of Array.from(this.services.entries())) {
       scopedContainer.services.set(token, descriptor);
     }
 
     // Copy singleton instances
-    for (const [token, instance] of this.instances) {
+    for (const [token, instance] of Array.from(this.instances.entries())) {
       const descriptor = this.services.get(token);
       if (descriptor?.lifetime === ServiceLifetime.Singleton) {
         scopedContainer.instances.set(token, instance);

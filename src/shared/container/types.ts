@@ -1,3 +1,6 @@
+// Import ServiceDescriptor from service-descriptor module
+import type { ServiceDescriptor } from './service-descriptor';
+
 /**
  * Container interface for dependency injection
  */
@@ -33,6 +36,12 @@ export interface Container {
   isRegistered(token: string): boolean;
   validateDependencies(): void;
   createScope(): Container;
+
+  // Additional methods used by health-checker and service-factory
+  getRegisteredServices(): string[];
+  getDescriptor(token: string): ServiceDescriptor | undefined;
+  getSingletonInstance<T>(token: string): T | undefined;
+  setSingletonInstance<T>(token: string, instance: T): void;
 }
 
 /**
