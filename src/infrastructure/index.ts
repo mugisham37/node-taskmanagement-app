@@ -16,6 +16,9 @@ export * from './monitoring';
 // Performance Optimization
 export * from './performance-optimization-service';
 
+// Jobs and Background Processing
+export * from './jobs';
+
 // Enhanced services from migration
 export { BaseDrizzleRepository } from './database/repositories/base-drizzle-repository';
 export {

@@ -1,749 +1,650 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env ts-node
 
-/**
- * API Documentation Generator
- * Generates comprehensive API documentation from the implemented system
- */
+import { APIDocumentationGenerator } from '../src/shared/documentation/api-documentation-generator';
+import { OpenAPIGenerator } from '../src/shared/documentation/openapi-generator';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
-import { writeFileSync, existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
-
-interface APIEndpoint {
-  method: string;
-  path: string;
-  description: string;
-  parameters?: Parameter[];
-  requestBody?: RequestBody;
-  responses: Response[];
-  authentication?: boolean;
-  authorization?: string[];
+interface GenerateDocsOptions {
+  outputDir?: string;
+  formats?: ('json' | 'yaml' | 'html')[];
+  includeExamples?: boolean;
+  includeWebSocket?: boolean;
+  verbose?: boolean;
 }
 
-interface Parameter {
-  name: string;
-  type: string;
-  required: boolean;
-  description: string;
-  location: 'path' | 'query' | 'header';
-}
+async function generateDocumentation(
+  options: GenerateDocsOptions = {}
+): Promise<void> {
+  const {
+    outputDir = './docs/api',
+    formats = ['json', 'yaml', 'html'],
+    includeExamples = true,
+    includeWebSocket = true,
+    verbose = false,
+  } = options;
 
-interface RequestBody {
-  contentType: string;
-  schema: any;
-  example: any;
-}
-
-interface Response {
-  statusCode: number;
-  description: string;
-  schema?: any;
-  example?: any;
-}
-
-class APIDocumentationGenerator {
-  private projectRoot: string;
-  private endpoints: APIEndpoint[] = [];
-
-  constructor() {
-    this.projectRoot = join(__dirname, '..');
-    this.initializeEndpoints();
+  if (verbose) {
+    console.log('🚀 Starting API documentation generation...');
+    console.log(`📁 Output directory: ${outputDir}`);
+    console.log(`📄 Formats: ${formats.join(', ')}`);
   }
 
-  private initializeEndpoints(): void {
-    // Authentication endpoints
-    this.endpoints.push({
-      method: 'POST',
-      path: '/api/auth/register',
-      description: 'Register a new user account',
-      requestBody: {
-        contentType: 'application/json',
-        schema: {
-          type: 'object',
-          required: ['email', 'password', 'name'],
-          properties: {
-            email: { type: 'string', format: 'email' },
-            password: { type: 'string', minLength: 8 },
-            name: { type: 'string', minLength: 2 },
-          },
-        },
-        example: {
-          email: 'user@example.com',
-          password: 'SecurePassword123!',
-          name: 'John Doe',
-        },
-      },
-      responses: [
-        {
-          statusCode: 201,
-          description: 'User registered successfully',
-          example: {
-            id: 'user_123',
-            email: 'user@example.com',
-            name: 'John Doe',
-            isActive: true,
-            createdAt: '2024-01-01T00:00:00Z',
-          },
-        },
-        {
-          statusCode: 400,
-          description: 'Validation error',
-          example: {
-            error: 'ValidationError',
-            message: 'Invalid input data',
-            details: [{ field: 'email', message: 'Invalid email format' }],
-          },
-        },
-      ],
-      authentication: false,
+  try {
+    // Create documentation generator
+    const docGenerator = new APIDocumentationGenerator({
+      includeExamples,
+      includeWebSocket,
+      outputFormats: formats,
     });
 
-    this.endpoints.push({
-      method: 'POST',
-      path: '/api/auth/login',
-      description: 'Authenticate user and receive access tokens',
-      requestBody: {
-        contentType: 'application/json',
-        schema: {
-          type: 'object',
-          required: ['email', 'password'],
-          properties: {
-            email: { type: 'string', format: 'email' },
-            password: { type: 'string' },
-          },
-        },
-        example: {
-          email: 'user@example.com',
-          password: 'SecurePassword123!',
-        },
-      },
-      responses: [
-        {
-          statusCode: 200,
-          description: 'Login successful',
-          example: {
-            accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-            refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-            expiresIn: 900,
-            user: {
-              id: 'user_123',
-              email: 'user@example.com',
-              name: 'John Doe',
+    // Add all endpoint documentation
+    if (verbose) console.log('📝 Adding task endpoints...');
+    docGenerator.addTaskEndpoints();
+
+    if (verbose) console.log('📝 Adding project endpoints...');
+    docGenerator.addProjectEndpoints();
+
+    // Add additional endpoints for comprehensive coverage
+    await addAdditionalEndpoints(docGenerator, verbose);
+
+    // Generate documentation
+    if (verbose) console.log('🔨 Generating documentation files...');
+    await docGenerator.generateDocumentation(outputDir);
+
+    // Generate additional documentation files
+    await generateAdditionalDocs(outputDir, docGenerator, verbose);
+
+    console.log('✅ API documentation generated successfully!');
+    console.log(`📂 Documentation available at: ${path.resolve(outputDir)}`);
+  } catch (error) {
+    console.error('❌ Failed to generate documentation:', error);
+    process.exit(1);
+  }
+}
+
+async function addAdditionalEndpoints(
+  docGenerator: APIDocumentationGenerator,
+  verbose: boolean
+): Promise<void> {
+  const generator = docGenerator.getGenerator();
+
+  // Add workspace endpoints
+  if (verbose) console.log('📝 Adding workspace endpoints...');
+  generator.addEndpoint({
+    path: '/api/v1/workspaces',
+    method: 'get',
+    summary: 'List workspaces',
+    description: 'Retrieve workspaces accessible to the authenticated user',
+    tags: ['Workspaces'],
+    operationId: 'listWorkspaces',
+    responses: {
+      '200': {
+        description: 'Workspaces retrieved successfully',
+        content: {
+          'application/json': {
+            schema: {
+              allOf: [
+                { $ref: '#/components/schemas/SuccessResponse' },
+                {
+                  type: 'object',
+                  properties: {
+                    data: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          id: { type: 'string', format: 'uuid' },
+                          name: { type: 'string' },
+                          description: { type: 'string' },
+                          ownerId: { type: 'string', format: 'uuid' },
+                          memberCount: { type: 'integer' },
+                          projectCount: { type: 'integer' },
+                          isActive: { type: 'boolean' },
+                          createdAt: { type: 'string', format: 'date-time' },
+                        },
+                      },
+                    },
+                  },
+                },
+              ],
             },
           },
         },
-        {
-          statusCode: 401,
-          description: 'Invalid credentials',
-          example: {
-            error: 'AuthenticationError',
-            message: 'Invalid email or password',
-          },
-        },
-      ],
-      authentication: false,
-    });
-
-    // Task endpoints
-    this.endpoints.push({
-      method: 'GET',
-      path: '/api/tasks',
-      description: 'Retrieve tasks with optional filtering and pagination',
-      parameters: [
-        {
-          name: 'projectId',
-          type: 'string',
-          required: false,
-          description: 'Filter tasks by project ID',
-          location: 'query',
-        },
-        {
-          name: 'status',
-          type: 'string',
-          required: false,
-          description:
-            'Filter tasks by status (TODO, IN_PROGRESS, COMPLETED, etc.)',
-          location: 'query',
-        },
-        {
-          name: 'assigneeId',
-          type: 'string',
-          required: false,
-          description: 'Filter tasks by assignee ID',
-          location: 'query',
-        },
-        {
-          name: 'page',
-          type: 'number',
-          required: false,
-          description: 'Page number for pagination (default: 1)',
-          location: 'query',
-        },
-        {
-          name: 'limit',
-          type: 'number',
-          required: false,
-          description: 'Number of items per page (default: 20, max: 100)',
-          location: 'query',
-        },
-      ],
-      responses: [
-        {
-          statusCode: 200,
-          description: 'Tasks retrieved successfully',
-          example: {
-            data: [
-              {
-                id: 'task_123',
-                title: 'Implement user authentication',
-                description: 'Add JWT-based authentication system',
-                status: 'IN_PROGRESS',
-                priority: 'HIGH',
-                assigneeId: 'user_456',
-                projectId: 'project_789',
-                dueDate: '2024-02-01T00:00:00Z',
-                createdAt: '2024-01-15T00:00:00Z',
-                updatedAt: '2024-01-16T00:00:00Z',
-              },
-            ],
-            pagination: {
-              page: 1,
-              limit: 20,
-              total: 1,
-              totalPages: 1,
-            },
-          },
-        },
-      ],
-      authentication: true,
-      authorization: ['read:tasks'],
-    });
-
-    this.endpoints.push({
-      method: 'POST',
-      path: '/api/tasks',
-      description: 'Create a new task',
-      requestBody: {
-        contentType: 'application/json',
-        schema: {
-          type: 'object',
-          required: ['title', 'projectId'],
-          properties: {
-            title: { type: 'string', minLength: 1, maxLength: 255 },
-            description: { type: 'string', maxLength: 2000 },
-            priority: {
-              type: 'string',
-              enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'],
-            },
-            assigneeId: { type: 'string' },
-            projectId: { type: 'string' },
-            dueDate: { type: 'string', format: 'date-time' },
-            estimatedHours: { type: 'number', minimum: 0 },
-          },
-        },
-        example: {
-          title: 'Implement user authentication',
-          description:
-            'Add JWT-based authentication system with proper security measures',
-          priority: 'HIGH',
-          assigneeId: 'user_456',
-          projectId: 'project_789',
-          dueDate: '2024-02-01T00:00:00Z',
-          estimatedHours: 8,
-        },
       },
-      responses: [
-        {
-          statusCode: 201,
-          description: 'Task created successfully',
-          example: {
-            id: 'task_123',
-            title: 'Implement user authentication',
-            description:
-              'Add JWT-based authentication system with proper security measures',
-            status: 'TODO',
-            priority: 'HIGH',
-            assigneeId: 'user_456',
-            projectId: 'project_789',
-            createdById: 'user_789',
-            dueDate: '2024-02-01T00:00:00Z',
-            estimatedHours: 8,
-            createdAt: '2024-01-15T00:00:00Z',
-            updatedAt: '2024-01-15T00:00:00Z',
-          },
-        },
-      ],
-      authentication: true,
-      authorization: ['create:tasks'],
-    });
-
-    // Add more endpoints for projects, workspaces, etc.
-    this.addProjectEndpoints();
-    this.addWorkspaceEndpoints();
-    this.addHealthEndpoints();
-  }
-
-  private addProjectEndpoints(): void {
-    this.endpoints.push({
-      method: 'GET',
-      path: '/api/projects',
-      description: 'Retrieve projects accessible to the authenticated user',
-      parameters: [
-        {
-          name: 'workspaceId',
-          type: 'string',
-          required: false,
-          description: 'Filter projects by workspace ID',
-          location: 'query',
-        },
-        {
-          name: 'status',
-          type: 'string',
-          required: false,
-          description: 'Filter projects by status',
-          location: 'query',
-        },
-      ],
-      responses: [
-        {
-          statusCode: 200,
-          description: 'Projects retrieved successfully',
-          example: {
-            data: [
-              {
-                id: 'project_123',
-                name: 'Task Management System',
-                description: 'A comprehensive task management platform',
-                status: 'ACTIVE',
-                workspaceId: 'workspace_456',
-                managerId: 'user_789',
-                memberCount: 5,
-                taskCount: 23,
-                createdAt: '2024-01-01T00:00:00Z',
-              },
-            ],
-          },
-        },
-      ],
-      authentication: true,
-      authorization: ['read:projects'],
-    });
-
-    this.endpoints.push({
-      method: 'POST',
-      path: '/api/projects',
-      description: 'Create a new project',
-      requestBody: {
-        contentType: 'application/json',
-        schema: {
-          type: 'object',
-          required: ['name', 'workspaceId'],
-          properties: {
-            name: { type: 'string', minLength: 1, maxLength: 255 },
-            description: { type: 'string', maxLength: 2000 },
-            workspaceId: { type: 'string' },
-            startDate: { type: 'string', format: 'date-time' },
-            endDate: { type: 'string', format: 'date-time' },
-          },
-        },
-        example: {
-          name: 'Task Management System',
-          description: 'A comprehensive task management platform',
-          workspaceId: 'workspace_456',
-          startDate: '2024-01-01T00:00:00Z',
-          endDate: '2024-06-01T00:00:00Z',
-        },
-      },
-      responses: [
-        {
-          statusCode: 201,
-          description: 'Project created successfully',
-        },
-      ],
-      authentication: true,
-      authorization: ['create:projects'],
-    });
-  }
-
-  private addWorkspaceEndpoints(): void {
-    this.endpoints.push({
-      method: 'GET',
-      path: '/api/workspaces',
-      description: 'Retrieve workspaces accessible to the authenticated user',
-      responses: [
-        {
-          statusCode: 200,
-          description: 'Workspaces retrieved successfully',
-          example: {
-            data: [
-              {
-                id: 'workspace_123',
-                name: 'Acme Corporation',
-                description: 'Main workspace for Acme Corp projects',
-                ownerId: 'user_456',
-                memberCount: 15,
-                projectCount: 8,
-                isActive: true,
-                createdAt: '2024-01-01T00:00:00Z',
-              },
-            ],
-          },
-        },
-      ],
-      authentication: true,
-      authorization: ['read:workspaces'],
-    });
-  }
-
-  private addHealthEndpoints(): void {
-    this.endpoints.push({
-      method: 'GET',
-      path: '/health',
-      description: 'Basic health check endpoint',
-      responses: [
-        {
-          statusCode: 200,
-          description: 'Service is healthy',
-          example: {
-            status: 'healthy',
-            timestamp: '2024-01-15T12:00:00Z',
-            uptime: 3600,
-            version: '1.0.0',
-          },
-        },
-      ],
-      authentication: false,
-    });
-
-    this.endpoints.push({
-      method: 'GET',
-      path: '/health/database',
-      description: 'Database connectivity health check',
-      responses: [
-        {
-          statusCode: 200,
-          description: 'Database is healthy',
-          example: {
-            status: 'healthy',
-            database: 'connected',
-            responseTime: 15,
-          },
-        },
-      ],
-      authentication: false,
-    });
-  }
-
-  generateMarkdownDocumentation(): string {
-    let markdown = `# Task Management System API Documentation
-
-## Overview
-
-This document provides comprehensive documentation for the Task Management System REST API. The API follows RESTful principles and uses JSON for data exchange.
-
-## Base URL
-
-\`\`\`
-Production: https://api.taskmanagement.com
-Staging: https://staging-api.taskmanagement.com
-Development: http://localhost:3000
-\`\`\`
-
-## Authentication
-
-The API uses JWT (JSON Web Token) based authentication. Include the access token in the Authorization header:
-
-\`\`\`
-Authorization: Bearer <access_token>
-\`\`\`
-
-## Rate Limiting
-
-API requests are rate limited to prevent abuse:
-- **Authenticated users**: 1000 requests per hour
-- **Unauthenticated users**: 100 requests per hour
-
-Rate limit headers are included in responses:
-- \`X-RateLimit-Limit\`: Request limit per window
-- \`X-RateLimit-Remaining\`: Remaining requests in current window
-- \`X-RateLimit-Reset\`: Time when the rate limit resets
-
-## Error Handling
-
-The API uses standard HTTP status codes and returns error details in JSON format:
-
-\`\`\`json
-{
-  "error": "ValidationError",
-  "message": "Invalid input data",
-  "details": [
-    {
-      "field": "email",
-      "message": "Invalid email format"
-    }
-  ],
-  "timestamp": "2024-01-15T12:00:00Z",
-  "requestId": "req_123456"
-}
-\`\`\`
-
-### Common Status Codes
-
-- **200 OK**: Request successful
-- **201 Created**: Resource created successfully
-- **400 Bad Request**: Invalid request data
-- **401 Unauthorized**: Authentication required
-- **403 Forbidden**: Insufficient permissions
-- **404 Not Found**: Resource not found
-- **429 Too Many Requests**: Rate limit exceeded
-- **500 Internal Server Error**: Server error
-
-## Pagination
-
-List endpoints support pagination using query parameters:
-
-- \`page\`: Page number (default: 1)
-- \`limit\`: Items per page (default: 20, max: 100)
-
-Paginated responses include metadata:
-
-\`\`\`json
-{
-  "data": [...],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "total": 100,
-    "totalPages": 5,
-    "hasNext": true,
-    "hasPrev": false
-  }
-}
-\`\`\`
-
-## Endpoints
-
-`;
-
-    // Group endpoints by category
-    const categories = this.groupEndpointsByCategory();
-
-    for (const [category, endpoints] of Object.entries(categories)) {
-      markdown += `### ${category}\n\n`;
-
-      for (const endpoint of endpoints) {
-        markdown += this.generateEndpointDocumentation(endpoint);
-      }
-    }
-
-    markdown += `
-## WebSocket API
-
-The system supports real-time updates via WebSocket connections.
-
-### Connection
-
-\`\`\`javascript
-const ws = new WebSocket('ws://localhost:3000/ws');
-ws.onopen = () => {
-  // Send authentication
-  ws.send(JSON.stringify({
-    type: 'auth',
-    token: 'your_jwt_token'
-  }));
-};
-\`\`\`
-
-### Events
-
-#### Task Updates
-\`\`\`json
-{
-  "type": "task_updated",
-  "data": {
-    "taskId": "task_123",
-    "changes": {
-      "status": "COMPLETED"
     },
-    "updatedBy": "user_456",
-    "timestamp": "2024-01-15T12:00:00Z"
-  }
+  });
+
+  // Add analytics endpoints
+  if (verbose) console.log('📝 Adding analytics endpoints...');
+  generator.addEndpoint({
+    path: '/api/v1/analytics/dashboard',
+    method: 'get',
+    summary: 'Get dashboard analytics',
+    description: 'Retrieve analytics data for the dashboard',
+    tags: ['Analytics'],
+    operationId: 'getDashboardAnalytics',
+    parameters: [
+      {
+        name: 'period',
+        in: 'query',
+        schema: {
+          type: 'string',
+          enum: ['day', 'week', 'month', 'quarter', 'year'],
+          default: 'month',
+        },
+        description: 'Time period for analytics',
+      },
+      {
+        name: 'workspaceId',
+        in: 'query',
+        schema: { type: 'string', format: 'uuid' },
+        description: 'Workspace ID to filter analytics',
+      },
+    ],
+    responses: {
+      '200': {
+        description: 'Analytics data retrieved successfully',
+        content: {
+          'application/json': {
+            schema: {
+              allOf: [
+                { $ref: '#/components/schemas/SuccessResponse' },
+                {
+                  type: 'object',
+                  properties: {
+                    data: {
+                      type: 'object',
+                      properties: {
+                        taskStats: {
+                          type: 'object',
+                          properties: {
+                            total: { type: 'integer' },
+                            completed: { type: 'integer' },
+                            inProgress: { type: 'integer' },
+                            overdue: { type: 'integer' },
+                          },
+                        },
+                        projectStats: {
+                          type: 'object',
+                          properties: {
+                            total: { type: 'integer' },
+                            active: { type: 'integer' },
+                            completed: { type: 'integer' },
+                          },
+                        },
+                        userActivity: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              date: { type: 'string', format: 'date' },
+                              tasksCompleted: { type: 'integer' },
+                              hoursWorked: { type: 'number' },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Add notification endpoints
+  if (verbose) console.log('📝 Adding notification endpoints...');
+  generator.addEndpoint({
+    path: '/api/v1/notifications',
+    method: 'get',
+    summary: 'List notifications',
+    description: 'Retrieve notifications for the authenticated user',
+    tags: ['Notifications'],
+    operationId: 'listNotifications',
+    parameters: [
+      { $ref: '#/components/parameters/PageParam' },
+      { $ref: '#/components/parameters/LimitParam' },
+      {
+        name: 'unreadOnly',
+        in: 'query',
+        schema: { type: 'boolean', default: false },
+        description: 'Filter to show only unread notifications',
+      },
+    ],
+    responses: {
+      '200': {
+        description: 'Notifications retrieved successfully',
+        content: {
+          'application/json': {
+            schema: {
+              allOf: [
+                { $ref: '#/components/schemas/SuccessResponse' },
+                {
+                  type: 'object',
+                  properties: {
+                    data: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          id: { type: 'string', format: 'uuid' },
+                          type: { type: 'string' },
+                          title: { type: 'string' },
+                          message: { type: 'string' },
+                          isRead: { type: 'boolean' },
+                          createdAt: { type: 'string', format: 'date-time' },
+                          data: { type: 'object' },
+                        },
+                      },
+                    },
+                    meta: { $ref: '#/components/schemas/PaginationMeta' },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Add file management endpoints
+  if (verbose) console.log('📝 Adding file management endpoints...');
+  generator.addEndpoint({
+    path: '/api/v1/files/upload',
+    method: 'post',
+    summary: 'Upload file',
+    description: 'Upload a file to the system',
+    tags: ['Files'],
+    operationId: 'uploadFile',
+    requestBody: {
+      required: true,
+      content: {
+        'multipart/form-data': {
+          schema: {
+            type: 'object',
+            properties: {
+              file: {
+                type: 'string',
+                format: 'binary',
+                description: 'File to upload',
+              },
+              taskId: {
+                type: 'string',
+                format: 'uuid',
+                description: 'Task ID to attach file to (optional)',
+              },
+              projectId: {
+                type: 'string',
+                format: 'uuid',
+                description: 'Project ID to attach file to (optional)',
+              },
+            },
+            required: ['file'],
+          },
+        },
+      },
+    },
+    responses: {
+      '201': {
+        description: 'File uploaded successfully',
+        content: {
+          'application/json': {
+            schema: {
+              allOf: [
+                { $ref: '#/components/schemas/SuccessResponse' },
+                {
+                  type: 'object',
+                  properties: {
+                    data: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'string', format: 'uuid' },
+                        filename: { type: 'string' },
+                        originalName: { type: 'string' },
+                        mimeType: { type: 'string' },
+                        size: { type: 'integer' },
+                        url: { type: 'string', format: 'uri' },
+                        uploadedAt: { type: 'string', format: 'date-time' },
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+      '400': { $ref: '#/components/responses/ValidationError' },
+      '413': {
+        description: 'File too large',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ErrorResponse' },
+          },
+        },
+      },
+    },
+  });
 }
-\`\`\`
 
-#### User Presence
-\`\`\`json
-{
-  "type": "user_presence",
-  "data": {
-    "userId": "user_123",
-    "status": "online",
-    "lastSeen": "2024-01-15T12:00:00Z"
-  }
-}
-\`\`\`
+async function generateAdditionalDocs(
+  outputDir: string,
+  docGenerator: APIDocumentationGenerator,
+  verbose: boolean
+): Promise<void> {
+  // Generate API changelog
+  if (verbose) console.log('📝 Generating API changelog...');
+  const changelog = `# API Changelog
 
-## SDK Examples
+## Version 1.0.0 (${new Date().toISOString().split('T')[0]})
 
-### JavaScript/TypeScript
-
-\`\`\`typescript
-import { TaskManagementAPI } from '@taskmanagement/sdk';
-
-const api = new TaskManagementAPI({
-  baseUrl: 'https://api.taskmanagement.com',
-  apiKey: 'your_api_key'
-});
-
-// Create a task
-const task = await api.tasks.create({
-  title: 'New Task',
-  description: 'Task description',
-  projectId: 'project_123',
-  priority: 'HIGH'
-});
-
-// Get tasks with filtering
-const tasks = await api.tasks.list({
-  projectId: 'project_123',
-  status: 'IN_PROGRESS',
-  page: 1,
-  limit: 20
-});
-\`\`\`
-
-### cURL Examples
-
-\`\`\`bash
-# Login
-curl -X POST https://api.taskmanagement.com/api/auth/login \\
-  -H "Content-Type: application/json" \\
-  -d '{"email": "user@example.com", "password": "password"}'
-
-# Create a task
-curl -X POST https://api.taskmanagement.com/api/tasks \\
-  -H "Authorization: Bearer <token>" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "title": "New Task",
-    "description": "Task description",
-    "projectId": "project_123",
-    "priority": "HIGH"
-  }'
-
-# Get tasks
-curl -X GET "https://api.taskmanagement.com/api/tasks?projectId=project_123&status=IN_PROGRESS" \\
-  -H "Authorization: Bearer <token>"
-\`\`\`
-
-## Changelog
-
-### Version 1.0.0 (2024-01-15)
+### Added
 - Initial API release
-- Authentication and authorization
-- Task management endpoints
+- Authentication and authorization endpoints
+- Task management CRUD operations
 - Project management endpoints
-- Workspace management endpoints
+- Workspace management
+- User management
+- File upload and management
+- Notification system
+- Analytics and reporting
 - Real-time WebSocket support
 - Comprehensive error handling
 - Rate limiting and security measures
+- Multi-language support
+- Audit logging
+
+### Features
+- RESTful API design
+- OpenAPI 3.0 specification
+- JWT-based authentication
+- Role-based access control
+- Pagination support
+- Advanced filtering and sorting
+- Bulk operations
+- Real-time updates via WebSocket
+- File attachments
+- Comment system
+- Activity tracking
+- Dashboard analytics
+- Notification preferences
+- Multi-tenant workspace support
+
+### Security
+- JWT token authentication
+- API key support for service-to-service communication
+- Rate limiting per user and endpoint
+- Input validation and sanitization
+- CORS protection
+- Security headers
+- Audit logging for all operations
+
+### Performance
+- Database query optimization
+- Response caching
+- Pagination for large datasets
+- Efficient bulk operations
+- Connection pooling
+- Background job processing
 
 ---
 
 For support or questions, please contact: api-support@taskmanagement.com
 `;
 
-    return markdown;
-  }
+  await fs.writeFile(path.join(outputDir, 'CHANGELOG.md'), changelog, 'utf8');
 
-  private groupEndpointsByCategory(): Record<string, APIEndpoint[]> {
-    const categories: Record<string, APIEndpoint[]> = {};
+  // Generate API testing guide
+  if (verbose) console.log('📝 Generating API testing guide...');
+  const testingGuide = `# API Testing Guide
 
-    for (const endpoint of this.endpoints) {
-      const category = this.getCategoryFromPath(endpoint.path);
-      if (!categories[category]) {
-        categories[category] = [];
+This guide provides examples and best practices for testing the Task Management API.
+
+## Authentication
+
+First, obtain an access token by logging in:
+
+\`\`\`bash
+curl -X POST http://localhost:3000/api/v1/auth/login \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "email": "user@example.com",
+    "password": "password123"
+  }'
+\`\`\`
+
+Use the returned access token in subsequent requests:
+
+\`\`\`bash
+export TOKEN="your_access_token_here"
+\`\`\`
+
+## Basic Operations
+
+### Create a Task
+
+\`\`\`bash
+curl -X POST http://localhost:3000/api/v1/tasks \\
+  -H "Authorization: Bearer $TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "title": "Test Task",
+    "description": "This is a test task",
+    "priority": "HIGH",
+    "projectId": "project-uuid-here"
+  }'
+\`\`\`
+
+### List Tasks
+
+\`\`\`bash
+curl -X GET "http://localhost:3000/api/v1/tasks?page=1&limit=10" \\
+  -H "Authorization: Bearer $TOKEN"
+\`\`\`
+
+### Update a Task
+
+\`\`\`bash
+curl -X PUT http://localhost:3000/api/v1/tasks/task-uuid-here \\
+  -H "Authorization: Bearer $TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "status": "IN_PROGRESS",
+    "actualHours": 2
+  }'
+\`\`\`
+
+### Delete a Task
+
+\`\`\`bash
+curl -X DELETE http://localhost:3000/api/v1/tasks/task-uuid-here \\
+  -H "Authorization: Bearer $TOKEN"
+\`\`\`
+
+## Advanced Operations
+
+### Bulk Update Tasks
+
+\`\`\`bash
+curl -X PATCH http://localhost:3000/api/v1/tasks/bulk \\
+  -H "Authorization: Bearer $TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "ids": ["task-uuid-1", "task-uuid-2"],
+    "data": {
+      "status": "DONE",
+      "priority": "LOW"
+    }
+  }'
+\`\`\`
+
+### Upload File
+
+\`\`\`bash
+curl -X POST http://localhost:3000/api/v1/files/upload \\
+  -H "Authorization: Bearer $TOKEN" \\
+  -F "file=@/path/to/your/file.pdf" \\
+  -F "taskId=task-uuid-here"
+\`\`\`
+
+### Get Analytics
+
+\`\`\`bash
+curl -X GET "http://localhost:3000/api/v1/analytics/dashboard?period=month" \\
+  -H "Authorization: Bearer $TOKEN"
+\`\`\`
+
+## Testing with Postman
+
+1. Import the OpenAPI specification (\`openapi.json\`) into Postman
+2. Set up environment variables for base URL and token
+3. Use the pre-request scripts to automatically refresh tokens
+4. Create test collections for different scenarios
+
+## Testing with Insomnia
+
+1. Import the OpenAPI specification
+2. Set up environment variables
+3. Use plugins for authentication flows
+4. Create test suites for regression testing
+
+## Error Handling
+
+The API returns consistent error responses:
+
+\`\`\`json
+{
+  "success": false,
+  "error": {
+    "message": "Validation failed",
+    "code": "VALIDATION_ERROR",
+    "details": [
+      {
+        "field": "email",
+        "message": "Invalid email format",
+        "code": "INVALID_FORMAT"
       }
-      categories[category].push(endpoint);
-    }
+    ],
+    "correlationId": "req_123456"
+  },
+  "timestamp": "2024-01-15T12:00:00Z"
+}
+\`\`\`
 
-    return categories;
-  }
+## Rate Limiting
 
-  private getCategoryFromPath(path: string): string {
-    if (path.includes('/auth')) return 'Authentication';
-    if (path.includes('/tasks')) return 'Tasks';
-    if (path.includes('/projects')) return 'Projects';
-    if (path.includes('/workspaces')) return 'Workspaces';
-    if (path.includes('/users')) return 'Users';
-    if (path.includes('/health')) return 'Health Checks';
-    return 'Other';
-  }
+Monitor rate limit headers in responses:
 
-  private generateEndpointDocumentation(endpoint: APIEndpoint): string {
-    let doc = `#### ${endpoint.method} ${endpoint.path}\n\n`;
-    doc += `${endpoint.description}\n\n`;
+- \`X-RateLimit-Limit\`: Request limit per window
+- \`X-RateLimit-Remaining\`: Remaining requests
+- \`X-RateLimit-Reset\`: Reset time (Unix timestamp)
 
-    if (endpoint.authentication) {
-      doc += `**Authentication Required**: Yes\n\n`;
-      if (endpoint.authorization) {
-        doc += `**Required Permissions**: ${endpoint.authorization.join(', ')}\n\n`;
-      }
-    } else {
-      doc += `**Authentication Required**: No\n\n`;
-    }
+## WebSocket Testing
 
-    if (endpoint.parameters && endpoint.parameters.length > 0) {
-      doc += `**Parameters**:\n\n`;
-      doc += `| Name | Type | Required | Location | Description |\n`;
-      doc += `|------|------|----------|----------|-------------|\n`;
+Connect to WebSocket for real-time updates:
 
-      for (const param of endpoint.parameters) {
-        doc += `| ${param.name} | ${param.type} | ${param.required ? 'Yes' : 'No'} | ${param.location} | ${param.description} |\n`;
-      }
-      doc += `\n`;
-    }
+\`\`\`javascript
+const ws = new WebSocket('ws://localhost:3000/ws');
 
-    if (endpoint.requestBody) {
-      doc += `**Request Body** (${endpoint.requestBody.contentType}):\n\n`;
-      doc += `\`\`\`json\n${JSON.stringify(endpoint.requestBody.example, null, 2)}\n\`\`\`\n\n`;
-    }
+ws.onopen = () => {
+  // Authenticate
+  ws.send(JSON.stringify({
+    type: 'auth',
+    token: 'your_jwt_token'
+  }));
+};
 
-    doc += `**Responses**:\n\n`;
-    for (const response of endpoint.responses) {
-      doc += `**${response.statusCode}** - ${response.description}\n\n`;
-      if (response.example) {
-        doc += `\`\`\`json\n${JSON.stringify(response.example, null, 2)}\n\`\`\`\n\n`;
-      }
-    }
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log('Received:', data);
+};
+\`\`\`
 
-    doc += `---\n\n`;
-    return doc;
-  }
+## Best Practices
 
-  async generateDocumentation(): Promise<void> {
-    const docsDir = join(this.projectRoot, 'docs');
+1. Always include proper error handling
+2. Use appropriate HTTP methods
+3. Include correlation IDs for debugging
+4. Test edge cases and error scenarios
+5. Validate response schemas
+6. Test rate limiting behavior
+7. Verify authentication and authorization
+8. Test pagination with large datasets
+9. Validate file upload limits and types
+10. Test WebSocket connection handling
 
-    if (!existsSync(docsDir)) {
-      mkdirSync(docsDir, { recursive: true });
-    }
+For more examples and advanced testing scenarios, see the test collection in the \`tests/\` directory.
+`;
 
-    const markdown = this.generateMarkdownDocumentation();
-    const outputPath = join(docsDir, 'api-documentation.md');
+  await fs.writeFile(path.join(outputDir, 'TESTING.md'), testingGuide, 'utf8');
 
-    writeFileSync(outputPath, markdown, 'utf8');
-
-    console.log(`✅ API documentation generated: ${outputPath}`);
-    console.log(`📄 Documentation contains ${this.endpoints.length} endpoints`);
-  }
+  if (verbose) console.log('✅ Additional documentation files generated');
 }
 
-// Main execution
-async function main() {
-  const generator = new APIDocumentationGenerator();
-  await generator.generateDocumentation();
+// CLI interface
+async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  const options: GenerateDocsOptions = {};
+
+  // Parse command line arguments
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    switch (arg) {
+      case '--output':
+      case '-o':
+        options.outputDir = args[++i];
+        break;
+      case '--formats':
+      case '-f':
+        options.formats = args[++i].split(',') as ('json' | 'yaml' | 'html')[];
+        break;
+      case '--no-examples':
+        options.includeExamples = false;
+        break;
+      case '--no-websocket':
+        options.includeWebSocket = false;
+        break;
+      case '--verbose':
+      case '-v':
+        options.verbose = true;
+        break;
+      case '--help':
+      case '-h':
+        console.log(`
+Usage: npm run generate:docs [options]
+
+Options:
+  -o, --output <dir>     Output directory (default: ./docs/api)
+  -f, --formats <list>   Comma-separated list of formats: json,yaml,html (default: json,yaml,html)
+  --no-examples          Exclude examples from documentation
+  --no-websocket         Exclude WebSocket documentation
+  -v, --verbose          Verbose output
+  -h, --help             Show this help message
+
+Examples:
+  npm run generate:docs
+  npm run generate:docs --output ./public/docs --formats json,html
+  npm run generate:docs --verbose --no-examples
+        `);
+        process.exit(0);
+        break;
+    }
+  }
+
+  await generateDocumentation(options);
 }
 
-main().catch(error => {
-  console.error(`Documentation generation failed: ${error.message}`);
-  process.exit(1);
-});
+// Run if called directly
+if (require.main === module) {
+  main().catch(error => {
+    console.error('❌ Error:', error);
+    process.exit(1);
+  });
+}
+
+export { generateDocumentation };

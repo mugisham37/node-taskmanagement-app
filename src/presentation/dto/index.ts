@@ -7,3 +7,8 @@ export * from './user-dto';
 export * from './task-dto';
 export * from './project-dto';
 export * from './workspace-dto';
+
+// Enhanced DTOs from migration
+export * from './analytics-dto';
+export * from './notification-dto';
+export * from './webhook-dto';

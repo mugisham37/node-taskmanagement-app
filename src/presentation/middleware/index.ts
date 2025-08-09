@@ -5,3 +5,7 @@ export * from './error-handler-middleware';
 export * from './cors-middleware';
 export * from './security-middleware';
 export { setupMiddleware } from './setup';
+
+// Enhanced middleware from migration
+export * from './enhanced-rate-limiter-middleware';
+export * from './comprehensive-security-middleware';
