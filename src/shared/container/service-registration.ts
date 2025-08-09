@@ -5,10 +5,19 @@ import { ConfigLoader } from '../config';
 import { TaskDomainService } from '../../domain/services/task-domain-service';
 import { ProjectDomainService } from '../../domain/services/project-domain-service';
 import { WorkspaceDomainService } from '../../domain/services/workspace-domain-service';
+import { NotificationDomainService } from '../../domain/services/notification-domain-service';
+import { AuditDomainService } from '../../domain/services/audit-domain-service';
+import { WebhookDomainService } from '../../domain/services/webhook-domain-service';
+import { CalendarDomainService } from '../../domain/services/calendar-domain-service';
 
 // Application Services
 import { TaskApplicationService } from '../../application/services/task-application-service';
+import { ProjectApplicationService } from '../../application/services/project-application-service';
+import { WorkspaceApplicationService } from '../../application/services/workspace-application-service';
 import { NotificationApplicationService } from '../../application/services/notification-application-service';
+import { AuthApplicationService } from '../../application/services/auth-application-service';
+import { WebhookApplicationService } from '../../application/services/webhook-application-service';
+import { CalendarApplicationService } from '../../application/services/calendar-application-service';
 
 // Command Handlers
 import {
@@ -35,15 +44,70 @@ import {
   UpdateUserProfileHandler,
 } from '../../application/handlers/user-command-handlers';
 
+import {
+  CreateNotificationHandler,
+  UpdateNotificationHandler,
+  MarkNotificationReadHandler,
+} from '../../application/handlers/notification-command-handlers';
+
+import {
+  CreateAuditLogHandler,
+  CleanupAuditLogsHandler,
+} from '../../application/handlers/audit-log-command-handlers';
+
+import {
+  CreateWebhookHandler,
+  UpdateWebhookHandler,
+  TriggerWebhookHandler,
+} from '../../application/handlers/webhook-command-handlers';
+
+import {
+  CreateCalendarEventHandler,
+  UpdateCalendarEventHandler,
+  ScheduleCalendarEventHandler,
+} from '../../application/handlers/calendar-command-handlers';
+
 // Query Handlers
 import {
   GetTaskHandler,
   ListTasksHandler,
 } from '../../application/handlers/task-query-handlers';
 
+import {
+  GetProjectHandler,
+  ListProjectsHandler,
+  GetProjectMembersHandler,
+} from '../../application/handlers/project-query-handlers';
+
+import {
+  GetWorkspaceHandler,
+  ListWorkspacesHandler,
+  GetWorkspaceStatsHandler,
+} from '../../application/handlers/workspace-query-handlers';
+
+import {
+  GetUserHandler,
+  ListUsersHandler,
+  GetUserPreferencesHandler,
+} from '../../application/handlers/user-query-handlers';
+
+import {
+  GetNotificationsHandler,
+  GetNotificationPreferencesHandler,
+} from '../../application/handlers/notification-query-handlers';
+
+import {
+  GetWebhooksHandler,
+  GetWebhookDeliveriesHandler,
+} from '../../application/handlers/webhook-query-handlers';
+
 // Infrastructure Services
 import { DatabaseConnection } from '../../infrastructure/database/connection';
 import { TransactionManager } from '../../infrastructure/database/transaction-manager';
+import { TransactionIntegrationService } from '../../infrastructure/database/transaction-integration-service';
+import { EventIntegrationService } from '../../infrastructure/events/event-integration-service';
+import { UnitOfWorkFactory } from '../../infrastructure/database/unit-of-work';
+import { EventHandlerLifecycleManager } from '../../application/events/event-handler-lifecycle-manager';
 import { CacheService } from '../../infrastructure/caching/cache-service';
 import { EmailService } from '../../infrastructure/external-services/email-service';
 import { JwtService } from '../../infrastructure/security/jwt-service';
@@ -59,6 +123,14 @@ import { TaskRepository } from '../../infrastructure/database/repositories/task-
 import { ProjectRepository } from '../../infrastructure/database/repositories/project-repository';
 import { UserRepository } from '../../infrastructure/database/repositories/user-repository';
 import { WorkspaceRepository } from '../../infrastructure/database/repositories/workspace-repository';
+import {
+  NotificationRepository,
+  NotificationPreferencesRepository,
+} from '../../infrastructure/database/repositories/notification-repository';
+import { AuditLogRepository } from '../../infrastructure/database/repositories/audit-log-repository';
+import { WebhookRepository } from '../../infrastructure/database/repositories/webhook-repository';
+import { CalendarEventRepository } from '../../infrastructure/database/repositories/calendar-event-repository';
+import { FileAttachmentRepository } from '../../infrastructure/database/repositories/file-attachment-repository';
 
 // Controllers
 import { TaskController } from '../../presentation/controllers/task-controller';
@@ -66,10 +138,15 @@ import { ProjectController } from '../../presentation/controllers/project-contro
 import { WorkspaceController } from '../../presentation/controllers/workspace-controller';
 import { UserController } from '../../presentation/controllers/user-controller';
 import { AuthController } from '../../presentation/controllers/auth-controller';
+import { NotificationController } from '../../presentation/controllers/notification-controller';
+import { WebhookController } from '../../presentation/controllers/webhook-controller';
+import { CalendarController } from '../../presentation/controllers/calendar-controller';
 
 // Event Handling
 import { EventBus } from '../../application/events/event-bus';
+import { DomainEventBus } from '../../application/events/domain-event-bus';
 import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
+import { ApplicationEventHandlers } from '../../application/events/application-event-handlers';
 
 // Migration Services
 import { registerMigrationServices } from '../../infrastructure/migration/migration-service-registration';
@@ -159,6 +236,27 @@ function registerInfrastructure(container: Container): void {
     [SERVICE_TOKENS.DATABASE_CONNECTION]
   );
 
+  container.registerScoped(
+    SERVICE_TOKENS.TRANSACTION_INTEGRATION_SERVICE,
+    TransactionIntegrationService,
+    [
+      SERVICE_TOKENS.TRANSACTION_MANAGER,
+      SERVICE_TOKENS.LOGGING_SERVICE,
+      SERVICE_TOKENS.METRICS_SERVICE,
+    ]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.UNIT_OF_WORK_FACTORY,
+    UnitOfWorkFactory,
+    [
+      SERVICE_TOKENS.TRANSACTION_MANAGER,
+      SERVICE_TOKENS.EVENT_INTEGRATION_SERVICE,
+      SERVICE_TOKENS.LOGGING_SERVICE,
+      SERVICE_TOKENS.METRICS_SERVICE,
+    ]
+  );
+
   // Caching
   container.registerSingleton(SERVICE_TOKENS.CACHE_SERVICE, CacheService, [
     SERVICE_TOKENS.REDIS_CONFIG,
@@ -220,6 +318,42 @@ function registerRepositories(container: Container): void {
     WorkspaceRepository,
     [SERVICE_TOKENS.DATABASE_CONNECTION]
   );
+
+  container.registerScoped(
+    SERVICE_TOKENS.NOTIFICATION_REPOSITORY,
+    NotificationRepository,
+    [SERVICE_TOKENS.DATABASE_CONNECTION]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.NOTIFICATION_PREFERENCES_REPOSITORY,
+    NotificationPreferencesRepository,
+    [SERVICE_TOKENS.DATABASE_CONNECTION]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.AUDIT_LOG_REPOSITORY,
+    AuditLogRepository,
+    [SERVICE_TOKENS.DATABASE_CONNECTION]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.WEBHOOK_REPOSITORY,
+    WebhookRepository,
+    [SERVICE_TOKENS.DATABASE_CONNECTION]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.CALENDAR_EVENT_REPOSITORY,
+    CalendarEventRepository,
+    [SERVICE_TOKENS.DATABASE_CONNECTION]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.FILE_ATTACHMENT_REPOSITORY,
+    FileAttachmentRepository,
+    [SERVICE_TOKENS.DATABASE_CONNECTION]
+  );
 }
 
 function registerDomainServices(container: Container): void {
@@ -240,6 +374,30 @@ function registerDomainServices(container: Container): void {
     WorkspaceDomainService,
     [SERVICE_TOKENS.WORKSPACE_REPOSITORY, SERVICE_TOKENS.USER_REPOSITORY]
   );
+
+  container.registerScoped(
+    SERVICE_TOKENS.NOTIFICATION_DOMAIN_SERVICE,
+    NotificationDomainService,
+    [SERVICE_TOKENS.NOTIFICATION_REPOSITORY, SERVICE_TOKENS.USER_REPOSITORY]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.AUDIT_DOMAIN_SERVICE,
+    AuditDomainService,
+    [SERVICE_TOKENS.AUDIT_LOG_REPOSITORY]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.WEBHOOK_DOMAIN_SERVICE,
+    WebhookDomainService,
+    [SERVICE_TOKENS.WEBHOOK_REPOSITORY]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.CALENDAR_DOMAIN_SERVICE,
+    CalendarDomainService,
+    [SERVICE_TOKENS.CALENDAR_EVENT_REPOSITORY, SERVICE_TOKENS.USER_REPOSITORY]
+  );
 }
 
 function registerApplicationServices(container: Container): void {
@@ -254,12 +412,69 @@ function registerApplicationServices(container: Container): void {
   );
 
   container.registerScoped(
+    SERVICE_TOKENS.PROJECT_APPLICATION_SERVICE,
+    ProjectApplicationService,
+    [
+      SERVICE_TOKENS.PROJECT_REPOSITORY,
+      SERVICE_TOKENS.PROJECT_DOMAIN_SERVICE,
+      SERVICE_TOKENS.USER_REPOSITORY,
+      SERVICE_TOKENS.DOMAIN_EVENT_PUBLISHER,
+    ]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.WORKSPACE_APPLICATION_SERVICE,
+    WorkspaceApplicationService,
+    [
+      SERVICE_TOKENS.WORKSPACE_REPOSITORY,
+      SERVICE_TOKENS.WORKSPACE_DOMAIN_SERVICE,
+      SERVICE_TOKENS.USER_REPOSITORY,
+      SERVICE_TOKENS.DOMAIN_EVENT_PUBLISHER,
+    ]
+  );
+
+  container.registerScoped(
     SERVICE_TOKENS.NOTIFICATION_APPLICATION_SERVICE,
     NotificationApplicationService,
     [
+      SERVICE_TOKENS.NOTIFICATION_REPOSITORY,
+      SERVICE_TOKENS.NOTIFICATION_PREFERENCES_REPOSITORY,
       SERVICE_TOKENS.EMAIL_SERVICE,
       SERVICE_TOKENS.WEBSOCKET_SERVICE,
       SERVICE_TOKENS.USER_REPOSITORY,
+    ]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.AUTH_APPLICATION_SERVICE,
+    AuthApplicationService,
+    [
+      SERVICE_TOKENS.USER_REPOSITORY,
+      SERVICE_TOKENS.JWT_SERVICE,
+      SERVICE_TOKENS.PASSWORD_SERVICE,
+      SERVICE_TOKENS.EMAIL_SERVICE,
+      SERVICE_TOKENS.DOMAIN_EVENT_PUBLISHER,
+    ]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.WEBHOOK_APPLICATION_SERVICE,
+    WebhookApplicationService,
+    [
+      SERVICE_TOKENS.WEBHOOK_REPOSITORY,
+      SERVICE_TOKENS.WEBHOOK_DOMAIN_SERVICE,
+      SERVICE_TOKENS.DOMAIN_EVENT_PUBLISHER,
+    ]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.CALENDAR_APPLICATION_SERVICE,
+    CalendarApplicationService,
+    [
+      SERVICE_TOKENS.CALENDAR_EVENT_REPOSITORY,
+      SERVICE_TOKENS.CALENDAR_DOMAIN_SERVICE,
+      SERVICE_TOKENS.NOTIFICATION_APPLICATION_SERVICE,
+      SERVICE_TOKENS.DOMAIN_EVENT_PUBLISHER,
     ]
   );
 }
@@ -351,9 +566,80 @@ function registerCommandHandlers(container: Container): void {
     UpdateUserProfileHandler,
     [SERVICE_TOKENS.USER_REPOSITORY]
   );
+
+  // Notification Command Handlers
+  container.registerScoped(
+    SERVICE_TOKENS.CREATE_NOTIFICATION_HANDLER,
+    CreateNotificationHandler,
+    [SERVICE_TOKENS.NOTIFICATION_APPLICATION_SERVICE]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.UPDATE_NOTIFICATION_HANDLER,
+    UpdateNotificationHandler,
+    [SERVICE_TOKENS.NOTIFICATION_APPLICATION_SERVICE]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.MARK_NOTIFICATION_READ_HANDLER,
+    MarkNotificationReadHandler,
+    [SERVICE_TOKENS.NOTIFICATION_APPLICATION_SERVICE]
+  );
+
+  // Audit Log Command Handlers
+  container.registerScoped(
+    SERVICE_TOKENS.CREATE_AUDIT_LOG_HANDLER,
+    CreateAuditLogHandler,
+    [SERVICE_TOKENS.AUDIT_LOG_REPOSITORY]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.CLEANUP_AUDIT_LOGS_HANDLER,
+    CleanupAuditLogsHandler,
+    [SERVICE_TOKENS.AUDIT_LOG_REPOSITORY]
+  );
+
+  // Webhook Command Handlers
+  container.registerScoped(
+    SERVICE_TOKENS.CREATE_WEBHOOK_HANDLER,
+    CreateWebhookHandler,
+    [SERVICE_TOKENS.WEBHOOK_APPLICATION_SERVICE]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.UPDATE_WEBHOOK_HANDLER,
+    UpdateWebhookHandler,
+    [SERVICE_TOKENS.WEBHOOK_APPLICATION_SERVICE]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.TRIGGER_WEBHOOK_HANDLER,
+    TriggerWebhookHandler,
+    [SERVICE_TOKENS.WEBHOOK_APPLICATION_SERVICE]
+  );
+
+  // Calendar Command Handlers
+  container.registerScoped(
+    SERVICE_TOKENS.CREATE_CALENDAR_EVENT_HANDLER,
+    CreateCalendarEventHandler,
+    [SERVICE_TOKENS.CALENDAR_APPLICATION_SERVICE]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.UPDATE_CALENDAR_EVENT_HANDLER,
+    UpdateCalendarEventHandler,
+    [SERVICE_TOKENS.CALENDAR_APPLICATION_SERVICE]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.SCHEDULE_CALENDAR_EVENT_HANDLER,
+    ScheduleCalendarEventHandler,
+    [SERVICE_TOKENS.CALENDAR_APPLICATION_SERVICE]
+  );
 }
 
 function registerQueryHandlers(container: Container): void {
+  // Task Query Handlers
   container.registerScoped(SERVICE_TOKENS.GET_TASK_HANDLER, GetTaskHandler, [
     SERVICE_TOKENS.TASK_REPOSITORY,
   ]);
@@ -362,6 +648,94 @@ function registerQueryHandlers(container: Container): void {
     SERVICE_TOKENS.LIST_TASKS_HANDLER,
     ListTasksHandler,
     [SERVICE_TOKENS.TASK_REPOSITORY]
+  );
+
+  // Project Query Handlers
+  container.registerScoped(
+    SERVICE_TOKENS.GET_PROJECT_HANDLER,
+    GetProjectHandler,
+    [SERVICE_TOKENS.PROJECT_REPOSITORY]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.LIST_PROJECTS_HANDLER,
+    ListProjectsHandler,
+    [SERVICE_TOKENS.PROJECT_REPOSITORY]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.GET_PROJECT_MEMBERS_HANDLER,
+    GetProjectMembersHandler,
+    [SERVICE_TOKENS.PROJECT_REPOSITORY, SERVICE_TOKENS.USER_REPOSITORY]
+  );
+
+  // Workspace Query Handlers
+  container.registerScoped(
+    SERVICE_TOKENS.GET_WORKSPACE_HANDLER,
+    GetWorkspaceHandler,
+    [SERVICE_TOKENS.WORKSPACE_REPOSITORY]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.LIST_WORKSPACES_HANDLER,
+    ListWorkspacesHandler,
+    [SERVICE_TOKENS.WORKSPACE_REPOSITORY]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.GET_WORKSPACE_STATS_HANDLER,
+    GetWorkspaceStatsHandler,
+    [
+      SERVICE_TOKENS.WORKSPACE_REPOSITORY,
+      SERVICE_TOKENS.PROJECT_REPOSITORY,
+      SERVICE_TOKENS.TASK_REPOSITORY,
+    ]
+  );
+
+  // User Query Handlers
+  container.registerScoped(SERVICE_TOKENS.GET_USER_HANDLER, GetUserHandler, [
+    SERVICE_TOKENS.USER_REPOSITORY,
+  ]);
+
+  container.registerScoped(
+    SERVICE_TOKENS.LIST_USERS_HANDLER,
+    ListUsersHandler,
+    [SERVICE_TOKENS.USER_REPOSITORY]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.GET_USER_PREFERENCES_HANDLER,
+    GetUserPreferencesHandler,
+    [
+      SERVICE_TOKENS.USER_REPOSITORY,
+      SERVICE_TOKENS.NOTIFICATION_PREFERENCES_REPOSITORY,
+    ]
+  );
+
+  // Notification Query Handlers
+  container.registerScoped(
+    SERVICE_TOKENS.GET_NOTIFICATIONS_HANDLER,
+    GetNotificationsHandler,
+    [SERVICE_TOKENS.NOTIFICATION_REPOSITORY]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.GET_NOTIFICATION_PREFERENCES_HANDLER,
+    GetNotificationPreferencesHandler,
+    [SERVICE_TOKENS.NOTIFICATION_PREFERENCES_REPOSITORY]
+  );
+
+  // Webhook Query Handlers
+  container.registerScoped(
+    SERVICE_TOKENS.GET_WEBHOOKS_HANDLER,
+    GetWebhooksHandler,
+    [SERVICE_TOKENS.WEBHOOK_REPOSITORY]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.GET_WEBHOOK_DELIVERIES_HANDLER,
+    GetWebhookDeliveriesHandler,
+    [SERVICE_TOKENS.WEBHOOK_REPOSITORY]
   );
 }
 
@@ -406,14 +780,86 @@ function registerControllers(container: Container): void {
     SERVICE_TOKENS.PASSWORD_SERVICE,
     SERVICE_TOKENS.USER_REPOSITORY,
   ]);
+
+  container.registerScoped(
+    SERVICE_TOKENS.NOTIFICATION_CONTROLLER,
+    NotificationController,
+    [
+      SERVICE_TOKENS.GET_NOTIFICATIONS_HANDLER,
+      SERVICE_TOKENS.CREATE_NOTIFICATION_HANDLER,
+      SERVICE_TOKENS.UPDATE_NOTIFICATION_HANDLER,
+      SERVICE_TOKENS.MARK_NOTIFICATION_READ_HANDLER,
+      SERVICE_TOKENS.GET_NOTIFICATION_PREFERENCES_HANDLER,
+    ]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.WEBHOOK_CONTROLLER,
+    WebhookController,
+    [
+      SERVICE_TOKENS.GET_WEBHOOKS_HANDLER,
+      SERVICE_TOKENS.CREATE_WEBHOOK_HANDLER,
+      SERVICE_TOKENS.UPDATE_WEBHOOK_HANDLER,
+      SERVICE_TOKENS.TRIGGER_WEBHOOK_HANDLER,
+      SERVICE_TOKENS.GET_WEBHOOK_DELIVERIES_HANDLER,
+    ]
+  );
+
+  container.registerScoped(
+    SERVICE_TOKENS.CALENDAR_CONTROLLER,
+    CalendarController,
+    [
+      SERVICE_TOKENS.CREATE_CALENDAR_EVENT_HANDLER,
+      SERVICE_TOKENS.UPDATE_CALENDAR_EVENT_HANDLER,
+      SERVICE_TOKENS.SCHEDULE_CALENDAR_EVENT_HANDLER,
+    ]
+  );
 }
 
 function registerEventHandling(container: Container): void {
-  container.registerSingleton(SERVICE_TOKENS.EVENT_BUS, EventBus);
+  container.registerSingleton(SERVICE_TOKENS.EVENT_BUS, EventBus, [
+    SERVICE_TOKENS.LOGGING_SERVICE,
+  ]);
+
+  container.registerSingleton(SERVICE_TOKENS.DOMAIN_EVENT_BUS, DomainEventBus, [
+    SERVICE_TOKENS.LOGGING_SERVICE,
+  ]);
 
   container.registerSingleton(
     SERVICE_TOKENS.DOMAIN_EVENT_PUBLISHER,
     DomainEventPublisher,
     [SERVICE_TOKENS.EVENT_BUS]
+  );
+
+  container.registerSingleton(
+    SERVICE_TOKENS.APPLICATION_EVENT_HANDLERS,
+    ApplicationEventHandlers,
+    [
+      SERVICE_TOKENS.DOMAIN_EVENT_BUS,
+      SERVICE_TOKENS.NOTIFICATION_APPLICATION_SERVICE,
+      SERVICE_TOKENS.AUDIT_LOG_REPOSITORY,
+    ]
+  );
+
+  container.registerSingleton(
+    SERVICE_TOKENS.EVENT_INTEGRATION_SERVICE,
+    EventIntegrationService,
+    [
+      SERVICE_TOKENS.DOMAIN_EVENT_BUS,
+      SERVICE_TOKENS.EVENT_BUS,
+      SERVICE_TOKENS.TRANSACTION_MANAGER,
+      SERVICE_TOKENS.LOGGING_SERVICE,
+      SERVICE_TOKENS.METRICS_SERVICE,
+    ]
+  );
+
+  container.registerSingleton(
+    SERVICE_TOKENS.EVENT_HANDLER_LIFECYCLE_MANAGER,
+    EventHandlerLifecycleManager,
+    [
+      SERVICE_TOKENS.DOMAIN_EVENT_BUS,
+      SERVICE_TOKENS.LOGGING_SERVICE,
+      SERVICE_TOKENS.METRICS_SERVICE,
+    ]
   );
 }

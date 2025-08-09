@@ -1,8 +1,7 @@
 import fastify, { FastifyInstance } from 'fastify';
-import { DIContainer } from './shared/container';
-import { registerServices } from './shared/container/service-registration';
+import { Container, SERVICE_TOKENS } from './shared/container/types';
+import { containerInitializationService } from './shared/container/container-initialization-service';
 import { ConfigLoader } from './shared/config';
-import { SERVICE_TOKENS } from './shared/container/types';
 import { setupRoutes } from './presentation/routes';
 import { setupMiddleware } from './presentation/middleware';
 import { setupWebSocket } from './presentation/websocket';
@@ -15,12 +14,11 @@ import { MetricsService } from './infrastructure/monitoring/metrics-service';
  */
 export class Application {
   private app: FastifyInstance | null = null;
-  private container: DIContainer;
+  private container: Container | null = null;
   private config: ReturnType<typeof ConfigLoader.validateAllConfigs>;
   private isShuttingDown = false;
 
   constructor() {
-    this.container = new DIContainer();
     this.config = ConfigLoader.validateAllConfigs();
   }
 
@@ -29,8 +27,8 @@ export class Application {
    */
   async initialize(): Promise<void> {
     try {
-      // Register all services with the container
-      registerServices(this.container);
+      // Initialize dependency injection container
+      this.container = await containerInitializationService.initialize();
 
       // Create Fastify instance
       this.app = fastify({
@@ -110,6 +108,9 @@ export class Application {
       // Close infrastructure connections
       await this.closeInfrastructure();
 
+      // Shutdown container
+      await containerInitializationService.shutdown();
+
       logger.info('Application shutdown completed');
     } catch (error) {
       logger.error('Error during application shutdown', { error });
@@ -130,7 +131,10 @@ export class Application {
   /**
    * Get the DI container
    */
-  getContainer(): DIContainer {
+  getContainer(): Container {
+    if (!this.container) {
+      throw new Error('Container not initialized');
+    }
     return this.container;
   }
 
@@ -142,6 +146,8 @@ export class Application {
   }
 
   private async setupInfrastructure(): Promise<void> {
+    if (!this.container) return;
+
     const logger = this.getLogger();
     logger.info('Setting up infrastructure services...');
 
@@ -165,7 +171,7 @@ export class Application {
   }
 
   private async setupMiddleware(): Promise<void> {
-    if (!this.app) return;
+    if (!this.app || !this.container) return;
 
     const logger = this.getLogger();
     logger.info('Setting up middleware...');
@@ -180,7 +186,7 @@ export class Application {
   }
 
   private async setupRoutes(): Promise<void> {
-    if (!this.app) return;
+    if (!this.app || !this.container) return;
 
     const logger = this.getLogger();
     logger.info('Setting up routes...');
@@ -191,7 +197,8 @@ export class Application {
   }
 
   private async setupWebSocket(): Promise<void> {
-    if (!this.app || !this.config.app.enableWebSocket) return;
+    if (!this.app || !this.container || !this.config.app.enableWebSocket)
+      return;
 
     const logger = this.getLogger();
     logger.info('Setting up WebSocket...');
@@ -239,6 +246,8 @@ export class Application {
   }
 
   private async validateSystemHealth(): Promise<void> {
+    if (!this.container) return;
+
     const logger = this.getLogger();
     logger.info('Validating system health...');
 
@@ -266,6 +275,8 @@ export class Application {
   }
 
   private async startHealthMonitoring(): Promise<void> {
+    if (!this.container) return;
+
     const logger = this.getLogger();
     const healthService = this.container.resolve<HealthService>(
       SERVICE_TOKENS.HEALTH_SERVICE
@@ -293,6 +304,8 @@ export class Application {
   }
 
   private async closeInfrastructure(): Promise<void> {
+    if (!this.container) return;
+
     const logger = this.getLogger();
 
     try {
@@ -314,9 +327,12 @@ export class Application {
 
   private getLogger(): LoggingService {
     try {
-      return this.container.resolve<LoggingService>(
-        SERVICE_TOKENS.LOGGING_SERVICE
-      );
+      if (this.container) {
+        return this.container.resolve<LoggingService>(
+          SERVICE_TOKENS.LOGGING_SERVICE
+        );
+      }
+      throw new Error('Container not available');
     } catch {
       // Fallback to console if logging service is not available
       return {
