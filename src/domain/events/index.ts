@@ -15,3 +15,9 @@ export * from './workspace-events';
 
 // User Events
 export * from './user-events';
+
+// New domain events for migrated entities
+export * from './audit-events';
+export * from './calendar-events';
+export * from './notification-events';
+export * from './webhook-events';

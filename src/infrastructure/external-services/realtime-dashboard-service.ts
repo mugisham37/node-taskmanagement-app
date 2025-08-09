@@ -63,7 +63,9 @@ export class RealtimeDashboardService {
       await this.updateAllDashboardStats();
     }, 30000);
 
-    this.logger.info('Real-time dashboard service started with periodic updates');
+    this.logger.info(
+      'Real-time dashboard service started with periodic updates'
+    );
   }
 
   /**
@@ -79,7 +81,10 @@ export class RealtimeDashboardService {
   /**
    * Update workspace dashboard statistics
    */
-  async updateWorkspaceDashboard(workspaceId: string, stats: Partial<DashboardStats>): Promise<void> {
+  async updateWorkspaceDashboard(
+    workspaceId: string,
+    stats: Partial<DashboardStats>
+  ): Promise<void> {
     try {
       const currentStats = this.dashboardStats.get(workspaceId) || {
         totalTasks: 0,
@@ -124,13 +129,196 @@ export class RealtimeDashboardService {
         stats: updatedStats,
       });
     } catch (error) {
-      this.logger.error('Failed to update workspace dashboard', error as Error, {
-        workspaceId,
-      });
+      this.logger.error(
+        'Failed to update workspace dashboard',
+        error as Error,
+        {
+          workspaceId,
+        }
+      );
     }
   }
 
   /**
    * Update project dashboard statistics
    */
-  async updateProjectDashboard(projectId: string
+  async updateProjectDashboard(
+    projectId: string,
+    stats: Partial<ProjectDashboardStats>
+  ): Promise<void> {
+    try {
+      const currentStats = this.projectStats.get(projectId) || {
+        projectId,
+        projectName: '',
+        totalTasks: 0,
+        completedTasks: 0,
+        inProgressTasks: 0,
+        overdueTasks: 0,
+        teamMembers: 0,
+        activeMembers: 0,
+        completionRate: 0,
+        lastActivity: new Date(),
+      };
+
+      const updatedStats: ProjectDashboardStats = {
+        ...currentStats,
+        ...stats,
+        lastActivity: new Date(),
+        completionRate:
+          currentStats.totalTasks > 0
+            ? (currentStats.completedTasks / currentStats.totalTasks) * 100
+            : 0,
+      };
+
+      this.projectStats.set(projectId, updatedStats);
+
+      // Cache the stats
+      await this.cacheService.set(
+        `dashboard:project:${projectId}`,
+        JSON.stringify(updatedStats),
+        300 // 5 minutes TTL
+      );
+
+      // Broadcast to project subscribers
+      this.webSocketService.broadcastToChannel(`project:${projectId}`, {
+        type: 'project_dashboard_update',
+        payload: {
+          projectId,
+          stats: updatedStats,
+        },
+        timestamp: new Date().toISOString(),
+        messageId: this.generateMessageId(),
+      });
+
+      this.logger.debug('Project dashboard updated', {
+        projectId,
+        stats: updatedStats,
+      });
+    } catch (error) {
+      this.logger.error('Failed to update project dashboard', error as Error, {
+        projectId,
+      });
+    }
+  }
+
+  /**
+   * Update user activity statistics
+   */
+  async updateUserActivity(
+    userId: string,
+    stats: Partial<UserActivityStats>
+  ): Promise<void> {
+    try {
+      const currentStats = this.userActivityStats.get(userId) || {
+        userId,
+        userEmail: '',
+        tasksCompleted: 0,
+        tasksInProgress: 0,
+        projectsActive: 0,
+        lastActivity: new Date(),
+        isOnline: false,
+      };
+
+      const updatedStats: UserActivityStats = {
+        ...currentStats,
+        ...stats,
+        lastActivity: new Date(),
+      };
+
+      this.userActivityStats.set(userId, updatedStats);
+
+      // Cache the stats
+      await this.cacheService.set(
+        `dashboard:user:${userId}`,
+        JSON.stringify(updatedStats),
+        300 // 5 minutes TTL
+      );
+
+      this.logger.debug('User activity updated', {
+        userId,
+        stats: updatedStats,
+      });
+    } catch (error) {
+      this.logger.error('Failed to update user activity', error as Error, {
+        userId,
+      });
+    }
+  }
+
+  /**
+   * Get workspace dashboard statistics
+   */
+  async getWorkspaceDashboard(
+    workspaceId: string
+  ): Promise<DashboardStats | null> {
+    try {
+      // Try cache first
+      const cached = await this.cacheService.get(
+        `dashboard:workspace:${workspaceId}`
+      );
+      if (cached) {
+        return JSON.parse(cached);
+      }
+
+      // Return from memory
+      return this.dashboardStats.get(workspaceId) || null;
+    } catch (error) {
+      this.logger.error('Failed to get workspace dashboard', error as Error, {
+        workspaceId,
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Get project dashboard statistics
+   */
+  async getProjectDashboard(
+    projectId: string
+  ): Promise<ProjectDashboardStats | null> {
+    try {
+      // Try cache first
+      const cached = await this.cacheService.get(
+        `dashboard:project:${projectId}`
+      );
+      if (cached) {
+        return JSON.parse(cached);
+      }
+
+      // Return from memory
+      return this.projectStats.get(projectId) || null;
+    } catch (error) {
+      this.logger.error('Failed to get project dashboard', error as Error, {
+        projectId,
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Update all dashboard statistics
+   */
+  private async updateAllDashboardStats(): Promise<void> {
+    try {
+      // This would typically fetch fresh data from the database
+      // For now, we'll just broadcast current stats to keep connections alive
+      for (const [workspaceId, stats] of this.dashboardStats) {
+        this.webSocketService.broadcastToChannel(`workspace:${workspaceId}`, {
+          type: 'dashboard_heartbeat',
+          payload: { workspaceId, stats },
+          timestamp: new Date().toISOString(),
+          messageId: this.generateMessageId(),
+        });
+      }
+    } catch (error) {
+      this.logger.error('Failed to update all dashboard stats', error as Error);
+    }
+  }
+
+  /**
+   * Generate unique message ID
+   */
+  private generateMessageId(): string {
+    return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+}

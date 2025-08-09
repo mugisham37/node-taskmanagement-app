@@ -28,6 +28,9 @@ export const PAGINATION = {
   MAX_PAGE_SIZE: 100,
   MIN_PAGE_SIZE: 1,
   DEFAULT_PAGE: 1,
+  // Enhanced from older version
+  DEFAULT_LIMIT: 20,
+  MAX_LIMIT: 100,
 } as const;
 
 /**
@@ -51,6 +54,16 @@ export const RATE_LIMITS = {
 } as const;
 
 /**
+ * Enhanced rate limiting from older version
+ */
+export const RATE_LIMIT = {
+  DEFAULT_MAX: 100,
+  DEFAULT_WINDOW: '15m',
+  AUTH_MAX: 5,
+  AUTH_WINDOW: '15m',
+} as const;
+
+/**
  * JWT token constants
  */
 export const JWT = {
@@ -58,6 +71,16 @@ export const JWT = {
   REFRESH_TOKEN_EXPIRY: '7d',
   PASSWORD_RESET_TOKEN_EXPIRY: '1h',
   EMAIL_VERIFICATION_TOKEN_EXPIRY: '24h',
+} as const;
+
+/**
+ * Enhanced JWT expiration from older version
+ */
+export const JWT_EXPIRATION = {
+  ACCESS_TOKEN: '15m',
+  REFRESH_TOKEN: '7d',
+  RESET_TOKEN: '1h',
+  VERIFICATION_TOKEN: '24h',
 } as const;
 
 /**

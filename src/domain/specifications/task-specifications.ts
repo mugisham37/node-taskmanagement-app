@@ -44,7 +44,9 @@ class AndSpecification<T> extends Specification<T> {
   }
 
   isSatisfiedBy(candidate: T): boolean {
-    return this.left.isSatisfiedBy(candidate) && this.right.isSatisfiedBy(candidate);
+    return (
+      this.left.isSatisfiedBy(candidate) && this.right.isSatisfiedBy(candidate)
+    );
   }
 }
 
@@ -57,7 +59,9 @@ class OrSpecification<T> extends Specification<T> {
   }
 
   isSatisfiedBy(candidate: T): boolean {
-    return this.left.isSatisfiedBy(candidate) || this.right.isSatisfiedBy(candidate);
+    return (
+      this.left.isSatisfiedBy(candidate) || this.right.isSatisfiedBy(candidate)
+    );
   }
 }
 
@@ -185,7 +189,7 @@ export class TaskRequiresAttentionSpecification extends Specification<Task> {
     // - Overdue
     // - High priority and not assigned
     // - Due within 2 days and not in progress
-    
+
     if (task.isOverdue()) {
       return true;
     }
@@ -206,8 +210,16 @@ export class TaskRequiresAttentionSpecification extends Specification<Task> {
 /**
  * User can be assigned task specification
  */
-export class UserCanBeAssignedTaskSpecification extends Specification<{ user: User; task: Task; userActiveTasks: Task[] }> {
-  isSatisfiedBy(candidate: { user: User; task: Task; userActiveTasks: Task[] }): boolean {
+export class UserCanBeAssignedTaskSpecification extends Specification<{
+  user: User;
+  task: Task;
+  userActiveTasks: Task[];
+}> {
+  isSatisfiedBy(candidate: {
+    user: User;
+    task: Task;
+    userActiveTasks: Task[];
+  }): boolean {
     const { user, task, userActiveTasks } = candidate;
 
     // User must be active
@@ -221,17 +233,20 @@ export class UserCanBeAssignedTaskSpecification extends Specification<{ user: Us
     }
 
     // Check workload limits (max 10 active tasks)
-    const activeTaskCount = userActiveTasks.filter(t => t.status.isActive()).length;
+    const activeTaskCount = userActiveTasks.filter(t =>
+      t.status.isActive()
+    ).length;
     if (activeTaskCount >= 10) {
       return false;
     }
 
     // Check for conflicting urgent tasks on same due date
     if (task.priority.isUrgent() && task.dueDate) {
-      const conflictingTasks = userActiveTasks.filter(t => 
-        t.priority.isUrgent() && 
-        t.dueDate && 
-        this.isSameDay(t.dueDate, task.dueDate!)
+      const conflictingTasks = userActiveTasks.filter(
+        t =>
+          t.priority.isUrgent() &&
+          t.dueDate &&
+          this.isSameDay(t.dueDate, task.dueDate!)
       );
 
       if (conflictingTasks.length > 0) {
@@ -252,8 +267,9 @@ export class UserCanBeAssignedTaskSpecification extends Specification<{ user: Us
  */
 export class TaskIsReadyForReviewSpecification extends Specification<Task> {
   isSatisfiedBy(task: Task): boolean {
-    return task.status.canTransitionTo(TaskStatus.IN_REVIEW) && 
-           task.isAssigned();
+    return (
+      task.status.canTransitionTo(TaskStatus.IN_REVIEW) && task.isAssigned()
+    );
   }
 }
 
@@ -318,9 +334,11 @@ export class UrgentTasksSpecification extends Specification<Task> {
     const isDueSoon = new TaskIsDueWithinDaysSpecification(3);
     const isOverdue = new TaskIsOverdueSpecification();
 
-    return isHighPriority.isSatisfiedBy(task) || 
-           isDueSoon.isSatisfiedBy(task) || 
-           isOverdue.isSatisfiedBy(task);
+    return (
+      isHighPriority.isSatisfiedBy(task) ||
+      isDueSoon.isSatisfiedBy(task) ||
+      isOverdue.isSatisfiedBy(task)
+    );
   }
 }
 
@@ -330,11 +348,11 @@ export class UrgentTasksSpecification extends Specification<Task> {
 export class TasksNeedingAssignmentSpecification extends Specification<Task> {
   isSatisfiedBy(task: Task): boolean {
     const canBeAssigned = new TaskCanBeAssignedSpecification();
-    const isNotAssigned = new Specification<Task>() {
+    const isNotAssigned = new (class extends Specification<Task> {
       isSatisfiedBy(task: Task): boolean {
         return !task.isAssigned();
       }
-    };
+    })();
 
     return canBeAssigned.and(isNotAssigned).isSatisfiedBy(task);
   }

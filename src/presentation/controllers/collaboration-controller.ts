@@ -14,7 +14,10 @@ export class CollaborationController {
   ) {}
 
   // Document operations
-  async createDocument(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async createDocument(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<void> {
     try {
       const { documentId, type, entityId, initialContent } = request.body as {
         documentId: string;
@@ -29,7 +32,9 @@ export class CollaborationController {
       }
 
       if (!documentId || !type || !entityId) {
-        throw new ValidationError('Document ID, type, and entity ID are required');
+        throw new ValidationError(
+          'Document ID, type, and entity ID are required'
+        );
       }
 
       const document = await this.collaborationService.createDocument(
@@ -60,7 +65,7 @@ export class CollaborationController {
       });
     } catch (error) {
       this.logger.error('Failed to create document', error as Error);
-      
+
       if (error instanceof ValidationError) {
         reply.code(400).send({ error: error.message });
       } else {
@@ -69,7 +74,10 @@ export class CollaborationController {
     }
   }
 
-  async getDocument(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async getDocument(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<void> {
     try {
       const { documentId } = request.params as { documentId: string };
       const userId = (request as any).user?.id;
@@ -79,7 +87,7 @@ export class CollaborationController {
       }
 
       const document = await this.collaborationService.getDocument(documentId);
-      
+
       if (!document) {
         throw new NotFoundError('Document not found');
       }
@@ -105,7 +113,7 @@ export class CollaborationController {
       });
     } catch (error) {
       this.logger.error('Failed to get document', error as Error);
-      
+
       if (error instanceof NotFoundError) {
         reply.code(404).send({ error: error.message });
       } else if (error instanceof ValidationError) {
@@ -116,7 +124,10 @@ export class CollaborationController {
     }
   }
 
-  async applyOperation(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async applyOperation(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<void> {
     try {
       const { documentId } = request.params as { documentId: string };
       const { type, position, content, length, version } = request.body as {
@@ -133,7 +144,9 @@ export class CollaborationController {
       }
 
       if (!type || position === undefined || version === undefined) {
-        throw new ValidationError('Operation type, position, and version are required');
+        throw new ValidationError(
+          'Operation type, position, and version are required'
+        );
       }
 
       const result = await this.collaborationService.applyOperation(
@@ -165,7 +178,7 @@ export class CollaborationController {
       });
     } catch (error) {
       this.logger.error('Failed to apply operation', error as Error);
-      
+
       if (error instanceof ValidationError) {
         reply.code(400).send({ error: error.message });
       } else {
@@ -174,7 +187,10 @@ export class CollaborationController {
     }
   }
 
-  async addCollaborator(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async addCollaborator(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<void> {
     try {
       const { documentId } = request.params as { documentId: string };
       const { collaboratorId } = request.body as { collaboratorId: string };
@@ -188,8 +204,11 @@ export class CollaborationController {
         throw new ValidationError('Collaborator ID is required');
       }
 
-      const success = await this.collaborationService.addCollaborator(documentId, collaboratorId);
-      
+      const success = await this.collaborationService.addCollaborator(
+        documentId,
+        collaboratorId
+      );
+
       if (!success) {
         throw new NotFoundError('Document not found');
       }
@@ -206,7 +225,7 @@ export class CollaborationController {
       });
     } catch (error) {
       this.logger.error('Failed to add collaborator', error as Error);
-      
+
       if (error instanceof NotFoundError) {
         reply.code(404).send({ error: error.message });
       } else if (error instanceof ValidationError) {
@@ -218,7 +237,10 @@ export class CollaborationController {
   }
 
   // Comments
-  async addComment(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async addComment(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<void> {
     try {
       const { documentId } = request.params as { documentId: string };
       const { content, position, parentId } = request.body as {
@@ -260,7 +282,7 @@ export class CollaborationController {
       });
     } catch (error) {
       this.logger.error('Failed to add comment', error as Error);
-      
+
       if (error instanceof ValidationError) {
         reply.code(400).send({ error: error.message });
       } else {
@@ -269,9 +291,15 @@ export class CollaborationController {
     }
   }
 
-  async updateComment(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async updateComment(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<void> {
     try {
-      const { documentId, commentId } = request.params as { documentId: string; commentId: string };
+      const { documentId, commentId } = request.params as {
+        documentId: string;
+        commentId: string;
+      };
       const { content } = request.body as { content: string };
 
       const userId = (request as any).user?.id;
@@ -306,7 +334,7 @@ export class CollaborationController {
       });
     } catch (error) {
       this.logger.error('Failed to update comment', error as Error);
-      
+
       if (error instanceof NotFoundError) {
         reply.code(404).send({ error: error.message });
       } else if (error instanceof ValidationError) {
@@ -317,16 +345,26 @@ export class CollaborationController {
     }
   }
 
-  async deleteComment(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async deleteComment(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<void> {
     try {
-      const { documentId, commentId } = request.params as { documentId: string; commentId: string };
+      const { documentId, commentId } = request.params as {
+        documentId: string;
+        commentId: string;
+      };
 
       const userId = (request as any).user?.id;
       if (!userId) {
         throw new ValidationError('User ID is required');
       }
 
-      const success = await this.collaborationService.deleteComment(commentId, documentId, userId);
+      const success = await this.collaborationService.deleteComment(
+        commentId,
+        documentId,
+        userId
+      );
 
       if (!success) {
         throw new NotFoundError('Comment not found or access denied');
@@ -344,7 +382,7 @@ export class CollaborationController {
       });
     } catch (error) {
       this.logger.error('Failed to delete comment', error as Error);
-      
+
       if (error instanceof NotFoundError) {
         reply.code(404).send({ error: error.message });
       } else if (error instanceof ValidationError) {
@@ -355,7 +393,10 @@ export class CollaborationController {
     }
   }
 
-  async getComments(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async getComments(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<void> {
     try {
       const { documentId } = request.params as { documentId: string };
 
@@ -373,7 +414,7 @@ export class CollaborationController {
       });
     } catch (error) {
       this.logger.error('Failed to get comments', error as Error);
-      
+
       if (error instanceof ValidationError) {
         reply.code(400).send({ error: error.message });
       } else {
@@ -383,7 +424,10 @@ export class CollaborationController {
   }
 
   // Document locking
-  async acquireLock(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async acquireLock(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<void> {
     try {
       const { documentId } = request.params as { documentId: string };
 
@@ -392,7 +436,10 @@ export class CollaborationController {
         throw new ValidationError('User ID is required');
       }
 
-      const success = await this.collaborationService.acquireLock(documentId, userId);
+      const success = await this.collaborationService.acquireLock(
+        documentId,
+        userId
+      );
 
       if (!success) {
         reply.code(409).send({
@@ -409,7 +456,7 @@ export class CollaborationController {
       });
     } catch (error) {
       this.logger.error('Failed to acquire document lock', error as Error);
-      
+
       if (error instanceof ValidationError) {
         reply.code(400).send({ error: error.message });
       } else {
@@ -418,7 +465,10 @@ export class CollaborationController {
     }
   }
 
-  async releaseLock(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async releaseLock(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<void> {
     try {
       const { documentId } = request.params as { documentId: string };
 
@@ -427,7 +477,10 @@ export class CollaborationController {
         throw new ValidationError('User ID is required');
       }
 
-      const success = await this.collaborationService.releaseLock(documentId, userId);
+      const success = await this.collaborationService.releaseLock(
+        documentId,
+        userId
+      );
 
       if (!success) {
         reply.code(400).send({
@@ -442,7 +495,7 @@ export class CollaborationController {
       });
     } catch (error) {
       this.logger.error('Failed to release document lock', error as Error);
-      
+
       if (error instanceof ValidationError) {
         reply.code(400).send({ error: error.message });
       } else {
@@ -451,7 +504,10 @@ export class CollaborationController {
     }
   }
 
-  async getLockStatus(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async getLockStatus(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<void> {
     try {
       const { documentId } = request.params as { documentId: string };
 
@@ -468,11 +524,15 @@ export class CollaborationController {
   }
 
   // Typing indicators
-  async getTypingIndicators(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async getTypingIndicators(
+    request: FastifyRequest,
+    reply: FastifyReply
+  ): Promise<void> {
     try {
       const { documentId } = request.params as { documentId: string };
 
-      const indicators = this.collaborationService.getTypingIndicators(documentId);
+      const indicators =
+        this.collaborationService.getTypingIndicators(documentId);
 
       reply.send({
         success: true,
@@ -480,4 +540,12 @@ export class CollaborationController {
         count: indicators.length,
       });
     } catch (error) {
-      this.logger.error('Failed to get typing indicators', error as E
+      this.logger.error('Failed to get typing indicators', error as Error);
+
+      reply.status(500).send({
+        success: false,
+        error: 'Failed to get typing indicators',
+      });
+    }
+  }
+}

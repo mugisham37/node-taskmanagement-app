@@ -1,5 +1,6 @@
 /**
- * Utility functions for date manipulation and validation
+ * Enhanced utility functions for date manipulation and validation
+ * Combines existing functionality with advanced date operations
  */
 export class DateUtils {
   /**
@@ -150,5 +151,60 @@ export class DateUtils {
    */
   static toTimestamp(date: Date): number {
     return date.getTime();
+  }
+
+  // Enhanced functionality from older version
+
+  /**
+   * Get current timestamp (alias for now)
+   */
+  static getCurrentTimestamp(): Date {
+    return new Date();
+  }
+
+  /**
+   * Format date to ISO string (alias for toISOString)
+   */
+  static formatToISOString(date: Date): string {
+    return date.toISOString();
+  }
+
+  /**
+   * Parse ISO string to date (alias for fromISOString)
+   */
+  static parseISOString(isoString: string): Date {
+    return new Date(isoString);
+  }
+
+  /**
+   * Check if date is in the past (alias for isPast)
+   */
+  static isInPast(date: Date): boolean {
+    return date < new Date();
+  }
+
+  /**
+   * Check if date is in the future (alias for isFuture)
+   */
+  static isInFuture(date: Date): boolean {
+    return date > new Date();
+  }
+
+  /**
+   * Get start of day (alias for startOfDay)
+   */
+  static getStartOfDay(date: Date): Date {
+    const result = new Date(date);
+    result.setHours(0, 0, 0, 0);
+    return result;
+  }
+
+  /**
+   * Get end of day (alias for endOfDay)
+   */
+  static getEndOfDay(date: Date): Date {
+    const result = new Date(date);
+    result.setHours(23, 59, 59, 999);
+    return result;
   }
 }

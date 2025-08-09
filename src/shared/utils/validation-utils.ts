@@ -1,5 +1,6 @@
 /**
- * Common validation utilities
+ * Enhanced validation utilities with comprehensive validation functions
+ * Combines existing functionality with advanced validation from older version
  */
 export class ValidationUtils {
   /**
@@ -184,5 +185,58 @@ export class ValidationUtils {
     enumObject: T
   ): value is T[keyof T] {
     return Object.values(enumObject).includes(value);
+  }
+
+  // Enhanced functionality from older version
+
+  /**
+   * Check if value is null or undefined
+   */
+  static isNullOrUndefined(value: any): value is null | undefined {
+    return value === null || value === undefined;
+  }
+
+  /**
+   * Check if string is empty or whitespace
+   */
+  static isEmptyString(value: string): boolean {
+    return !value || value.trim().length === 0;
+  }
+
+  /**
+   * Check if value is a positive number
+   */
+  static isPositiveNumber(value: number): boolean {
+    return typeof value === 'number' && value > 0;
+  }
+
+  /**
+   * Check if value is a non-negative number
+   */
+  static isNonNegativeNumber(value: number): boolean {
+    return typeof value === 'number' && value >= 0;
+  }
+
+  /**
+   * Check if array is not empty (with type guard)
+   */
+  static isNonEmptyArray<T>(array: T[]): array is [T, ...T[]] {
+    return Array.isArray(array) && array.length > 0;
+  }
+
+  /**
+   * Check if object has required properties
+   */
+  static hasRequiredProperties<T extends Record<string, any>>(
+    obj: any,
+    requiredProps: (keyof T)[]
+  ): obj is T {
+    if (!obj || typeof obj !== 'object') {
+      return false;
+    }
+
+    return requiredProps.every(
+      prop => prop in obj && !ValidationUtils.isNullOrUndefined(obj[prop])
+    );
   }
 }

@@ -9,3 +9,8 @@ export * from './project-specifications';
 
 // Workspace specifications
 export * from './workspace-specifications';
+
+// New specifications for migrated entities
+export * from './calendar-specifications';
+export * from './notification-specifications';
+export * from './webhook-specifications';
