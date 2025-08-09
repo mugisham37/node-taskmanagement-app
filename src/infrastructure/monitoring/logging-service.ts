@@ -477,3 +477,20 @@ export class LoggingService {
     }
   }
 }
+// Default logger instance for application use
+const defaultConfig: LoggingConfig = {
+  level: process.env.LOG_LEVEL || 'info',
+  format: 'json',
+  enableConsole: true,
+  enableFile: false,
+  enableRotation: false,
+  enableErrorFile: false,
+  enableSyslog: false,
+  metadata: {
+    service: 'task-management',
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+  },
+};
+
+export const logger = new LoggingService(defaultConfig);

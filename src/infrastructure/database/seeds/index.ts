@@ -4,6 +4,11 @@ import { UserSeeder } from './user-seeder';
 import { WorkspaceSeeder } from './workspace-seeder';
 import { ProjectSeeder } from './project-seeder';
 import { TaskSeeder } from './task-seeder';
+import { NotificationSeeder } from './notification-seeder';
+import { AuditLogSeeder } from './audit-log-seeder';
+import { WebhookSeeder } from './webhook-seeder';
+import { CalendarEventSeeder } from './calendar-event-seeder';
+import { FileAttachmentSeeder } from './file-attachment-seeder';
 
 export interface SeedOptions {
   environment: 'development' | 'test' | 'staging';
@@ -20,6 +25,11 @@ export class DatabaseSeeder {
   private workspaceSeeder: WorkspaceSeeder;
   private projectSeeder: ProjectSeeder;
   private taskSeeder: TaskSeeder;
+  private notificationSeeder: NotificationSeeder;
+  private auditLogSeeder: AuditLogSeeder;
+  private webhookSeeder: WebhookSeeder;
+  private calendarEventSeeder: CalendarEventSeeder;
+  private fileAttachmentSeeder: FileAttachmentSeeder;
 
   constructor(connection: DatabaseConnection) {
     this.connection = connection;
@@ -27,6 +37,11 @@ export class DatabaseSeeder {
     this.workspaceSeeder = new WorkspaceSeeder(connection);
     this.projectSeeder = new ProjectSeeder(connection);
     this.taskSeeder = new TaskSeeder(connection);
+    this.notificationSeeder = new NotificationSeeder(connection);
+    this.auditLogSeeder = new AuditLogSeeder(connection);
+    this.webhookSeeder = new WebhookSeeder(connection);
+    this.calendarEventSeeder = new CalendarEventSeeder(connection);
+    this.fileAttachmentSeeder = new FileAttachmentSeeder(connection);
   }
 
   async seedAll(options: SeedOptions): Promise<void> {
@@ -65,7 +80,56 @@ export class DatabaseSeeder {
       );
 
       console.log('Seeding tasks...');
-      await this.taskSeeder.seed(projects, users, tasksPerProject);
+      const tasks = await this.taskSeeder.seed(
+        projects,
+        users,
+        tasksPerProject
+      );
+
+      console.log('Seeding notifications...');
+      await this.notificationSeeder.seed(
+        users.map(u => u.id),
+        workspaces.map(w => w.id),
+        projects.map(p => p.id),
+        tasks.map(t => t.id),
+        Math.floor(userCount * 2) // 2 notifications per user on average
+      );
+
+      console.log('Seeding webhooks...');
+      await this.webhookSeeder.seed(
+        users.map(u => u.id),
+        workspaces.map(w => w.id),
+        Math.floor(workspaceCount * 2) // 2 webhooks per workspace on average
+      );
+
+      console.log('Seeding calendar events...');
+      await this.calendarEventSeeder.seed(
+        users.map(u => u.id),
+        workspaces.map(w => w.id),
+        projects.map(p => p.id),
+        tasks.map(t => t.id),
+        Math.floor(userCount * 3) // 3 events per user on average
+      );
+
+      console.log('Seeding file attachments...');
+      await this.fileAttachmentSeeder.seed(
+        users.map(u => u.id),
+        workspaces.map(w => w.id),
+        projects.map(p => p.id),
+        tasks.map(t => t.id),
+        Math.floor(
+          tasksPerProject * projectsPerWorkspace * workspaceCount * 0.5
+        ) // 0.5 files per task on average
+      );
+
+      console.log('Seeding audit logs...');
+      await this.auditLogSeeder.seed(
+        users.map(u => u.id),
+        workspaces.map(w => w.id),
+        projects.map(p => p.id),
+        tasks.map(t => t.id),
+        Math.floor(userCount * 10) // 10 audit logs per user on average
+      );
 
       console.log('Database seeding completed successfully!');
     } catch (error) {
@@ -102,6 +166,11 @@ export class DatabaseSeeder {
       await client.query('SET session_replication_role = replica');
 
       // Clear tables in reverse dependency order
+      await client.query('TRUNCATE file_attachments CASCADE');
+      await client.query('TRUNCATE calendar_events CASCADE');
+      await client.query('TRUNCATE webhooks CASCADE');
+      await client.query('TRUNCATE notifications CASCADE');
+      await client.query('TRUNCATE audit_logs CASCADE');
       await client.query('TRUNCATE task_dependencies CASCADE');
       await client.query('TRUNCATE tasks CASCADE');
       await client.query('TRUNCATE project_members CASCADE');
@@ -124,6 +193,11 @@ export class DatabaseSeeder {
     projects: number;
     tasks: number;
     taskDependencies: number;
+    notifications: number;
+    auditLogs: number;
+    webhooks: number;
+    calendarEvents: number;
+    fileAttachments: number;
   }> {
     const client = await this.connection.pool.connect();
 
@@ -134,12 +208,22 @@ export class DatabaseSeeder {
         projectsResult,
         tasksResult,
         dependenciesResult,
+        notificationsResult,
+        auditLogsResult,
+        webhooksResult,
+        calendarEventsResult,
+        fileAttachmentsResult,
       ] = await Promise.all([
         client.query('SELECT COUNT(*) FROM users'),
         client.query('SELECT COUNT(*) FROM workspaces'),
         client.query('SELECT COUNT(*) FROM projects'),
         client.query('SELECT COUNT(*) FROM tasks'),
         client.query('SELECT COUNT(*) FROM task_dependencies'),
+        client.query('SELECT COUNT(*) FROM notifications'),
+        client.query('SELECT COUNT(*) FROM audit_logs'),
+        client.query('SELECT COUNT(*) FROM webhooks'),
+        client.query('SELECT COUNT(*) FROM calendar_events'),
+        client.query('SELECT COUNT(*) FROM file_attachments'),
       ]);
 
       return {
@@ -148,6 +232,11 @@ export class DatabaseSeeder {
         projects: parseInt(projectsResult.rows[0].count),
         tasks: parseInt(tasksResult.rows[0].count),
         taskDependencies: parseInt(dependenciesResult.rows[0].count),
+        notifications: parseInt(notificationsResult.rows[0].count),
+        auditLogs: parseInt(auditLogsResult.rows[0].count),
+        webhooks: parseInt(webhooksResult.rows[0].count),
+        calendarEvents: parseInt(calendarEventsResult.rows[0].count),
+        fileAttachments: parseInt(fileAttachmentsResult.rows[0].count),
       };
     } finally {
       client.release();
@@ -188,6 +277,11 @@ if (require.main === module) {
       console.log(`Projects: ${summary.projects}`);
       console.log(`Tasks: ${summary.tasks}`);
       console.log(`Task Dependencies: ${summary.taskDependencies}`);
+      console.log(`Notifications: ${summary.notifications}`);
+      console.log(`Audit Logs: ${summary.auditLogs}`);
+      console.log(`Webhooks: ${summary.webhooks}`);
+      console.log(`Calendar Events: ${summary.calendarEvents}`);
+      console.log(`File Attachments: ${summary.fileAttachments}`);
     } catch (error) {
       console.error('Seeding failed:', error);
       process.exit(1);
@@ -199,4 +293,14 @@ if (require.main === module) {
   runSeeding();
 }
 
-export { UserSeeder, WorkspaceSeeder, ProjectSeeder, TaskSeeder };
+export {
+  UserSeeder,
+  WorkspaceSeeder,
+  ProjectSeeder,
+  TaskSeeder,
+  NotificationSeeder,
+  AuditLogSeeder,
+  WebhookSeeder,
+  CalendarEventSeeder,
+  FileAttachmentSeeder,
+};
