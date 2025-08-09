@@ -42,6 +42,9 @@ export type {
   MonitoringConfig,
 } from './comprehensive-monitoring';
 
+// Enhanced monitoring service that consolidates all monitoring capabilities
+export { ComprehensiveMonitoring as MonitoringService } from './comprehensive-monitoring';
+
 // Factory function to create monitoring services with default configurations
 export function createMonitoringServices(config: {
   logging: Partial<LoggingConfig>;

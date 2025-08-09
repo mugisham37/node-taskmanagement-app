@@ -30,9 +30,12 @@ export {
   drizzleQueryOptimizer,
 } from './database/drizzle-query-optimizer';
 export {
-  EnhancedEmailService,
-  enhancedEmailService,
-} from './external-services/enhanced-email-service';
+  EmailService,
+  EmailConfig,
+  SendEmailData,
+  EmailSendResult,
+  EmailTemplate,
+} from './external-services/email-service';
 export {
   CircuitBreaker,
   CircuitBreakerRegistry,

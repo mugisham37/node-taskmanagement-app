@@ -1,7 +1,13 @@
 import { APIPerformanceMonitor } from './api-performance-monitor';
-import { MetricsService } from './metrics-service';
-import { HealthService } from './health-service';
-import { LoggingService } from './logging-service';
+import { MetricsService, MetricsConfig } from './metrics-service';
+import {
+  HealthService,
+  HealthCheckConfig,
+  HealthCheckResult,
+  SystemHealth,
+  HealthCheckFunction,
+} from './health-service';
+import { LoggingService, LoggingConfig, LogContext } from './logging-service';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
 
 export interface SystemHealthStatus {
@@ -80,13 +86,30 @@ export class ComprehensiveMonitoring {
   private systemMetrics: SystemMetrics | null = null;
   private monitoringInterval: NodeJS.Timeout | null = null;
 
+  // Integrated services
+  private apiMonitor: APIPerformanceMonitor;
+  private metricsService: MetricsService;
+  private healthService: HealthService;
+  private loggingService: LoggingService;
+
   constructor(
-    private readonly apiMonitor: APIPerformanceMonitor,
-    private readonly metricsService: MetricsService,
-    private readonly healthService: HealthService,
-    private readonly loggingService: LoggingService,
-    private readonly config: MonitoringConfig
+    private readonly config: MonitoringConfig,
+    private readonly loggingConfig: LoggingConfig,
+    private readonly metricsConfig: MetricsConfig,
+    private readonly healthConfig: HealthCheckConfig,
+    private readonly appVersion: string = '1.0.0',
+    private readonly environment: string = 'development'
   ) {
+    // Initialize integrated services
+    this.loggingService = new LoggingService(loggingConfig);
+    this.metricsService = new MetricsService(metricsConfig);
+    this.healthService = new HealthService(
+      healthConfig,
+      appVersion,
+      environment
+    );
+    this.apiMonitor = new APIPerformanceMonitor();
+
     this.startMonitoring();
   }
 
@@ -94,29 +117,17 @@ export class ComprehensiveMonitoring {
    * Start comprehensive monitoring
    */
   startMonitoring(): void {
-    console.log('Starting comprehensive monitoring...');
+    this.loggingService.info('Starting comprehensive monitoring system');
+
+    // Register default health checks
+    this.registerDefaultHealthChecks();
 
     // Start periodic health checks
     this.monitoringInterval = setInterval(async () => {
-      try {
-        await this.performHealthChecks();
-        await this.collectSystemMetrics();
-        await this.checkAlertConditions();
-      } catch (error) {
-        console.error('Error during monitoring cycle:', error);
-      }
+      await this.performHealthChecks();
+      await this.collectSystemMetrics();
+      await this.checkAlertThresholds();
     }, this.config.healthCheckInterval);
-
-    // Start metrics collection
-    setInterval(async () => {
-      try {
-        await this.collectBusinessMetrics();
-      } catch (error) {
-        console.error('Error collecting business metrics:', error);
-      }
-    }, this.config.metricsCollectionInterval);
-
-    console.log('Comprehensive monitoring started successfully');
   }
 
   /**
@@ -127,240 +138,157 @@ export class ComprehensiveMonitoring {
       clearInterval(this.monitoringInterval);
       this.monitoringInterval = null;
     }
-    console.log('Comprehensive monitoring stopped');
+    this.loggingService.info('Comprehensive monitoring stopped');
+  }
+
+  // ===== LOGGING SERVICE METHODS =====
+
+  /**
+   * Log debug message
+   */
+  debug(message: string, context?: LogContext): void {
+    this.loggingService.debug(message, context);
   }
 
   /**
-   * Perform health checks on all services
+   * Log info message
    */
-  async performHealthChecks(): Promise<void> {
-    const services = [
-      'database',
-      'redis',
-      'email-service',
-      'websocket-service',
-      'external-apis',
-    ];
-
-    for (const serviceName of services) {
-      try {
-        const startTime = Date.now();
-        const isHealthy = await this.checkServiceHealth(serviceName);
-        const responseTime = Date.now() - startTime;
-
-        const status: ServiceHealthStatus = {
-          name: serviceName,
-          status: isHealthy ? 'up' : 'down',
-          responseTime,
-          lastCheck: new Date(),
-          details: await this.getServiceDetails(serviceName),
-        };
-
-        this.healthChecks.set(serviceName, status);
-
-        // Create alert if service is down
-        if (!isHealthy) {
-          this.createAlert({
-            type: 'ERROR',
-            severity: 'HIGH',
-            message: `Service ${serviceName} is down`,
-            source: serviceName,
-            metadata: { responseTime, lastCheck: status.lastCheck },
-          });
-        }
-      } catch (error) {
-        console.error(`Health check failed for ${serviceName}:`, error);
-
-        this.healthChecks.set(serviceName, {
-          name: serviceName,
-          status: 'down',
-          lastCheck: new Date(),
-          details: {
-            error: error instanceof Error ? error.message : 'Unknown error',
-          },
-        });
-      }
-    }
+  info(message: string, context?: LogContext): void {
+    this.loggingService.info(message, context);
   }
 
   /**
-   * Collect system metrics
+   * Log warning message
    */
-  async collectSystemMetrics(): Promise<void> {
-    try {
-      const memoryUsage = process.memoryUsage();
-      const cpuUsage = process.cpuUsage();
-      const loadAverage = require('os').loadavg();
-
-      // Get application metrics from API monitor
-      const appMetrics = this.apiMonitor.getSystemMetrics();
-
-      this.systemMetrics = {
-        cpu: {
-          usage: this.calculateCPUUsage(cpuUsage),
-          loadAverage,
-        },
-        memory: {
-          used: memoryUsage.heapUsed,
-          total: memoryUsage.heapTotal,
-          percentage: (memoryUsage.heapUsed / memoryUsage.heapTotal) * 100,
-        },
-        disk: {
-          used: 0, // Would be implemented with actual disk usage check
-          total: 0,
-          percentage: 0,
-        },
-        network: {
-          bytesIn: 0, // Would be implemented with actual network monitoring
-          bytesOut: 0,
-        },
-        application: {
-          uptime: process.uptime(),
-          requestsPerSecond: appMetrics.throughput,
-          averageResponseTime: appMetrics.averageResponseTime,
-          errorRate: appMetrics.errorRate,
-        },
-      };
-
-      // Record metrics
-      await this.metricsService.recordMetric(
-        'system.cpu.usage',
-        this.systemMetrics.cpu.usage
-      );
-      await this.metricsService.recordMetric(
-        'system.memory.percentage',
-        this.systemMetrics.memory.percentage
-      );
-      await this.metricsService.recordMetric(
-        'application.response_time',
-        this.systemMetrics.application.averageResponseTime
-      );
-      await this.metricsService.recordMetric(
-        'application.error_rate',
-        this.systemMetrics.application.errorRate
-      );
-    } catch (error) {
-      console.error('Failed to collect system metrics:', error);
-    }
+  warn(message: string, context?: LogContext): void {
+    this.loggingService.warn(message, context);
   }
 
   /**
-   * Check alert conditions
+   * Log error message
    */
-  async checkAlertConditions(): Promise<void> {
-    if (!this.systemMetrics) return;
-
-    const thresholds = this.config.alertThresholds;
-
-    // Check CPU usage
-    if (this.systemMetrics.cpu.usage > thresholds.cpuUsage) {
-      this.createAlert({
-        type: 'RESOURCE',
-        severity:
-          this.systemMetrics.cpu.usage > thresholds.cpuUsage * 1.5
-            ? 'CRITICAL'
-            : 'HIGH',
-        message: `High CPU usage: ${this.systemMetrics.cpu.usage.toFixed(2)}%`,
-        source: 'system',
-        metadata: { cpuUsage: this.systemMetrics.cpu.usage },
-      });
-    }
-
-    // Check memory usage
-    if (this.systemMetrics.memory.percentage > thresholds.memoryUsage) {
-      this.createAlert({
-        type: 'RESOURCE',
-        severity:
-          this.systemMetrics.memory.percentage > thresholds.memoryUsage * 1.5
-            ? 'CRITICAL'
-            : 'HIGH',
-        message: `High memory usage: ${this.systemMetrics.memory.percentage.toFixed(2)}%`,
-        source: 'system',
-        metadata: { memoryUsage: this.systemMetrics.memory.percentage },
-      });
-    }
-
-    // Check response time
-    if (
-      this.systemMetrics.application.averageResponseTime >
-      thresholds.responseTime
-    ) {
-      this.createAlert({
-        type: 'PERFORMANCE',
-        severity: 'MEDIUM',
-        message: `High average response time: ${this.systemMetrics.application.averageResponseTime.toFixed(2)}ms`,
-        source: 'application',
-        metadata: {
-          responseTime: this.systemMetrics.application.averageResponseTime,
-        },
-      });
-    }
-
-    // Check error rate
-    if (this.systemMetrics.application.errorRate > thresholds.errorRate) {
-      this.createAlert({
-        type: 'ERROR',
-        severity:
-          this.systemMetrics.application.errorRate > thresholds.errorRate * 2
-            ? 'CRITICAL'
-            : 'HIGH',
-        message: `High error rate: ${(this.systemMetrics.application.errorRate * 100).toFixed(2)}%`,
-        source: 'application',
-        metadata: { errorRate: this.systemMetrics.application.errorRate },
-      });
-    }
+  error(message: string, error?: Error, context?: LogContext): void {
+    this.loggingService.error(message, error, context);
   }
 
   /**
-   * Collect business metrics
+   * Start performance tracking
    */
-  async collectBusinessMetrics(): Promise<void> {
-    if (!this.config.enableBusinessMetrics) return;
-
-    try {
-      // These would be implemented with actual database queries
-      const businessMetrics = {
-        activeUsers: await this.getActiveUsersCount(),
-        tasksCreated: await this.getTasksCreatedToday(),
-        tasksCompleted: await this.getTasksCompletedToday(),
-        projectsCreated: await this.getProjectsCreatedToday(),
-        userRegistrations: await this.getUserRegistrationsToday(),
-      };
-
-      // Record business metrics
-      for (const [metric, value] of Object.entries(businessMetrics)) {
-        await this.metricsService.recordMetric(`business.${metric}`, value);
-      }
-    } catch (error) {
-      console.error('Failed to collect business metrics:', error);
-    }
+  startPerformanceTracking(operationId: string, context?: LogContext): void {
+    this.loggingService.startPerformanceTracking(operationId, context);
   }
 
   /**
-   * Create a new alert
+   * End performance tracking
    */
-  createAlert(alertData: Omit<Alert, 'id' | 'timestamp' | 'resolved'>): void {
+  endPerformanceTracking(operationId: string, context?: LogContext): void {
+    this.loggingService.endPerformanceTracking(operationId, context);
+  }
+
+  // ===== METRICS SERVICE METHODS =====
+
+  /**
+   * Increment a counter metric
+   */
+  incrementCounter(
+    name: string,
+    labels?: Record<string, string>,
+    value: number = 1
+  ): void {
+    this.metricsService.incrementCounter(name, labels, value);
+  }
+
+  /**
+   * Record histogram value
+   */
+  recordHistogram(
+    name: string,
+    value: number,
+    labels?: Record<string, string>
+  ): void {
+    this.metricsService.recordHistogram(name, value, labels);
+  }
+
+  /**
+   * Set gauge value
+   */
+  setGauge(name: string, value: number, labels?: Record<string, string>): void {
+    this.metricsService.setGauge(name, value, labels);
+  }
+
+  /**
+   * Get metrics in Prometheus format
+   */
+  async getMetrics(): Promise<string> {
+    return this.metricsService.getMetrics();
+  }
+
+  // ===== HEALTH SERVICE METHODS =====
+
+  /**
+   * Register a health check
+   */
+  registerHealthCheck(name: string, checkFn: HealthCheckFunction): void {
+    this.healthService.registerHealthCheck(name, checkFn);
+  }
+
+  /**
+   * Get system health status
+   */
+  async getSystemHealth(): Promise<SystemHealth> {
+    return this.healthService.checkHealth();
+  }
+
+  // ===== COMPREHENSIVE MONITORING METHODS =====
+
+  /**
+   * Get comprehensive system status
+   */
+  async getSystemStatus(): Promise<SystemHealthStatus> {
+    const health = await this.healthService.checkHealth();
+    const services = Array.from(this.healthChecks.values());
+    const metrics = await this.collectSystemMetrics();
+    const activeAlerts = this.alerts.filter(alert => !alert.resolved);
+
+    return {
+      status: health.status,
+      timestamp: new Date(),
+      services,
+      metrics,
+      alerts: activeAlerts,
+    };
+  }
+
+  /**
+   * Create an alert
+   */
+  createAlert(
+    type: Alert['type'],
+    severity: Alert['severity'],
+    message: string,
+    source: string,
+    metadata?: any
+  ): Alert {
     const alert: Alert = {
-      id: this.generateAlertId(),
+      id: `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type,
+      severity,
+      message,
+      source,
       timestamp: new Date(),
       resolved: false,
-      ...alertData,
+      metadata,
     };
 
     this.alerts.push(alert);
-
-    // Log alert
-    this.loggingService.warn(`ALERT [${alert.severity}]: ${alert.message}`, {
+    this.loggingService.warn(`Alert created: ${message}`, {
       alertId: alert.id,
-      type: alert.type,
-      source: alert.source,
-      metadata: alert.metadata,
+      type,
+      severity,
+      source,
     });
 
-    // Keep alerts array manageable
-    if (this.alerts.length > 1000) {
-      this.alerts = this.alerts.slice(-1000);
-    }
+    return alert;
   }
 
   /**
@@ -371,183 +299,161 @@ export class ComprehensiveMonitoring {
     if (alert && !alert.resolved) {
       alert.resolved = true;
       alert.resolvedAt = new Date();
-
       this.loggingService.info(`Alert resolved: ${alert.message}`, {
-        alertId: alert.id,
-        resolvedAt: alert.resolvedAt,
+        alertId,
       });
-
       return true;
     }
     return false;
   }
 
   /**
-   * Get current system health status
+   * Get active alerts
    */
-  getSystemHealthStatus(): SystemHealthStatus {
-    const services = Array.from(this.healthChecks.values());
-    const activeAlerts = this.alerts.filter(a => !a.resolved);
-
-    let overallStatus: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
-
-    // Determine overall status
-    const downServices = services.filter(s => s.status === 'down');
-    const degradedServices = services.filter(s => s.status === 'degraded');
-    const criticalAlerts = activeAlerts.filter(a => a.severity === 'CRITICAL');
-
-    if (downServices.length > 0 || criticalAlerts.length > 0) {
-      overallStatus = 'unhealthy';
-    } else if (degradedServices.length > 0 || activeAlerts.length > 0) {
-      overallStatus = 'degraded';
-    }
-
-    return {
-      status: overallStatus,
-      timestamp: new Date(),
-      services,
-      metrics: this.systemMetrics || this.getDefaultMetrics(),
-      alerts: activeAlerts,
-    };
+  getActiveAlerts(): Alert[] {
+    return this.alerts.filter(alert => !alert.resolved);
   }
 
   /**
-   * Get monitoring dashboard data
+   * Register default health checks
    */
-  getDashboardData(): {
-    healthStatus: SystemHealthStatus;
-    performanceReport: any;
-    recentAlerts: Alert[];
-    systemTrends: any;
-  } {
-    return {
-      healthStatus: this.getSystemHealthStatus(),
-      performanceReport: this.apiMonitor.generatePerformanceReport(),
-      recentAlerts: this.alerts
-        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-        .slice(0, 20),
-      systemTrends: this.getSystemTrends(),
-    };
+  private registerDefaultHealthChecks(): void {
+    // Memory health check
+    this.healthService.registerHealthCheck(
+      'memory',
+      async (): Promise<HealthCheckResult> => {
+        const startTime = Date.now();
+        const memUsage = process.memoryUsage();
+        const memoryUsagePercent =
+          (memUsage.heapUsed / memUsage.heapTotal) * 100;
+
+        return {
+          name: 'memory',
+          status:
+            memoryUsagePercent > 90
+              ? 'unhealthy'
+              : memoryUsagePercent > 70
+                ? 'degraded'
+                : 'healthy',
+          message: `Memory usage: ${memoryUsagePercent.toFixed(2)}%`,
+          timestamp: new Date(),
+          duration: Date.now() - startTime,
+          metadata: { memoryUsage: memUsage, usagePercent: memoryUsagePercent },
+        };
+      }
+    );
+
+    // CPU health check
+    this.healthService.registerHealthCheck(
+      'cpu',
+      async (): Promise<HealthCheckResult> => {
+        const startTime = Date.now();
+        const cpuUsage = process.cpuUsage();
+        const totalUsage = cpuUsage.user + cpuUsage.system;
+
+        return {
+          name: 'cpu',
+          status: 'healthy', // Simplified for now
+          message: `CPU usage tracked`,
+          timestamp: new Date(),
+          duration: Date.now() - startTime,
+          metadata: { cpuUsage, totalUsage },
+        };
+      }
+    );
   }
 
   /**
-   * Export monitoring data for external systems
+   * Perform health checks
    */
-  exportMonitoringData(): {
-    timestamp: Date;
-    healthStatus: SystemHealthStatus;
-    metrics: SystemMetrics | null;
-    alerts: Alert[];
-    performance: any;
-  } {
-    return {
-      timestamp: new Date(),
-      healthStatus: this.getSystemHealthStatus(),
-      metrics: this.systemMetrics,
-      alerts: this.alerts.filter(a => !a.resolved),
-      performance: this.apiMonitor.generatePerformanceReport(),
-    };
-  }
+  private async performHealthChecks(): Promise<void> {
+    try {
+      const health = await this.healthService.checkHealth();
 
-  private async checkServiceHealth(serviceName: string): Promise<boolean> {
-    // Mock implementation - would check actual service health
-    switch (serviceName) {
-      case 'database':
-        return await this.healthService.checkDatabase();
-      case 'redis':
-        return await this.healthService.checkRedis();
-      case 'email-service':
-        return true; // Mock
-      case 'websocket-service':
-        return true; // Mock
-      case 'external-apis':
-        return true; // Mock
-      default:
-        return false;
+      // Update service health status
+      for (const check of health.checks) {
+        this.healthChecks.set(check.name, {
+          name: check.name,
+          status:
+            check.status === 'healthy'
+              ? 'up'
+              : check.status === 'degraded'
+                ? 'degraded'
+                : 'down',
+          responseTime: check.duration,
+          lastCheck: check.timestamp,
+          details: check.metadata,
+        });
+      }
+    } catch (error) {
+      this.loggingService.error('Health check failed', error as Error);
     }
   }
 
-  private async getServiceDetails(serviceName: string): Promise<any> {
-    // Mock implementation - would return actual service details
-    return {
-      version: '1.0.0',
-      lastRestart: new Date(),
-      connections: Math.floor(Math.random() * 100),
-    };
-  }
+  /**
+   * Collect system metrics
+   */
+  private async collectSystemMetrics(): Promise<SystemMetrics> {
+    const memUsage = process.memoryUsage();
+    const cpuUsage = process.cpuUsage();
 
-  private calculateCPUUsage(cpuUsage: NodeJS.CpuUsage): number {
-    // Mock implementation - would calculate actual CPU usage
-    return Math.random() * 100;
-  }
-
-  private async getActiveUsersCount(): Promise<number> {
-    // Mock implementation
-    return Math.floor(Math.random() * 1000);
-  }
-
-  private async getTasksCreatedToday(): Promise<number> {
-    // Mock implementation
-    return Math.floor(Math.random() * 100);
-  }
-
-  private async getTasksCompletedToday(): Promise<number> {
-    // Mock implementation
-    return Math.floor(Math.random() * 80);
-  }
-
-  private async getProjectsCreatedToday(): Promise<number> {
-    // Mock implementation
-    return Math.floor(Math.random() * 10);
-  }
-
-  private async getUserRegistrationsToday(): Promise<number> {
-    // Mock implementation
-    return Math.floor(Math.random() * 20);
-  }
-
-  private generateAlertId(): string {
-    return `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  private getDefaultMetrics(): SystemMetrics {
-    return {
-      cpu: { usage: 0, loadAverage: [0, 0, 0] },
-      memory: { used: 0, total: 0, percentage: 0 },
-      disk: { used: 0, total: 0, percentage: 0 },
-      network: { bytesIn: 0, bytesOut: 0 },
+    const metrics: SystemMetrics = {
+      cpu: {
+        usage: (cpuUsage.user + cpuUsage.system) / 1000000, // Convert to seconds
+        loadAverage: [0, 0, 0], // Not available in Node.js on Windows
+      },
+      memory: {
+        used: memUsage.heapUsed,
+        total: memUsage.heapTotal,
+        percentage: (memUsage.heapUsed / memUsage.heapTotal) * 100,
+      },
+      disk: {
+        used: 0, // Would need additional library to get disk usage
+        total: 0,
+        percentage: 0,
+      },
+      network: {
+        bytesIn: 0, // Would need additional monitoring
+        bytesOut: 0,
+      },
       application: {
-        uptime: 0,
-        requestsPerSecond: 0,
-        averageResponseTime: 0,
-        errorRate: 0,
+        uptime: process.uptime(),
+        requestsPerSecond: 0, // Would be calculated from metrics
+        averageResponseTime: 0, // Would be calculated from metrics
+        errorRate: 0, // Would be calculated from metrics
       },
     };
+
+    this.systemMetrics = metrics;
+    return metrics;
   }
 
-  private getSystemTrends(): any {
-    // Mock implementation - would return actual trend data
-    return {
-      cpuTrend: 'stable',
-      memoryTrend: 'increasing',
-      responseTrend: 'improving',
-      errorTrend: 'stable',
-    };
-  }
-}
+  /**
+   * Check alert thresholds
+   */
+  private async checkAlertThresholds(): Promise<void> {
+    if (!this.systemMetrics) return;
 
-export function createComprehensiveMonitoring(
-  apiMonitor: APIPerformanceMonitor,
-  metricsService: MetricsService,
-  healthService: HealthService,
-  loggingService: LoggingService,
-  config: MonitoringConfig
-): ComprehensiveMonitoring {
-  return new ComprehensiveMonitoring(
-    apiMonitor,
-    metricsService,
-    healthService,
-    loggingService,
-    config
-  );
+    const { alertThresholds } = this.config;
+
+    // Check memory usage
+    if (this.systemMetrics.memory.percentage > alertThresholds.memoryUsage) {
+      this.createAlert(
+        'RESOURCE',
+        this.systemMetrics.memory.percentage > 90 ? 'CRITICAL' : 'HIGH',
+        `High memory usage: ${this.systemMetrics.memory.percentage.toFixed(2)}%`,
+        'system-monitor'
+      );
+    }
+
+    // Check CPU usage (simplified)
+    if (this.systemMetrics.cpu.usage > alertThresholds.cpuUsage) {
+      this.createAlert(
+        'RESOURCE',
+        'HIGH',
+        `High CPU usage detected`,
+        'system-monitor'
+      );
+    }
+  }
 }

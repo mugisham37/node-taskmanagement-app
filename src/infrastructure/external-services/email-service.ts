@@ -1,5 +1,6 @@
 import nodemailer, { Transporter, SendMailOptions } from 'nodemailer';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
+import { CircuitBreaker, CircuitBreakerState } from './circuit-breaker';
 
 export interface EmailConfig {
   host: string;
@@ -18,12 +19,23 @@ export interface EmailConfig {
   maxMessages?: number;
   rateDelta?: number;
   rateLimit?: number;
+  failureThreshold?: number;
+  recoveryTimeout?: number;
+  monitoringPeriod?: number;
+  maxAttachmentSize?: number;
+  maxTotalAttachmentSize?: number;
+  batchSize?: number;
+  batchDelay?: number;
 }
 
 export interface EmailTemplate {
+  id?: string;
+  name?: string;
   subject: string;
   html: string;
   text?: string;
+  variables?: string[];
+  tags?: string[];
 }
 
 export interface SendEmailData {
@@ -37,9 +49,17 @@ export interface SendEmailData {
     filename: string;
     content: Buffer | string;
     contentType?: string;
+    encoding?: string;
+    cid?: string;
+    size?: number;
   }>;
   priority?: 'high' | 'normal' | 'low';
   headers?: Record<string, string>;
+  templateId?: string;
+  templateData?: Record<string, any>;
+  tags?: string[];
+  metadata?: Record<string, any>;
+  from?: string;
 }
 
 export interface EmailQueueItem {
@@ -53,14 +73,51 @@ export interface EmailQueueItem {
   error?: string;
 }
 
+export interface EmailSendResult {
+  messageId: string;
+  accepted: string[];
+  rejected: string[];
+  pending?: string[];
+  response?: string;
+  provider: string;
+  timestamp: Date;
+}
+
+export interface EmailDeliveryStatus {
+  messageId: string;
+  status:
+    | 'sent'
+    | 'delivered'
+    | 'bounced'
+    | 'complained'
+    | 'rejected'
+    | 'pending';
+  timestamp: Date;
+  error?: string;
+  provider: string;
+  metadata?: Record<string, any>;
+}
+
+export interface EmailProvider {
+  name: string;
+  type: 'smtp' | 'sendgrid' | 'ses' | 'mailgun';
+  config: Record<string, any>;
+  priority: number;
+  enabled: boolean;
+}
+
 export class EmailService {
   private transporter: Transporter;
   private queue: EmailQueueItem[] = [];
   private isProcessingQueue = false;
   private queueProcessingInterval: NodeJS.Timeout | null = null;
+  private circuitBreaker: CircuitBreaker;
+  private templates: Map<string, EmailTemplate> = new Map();
+  private fallbackProviders: EmailService[] = [];
 
   constructor(private readonly config: EmailConfig) {
     this.initializeTransporter();
+    this.initializeCircuitBreaker();
     this.startQueueProcessor();
   }
 
@@ -93,40 +150,188 @@ export class EmailService {
     }
   }
 
-  /**
-   * Send email immediately
-   */
-  async sendEmail(data: SendEmailData): Promise<void> {
-    try {
-      const mailOptions: SendMailOptions = {
-        from: `${this.config.from.name} <${this.config.from.address}>`,
-        to: Array.isArray(data.to) ? data.to.join(', ') : data.to,
-        subject: data.subject,
-        html: data.html,
-        text: data.text,
-        cc: data.cc
-          ? Array.isArray(data.cc)
-            ? data.cc.join(', ')
-            : data.cc
-          : undefined,
-        bcc: data.bcc
-          ? Array.isArray(data.bcc)
-            ? data.bcc.join(', ')
-            : data.bcc
-          : undefined,
-        replyTo: this.config.replyTo,
-        priority: data.priority || 'normal',
-        headers: data.headers,
-        attachments: data.attachments,
-      };
+  private initializeCircuitBreaker(): void {
+    this.circuitBreaker = new CircuitBreaker(`email-service`, {
+      failureThreshold: this.config.failureThreshold || 5,
+      recoveryTimeout: this.config.recoveryTimeout || 60000,
+      monitoringPeriod: this.config.monitoringPeriod || 300000,
+      onStateChange: state => {
+        console.log(`Email service circuit breaker state changed to: ${state}`);
+      },
+    });
+  }
 
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log('Email sent successfully:', result.messageId);
-    } catch (error) {
-      throw new InfrastructureError(
-        `Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`
+  /**
+   * Send email immediately with circuit breaker protection
+   */
+  async sendEmail(data: SendEmailData): Promise<EmailSendResult> {
+    this.validateMessage(data);
+
+    return await this.executeWithCircuitBreaker(async () => {
+      try {
+        // Handle templated emails
+        if (data.templateId) {
+          const template = this.templates.get(data.templateId);
+          if (!template) {
+            throw new Error(`Email template not found: ${data.templateId}`);
+          }
+
+          data.subject = this.renderTemplate(
+            template.subject,
+            data.templateData || {}
+          );
+          data.html = this.renderTemplate(
+            template.html,
+            data.templateData || {}
+          );
+          if (template.text) {
+            data.text = this.renderTemplate(
+              template.text,
+              data.templateData || {}
+            );
+          }
+        }
+
+        const mailOptions: SendMailOptions = {
+          from:
+            data.from ||
+            `${this.config.from.name} <${this.config.from.address}>`,
+          to: Array.isArray(data.to) ? data.to.join(', ') : data.to,
+          subject: data.subject,
+          html: data.html,
+          text: data.text,
+          cc: data.cc
+            ? Array.isArray(data.cc)
+              ? data.cc.join(', ')
+              : data.cc
+            : undefined,
+          bcc: data.bcc
+            ? Array.isArray(data.bcc)
+              ? data.bcc.join(', ')
+              : data.bcc
+            : undefined,
+          replyTo: this.config.replyTo,
+          priority: data.priority || 'normal',
+          headers: {
+            ...data.headers,
+            'X-Provider': 'smtp',
+            'X-Tags': data.tags?.join(','),
+          },
+          attachments: data.attachments?.map(att => ({
+            filename: att.filename,
+            content: att.content,
+            contentType: att.contentType,
+            encoding: att.encoding,
+            cid: att.cid,
+          })),
+        };
+
+        const result = await this.transporter.sendMail(mailOptions);
+        console.log('Email sent successfully:', result.messageId);
+
+        return {
+          messageId: result.messageId,
+          accepted: result.accepted || this.normalizeRecipients(data.to),
+          rejected: result.rejected || [],
+          response: result.response,
+          provider: 'smtp',
+          timestamp: new Date(),
+        };
+      } catch (error) {
+        // Try fallback providers if available
+        if (this.fallbackProviders.length > 0) {
+          for (const fallbackProvider of this.fallbackProviders) {
+            try {
+              console.log('Attempting fallback email provider');
+              return await fallbackProvider.sendEmail(data);
+            } catch (fallbackError) {
+              console.warn('Fallback email provider failed:', fallbackError);
+            }
+          }
+        }
+
+        throw new InfrastructureError(
+          `Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+    });
+  }
+
+  /**
+   * Send bulk emails with batching
+   */
+  async sendBulkEmail(messages: SendEmailData[]): Promise<EmailSendResult[]> {
+    const results: EmailSendResult[] = [];
+    const batchSize = this.config.batchSize || 10;
+
+    for (let i = 0; i < messages.length; i += batchSize) {
+      const batch = messages.slice(i, i + batchSize);
+      const batchPromises = batch.map(async message => {
+        try {
+          return await this.sendEmail(message);
+        } catch (error) {
+          console.error('Bulk email message failed:', error);
+          return {
+            messageId: '',
+            accepted: [],
+            rejected: this.normalizeRecipients(message.to),
+            provider: 'smtp',
+            timestamp: new Date(),
+          };
+        }
+      });
+
+      const batchResults = await Promise.allSettled(batchPromises);
+      results.push(
+        ...batchResults.map(r =>
+          r.status === 'fulfilled'
+            ? r.value
+            : {
+                messageId: '',
+                accepted: [],
+                rejected: [],
+                provider: 'smtp',
+                timestamp: new Date(),
+              }
+        )
       );
+
+      // Add delay between batches if configured
+      if (this.config.batchDelay && i + batchSize < messages.length) {
+        await new Promise(resolve =>
+          setTimeout(resolve, this.config.batchDelay)
+        );
+      }
     }
+
+    return results;
+  }
+
+  /**
+   * Send templated email
+   */
+  async sendTemplatedEmail(
+    templateId: string,
+    to: string | string[],
+    data: Record<string, any>
+  ): Promise<EmailSendResult> {
+    const template = this.templates.get(templateId);
+    if (!template) {
+      throw new Error(`Email template not found: ${templateId}`);
+    }
+
+    const message: SendEmailData = {
+      to,
+      subject: this.renderTemplate(template.subject, data),
+      html: this.renderTemplate(template.html, data),
+      text: template.text
+        ? this.renderTemplate(template.text, data)
+        : undefined,
+      tags: template.tags,
+      metadata: { templateId, templateData: data },
+    };
+
+    return await this.sendEmail(message);
   }
 
   /**
@@ -315,6 +520,106 @@ export class EmailService {
       text: template.text,
       priority: 'low',
     });
+  }
+
+  /**
+   * Validate email address
+   */
+  validateEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  /**
+   * Create email template
+   */
+  async createTemplate(template: EmailTemplate): Promise<void> {
+    if (!template.id) {
+      template.id = this.generateEmailId();
+    }
+    this.templates.set(template.id, template);
+    console.log(`Email template created: ${template.id}`);
+  }
+
+  /**
+   * Update email template
+   */
+  async updateTemplate(
+    templateId: string,
+    template: Partial<EmailTemplate>
+  ): Promise<void> {
+    const existing = this.templates.get(templateId);
+    if (!existing) {
+      throw new Error(`Email template not found: ${templateId}`);
+    }
+
+    const updated = { ...existing, ...template };
+    this.templates.set(templateId, updated);
+    console.log(`Email template updated: ${templateId}`);
+  }
+
+  /**
+   * Delete email template
+   */
+  async deleteTemplate(templateId: string): Promise<void> {
+    const deleted = this.templates.delete(templateId);
+    if (!deleted) {
+      throw new Error(`Email template not found: ${templateId}`);
+    }
+    console.log(`Email template deleted: ${templateId}`);
+  }
+
+  /**
+   * List all templates
+   */
+  async listTemplates(): Promise<EmailTemplate[]> {
+    return Array.from(this.templates.values());
+  }
+
+  /**
+   * Get delivery status
+   */
+  async getDeliveryStatus(messageId: string): Promise<EmailDeliveryStatus> {
+    // SMTP doesn't provide delivery status by default
+    return {
+      messageId,
+      status: 'sent',
+      timestamp: new Date(),
+      provider: 'smtp',
+    };
+  }
+
+  /**
+   * Check service health
+   */
+  async isHealthy(): Promise<boolean> {
+    try {
+      await this.transporter.verify();
+      return true;
+    } catch (error) {
+      console.error('Email service health check failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get health status including circuit breaker
+   */
+  async getHealthStatus(): Promise<Record<string, any>> {
+    const isHealthy = await this.isHealthy();
+    return {
+      smtp: {
+        healthy: isHealthy,
+        circuitBreakerState: this.circuitBreaker.getStats().state,
+      },
+    };
+  }
+
+  /**
+   * Add fallback provider
+   */
+  addFallbackProvider(provider: EmailService): void {
+    this.fallbackProviders.push(provider);
   }
 
   /**
@@ -750,5 +1055,83 @@ export class EmailService {
 
   private generateEmailId(): string {
     return `email_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  private normalizeRecipients(recipients: string | string[]): string[] {
+    return Array.isArray(recipients) ? recipients : [recipients];
+  }
+
+  private validateMessage(message: SendEmailData): void {
+    if (!message.to || (Array.isArray(message.to) && message.to.length === 0)) {
+      throw new Error('Email message must have at least one recipient');
+    }
+
+    if (!message.subject && !message.templateId) {
+      throw new Error('Email message must have a subject or template ID');
+    }
+
+    if (!message.text && !message.html && !message.templateId) {
+      throw new Error(
+        'Email message must have text, HTML content, or template ID'
+      );
+    }
+
+    // Validate all email addresses
+    const allRecipients = [
+      ...this.normalizeRecipients(message.to),
+      ...(message.cc ? this.normalizeRecipients(message.cc) : []),
+      ...(message.bcc ? this.normalizeRecipients(message.bcc) : []),
+    ];
+
+    for (const email of allRecipients) {
+      if (!this.validateEmail(email)) {
+        throw new Error(`Invalid email address: ${email}`);
+      }
+    }
+
+    if (message.from && !this.validateEmail(message.from)) {
+      throw new Error(`Invalid from email address: ${message.from}`);
+    }
+
+    // Validate attachments
+    if (message.attachments) {
+      const maxAttachmentSize =
+        this.config.maxAttachmentSize || 25 * 1024 * 1024; // 25MB
+      const maxTotalSize =
+        this.config.maxTotalAttachmentSize || 50 * 1024 * 1024; // 50MB
+      let totalSize = 0;
+
+      for (const attachment of message.attachments) {
+        const size =
+          attachment.size ||
+          (typeof attachment.content === 'string'
+            ? Buffer.byteLength(attachment.content, 'utf8')
+            : attachment.content.length);
+
+        if (size > maxAttachmentSize) {
+          throw new Error(
+            `Attachment ${attachment.filename} exceeds maximum size limit`
+          );
+        }
+
+        totalSize += size;
+      }
+
+      if (totalSize > maxTotalSize) {
+        throw new Error('Total attachment size exceeds maximum limit');
+      }
+    }
+  }
+
+  private renderTemplate(template: string, data: Record<string, any>): string {
+    return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+      return data[key] || match;
+    });
+  }
+
+  private async executeWithCircuitBreaker<T>(
+    operation: () => Promise<T>
+  ): Promise<T> {
+    return await this.circuitBreaker.execute(operation);
   }
 }
