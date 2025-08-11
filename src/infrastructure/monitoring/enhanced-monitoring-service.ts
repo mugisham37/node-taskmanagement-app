@@ -107,26 +107,36 @@ export class EnhancedMonitoringService {
     value: number = 1,
     tags?: Record<string, string>
   ): void {
-    this.recordMetric({
+    const metricData: MetricData = {
       name,
       value,
       timestamp: new Date(),
-      tags,
       type: 'counter',
-    });
+    };
+
+    if (tags) {
+      metricData.tags = tags;
+    }
+
+    this.recordMetric(metricData);
   }
 
   /**
    * Set a gauge metric
    */
   setGauge(name: string, value: number, tags?: Record<string, string>): void {
-    this.recordMetric({
+    const metricData: MetricData = {
       name,
       value,
       timestamp: new Date(),
-      tags,
       type: 'gauge',
-    });
+    };
+
+    if (tags) {
+      metricData.tags = tags;
+    }
+
+    this.recordMetric(metricData);
   }
 
   /**
@@ -137,13 +147,18 @@ export class EnhancedMonitoringService {
     duration: number,
     tags?: Record<string, string>
   ): void {
-    this.recordMetric({
+    const metricData: MetricData = {
       name,
       value: duration,
       timestamp: new Date(),
-      tags,
       type: 'timer',
-    });
+    };
+
+    if (tags) {
+      metricData.tags = tags;
+    }
+
+    this.recordMetric(metricData);
   }
 
   /**
@@ -294,7 +309,7 @@ export class EnhancedMonitoringService {
       let totalIdle = 0;
       let totalTick = 0;
 
-      cpus.forEach(cpu => {
+      cpus.forEach((cpu: any) => {
         for (const type in cpu.times) {
           totalTick += cpu.times[type as keyof typeof cpu.times];
         }
@@ -313,7 +328,7 @@ export class EnhancedMonitoringService {
       let diskUsed = 0;
       let diskTotal = 0;
       try {
-        const stats = fs.statSync(process.cwd());
+        fs.statSync(process.cwd()); // Just to check accessibility
         diskTotal = 100 * 1024 * 1024 * 1024; // Mock 100GB
         diskUsed = 50 * 1024 * 1024 * 1024; // Mock 50GB used
       } catch (error) {
@@ -345,7 +360,7 @@ export class EnhancedMonitoringService {
         },
       };
     } catch (error) {
-      logger.error('Failed to get system metrics', { error });
+      console.error('Failed to get system metrics:', error);
       throw error;
     }
   }
@@ -383,12 +398,18 @@ export class EnhancedMonitoringService {
         .length,
       rules: alertRulesArray.map(rule => {
         const state = this.alertStates.get(rule.id);
-        return {
+        const ruleStatus: any = {
           id: rule.id,
           name: rule.name,
           triggered: state?.triggered || false,
-          since: state?.since,
         };
+        
+        // Add since property only if it exists
+        if (state?.since) {
+          ruleStatus.since = state.since;
+        }
+        
+        return ruleStatus;
       }),
     };
 
@@ -459,7 +480,7 @@ export class EnhancedMonitoringService {
       } else if (!shouldTrigger && currentState.triggered) {
         // Alert resolved
         currentState.triggered = false;
-        currentState.since = undefined;
+        delete (currentState as any).since;
         this.alertStates.set(rule.id, currentState);
 
         logger.info('Alert resolved', {
@@ -602,7 +623,7 @@ export class EnhancedMonitoringService {
   shutdown(): void {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
-      this.cleanupInterval = undefined;
+      delete (this as any).cleanupInterval;
     }
 
     this.metrics.clear();

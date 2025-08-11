@@ -29,8 +29,10 @@ export interface CustomMetricConfig {
  * Provides application metrics collection and reporting functionality
  */
 export class MetricsService {
-  private counters = new Map<string, number>();
-  private histograms = new Map<string, number[]>();
+  private counters = new Map<string, Counter>();
+  private histograms = new Map<string, Histogram>();
+  private gauges = new Map<string, Gauge>();
+  private summaries = new Map<string, Summary>();
 
   constructor(private readonly config: MetricsConfig) {
     this.initialize();
@@ -616,19 +618,4 @@ export class MetricsService {
     return this.summaries.get(fullName);
   }
 
-  /**
-   * Build metric key with labels
-   */
-  private buildMetricKey(name: string, labels?: Record<string, string>): string {
-    if (!labels || Object.keys(labels).length === 0) {
-      return name;
-    }
-
-    const labelString = Object.entries(labels)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, value]) => `${key}="${value}"`)
-      .join(',');
-
-    return `${name}{${labelString}}`;
-  }
 }

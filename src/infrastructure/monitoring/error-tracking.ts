@@ -104,10 +104,9 @@ export class ErrorTrackingService {
         timestamp: now,
         level,
         message: error.message,
-        stack: error.stack,
+        stack: error.stack || 'No stack trace available',
         name: error.name,
         code: (error as any).code,
-        context,
         fingerprint,
         count: 1,
         firstSeen: now,
@@ -116,6 +115,11 @@ export class ErrorTrackingService {
         tags: this.generateTags(error, context),
         metadata: this.extractMetadata(error, context),
       };
+
+      // Add context only if it exists
+      if (context) {
+        (trackedError as any).context = context;
+      }
 
       this.errors.set(fingerprint, trackedError);
     }
@@ -177,7 +181,6 @@ export class ErrorTrackingService {
         level,
         message,
         name: 'CustomError',
-        context,
         fingerprint,
         count: 1,
         firstSeen: now,
@@ -186,6 +189,11 @@ export class ErrorTrackingService {
         tags: this.generateTags(error, context),
         metadata: { ...this.extractMetadata(error, context), ...metadata },
       };
+
+      // Add context only if it exists
+      if (context) {
+        (trackedError as any).context = context;
+      }
 
       this.errors.set(fingerprint, trackedError);
     }
@@ -426,15 +434,15 @@ export class ErrorTrackingService {
     };
 
     if (context?.url) {
-      metadata.url = context.url;
+      metadata['url'] = context.url;
     }
 
     if (context?.method) {
-      metadata.httpMethod = context.method;
+      metadata['httpMethod'] = context.method;
     }
 
     if (context?.userAgent) {
-      metadata.userAgent = context.userAgent;
+      metadata['userAgent'] = context.userAgent;
     }
 
     return metadata;
@@ -442,7 +450,7 @@ export class ErrorTrackingService {
 
   private logToConsole(error: TrackedError): void {
     const logLevel = error.level === 'fatal' ? 'error' : error.level;
-    const logMethod = console[logLevel] || console.log;
+    const logMethod = logLevel === 'warning' ? console.warn : (console as any)[logLevel] || console.log;
 
     logMethod(`[${error.level.toUpperCase()}] ${error.message}`, {
       id: error.id,
@@ -580,7 +588,10 @@ export class ErrorTrackingService {
 
       const toRemove = this.errors.size - this.config.maxErrorsInMemory;
       for (let i = 0; i < toRemove; i++) {
-        this.errors.delete(sortedErrors[i][0]);
+        const errorEntry = sortedErrors[i];
+        if (errorEntry) {
+          this.errors.delete(errorEntry[0]);
+        }
       }
     }
   }

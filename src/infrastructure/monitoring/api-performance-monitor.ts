@@ -65,13 +65,13 @@ export class APIPerformanceMonitor {
    * Middleware to monitor API performance
    */
   createPerformanceMiddleware() {
+    const self = this;
     return async (request: FastifyRequest, reply: FastifyReply) => {
       const startTime = Date.now();
-      const startMemory = process.memoryUsage();
 
       // Monitor request size
-      const requestSize = this.calculateRequestSize(request);
-      if (requestSize > this.config.maxRequestSize) {
+      const requestSize = self.calculateRequestSize(request);
+      if (requestSize > self.config.maxRequestSize) {
         throw new InfrastructureError(
           `Request size exceeds limit: ${requestSize} bytes`
         );
@@ -80,48 +80,54 @@ export class APIPerformanceMonitor {
       // Add response time header
       reply.header('X-Response-Time-Start', startTime.toString());
 
-      // Hook into response to capture metrics
-      reply.addHook('onSend', async (request, reply, payload) => {
+      // Override the send method to capture metrics
+      const originalSend = reply.send.bind(reply);
+      reply.send = function(payload: any) {
         const endTime = Date.now();
         const responseTime = endTime - startTime;
-        const responseSize = this.calculateResponseSize(payload);
+        const responseSize = self.calculateResponseSize(payload);
 
         // Check response size limit
-        if (responseSize > this.config.maxResponseSize) {
+        if (responseSize > self.config.maxResponseSize) {
           console.warn(
-            `Response size exceeds limit: ${responseSize} bytes for ${request.url}`
+            `Response size exceeds limit: ${responseSize} bytes for ${request.url || ''}`
           );
         }
 
         // Create performance metric
+        const userId = self.extractUserId(request);
+        const userAgent = request.headers['user-agent'];
+        
         const metric: APIPerformanceMetrics = {
-          endpoint: this.normalizeEndpoint(request.url),
+          endpoint: self.normalizeEndpoint(request.url || ''),
           method: request.method,
           responseTime,
           statusCode: reply.statusCode,
           requestSize,
           responseSize,
           timestamp: new Date(),
-          userId: this.extractUserId(request),
-          userAgent: request.headers['user-agent'],
           ip: request.ip,
         };
 
+        // Add optional properties only if they exist
+        if (userId) metric.userId = userId;
+        if (userAgent) metric.userAgent = userAgent;
+
         // Record metric
-        this.recordMetric(metric);
+        self.recordMetric(metric);
 
         // Update endpoint statistics
-        this.updateEndpointStatistics(metric);
+        self.updateEndpointStatistics(metric);
 
         // Check for performance alerts
-        this.checkPerformanceAlerts(metric);
+        self.checkPerformanceAlerts(metric);
 
         // Add performance headers
         reply.header('X-Response-Time', `${responseTime}ms`);
         reply.header('X-Response-Size', `${responseSize} bytes`);
 
-        return payload;
-      });
+        return originalSend(payload);
+      };
     };
   }
 
@@ -438,7 +444,7 @@ export class APIPerformanceMonitor {
     const baseUrl = url.split('?')[0];
 
     // Replace IDs with placeholders
-    return baseUrl
+    return (baseUrl || '')
       .replace(/\/[0-9a-f-]{36}/g, '/:id')
       .replace(/\/\d+/g, '/:id');
   }
@@ -467,7 +473,8 @@ export class APIPerformanceMonitor {
     if (sortedArray.length === 0) return 0;
 
     const index = Math.ceil((percentile / 100) * sortedArray.length) - 1;
-    return sortedArray[Math.max(0, Math.min(index, sortedArray.length - 1))];
+    const value = sortedArray[Math.max(0, Math.min(index, sortedArray.length - 1))];
+    return value || 0;
   }
 }
 

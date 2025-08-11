@@ -1,4 +1,4 @@
-import { APIPerformanceMonitor } from './api-performance-monitor';
+import { PerformanceConfig } from './api-performance-monitor';
 import { MetricsService, MetricsConfig } from './metrics-service';
 import {
   HealthService,
@@ -20,10 +20,8 @@ import {
 import {
   AlertingService,
   AlertingConfig,
-  Alert,
   AlertRule,
 } from './alerting-service';
-import { InfrastructureError } from '../../shared/errors/infrastructure-error';
 
 export interface SystemHealthStatus {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -75,7 +73,6 @@ export interface Alert {
   message: string;
   source: string;
   timestamp: Date;
-  resolved: boolean;
   resolvedAt?: Date;
   metadata?: any;
 }
@@ -104,7 +101,6 @@ export class ComprehensiveMonitoring {
   private monitoringInterval: NodeJS.Timeout | null = null;
 
   // Integrated services
-  private apiMonitor: APIPerformanceMonitor;
   private metricsService: MetricsService;
   private healthService: HealthService;
   private loggingService: LoggingService;
@@ -114,12 +110,13 @@ export class ComprehensiveMonitoring {
 
   constructor(
     private readonly config: MonitoringConfig,
-    private readonly loggingConfig: LoggingConfig,
-    private readonly metricsConfig: MetricsConfig,
-    private readonly healthConfig: HealthCheckConfig,
-    private readonly alertingConfig: AlertingConfig,
-    private readonly appVersion: string = '1.0.0',
-    private readonly environment: string = 'development'
+    loggingConfig: LoggingConfig,
+    metricsConfig: MetricsConfig,
+    healthConfig: HealthCheckConfig,
+    alertingConfig: AlertingConfig,
+    _performanceConfig: PerformanceConfig,
+    appVersion: string = '1.0.0',
+    environment: string = 'development'
   ) {
     // Initialize integrated services
     this.loggingService = new LoggingService(loggingConfig);
@@ -129,7 +126,6 @@ export class ComprehensiveMonitoring {
       appVersion,
       environment
     );
-    this.apiMonitor = new APIPerformanceMonitor();
 
     // Initialize new services
     this.correlationService = new CorrelationIdService();
@@ -153,25 +149,26 @@ export class ComprehensiveMonitoring {
   private setupEventHandlers(): void {
     // Listen to alerting events
     this.alertingService.on('alert', (alert: Alert) => {
+      const correlationId = this.getCurrentCorrelationId();
       this.loggingService.warn('Alert triggered', {
         alertId: alert.id,
         severity: alert.severity,
         message: alert.message,
-        correlationId: this.getCurrentCorrelationId(),
+        ...(correlationId && { correlationId }),
       });
 
       // Record alert in metrics
       this.metricsService.incrementCounter('monitoring_alerts_total', {
         severity: alert.severity,
-        rule: alert.ruleName,
       });
     });
 
     this.alertingService.on('alertResolved', (alert: Alert) => {
+      const correlationId = this.getCurrentCorrelationId();
       this.loggingService.info('Alert resolved', {
         alertId: alert.id,
         severity: alert.severity,
-        correlationId: this.getCurrentCorrelationId(),
+        ...(correlationId && { correlationId }),
       });
     });
   }
@@ -180,8 +177,9 @@ export class ComprehensiveMonitoring {
    * Start comprehensive monitoring
    */
   startMonitoring(): void {
+    const correlationId = this.getCurrentCorrelationId();
     this.loggingService.info('Starting comprehensive monitoring system', {
-      correlationId: this.getCurrentCorrelationId(),
+      ...(correlationId && { correlationId }),
     });
 
     // Register default health checks
@@ -240,15 +238,15 @@ export class ComprehensiveMonitoring {
   /**
    * Start performance tracking
    */
-  startPerformanceTracking(operationId: string, context?: LogContext): void {
-    this.loggingService.startPerformanceTracking(operationId, context);
+  startPerformanceTracking(operationId: string): void {
+    this.loggingService.startPerformanceTracking(operationId);
   }
 
   /**
    * End performance tracking
    */
   endPerformanceTracking(operationId: string, context?: LogContext): void {
-    this.loggingService.endPerformanceTracking(operationId, context);
+    this.loggingService.endPerformanceTracking(operationId, 'operation', context);
   }
 
   // ===== METRICS SERVICE METHODS =====
@@ -390,7 +388,26 @@ export class ComprehensiveMonitoring {
    * Get active alerts
    */
   getActiveAlerts(): Alert[] {
-    return this.alertingService.getActiveAlerts();
+    // Convert from alerting service alerts to local alert format
+    const alertingAlerts = this.alertingService.getActiveAlerts();
+    return alertingAlerts.map(alert => {
+      const localAlert: Alert = {
+        id: alert.id,
+        type: 'ERROR' as const, // Default type since alerting service doesn't have this field
+        severity: alert.severity,
+        message: alert.message,
+        source: alert.source,
+        timestamp: alert.timestamp,
+        metadata: alert.metadata,
+      };
+      
+      // Only add resolvedAt if it exists
+      if (alert.resolvedAt) {
+        localAlert.resolvedAt = alert.resolvedAt;
+      }
+      
+      return localAlert;
+    });
   }
 
   /**
@@ -423,7 +440,7 @@ export class ComprehensiveMonitoring {
     const health = await this.healthService.checkHealth();
     const services = Array.from(this.healthChecks.values());
     const metrics = await this.collectSystemMetrics();
-    const activeAlerts = this.alerts.filter(alert => !alert.resolved);
+    const activeAlerts = this.alerts.filter(alert => !alert.resolvedAt);
 
     return {
       status: health.status,
@@ -438,8 +455,8 @@ export class ComprehensiveMonitoring {
    * Create an alert
    */
   createAlert(
-    type: Alert['type'],
-    severity: Alert['severity'],
+    type: 'PERFORMANCE' | 'ERROR' | 'RESOURCE' | 'SECURITY',
+    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
     message: string,
     source: string,
     metadata?: any
@@ -451,42 +468,18 @@ export class ComprehensiveMonitoring {
       message,
       source,
       timestamp: new Date(),
-      resolved: false,
       metadata,
     };
 
     this.alerts.push(alert);
     this.loggingService.warn(`Alert created: ${message}`, {
       alertId: alert.id,
-      type,
-      severity,
+      type: type,
+      severity: severity,
       source,
     });
 
     return alert;
-  }
-
-  /**
-   * Resolve an alert
-   */
-  resolveAlert(alertId: string): boolean {
-    const alert = this.alerts.find(a => a.id === alertId);
-    if (alert && !alert.resolved) {
-      alert.resolved = true;
-      alert.resolvedAt = new Date();
-      this.loggingService.info(`Alert resolved: ${alert.message}`, {
-        alertId,
-      });
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * Get active alerts
-   */
-  getActiveAlerts(): Alert[] {
-    return this.alerts.filter(alert => !alert.resolved);
   }
 
   /**

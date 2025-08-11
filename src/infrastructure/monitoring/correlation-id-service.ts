@@ -68,13 +68,9 @@ export class CorrelationIdService {
       (req.headers['request-id'] as string) ||
       this.generateCorrelationId();
 
-    return {
+    const context: CorrelationContext = {
       correlationId,
       requestId,
-      userId: (req as any).user?.id,
-      sessionId: req.sessionID,
-      userAgent: req.headers['user-agent'],
-      ip: req.ip || req.connection.remoteAddress,
       timestamp: new Date(),
       metadata: {
         method: req.method,
@@ -83,6 +79,29 @@ export class CorrelationIdService {
         query: req.query,
       },
     };
+
+    // Add optional properties only if they exist
+    const userId = (req as any).user?.id;
+    if (userId) {
+      (context as any).userId = userId;
+    }
+
+    const sessionId = (req as any).sessionID;
+    if (sessionId) {
+      (context as any).sessionId = sessionId;
+    }
+
+    const userAgent = req.headers['user-agent'];
+    if (userAgent) {
+      (context as any).userAgent = userAgent;
+    }
+
+    const ip = req.ip || req.connection.remoteAddress;
+    if (ip) {
+      (context as any).ip = ip;
+    }
+
+    return context;
   }
 
   /**
@@ -159,14 +178,10 @@ export class CorrelationIdService {
   createChildContext(metadata?: Record<string, any>): CorrelationContext {
     const parentContext = this.getCurrentContext();
 
-    return {
+    const context: CorrelationContext = {
       correlationId:
         parentContext?.correlationId || this.generateCorrelationId(),
-      userId: parentContext?.userId,
-      sessionId: parentContext?.sessionId,
       requestId: this.generateCorrelationId(), // New request ID for child
-      userAgent: parentContext?.userAgent,
-      ip: parentContext?.ip,
       timestamp: new Date(),
       metadata: {
         ...parentContext?.metadata,
@@ -175,6 +190,25 @@ export class CorrelationIdService {
         parentRequestId: parentContext?.requestId,
       },
     };
+
+    // Add optional properties only if they exist
+    if (parentContext?.userId) {
+      (context as any).userId = parentContext.userId;
+    }
+
+    if (parentContext?.sessionId) {
+      (context as any).sessionId = parentContext.sessionId;
+    }
+
+    if (parentContext?.userAgent) {
+      (context as any).userAgent = parentContext.userAgent;
+    }
+
+    if (parentContext?.ip) {
+      (context as any).ip = parentContext.ip;
+    }
+
+    return context;
   }
 
   /**
@@ -183,16 +217,23 @@ export class CorrelationIdService {
   extractContextFromHeaders(
     headers: Record<string, string>
   ): CorrelationContext {
-    return {
+    const context: CorrelationContext = {
       correlationId:
         headers['x-correlation-id'] || this.generateCorrelationId(),
       requestId: headers['x-request-id'] || this.generateCorrelationId(),
-      userId: headers['x-user-id'],
       timestamp: new Date(),
       metadata: {
         extractedFromHeaders: true,
       },
     };
+
+    // Add optional properties only if they exist
+    const userId = headers['x-user-id'];
+    if (userId) {
+      (context as any).userId = userId;
+    }
+
+    return context;
   }
 
   /**

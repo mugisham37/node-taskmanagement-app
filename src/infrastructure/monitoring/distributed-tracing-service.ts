@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { AsyncLocalStorage } from 'async_hooks';
-import { LoggingService, LogContext } from './logging-service';
+import { LoggingService } from './logging-service';
 import { MetricsService } from './metrics-service';
 
 export interface TraceContext {
@@ -52,13 +52,17 @@ export class DistributedTracingService {
     const span: TraceContext = {
       traceId,
       spanId,
-      parentSpanId: parentSpan?.spanId,
       operationName: options.operationName,
       startTime: Date.now(),
       tags: { ...options.tags },
       logs: [],
       status: 'ok',
     };
+
+    // Add optional parentSpanId only if it exists
+    if (parentSpan?.spanId) {
+      (span as any).parentSpanId = parentSpan.spanId;
+    }
 
     this.activeSpans.set(spanId, span);
     this.metricsService.incrementCounter('traces_started_total', {
@@ -86,9 +90,9 @@ export class DistributedTracingService {
     if (error) {
       span.status = 'error';
       span.error = error;
-      span.tags.error = true;
-      span.tags.errorMessage = error.message;
-      span.tags.errorType = error.constructor.name;
+      span.tags['error'] = true;
+      span.tags['errorMessage'] = error.message;
+      span.tags['errorType'] = error.constructor.name;
     }
 
     // Remove from active spans
@@ -144,7 +148,7 @@ export class DistributedTracingService {
       timestamp: Date.now(),
       level,
       message,
-      fields,
+      fields: fields || {},
     });
   }
 
@@ -198,11 +202,19 @@ export class DistributedTracingService {
     tags?: Record<string, any>
   ): TraceContext {
     const parentSpan = this.getCurrentSpan();
-    return this.startSpan({
+    const spanOptions: SpanOptions = {
       operationName,
-      parentSpan,
-      tags,
-    });
+    };
+
+    if (parentSpan) {
+      spanOptions.parentSpan = parentSpan;
+    }
+
+    if (tags) {
+      spanOptions.tags = tags;
+    }
+
+    return this.startSpan(spanOptions);
   }
 
   /**
@@ -219,16 +231,22 @@ export class DistributedTracingService {
       return undefined;
     }
 
-    return {
+    const context: TraceContext = {
       traceId,
       spanId,
-      parentSpanId,
       operationName: 'http-request',
       startTime: Date.now(),
       tags: {},
       logs: [],
       status: 'ok',
     };
+
+    // Add optional parentSpanId only if it exists
+    if (parentSpanId) {
+      (context as any).parentSpanId = parentSpanId;
+    }
+
+    return context;
   }
 
   /**
@@ -307,10 +325,12 @@ export class DistributedTracingService {
       }
 
       const stats = operationStats[span.operationName];
-      stats.count++;
-      stats.totalDuration += span.duration || 0;
-      if (span.status === 'error') {
-        stats.errors++;
+      if (stats) {
+        stats.count++;
+        stats.totalDuration += span.duration || 0;
+        if (span.status === 'error') {
+          stats.errors++;
+        }
       }
     });
 

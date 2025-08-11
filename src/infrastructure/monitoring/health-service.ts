@@ -344,7 +344,7 @@ export class HealthService {
 
       try {
         // This is a simplified check - in production, you'd use a proper disk space library
-        const stats = await import('fs').then(fs => fs.promises.stat(path));
+        await import('fs').then(fs => fs.promises.stat(path)); // Check if path exists
         const duration = Date.now() - startTime;
 
         return {

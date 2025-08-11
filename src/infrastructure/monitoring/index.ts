@@ -25,6 +25,18 @@ export type {
   ErrorSummary,
 } from './error-tracking';
 
+// Import types for internal use
+import type { LoggingConfig } from './logging-service';
+import type { MetricsConfig } from './metrics-service';
+import type { HealthCheckConfig } from './health-service';
+import type { ErrorTrackingConfig } from './error-tracking';
+
+// Import classes for internal use
+import { LoggingService } from './logging-service';
+import { MetricsService } from './metrics-service';
+import { HealthService } from './health-service';
+import { ErrorTrackingService } from './error-tracking';
+
 export { APIPerformanceMonitor } from './api-performance-monitor';
 export type {
   APIPerformanceMetrics,
@@ -132,7 +144,7 @@ export function createMonitoringServices(config: {
   );
 
   // Setup error tracking integration with logging
-  errorTrackingService.onError(error => {
+  errorTrackingService.onError((error: any) => {
     loggingService.error(`Tracked error: ${error.message}`, undefined, {
       errorId: error.id,
       fingerprint: error.fingerprint,
@@ -279,7 +291,7 @@ export function createErrorHandlingMiddleware(
         error: 'Internal Server Error',
         errorId,
         message:
-          process.env.NODE_ENV === 'development' ? error.message : undefined,
+          process.env['NODE_ENV'] === 'development' ? error.message : undefined,
       });
     }
 
