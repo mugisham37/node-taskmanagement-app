@@ -10,16 +10,26 @@ export class ProjectId extends ValueObject<string> {
 
   protected validate(value: string): void {
     if (!value) {
-      throw new ValidationError('Project ID cannot be empty');
+      throw ValidationError.forField(
+        'projectId',
+        'Project ID cannot be empty',
+        value
+      );
     }
 
     if (typeof value !== 'string') {
-      throw new ValidationError('Project ID must be a string');
+      throw ValidationError.forField(
+        'projectId',
+        'Project ID must be a string',
+        value
+      );
     }
 
     if (!ProjectId.ID_PATTERN.test(value)) {
-      throw new ValidationError(
-        'Project ID must be a valid nanoid (21 characters, alphanumeric with _ and -)'
+      throw ValidationError.forField(
+        'projectId',
+        'Project ID must be a valid nanoid (21 characters, alphanumeric with _ and -)',
+        value
       );
     }
   }

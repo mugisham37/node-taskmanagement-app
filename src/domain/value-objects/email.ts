@@ -11,30 +11,44 @@ export class Email extends ValueObject<string> {
 
   protected validate(value: string): void {
     if (!value) {
-      throw new ValidationError('Email cannot be empty');
+      throw ValidationError.forField('email', 'Email cannot be empty', value);
     }
 
     if (typeof value !== 'string') {
-      throw new ValidationError('Email must be a string');
+      throw ValidationError.forField('email', 'Email must be a string', value);
     }
 
     if (value.length > USER_VALIDATION.EMAIL_MAX_LENGTH) {
-      throw new ValidationError(
-        `Email cannot exceed ${USER_VALIDATION.EMAIL_MAX_LENGTH} characters`
+      throw ValidationError.forField(
+        'email',
+        `Email cannot exceed ${USER_VALIDATION.EMAIL_MAX_LENGTH} characters`,
+        value
       );
     }
 
     if (!Email.EMAIL_PATTERN.test(value)) {
-      throw new ValidationError('Email must be a valid email address');
+      throw ValidationError.forField(
+        'email',
+        'Email must be a valid email address',
+        value
+      );
     }
 
     // Additional validation for common email issues
     if (value.includes('..')) {
-      throw new ValidationError('Email cannot contain consecutive dots');
+      throw ValidationError.forField(
+        'email',
+        'Email cannot contain consecutive dots',
+        value
+      );
     }
 
     if (value.startsWith('.') || value.endsWith('.')) {
-      throw new ValidationError('Email cannot start or end with a dot');
+      throw ValidationError.forField(
+        'email',
+        'Email cannot start or end with a dot',
+        value
+      );
     }
   }
 

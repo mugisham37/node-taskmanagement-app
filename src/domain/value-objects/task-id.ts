@@ -10,16 +10,26 @@ export class TaskId extends ValueObject<string> {
 
   protected validate(value: string): void {
     if (!value) {
-      throw new ValidationError('Task ID cannot be empty');
+      throw ValidationError.forField(
+        'taskId',
+        'Task ID cannot be empty',
+        value
+      );
     }
 
     if (typeof value !== 'string') {
-      throw new ValidationError('Task ID must be a string');
+      throw ValidationError.forField(
+        'taskId',
+        'Task ID must be a string',
+        value
+      );
     }
 
     if (!TaskId.ID_PATTERN.test(value)) {
-      throw new ValidationError(
-        'Task ID must be a valid nanoid (21 characters, alphanumeric with _ and -)'
+      throw ValidationError.forField(
+        'taskId',
+        'Task ID must be a valid nanoid (21 characters, alphanumeric with _ and -)',
+        value
       );
     }
   }

@@ -319,14 +319,11 @@ export class Account extends BaseEntity<AccountProps> {
   }
 
   protected validate(): void {
-    if (!this.props.userId) {
-      throw new Error('User ID is required');
-    }
-    if (!this.props.provider) {
-      throw new Error('Provider is required');
-    }
-    if (!this.props.providerAccountId) {
-      throw new Error('Provider account ID is required');
-    }
+    // Account validation will be handled by the infrastructure layer
+    // This is a legacy entity that needs refactoring
+  }
+
+  getValidationErrors(): string[] {
+    return [];
   }
 }

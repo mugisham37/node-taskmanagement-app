@@ -390,15 +390,21 @@ export class Workspace extends BaseEntity<WorkspaceId> {
    */
   private validateName(name: string): void {
     if (!name || name.trim().length === 0) {
-      throw new ValidationError('Workspace name cannot be empty');
+      throw ValidationError.forField('name', 'Workspace name cannot be empty');
     }
 
     if (name.length < 1) {
-      throw new ValidationError('Workspace name must be at least 1 character');
+      throw ValidationError.forField(
+        'name',
+        'Workspace name must be at least 1 character'
+      );
     }
 
     if (name.length > 255) {
-      throw new ValidationError('Workspace name cannot exceed 255 characters');
+      throw ValidationError.forField(
+        'name',
+        'Workspace name cannot exceed 255 characters'
+      );
     }
   }
 
@@ -407,7 +413,8 @@ export class Workspace extends BaseEntity<WorkspaceId> {
    */
   private validateDescription(description: string): void {
     if (description && description.length > 2000) {
-      throw new ValidationError(
+      throw ValidationError.forField(
+        'description',
         'Workspace description cannot exceed 2000 characters'
       );
     }

@@ -10,16 +10,26 @@ export class WorkspaceId extends ValueObject<string> {
 
   protected validate(value: string): void {
     if (!value) {
-      throw new ValidationError('Workspace ID cannot be empty');
+      throw ValidationError.forField(
+        'workspaceId',
+        'Workspace ID cannot be empty',
+        value
+      );
     }
 
     if (typeof value !== 'string') {
-      throw new ValidationError('Workspace ID must be a string');
+      throw ValidationError.forField(
+        'workspaceId',
+        'Workspace ID must be a string',
+        value
+      );
     }
 
     if (!WorkspaceId.ID_PATTERN.test(value)) {
-      throw new ValidationError(
-        'Workspace ID must be a valid nanoid (21 characters, alphanumeric with _ and -)'
+      throw ValidationError.forField(
+        'workspaceId',
+        'Workspace ID must be a valid nanoid (21 characters, alphanumeric with _ and -)',
+        value
       );
     }
   }

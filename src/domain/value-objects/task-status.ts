@@ -12,12 +12,18 @@ import {
 export class TaskStatusVO extends ValueObject<TaskStatus> {
   protected validate(value: TaskStatus): void {
     if (!value) {
-      throw new ValidationError('Task status cannot be empty');
+      throw ValidationError.forField(
+        'taskStatus',
+        'Task status cannot be empty',
+        value
+      );
     }
 
     if (!Object.values(TaskStatus).includes(value)) {
-      throw new ValidationError(
-        `Invalid task status. Must be one of: ${Object.values(TaskStatus).join(', ')}`
+      throw ValidationError.forField(
+        'taskStatus',
+        `Invalid task status. Must be one of: ${Object.values(TaskStatus).join(', ')}`,
+        value
       );
     }
   }

@@ -1,4 +1,12 @@
 import { BaseEntity } from './base-entity';
+import {
+  NotificationId,
+  UserId,
+  WorkspaceId,
+  ProjectId,
+  TaskId,
+} from '../value-objects';
+import { ValidationError } from '../../shared/errors';
 
 export enum NotificationType {
   TASK_ASSIGNED = 'task_assigned',
@@ -29,321 +37,392 @@ export enum NotificationStatus {
   FAILED = 'failed',
 }
 
-export interface NotificationProps {
-  id: string;
-  userId: string;
-  workspaceId?: string;
-  projectId?: string;
-  taskId?: string;
-  type: NotificationType;
-  title: string;
-  message: string;
-  data?: Record<string, any>;
-  channels: NotificationChannel[];
-  status: NotificationStatus;
-  readAt?: Date;
-  sentAt?: Date;
-  deliveredAt?: Date;
-  failureReason?: string;
-  retryCount: number;
-  maxRetries: number;
-  scheduledFor?: Date;
-  expiresAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
+export class Notification extends BaseEntity<NotificationId> {
+  private _userId: UserId;
+  private _workspaceId?: WorkspaceId;
+  private _projectId?: ProjectId;
+  private _taskId?: TaskId;
+  private _type: NotificationType;
+  private _title: string;
+  private _message: string;
+  private _data?: Record<string, any>;
+  private _channels: NotificationChannel[];
+  private _status: NotificationStatus;
+  private _readAt?: Date;
+  private _sentAt?: Date;
+  private _deliveredAt?: Date;
+  private _failureReason?: string;
+  private _retryCount: number;
+  private _maxRetries: number;
+  private _scheduledFor?: Date;
+  private _expiresAt?: Date;
 
-export class Notification extends BaseEntity<NotificationProps> {
-  constructor(props: NotificationProps) {
-    super(props.id, props.createdAt, props.updatedAt);
-    this.props = props;
+  constructor(
+    id: NotificationId,
+    userId: UserId,
+    type: NotificationType,
+    title: string,
+    message: string,
+    channels: NotificationChannel[],
+    workspaceId?: WorkspaceId,
+    projectId?: ProjectId,
+    taskId?: TaskId,
+    data?: Record<string, any>,
+    status: NotificationStatus = NotificationStatus.PENDING,
+    maxRetries: number = 3,
+    scheduledFor?: Date,
+    expiresAt?: Date,
+    createdAt?: Date,
+    updatedAt?: Date
+  ) {
+    super(id, createdAt, updatedAt);
+    this._userId = userId;
+    this._workspaceId = workspaceId;
+    this._projectId = projectId;
+    this._taskId = taskId;
+    this._type = type;
+    this._title = title;
+    this._message = message;
+    this._data = data;
+    this._channels = channels;
+    this._status = status;
+    this._retryCount = 0;
+    this._maxRetries = maxRetries;
+    this._scheduledFor = scheduledFor;
+    this._expiresAt = expiresAt;
+    this.validate();
   }
 
-  get userId(): string {
-    return this.props.userId;
+  get userId(): UserId {
+    return this._userId;
   }
 
-  get workspaceId(): string | undefined {
-    return this.props.workspaceId;
+  get workspaceId(): WorkspaceId | undefined {
+    return this._workspaceId;
   }
 
-  get projectId(): string | undefined {
-    return this.props.projectId;
+  get projectId(): ProjectId | undefined {
+    return this._projectId;
   }
 
-  get taskId(): string | undefined {
-    return this.props.taskId;
+  get taskId(): TaskId | undefined {
+    return this._taskId;
   }
 
   get type(): NotificationType {
-    return this.props.type;
+    return this._type;
   }
 
   get title(): string {
-    return this.props.title;
+    return this._title;
   }
 
   get message(): string {
-    return this.props.message;
+    return this._message;
   }
 
   get data(): Record<string, any> | undefined {
-    return this.props.data;
+    return this._data;
   }
 
   get channels(): NotificationChannel[] {
-    return this.props.channels;
+    return [...this._channels];
   }
 
   get status(): NotificationStatus {
-    return this.props.status;
+    return this._status;
   }
 
   get readAt(): Date | undefined {
-    return this.props.readAt;
+    return this._readAt;
   }
 
   get sentAt(): Date | undefined {
-    return this.props.sentAt;
+    return this._sentAt;
   }
 
   get deliveredAt(): Date | undefined {
-    return this.props.deliveredAt;
+    return this._deliveredAt;
   }
 
   get failureReason(): string | undefined {
-    return this.props.failureReason;
+    return this._failureReason;
   }
 
   get retryCount(): number {
-    return this.props.retryCount;
+    return this._retryCount;
   }
 
   get maxRetries(): number {
-    return this.props.maxRetries;
+    return this._maxRetries;
   }
 
   get scheduledFor(): Date | undefined {
-    return this.props.scheduledFor;
+    return this._scheduledFor;
   }
 
   get expiresAt(): Date | undefined {
-    return this.props.expiresAt;
+    return this._expiresAt;
   }
 
   // Business methods
   public markAsRead(): void {
-    if (this.props.status === NotificationStatus.READ) {
+    if (this._status === NotificationStatus.READ) {
       return;
     }
 
-    this.props.status = NotificationStatus.READ;
-    this.props.readAt = new Date();
-    this.props.updatedAt = new Date();
+    this._status = NotificationStatus.READ;
+    this._readAt = new Date();
+    this.markAsUpdated();
   }
 
   public markAsSent(): void {
-    this.props.status = NotificationStatus.SENT;
-    this.props.sentAt = new Date();
-    this.props.updatedAt = new Date();
+    this._status = NotificationStatus.SENT;
+    this._sentAt = new Date();
+    this.markAsUpdated();
   }
 
   public markAsDelivered(): void {
-    this.props.status = NotificationStatus.DELIVERED;
-    this.props.deliveredAt = new Date();
-    this.props.updatedAt = new Date();
+    this._status = NotificationStatus.DELIVERED;
+    this._deliveredAt = new Date();
+    this.markAsUpdated();
   }
 
   public markAsFailed(reason: string): void {
-    this.props.status = NotificationStatus.FAILED;
-    this.props.failureReason = reason;
-    this.props.updatedAt = new Date();
+    this._status = NotificationStatus.FAILED;
+    this._failureReason = reason;
+    this.markAsUpdated();
   }
 
   public incrementRetryCount(): void {
-    this.props.retryCount++;
-    this.props.updatedAt = new Date();
+    this._retryCount++;
+    this.markAsUpdated();
   }
 
   public canRetry(): boolean {
     return (
-      this.props.retryCount < this.props.maxRetries &&
-      this.props.status === NotificationStatus.FAILED
+      this._retryCount < this._maxRetries &&
+      this._status === NotificationStatus.FAILED
     );
   }
 
   public isExpired(): boolean {
-    if (!this.props.expiresAt) return false;
-    return new Date() > this.props.expiresAt;
+    if (!this._expiresAt) return false;
+    return new Date() > this._expiresAt;
   }
 
   public isScheduled(): boolean {
-    if (!this.props.scheduledFor) return false;
-    return new Date() < this.props.scheduledFor;
+    if (!this._scheduledFor) return false;
+    return new Date() < this._scheduledFor;
   }
 
   public isReadyToSend(): boolean {
     if (this.isExpired()) return false;
-    if (this.props.status !== NotificationStatus.PENDING) return false;
+    if (this._status !== NotificationStatus.PENDING) return false;
     if (this.isScheduled()) return false;
     return true;
   }
 
   public isRead(): boolean {
-    return this.props.status === NotificationStatus.READ;
+    return this._status === NotificationStatus.READ;
   }
 
   public hasChannel(channel: NotificationChannel): boolean {
-    return this.props.channels.includes(channel);
+    return this._channels.includes(channel);
   }
 
   public addChannel(channel: NotificationChannel): void {
     if (!this.hasChannel(channel)) {
-      this.props.channels.push(channel);
-      this.props.updatedAt = new Date();
+      this._channels.push(channel);
+      this.markAsUpdated();
     }
   }
 
   public removeChannel(channel: NotificationChannel): void {
-    const index = this.props.channels.indexOf(channel);
+    const index = this._channels.indexOf(channel);
     if (index > -1) {
-      this.props.channels.splice(index, 1);
-      this.props.updatedAt = new Date();
+      this._channels.splice(index, 1);
+      this.markAsUpdated();
     }
   }
 
   public updateData(data: Record<string, any>): void {
-    this.props.data = { ...this.props.data, ...data };
-    this.props.updatedAt = new Date();
+    this._data = { ...this._data, ...data };
+    this.markAsUpdated();
   }
 
   public static create(
-    props: Omit<
-      NotificationProps,
-      'id' | 'createdAt' | 'updatedAt' | 'status' | 'retryCount'
-    >
+    id: NotificationId,
+    userId: UserId,
+    type: NotificationType,
+    title: string,
+    message: string,
+    channels: NotificationChannel[],
+    workspaceId?: WorkspaceId,
+    projectId?: ProjectId,
+    taskId?: TaskId,
+    data?: Record<string, any>
   ): Notification {
-    const now = new Date();
-    return new Notification({
-      ...props,
-      id: crypto.randomUUID(),
-      status: NotificationStatus.PENDING,
-      retryCount: 0,
-      maxRetries: props.maxRetries || 3,
-      createdAt: now,
-      updatedAt: now,
-    });
+    return new Notification(
+      id,
+      userId,
+      type,
+      title,
+      message,
+      channels,
+      workspaceId,
+      projectId,
+      taskId,
+      data
+    );
   }
 
   protected validate(): void {
-    if (!this.props.userId) {
-      throw new Error('User ID is required');
+    if (!this._title || this._title.trim().length === 0) {
+      throw ValidationError.forField('title', 'Title is required');
     }
-    if (!this.props.title) {
-      throw new Error('Title is required');
+    if (!this._message || this._message.trim().length === 0) {
+      throw ValidationError.forField('message', 'Message is required');
     }
-    if (!this.props.message) {
-      throw new Error('Message is required');
+    if (this._channels.length === 0) {
+      throw ValidationError.forField(
+        'channels',
+        'At least one notification channel is required'
+      );
     }
-    if (this.props.channels.length === 0) {
-      throw new Error('At least one notification channel is required');
+  }
+
+  getValidationErrors(): string[] {
+    const errors: string[] = [];
+
+    try {
+      this.validate();
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        errors.push(error.message);
+      }
     }
+
+    return errors;
   }
 }
 
-export interface NotificationPreferencesProps {
-  id: string;
-  userId: string;
-  workspaceId?: string;
-  emailEnabled: boolean;
-  pushEnabled: boolean;
-  inAppEnabled: boolean;
-  smsEnabled: boolean;
-  webhookEnabled: boolean;
-  quietHours: {
-    enabled: boolean;
-    startTime: string;
-    endTime: string;
-    timezone: string;
-  };
-  typePreferences: Record<
-    NotificationType,
-    {
-      enabled: boolean;
-      channels: NotificationChannel[];
-    }
-  >;
-  createdAt: Date;
-  updatedAt: Date;
+export interface QuietHours {
+  enabled: boolean;
+  startTime: string;
+  endTime: string;
+  timezone: string;
 }
 
-export class NotificationPreferences extends BaseEntity<NotificationPreferencesProps> {
-  constructor(props: NotificationPreferencesProps) {
-    super(props.id, props.createdAt, props.updatedAt);
-    this.props = props;
+export interface TypePreference {
+  enabled: boolean;
+  channels: NotificationChannel[];
+}
+
+export class NotificationPreferences extends BaseEntity<NotificationId> {
+  private _userId: UserId;
+  private _workspaceId?: WorkspaceId;
+  private _emailEnabled: boolean;
+  private _pushEnabled: boolean;
+  private _inAppEnabled: boolean;
+  private _smsEnabled: boolean;
+  private _webhookEnabled: boolean;
+  private _quietHours: QuietHours;
+  private _typePreferences: Record<NotificationType, TypePreference>;
+
+  constructor(
+    id: NotificationId,
+    userId: UserId,
+    emailEnabled: boolean = true,
+    pushEnabled: boolean = true,
+    inAppEnabled: boolean = true,
+    smsEnabled: boolean = false,
+    webhookEnabled: boolean = false,
+    quietHours: QuietHours = {
+      enabled: false,
+      startTime: '22:00',
+      endTime: '08:00',
+      timezone: 'UTC',
+    },
+    typePreferences: Record<NotificationType, TypePreference> = {},
+    workspaceId?: WorkspaceId,
+    createdAt?: Date,
+    updatedAt?: Date
+  ) {
+    super(id, createdAt, updatedAt);
+    this._userId = userId;
+    this._workspaceId = workspaceId;
+    this._emailEnabled = emailEnabled;
+    this._pushEnabled = pushEnabled;
+    this._inAppEnabled = inAppEnabled;
+    this._smsEnabled = smsEnabled;
+    this._webhookEnabled = webhookEnabled;
+    this._quietHours = quietHours;
+    this._typePreferences = typePreferences;
+    this.validate();
   }
 
-  get userId(): string {
-    return this.props.userId;
+  get userId(): UserId {
+    return this._userId;
   }
 
-  get workspaceId(): string | undefined {
-    return this.props.workspaceId;
+  get workspaceId(): WorkspaceId | undefined {
+    return this._workspaceId;
   }
 
   get emailEnabled(): boolean {
-    return this.props.emailEnabled;
+    return this._emailEnabled;
   }
 
   get pushEnabled(): boolean {
-    return this.props.pushEnabled;
+    return this._pushEnabled;
   }
 
   get inAppEnabled(): boolean {
-    return this.props.inAppEnabled;
+    return this._inAppEnabled;
   }
 
   get smsEnabled(): boolean {
-    return this.props.smsEnabled;
+    return this._smsEnabled;
   }
 
   get webhookEnabled(): boolean {
-    return this.props.webhookEnabled;
+    return this._webhookEnabled;
   }
 
-  get quietHours(): NotificationPreferencesProps['quietHours'] {
-    return this.props.quietHours;
+  get quietHours(): QuietHours {
+    return { ...this._quietHours };
   }
 
-  get typePreferences(): NotificationPreferencesProps['typePreferences'] {
-    return this.props.typePreferences;
+  get typePreferences(): Record<NotificationType, TypePreference> {
+    return { ...this._typePreferences };
   }
 
   public isChannelEnabled(channel: NotificationChannel): boolean {
     switch (channel) {
       case NotificationChannel.EMAIL:
-        return this.props.emailEnabled;
+        return this._emailEnabled;
       case NotificationChannel.PUSH:
-        return this.props.pushEnabled;
+        return this._pushEnabled;
       case NotificationChannel.IN_APP:
-        return this.props.inAppEnabled;
+        return this._inAppEnabled;
       case NotificationChannel.SMS:
-        return this.props.smsEnabled;
+        return this._smsEnabled;
       case NotificationChannel.WEBHOOK:
-        return this.props.webhookEnabled;
+        return this._webhookEnabled;
       default:
         return false;
     }
   }
 
   public isTypeEnabled(type: NotificationType): boolean {
-    return this.props.typePreferences[type]?.enabled ?? true;
+    return this._typePreferences[type]?.enabled ?? true;
   }
 
   public getEnabledChannelsForType(
     type: NotificationType
   ): NotificationChannel[] {
-    const typePrefs = this.props.typePreferences[type];
+    const typePrefs = this._typePreferences[type];
     if (!typePrefs || !typePrefs.enabled) {
       return [];
     }
@@ -352,7 +431,7 @@ export class NotificationPreferences extends BaseEntity<NotificationPreferencesP
   }
 
   public isInQuietHours(date: Date = new Date()): boolean {
-    if (!this.props.quietHours.enabled) {
+    if (!this._quietHours.enabled) {
       return false;
     }
 
@@ -360,8 +439,8 @@ export class NotificationPreferences extends BaseEntity<NotificationPreferencesP
     // In a real application, you'd need proper timezone handling
     const timeString = date.toTimeString().substring(0, 5);
     return (
-      timeString >= this.props.quietHours.startTime &&
-      timeString <= this.props.quietHours.endTime
+      timeString >= this._quietHours.startTime &&
+      timeString <= this._quietHours.endTime
     );
   }
 
@@ -371,22 +450,22 @@ export class NotificationPreferences extends BaseEntity<NotificationPreferencesP
   ): void {
     switch (channel) {
       case NotificationChannel.EMAIL:
-        this.props.emailEnabled = enabled;
+        this._emailEnabled = enabled;
         break;
       case NotificationChannel.PUSH:
-        this.props.pushEnabled = enabled;
+        this._pushEnabled = enabled;
         break;
       case NotificationChannel.IN_APP:
-        this.props.inAppEnabled = enabled;
+        this._inAppEnabled = enabled;
         break;
       case NotificationChannel.SMS:
-        this.props.smsEnabled = enabled;
+        this._smsEnabled = enabled;
         break;
       case NotificationChannel.WEBHOOK:
-        this.props.webhookEnabled = enabled;
+        this._webhookEnabled = enabled;
         break;
     }
-    this.props.updatedAt = new Date();
+    this.markAsUpdated();
   }
 
   public updateTypePreference(
@@ -394,35 +473,44 @@ export class NotificationPreferences extends BaseEntity<NotificationPreferencesP
     enabled: boolean,
     channels?: NotificationChannel[]
   ): void {
-    if (!this.props.typePreferences[type]) {
-      this.props.typePreferences[type] = {
+    if (!this._typePreferences[type]) {
+      this._typePreferences[type] = {
         enabled,
         channels: channels || Object.values(NotificationChannel),
       };
     } else {
-      this.props.typePreferences[type].enabled = enabled;
+      this._typePreferences[type].enabled = enabled;
       if (channels) {
-        this.props.typePreferences[type].channels = channels;
+        this._typePreferences[type].channels = channels;
       }
     }
-    this.props.updatedAt = new Date();
+    this.markAsUpdated();
   }
 
   public static create(
-    props: Omit<NotificationPreferencesProps, 'id' | 'createdAt' | 'updatedAt'>
+    id: NotificationId,
+    userId: UserId,
+    workspaceId?: WorkspaceId
   ): NotificationPreferences {
-    const now = new Date();
-    return new NotificationPreferences({
-      ...props,
-      id: crypto.randomUUID(),
-      createdAt: now,
-      updatedAt: now,
-    });
+    return new NotificationPreferences(
+      id,
+      userId,
+      true,
+      true,
+      true,
+      false,
+      false,
+      undefined,
+      {},
+      workspaceId
+    );
   }
 
   protected validate(): void {
-    if (!this.props.userId) {
-      throw new Error('User ID is required');
-    }
+    // No specific validation needed for preferences
+  }
+
+  getValidationErrors(): string[] {
+    return [];
   }
 }

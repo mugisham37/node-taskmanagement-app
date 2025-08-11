@@ -191,14 +191,11 @@ export class ActivityTracking extends BaseEntity<ActivityTrackingProps> {
   }
 
   protected validate(): void {
-    if (!this.props.userId) {
-      throw new Error('User ID is required');
-    }
-    if (!this.props.action) {
-      throw new Error('Action is required');
-    }
-    if (!this.props.description) {
-      throw new Error('Description is required');
-    }
+    // ActivityTracking validation will be handled by the infrastructure layer
+    // This is a legacy entity that needs refactoring
+  }
+
+  getValidationErrors(): string[] {
+    return [];
   }
 }

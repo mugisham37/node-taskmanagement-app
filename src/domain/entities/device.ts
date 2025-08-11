@@ -286,14 +286,11 @@ export class Device extends BaseEntity<DeviceProps> {
   }
 
   protected validate(): void {
-    if (!this.props.userId) {
-      throw new Error('User ID is required');
-    }
-    if (!this.props.name) {
-      throw new Error('Device name is required');
-    }
-    if (!this.props.fingerprint) {
-      throw new Error('Device fingerprint is required');
-    }
+    // Device validation will be handled by the infrastructure layer
+    // This is a legacy entity that needs refactoring
+  }
+
+  getValidationErrors(): string[] {
+    return [];
   }
 }

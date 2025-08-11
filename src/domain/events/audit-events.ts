@@ -1,5 +1,8 @@
 import { DomainEvent } from './domain-event';
 
+/**
+ * Audit Log Created Event
+ */
 export class AuditLogCreatedEvent extends DomainEvent {
   constructor(
     public readonly auditLogId: string,
@@ -8,16 +11,31 @@ export class AuditLogCreatedEvent extends DomainEvent {
     public readonly action: string,
     public readonly userId?: string
   ) {
-    super('AuditLogCreated', {
-      auditLogId,
-      entityType,
-      entityId,
-      action,
-      userId,
-    });
+    super();
+  }
+
+  getEventName(): string {
+    return 'AuditLogCreated';
+  }
+
+  getAggregateId(): string {
+    return this.entityId;
+  }
+
+  protected getPayload(): Record<string, any> {
+    return {
+      auditLogId: this.auditLogId,
+      entityType: this.entityType,
+      entityId: this.entityId,
+      action: this.action,
+      userId: this.userId,
+    };
   }
 }
 
+/**
+ * Security Event Detected Event
+ */
 export class SecurityEventDetectedEvent extends DomainEvent {
   constructor(
     public readonly auditLogId: string,
@@ -26,16 +44,31 @@ export class SecurityEventDetectedEvent extends DomainEvent {
     public readonly ipAddress?: string,
     public readonly riskLevel: 'low' | 'medium' | 'high' = 'medium'
   ) {
-    super('SecurityEventDetected', {
-      auditLogId,
-      action,
-      userId,
-      ipAddress,
-      riskLevel,
-    });
+    super();
+  }
+
+  getEventName(): string {
+    return 'SecurityEventDetected';
+  }
+
+  getAggregateId(): string {
+    return this.auditLogId;
+  }
+
+  protected getPayload(): Record<string, any> {
+    return {
+      auditLogId: this.auditLogId,
+      action: this.action,
+      userId: this.userId,
+      ipAddress: this.ipAddress,
+      riskLevel: this.riskLevel,
+    };
   }
 }
 
+/**
+ * Activity Tracked Event
+ */
 export class ActivityTrackedEvent extends DomainEvent {
   constructor(
     public readonly activityId: string,
@@ -44,12 +77,24 @@ export class ActivityTrackedEvent extends DomainEvent {
     public readonly entityType?: string,
     public readonly entityId?: string
   ) {
-    super('ActivityTracked', {
-      activityId,
-      userId,
-      action,
-      entityType,
-      entityId,
-    });
+    super();
+  }
+
+  getEventName(): string {
+    return 'ActivityTracked';
+  }
+
+  getAggregateId(): string {
+    return this.entityId || this.activityId;
+  }
+
+  protected getPayload(): Record<string, any> {
+    return {
+      activityId: this.activityId,
+      userId: this.userId,
+      action: this.action,
+      entityType: this.entityType,
+      entityId: this.entityId,
+    };
   }
 }

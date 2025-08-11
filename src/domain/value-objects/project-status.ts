@@ -12,12 +12,18 @@ import {
 export class ProjectStatusVO extends ValueObject<ProjectStatus> {
   protected validate(value: ProjectStatus): void {
     if (!value) {
-      throw new ValidationError('Project status cannot be empty');
+      throw ValidationError.forField(
+        'projectStatus',
+        'Project status cannot be empty',
+        value
+      );
     }
 
     if (!Object.values(ProjectStatus).includes(value)) {
-      throw new ValidationError(
-        `Invalid project status. Must be one of: ${Object.values(ProjectStatus).join(', ')}`
+      throw ValidationError.forField(
+        'projectStatus',
+        `Invalid project status. Must be one of: ${Object.values(ProjectStatus).join(', ')}`,
+        value
       );
     }
   }

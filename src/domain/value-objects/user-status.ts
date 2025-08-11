@@ -1,7 +1,8 @@
 import { ValueObject } from './value-object';
 import { ValidationError } from '../../shared/errors';
+import { Status as UserStatus } from '../../shared/enums/common.enums';
 import {
-  UserStatus,
+  UserStatus as UserStatusConst,
   USER_STATUS_TRANSITIONS,
 } from '../../shared/constants/user-constants';
 
@@ -12,12 +13,18 @@ import {
 export class UserStatusVO extends ValueObject<UserStatus> {
   protected validate(value: UserStatus): void {
     if (!value) {
-      throw new ValidationError('User status cannot be empty');
+      throw ValidationError.forField(
+        'userStatus',
+        'User status cannot be empty',
+        value
+      );
     }
 
     if (!Object.values(UserStatus).includes(value)) {
-      throw new ValidationError(
-        `Invalid user status. Must be one of: ${Object.values(UserStatus).join(', ')}`
+      throw ValidationError.forField(
+        'userStatus',
+        `Invalid user status. Must be one of: ${Object.values(UserStatus).join(', ')}`,
+        value
       );
     }
   }

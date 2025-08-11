@@ -399,17 +399,19 @@ export class Task extends BaseEntity<TaskId> {
    */
   private validateTitle(title: string): void {
     if (!title || title.trim().length === 0) {
-      throw new ValidationError('Task title cannot be empty');
+      throw ValidationError.forField('title', 'Task title cannot be empty');
     }
 
     if (title.length < TASK_VALIDATION.TITLE_MIN_LENGTH) {
-      throw new ValidationError(
+      throw ValidationError.forField(
+        'title',
         `Task title must be at least ${TASK_VALIDATION.TITLE_MIN_LENGTH} character(s)`
       );
     }
 
     if (title.length > TASK_VALIDATION.TITLE_MAX_LENGTH) {
-      throw new ValidationError(
+      throw ValidationError.forField(
+        'title',
         `Task title cannot exceed ${TASK_VALIDATION.TITLE_MAX_LENGTH} characters`
       );
     }
@@ -423,7 +425,8 @@ export class Task extends BaseEntity<TaskId> {
       description &&
       description.length > TASK_VALIDATION.DESCRIPTION_MAX_LENGTH
     ) {
-      throw new ValidationError(
+      throw ValidationError.forField(
+        'description',
         `Task description cannot exceed ${TASK_VALIDATION.DESCRIPTION_MAX_LENGTH} characters`
       );
     }
@@ -434,13 +437,15 @@ export class Task extends BaseEntity<TaskId> {
    */
   private validateEstimatedHours(hours: number): void {
     if (hours < TASK_VALIDATION.MIN_ESTIMATED_HOURS) {
-      throw new ValidationError(
+      throw ValidationError.forField(
+        'estimatedHours',
         `Estimated hours must be at least ${TASK_VALIDATION.MIN_ESTIMATED_HOURS}`
       );
     }
 
     if (hours > TASK_VALIDATION.MAX_ESTIMATED_HOURS) {
-      throw new ValidationError(
+      throw ValidationError.forField(
+        'estimatedHours',
         `Estimated hours cannot exceed ${TASK_VALIDATION.MAX_ESTIMATED_HOURS}`
       );
     }
@@ -451,13 +456,15 @@ export class Task extends BaseEntity<TaskId> {
    */
   private validateActualHours(hours: number): void {
     if (hours < TASK_VALIDATION.MIN_ACTUAL_HOURS) {
-      throw new ValidationError(
+      throw ValidationError.forField(
+        'actualHours',
         `Actual hours must be at least ${TASK_VALIDATION.MIN_ACTUAL_HOURS}`
       );
     }
 
     if (hours > TASK_VALIDATION.MAX_ACTUAL_HOURS) {
-      throw new ValidationError(
+      throw ValidationError.forField(
+        'actualHours',
         `Actual hours cannot exceed ${TASK_VALIDATION.MAX_ACTUAL_HOURS}`
       );
     }

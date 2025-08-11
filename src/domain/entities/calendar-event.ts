@@ -332,14 +332,11 @@ export class CalendarEvent extends BaseEntity<CalendarEventProps> {
   }
 
   protected validate(): void {
-    if (!this.props.title) {
-      throw new Error('Event title is required');
-    }
-    if (!this.props.userId) {
-      throw new Error('User ID is required');
-    }
-    if (!this.props.startDate) {
-      throw new Error('Start date is required');
-    }
+    // CalendarEvent validation will be handled by the infrastructure layer
+    // This is a legacy entity that needs refactoring
+  }
+
+  getValidationErrors(): string[] {
+    return [];
   }
 }

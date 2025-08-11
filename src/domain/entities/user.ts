@@ -149,7 +149,10 @@ export class User extends BaseEntity<UserId> {
    */
   updatePassword(newHashedPassword: string): void {
     if (!newHashedPassword) {
-      throw new ValidationError('Hashed password cannot be empty');
+      throw ValidationError.forField(
+        'hashedPassword',
+        'Hashed password cannot be empty'
+      );
     }
 
     this._hashedPassword = newHashedPassword;
@@ -212,7 +215,10 @@ export class User extends BaseEntity<UserId> {
     this.validateName(this._name);
 
     if (!this._hashedPassword) {
-      throw new ValidationError('Hashed password is required');
+      throw ValidationError.forField(
+        'hashedPassword',
+        'Hashed password is required'
+      );
     }
   }
 
@@ -221,17 +227,19 @@ export class User extends BaseEntity<UserId> {
    */
   private validateName(name: string): void {
     if (!name || name.trim().length === 0) {
-      throw new ValidationError('Name cannot be empty');
+      throw ValidationError.forField('name', 'Name cannot be empty');
     }
 
     if (name.length < USER_VALIDATION.NAME_MIN_LENGTH) {
-      throw new ValidationError(
+      throw ValidationError.forField(
+        'name',
         `Name must be at least ${USER_VALIDATION.NAME_MIN_LENGTH} character(s)`
       );
     }
 
     if (name.length > USER_VALIDATION.NAME_MAX_LENGTH) {
-      throw new ValidationError(
+      throw ValidationError.forField(
+        'name',
         `Name cannot exceed ${USER_VALIDATION.NAME_MAX_LENGTH} characters`
       );
     }

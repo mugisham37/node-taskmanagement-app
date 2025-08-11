@@ -10,16 +10,26 @@ export class UserId extends ValueObject<string> {
 
   protected validate(value: string): void {
     if (!value) {
-      throw new ValidationError('User ID cannot be empty');
+      throw ValidationError.forField(
+        'userId',
+        'User ID cannot be empty',
+        value
+      );
     }
 
     if (typeof value !== 'string') {
-      throw new ValidationError('User ID must be a string');
+      throw ValidationError.forField(
+        'userId',
+        'User ID must be a string',
+        value
+      );
     }
 
     if (!UserId.ID_PATTERN.test(value)) {
-      throw new ValidationError(
-        'User ID must be a valid nanoid (21 characters, alphanumeric with _ and -)'
+      throw ValidationError.forField(
+        'userId',
+        'User ID must be a valid nanoid (21 characters, alphanumeric with _ and -)',
+        value
       );
     }
   }

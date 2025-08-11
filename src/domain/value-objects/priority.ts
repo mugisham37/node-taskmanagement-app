@@ -1,7 +1,8 @@
 import { ValueObject } from './value-object';
 import { ValidationError } from '../../shared/errors';
+import { Priority as TaskPriority } from '../../shared/enums/common.enums';
 import {
-  TaskPriority,
+  TaskPriority as TaskPriorityConst,
   TASK_PRIORITY_WEIGHTS,
 } from '../../shared/constants/task-constants';
 
@@ -12,12 +13,18 @@ import {
 export class Priority extends ValueObject<TaskPriority> {
   protected validate(value: TaskPriority): void {
     if (!value) {
-      throw new ValidationError('Priority cannot be empty');
+      throw ValidationError.forField(
+        'priority',
+        'Priority cannot be empty',
+        value
+      );
     }
 
     if (!Object.values(TaskPriority).includes(value)) {
-      throw new ValidationError(
-        `Invalid priority. Must be one of: ${Object.values(TaskPriority).join(', ')}`
+      throw ValidationError.forField(
+        'priority',
+        `Invalid priority. Must be one of: ${Object.values(TaskPriority).join(', ')}`,
+        value
       );
     }
   }
@@ -123,6 +130,8 @@ export class Priority extends ValueObject<TaskPriority> {
         return 'High Priority';
       case TaskPriority.URGENT:
         return 'Urgent Priority';
+      case TaskPriority.CRITICAL:
+        return 'Critical Priority';
       default:
         return this._value;
     }
@@ -141,6 +150,8 @@ export class Priority extends ValueObject<TaskPriority> {
         return '#fd7e14'; // Orange
       case TaskPriority.URGENT:
         return '#dc3545'; // Red
+      case TaskPriority.CRITICAL:
+        return '#8b0000'; // Dark Red
       default:
         return '#6c757d'; // Gray
     }

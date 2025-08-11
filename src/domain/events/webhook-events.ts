@@ -1,5 +1,8 @@
 import { DomainEvent } from './domain-event';
 
+/**
+ * Webhook Created Event
+ */
 export class WebhookCreatedEvent extends DomainEvent {
   constructor(
     public readonly webhookId: string,
@@ -8,16 +11,31 @@ export class WebhookCreatedEvent extends DomainEvent {
     public readonly url: string,
     public readonly events: string[]
   ) {
-    super('WebhookCreated', {
-      webhookId,
-      workspaceId,
-      name,
-      url,
-      events,
-    });
+    super();
+  }
+
+  getEventName(): string {
+    return 'WebhookCreated';
+  }
+
+  getAggregateId(): string {
+    return this.webhookId;
+  }
+
+  protected getPayload(): Record<string, any> {
+    return {
+      webhookId: this.webhookId,
+      workspaceId: this.workspaceId,
+      name: this.name,
+      url: this.url,
+      events: this.events,
+    };
   }
 }
 
+/**
+ * Webhook Triggered Event
+ */
 export class WebhookTriggeredEvent extends DomainEvent {
   constructor(
     public readonly webhookId: string,
@@ -25,15 +43,30 @@ export class WebhookTriggeredEvent extends DomainEvent {
     public readonly payload: Record<string, any>,
     public readonly deliveryId: string
   ) {
-    super('WebhookTriggered', {
-      webhookId,
-      event,
-      payload,
-      deliveryId,
-    });
+    super();
+  }
+
+  getEventName(): string {
+    return 'WebhookTriggered';
+  }
+
+  getAggregateId(): string {
+    return this.webhookId;
+  }
+
+  protected getPayload(): Record<string, any> {
+    return {
+      webhookId: this.webhookId,
+      event: this.event,
+      payload: this.payload,
+      deliveryId: this.deliveryId,
+    };
   }
 }
 
+/**
+ * Webhook Delivery Succeeded Event
+ */
 export class WebhookDeliverySucceededEvent extends DomainEvent {
   constructor(
     public readonly webhookId: string,
@@ -41,15 +74,30 @@ export class WebhookDeliverySucceededEvent extends DomainEvent {
     public readonly httpStatus: number,
     public readonly attemptCount: number
   ) {
-    super('WebhookDeliverySucceeded', {
-      webhookId,
-      deliveryId,
-      httpStatus,
-      attemptCount,
-    });
+    super();
+  }
+
+  getEventName(): string {
+    return 'WebhookDeliverySucceeded';
+  }
+
+  getAggregateId(): string {
+    return this.webhookId;
+  }
+
+  protected getPayload(): Record<string, any> {
+    return {
+      webhookId: this.webhookId,
+      deliveryId: this.deliveryId,
+      httpStatus: this.httpStatus,
+      attemptCount: this.attemptCount,
+    };
   }
 }
 
+/**
+ * Webhook Delivery Failed Event
+ */
 export class WebhookDeliveryFailedEvent extends DomainEvent {
   constructor(
     public readonly webhookId: string,
@@ -58,26 +106,53 @@ export class WebhookDeliveryFailedEvent extends DomainEvent {
     public readonly attemptCount: number,
     public readonly willRetry: boolean
   ) {
-    super('WebhookDeliveryFailed', {
-      webhookId,
-      deliveryId,
-      errorMessage,
-      attemptCount,
-      willRetry,
-    });
+    super();
+  }
+
+  getEventName(): string {
+    return 'WebhookDeliveryFailed';
+  }
+
+  getAggregateId(): string {
+    return this.webhookId;
+  }
+
+  protected getPayload(): Record<string, any> {
+    return {
+      webhookId: this.webhookId,
+      deliveryId: this.deliveryId,
+      errorMessage: this.errorMessage,
+      attemptCount: this.attemptCount,
+      willRetry: this.willRetry,
+    };
   }
 }
 
+/**
+ * Webhook Disabled Event
+ */
 export class WebhookDisabledEvent extends DomainEvent {
   constructor(
     public readonly webhookId: string,
     public readonly reason: string,
     public readonly failureCount: number
   ) {
-    super('WebhookDisabled', {
-      webhookId,
-      reason,
-      failureCount,
-    });
+    super();
+  }
+
+  getEventName(): string {
+    return 'WebhookDisabled';
+  }
+
+  getAggregateId(): string {
+    return this.webhookId;
+  }
+
+  protected getPayload(): Record<string, any> {
+    return {
+      webhookId: this.webhookId,
+      reason: this.reason,
+      failureCount: this.failureCount,
+    };
   }
 }

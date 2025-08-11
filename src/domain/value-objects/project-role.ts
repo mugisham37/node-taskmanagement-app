@@ -1,7 +1,8 @@
 import { ValueObject } from './value-object';
 import { ValidationError } from '../../shared/errors';
+import { UserRole as ProjectRole } from '../../shared/enums/common.enums';
 import {
-  ProjectRole,
+  ProjectRole as ProjectRoleConst,
   PROJECT_ROLE_PERMISSIONS,
 } from '../../shared/constants/project-constants';
 
@@ -12,12 +13,18 @@ import {
 export class ProjectRoleVO extends ValueObject<ProjectRole> {
   protected validate(value: ProjectRole): void {
     if (!value) {
-      throw new ValidationError('Project role cannot be empty');
+      throw ValidationError.forField(
+        'projectRole',
+        'Project role cannot be empty',
+        value
+      );
     }
 
     if (!Object.values(ProjectRole).includes(value)) {
-      throw new ValidationError(
-        `Invalid project role. Must be one of: ${Object.values(ProjectRole).join(', ')}`
+      throw ValidationError.forField(
+        'projectRole',
+        `Invalid project role. Must be one of: ${Object.values(ProjectRole).join(', ')}`,
+        value
       );
     }
   }

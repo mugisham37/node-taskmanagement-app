@@ -479,17 +479,19 @@ export class Project extends BaseEntity<ProjectId> {
    */
   private validateName(name: string): void {
     if (!name || name.trim().length === 0) {
-      throw new ValidationError('Project name cannot be empty');
+      throw ValidationError.forField('name', 'Project name cannot be empty');
     }
 
     if (name.length < PROJECT_VALIDATION.NAME_MIN_LENGTH) {
-      throw new ValidationError(
+      throw ValidationError.forField(
+        'name',
         `Project name must be at least ${PROJECT_VALIDATION.NAME_MIN_LENGTH} character(s)`
       );
     }
 
     if (name.length > PROJECT_VALIDATION.NAME_MAX_LENGTH) {
-      throw new ValidationError(
+      throw ValidationError.forField(
+        'name',
         `Project name cannot exceed ${PROJECT_VALIDATION.NAME_MAX_LENGTH} characters`
       );
     }
@@ -503,7 +505,8 @@ export class Project extends BaseEntity<ProjectId> {
       description &&
       description.length > PROJECT_VALIDATION.DESCRIPTION_MAX_LENGTH
     ) {
-      throw new ValidationError(
+      throw ValidationError.forField(
+        'description',
         `Project description cannot exceed ${PROJECT_VALIDATION.DESCRIPTION_MAX_LENGTH} characters`
       );
     }
@@ -517,7 +520,10 @@ export class Project extends BaseEntity<ProjectId> {
     endDate: Date | null
   ): void {
     if (startDate && endDate && startDate >= endDate) {
-      throw new ValidationError('Project start date must be before end date');
+      throw ValidationError.forField(
+        'dateRange',
+        'Project start date must be before end date'
+      );
     }
   }
 

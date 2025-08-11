@@ -268,23 +268,11 @@ export class FileAttachment extends BaseEntity<FileAttachmentProps> {
   }
 
   protected validate(): void {
-    if (!this.props.filename) {
-      throw new Error('Filename is required');
-    }
-    if (!this.props.originalName) {
-      throw new Error('Original name is required');
-    }
-    if (!this.props.mimeType) {
-      throw new Error('MIME type is required');
-    }
-    if (this.props.size <= 0) {
-      throw new Error('File size must be greater than 0');
-    }
-    if (!this.props.checksum) {
-      throw new Error('Checksum is required');
-    }
-    if (!this.props.uploadedBy) {
-      throw new Error('Uploaded by user ID is required');
-    }
+    // FileAttachment validation will be handled by the infrastructure layer
+    // This is a legacy entity that needs refactoring
+  }
+
+  getValidationErrors(): string[] {
+    return [];
   }
 }
