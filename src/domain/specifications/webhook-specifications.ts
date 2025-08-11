@@ -1,4 +1,4 @@
-import { Specification } from './specification';
+import { Specification } from './task-specifications';
 import {
   Webhook,
   WebhookDelivery,

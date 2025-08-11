@@ -5,6 +5,9 @@ import {
   TASK_STATUS_TRANSITIONS,
 } from '../../shared/constants/task-constants';
 
+// Re-export the enum for convenience
+export { TaskStatus } from '../../shared/constants/task-constants';
+
 /**
  * Task Status value object
  * Represents a task status with state transition validation

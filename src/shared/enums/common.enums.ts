@@ -103,6 +103,17 @@ export enum UserRole {
 }
 
 /**
+ * Project role enumeration
+ * Specific roles used within projects
+ */
+export enum ProjectRole {
+  OWNER = 'OWNER',
+  MANAGER = 'MANAGER',
+  MEMBER = 'MEMBER',
+  VIEWER = 'VIEWER',
+}
+
+/**
  * Permission enumeration
  */
 export enum Permission {

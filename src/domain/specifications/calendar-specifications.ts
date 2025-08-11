@@ -1,4 +1,4 @@
-import { Specification } from './specification';
+import { Specification } from './task-specifications';
 import { CalendarEvent, EventType } from '../entities/calendar-event';
 
 export class CalendarEventIsUpcomingSpecification extends Specification<CalendarEvent> {

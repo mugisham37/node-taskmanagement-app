@@ -1,10 +1,13 @@
 import { ValueObject } from './value-object';
 import { ValidationError } from '../../shared/errors';
-import { UserRole as ProjectRole } from '../../shared/enums/common.enums';
+import { ProjectRole } from '../../shared/enums/common.enums';
 import {
-  ProjectRole as ProjectRoleConst,
   PROJECT_ROLE_PERMISSIONS,
+  ProjectPermission,
 } from '../../shared/constants/project-constants';
+
+// Re-export the enum for convenience
+export { ProjectRole } from '../../shared/enums/common.enums';
 
 /**
  * Project Role value object
@@ -47,15 +50,15 @@ export class ProjectRoleVO extends ValueObject<ProjectRole> {
   /**
    * Check if this role has a specific permission
    */
-  hasPermission(permission: string): boolean {
+  hasPermission(permission: ProjectPermission): boolean {
     const permissions = PROJECT_ROLE_PERMISSIONS[this._value];
-    return permissions.includes(permission as any);
+    return permissions.includes(permission);
   }
 
   /**
    * Get all permissions for this role
    */
-  getPermissions(): readonly string[] {
+  getPermissions(): readonly ProjectPermission[] {
     return PROJECT_ROLE_PERMISSIONS[this._value];
   }
 

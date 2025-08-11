@@ -1,9 +1,10 @@
-import { Specification } from './specification';
+import { Specification } from './task-specifications';
 import {
   Notification,
   NotificationStatus,
   NotificationType,
 } from '../entities/notification';
+import { UserId } from '../value-objects';
 
 export class NotificationIsReadyToSendSpecification extends Specification<Notification> {
   isSatisfiedBy(notification: Notification): boolean {
@@ -50,12 +51,12 @@ export class NotificationByStatusSpecification extends Specification<Notificatio
 }
 
 export class NotificationByUserSpecification extends Specification<Notification> {
-  constructor(private readonly userId: string) {
+  constructor(private readonly userId: UserId) {
     super();
   }
 
   isSatisfiedBy(notification: Notification): boolean {
-    return notification.userId === this.userId;
+    return notification.userId.equals(this.userId);
   }
 }
 
@@ -65,7 +66,7 @@ export class NotificationByWorkspaceSpecification extends Specification<Notifica
   }
 
   isSatisfiedBy(notification: Notification): boolean {
-    return notification.workspaceId === this.workspaceId;
+    return notification.workspaceId?.toString() === this.workspaceId;
   }
 }
 

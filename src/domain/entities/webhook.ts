@@ -1,4 +1,32 @@
 import { BaseEntity } from './base-entity';
+import { ValidationError } from '../../shared/errors';
+import { ValueObject } from '../value-objects/value-object';
+
+// Simple ID value object for webhook
+class WebhookId extends ValueObject<string> {
+  protected validate(value: string): void {
+    if (!value || value.trim().length === 0) {
+      throw new Error('WebhookId cannot be empty');
+    }
+  }
+
+  static create(value: string): WebhookId {
+    return new WebhookId(value);
+  }
+}
+
+// Simple ID value object for webhook delivery
+class WebhookDeliveryId extends ValueObject<string> {
+  protected validate(value: string): void {
+    if (!value || value.trim().length === 0) {
+      throw new Error('WebhookDeliveryId cannot be empty');
+    }
+  }
+
+  static create(value: string): WebhookDeliveryId {
+    return new WebhookDeliveryId(value);
+  }
+}
 
 export enum WebhookEvent {
   TASK_CREATED = 'task.created',
@@ -42,83 +70,113 @@ export interface WebhookProps {
   updatedAt: Date;
 }
 
-export class Webhook extends BaseEntity<WebhookProps> {
+export class Webhook extends BaseEntity<WebhookId> {
+  private _name: string;
+  private _url: string;
+  private _secret: string;
+  private _events: WebhookEvent[];
+  private _status: WebhookStatus;
+  private _workspaceId: string;
+  private _createdBy: string;
+  private _lastTriggeredAt?: Date;
+  private _failureCount: number;
+  private _maxFailures: number;
+  private _timeout: number;
+  private _retryCount: number;
+  private _maxRetries: number;
+  private _headers: Record<string, string>;
+  private _metadata: Record<string, any>;
+
   constructor(props: WebhookProps) {
-    super(props.id, props.createdAt, props.updatedAt);
-    this.props = props;
+    super(WebhookId.create(props.id), props.createdAt, props.updatedAt);
+    this._name = props.name;
+    this._url = props.url;
+    this._secret = props.secret;
+    this._events = props.events;
+    this._status = props.status;
+    this._workspaceId = props.workspaceId;
+    this._createdBy = props.createdBy;
+    this._lastTriggeredAt = props.lastTriggeredAt;
+    this._failureCount = props.failureCount;
+    this._maxFailures = props.maxFailures;
+    this._timeout = props.timeout;
+    this._retryCount = props.retryCount;
+    this._maxRetries = props.maxRetries;
+    this._headers = props.headers;
+    this._metadata = props.metadata;
   }
 
   get name(): string {
-    return this.props.name;
+    return this._name;
   }
 
   get url(): string {
-    return this.props.url;
+    return this._url;
   }
 
   get secret(): string {
-    return this.props.secret;
+    return this._secret;
   }
 
   get events(): WebhookEvent[] {
-    return this.props.events;
+    return this._events;
   }
 
   get status(): WebhookStatus {
-    return this.props.status;
+    return this._status;
   }
 
   get workspaceId(): string {
-    return this.props.workspaceId;
+    return this._workspaceId;
   }
 
   get createdBy(): string {
-    return this.props.createdBy;
+    return this._createdBy;
   }
 
   get lastTriggeredAt(): Date | undefined {
-    return this.props.lastTriggeredAt;
+    return this._lastTriggeredAt;
   }
 
   get failureCount(): number {
-    return this.props.failureCount;
+    return this._failureCount;
   }
 
   get maxFailures(): number {
-    return this.props.maxFailures;
+    return this._maxFailures;
   }
 
   get timeout(): number {
-    return this.props.timeout;
+    return this._timeout;
   }
 
   get retryCount(): number {
-    return this.props.retryCount;
+    return this._retryCount;
   }
 
   get maxRetries(): number {
-    return this.props.maxRetries;
+    return this._maxRetries;
   }
 
   get headers(): Record<string, string> {
-    return this.props.headers;
+    return this._headers;
   }
 
   get metadata(): Record<string, any> {
-    return this.props.metadata;
+    return this._metadata;
   }
 
   // Business methods
   public isActive(): boolean {
-    return this.props.status === WebhookStatus.ACTIVE;
+    return this._status === WebhookStatus.ACTIVE;
   }
 
   public isSuspended(): boolean {
-    return this.props.status === WebhookStatus.SUSPENDED;
+    return this._status === WebhookStatus.SUSPENDED;
   }
 
   public hasFailed(): boolean {
-    return this.props.status === WebhookStatus.FAILED;
+    return this._status === WebhookStatus.FAILED;
   }
 
   public canTrigger(): boolean {
@@ -126,104 +184,104 @@ export class Webhook extends BaseEntity<WebhookProps> {
   }
 
   public supportsEvent(event: WebhookEvent): boolean {
-    return this.props.events.includes(event);
+    return this._events.includes(event);
   }
 
   public recordSuccess(): void {
-    this.props.lastTriggeredAt = new Date();
-    this.props.failureCount = 0;
-    this.props.retryCount = 0;
+    this._lastTriggeredAt = new Date();
+    this._failureCount = 0;
+    this._retryCount = 0;
 
-    if (this.props.status === WebhookStatus.FAILED) {
-      this.props.status = WebhookStatus.ACTIVE;
+    if (this._status === WebhookStatus.FAILED) {
+      this._status = WebhookStatus.ACTIVE;
     }
 
-    this.props.updatedAt = new Date();
+    this.markAsUpdated();
   }
 
   public recordFailure(): void {
-    this.props.failureCount++;
-    this.props.updatedAt = new Date();
+    this._failureCount++;
+    this.markAsUpdated();
 
-    if (this.props.failureCount >= this.props.maxFailures) {
-      this.props.status = WebhookStatus.FAILED;
+    if (this._failureCount >= this._maxFailures) {
+      this._status = WebhookStatus.FAILED;
     }
   }
 
   public incrementRetryCount(): void {
-    this.props.retryCount++;
-    this.props.updatedAt = new Date();
+    this._retryCount++;
+    this.markAsUpdated();
   }
 
   public canRetry(): boolean {
-    return this.props.retryCount < this.props.maxRetries;
+    return this._retryCount < this._maxRetries;
   }
 
   public activate(): void {
-    this.props.status = WebhookStatus.ACTIVE;
-    this.props.failureCount = 0;
-    this.props.retryCount = 0;
-    this.props.updatedAt = new Date();
+    this._status = WebhookStatus.ACTIVE;
+    this._failureCount = 0;
+    this._retryCount = 0;
+    this.markAsUpdated();
   }
 
   public deactivate(): void {
-    this.props.status = WebhookStatus.INACTIVE;
-    this.props.updatedAt = new Date();
+    this._status = WebhookStatus.INACTIVE;
+    this.markAsUpdated();
   }
 
   public suspend(): void {
-    this.props.status = WebhookStatus.SUSPENDED;
-    this.props.updatedAt = new Date();
+    this._status = WebhookStatus.SUSPENDED;
+    this.markAsUpdated();
   }
 
   public updateUrl(url: string): void {
-    this.props.url = url;
-    this.props.updatedAt = new Date();
+    this._url = url;
+    this.markAsUpdated();
   }
 
   public updateSecret(secret: string): void {
-    this.props.secret = secret;
-    this.props.updatedAt = new Date();
+    this._secret = secret;
+    this.markAsUpdated();
   }
 
   public updateEvents(events: WebhookEvent[]): void {
-    this.props.events = [...events];
-    this.props.updatedAt = new Date();
+    this._events = [...events];
+    this.markAsUpdated();
   }
 
   public addEvent(event: WebhookEvent): void {
     if (!this.supportsEvent(event)) {
-      this.props.events.push(event);
-      this.props.updatedAt = new Date();
+      this._events.push(event);
+      this.markAsUpdated();
     }
   }
 
   public removeEvent(event: WebhookEvent): void {
-    const index = this.props.events.indexOf(event);
+    const index = this._events.indexOf(event);
     if (index > -1) {
-      this.props.events.splice(index, 1);
-      this.props.updatedAt = new Date();
+      this._events.splice(index, 1);
+      this.markAsUpdated();
     }
   }
 
   public updateHeaders(headers: Record<string, string>): void {
-    this.props.headers = { ...headers };
-    this.props.updatedAt = new Date();
+    this._headers = { ...headers };
+    this.markAsUpdated();
   }
 
   public addHeader(key: string, value: string): void {
-    this.props.headers[key] = value;
-    this.props.updatedAt = new Date();
+    this._headers[key] = value;
+    this.markAsUpdated();
   }
 
   public removeHeader(key: string): void {
-    delete this.props.headers[key];
-    this.props.updatedAt = new Date();
+    delete this._headers[key];
+    this.markAsUpdated();
   }
 
   public updateMetadata(metadata: Record<string, any>): void {
-    this.props.metadata = { ...this.props.metadata, ...metadata };
-    this.props.updatedAt = new Date();
+    this._metadata = { ...this._metadata, ...metadata };
+    this.markAsUpdated();
   }
 
   public getHealthStatus(): {
@@ -233,15 +291,13 @@ export class Webhook extends BaseEntity<WebhookProps> {
     status: WebhookStatus;
   } {
     const failureRate =
-      this.props.maxFailures > 0
-        ? this.props.failureCount / this.props.maxFailures
-        : 0;
+      this._maxFailures > 0 ? this._failureCount / this._maxFailures : 0;
 
     return {
       isHealthy: this.isActive() && failureRate < 0.5,
       failureRate,
-      lastTriggered: this.props.lastTriggeredAt,
-      status: this.props.status,
+      lastTriggered: this._lastTriggeredAt,
+      status: this._status,
     };
   }
 
@@ -272,12 +328,30 @@ export class Webhook extends BaseEntity<WebhookProps> {
   }
 
   protected validate(): void {
-    // Webhook validation will be handled by the infrastructure layer
-    // This is a legacy entity that needs refactoring
+    if (!this._name || this._name.trim().length === 0) {
+      throw ValidationError.forField('name', 'Webhook name cannot be empty');
+    }
+    if (!this._url || this._url.trim().length === 0) {
+      throw ValidationError.forField('url', 'Webhook URL cannot be empty');
+    }
+    if (!this._secret || this._secret.trim().length === 0) {
+      throw ValidationError.forField(
+        'secret',
+        'Webhook secret cannot be empty'
+      );
+    }
   }
 
   getValidationErrors(): string[] {
-    return [];
+    const errors: string[] = [];
+    try {
+      this.validate();
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        errors.push(error.message);
+      }
+    }
+    return errors;
   }
 }
 
@@ -305,86 +379,108 @@ export interface WebhookDeliveryProps {
   updatedAt: Date;
 }
 
-export class WebhookDelivery extends BaseEntity<WebhookDeliveryProps> {
+export class WebhookDelivery extends BaseEntity<WebhookDeliveryId> {
+  private _webhookId: string;
+  private _event: WebhookEvent;
+  private _payload: Record<string, any>;
+  private _status: WebhookDeliveryStatus;
+  private _httpStatus?: number;
+  private _responseBody?: string;
+  private _errorMessage?: string;
+  private _attemptCount: number;
+  private _maxAttempts: number;
+  private _nextRetryAt?: Date;
+  private _deliveredAt?: Date;
+
   constructor(props: WebhookDeliveryProps) {
-    super(props.id, props.createdAt, props.updatedAt);
-    this.props = props;
+    super(WebhookDeliveryId.create(props.id), props.createdAt, props.updatedAt);
+    this._webhookId = props.webhookId;
+    this._event = props.event;
+    this._payload = props.payload;
+    this._status = props.status;
+    this._httpStatus = props.httpStatus;
+    this._responseBody = props.responseBody;
+    this._errorMessage = props.errorMessage;
+    this._attemptCount = props.attemptCount;
+    this._maxAttempts = props.maxAttempts;
+    this._nextRetryAt = props.nextRetryAt;
+    this._deliveredAt = props.deliveredAt;
   }
 
   get webhookId(): string {
-    return this.props.webhookId;
+    return this._webhookId;
   }
 
   get event(): WebhookEvent {
-    return this.props.event;
+    return this._event;
   }
 
   get payload(): Record<string, any> {
-    return this.props.payload;
+    return this._payload;
   }
 
   get status(): WebhookDeliveryStatus {
-    return this.props.status;
+    return this._status;
   }
 
   get httpStatus(): number | undefined {
-    return this.props.httpStatus;
+    return this._httpStatus;
   }
 
   get responseBody(): string | undefined {
-    return this.props.responseBody;
+    return this._responseBody;
   }
 
   get errorMessage(): string | undefined {
-    return this.props.errorMessage;
+    return this._errorMessage;
   }
 
   get attemptCount(): number {
-    return this.props.attemptCount;
+    return this._attemptCount;
   }
 
   get maxAttempts(): number {
-    return this.props.maxAttempts;
+    return this._maxAttempts;
   }
 
   get nextRetryAt(): Date | undefined {
-    return this.props.nextRetryAt;
+    return this._nextRetryAt;
   }
 
   get deliveredAt(): Date | undefined {
-    return this.props.deliveredAt;
+    return this._deliveredAt;
   }
 
   // Business methods
   public isPending(): boolean {
-    return this.props.status === WebhookDeliveryStatus.PENDING;
+    return this._status === WebhookDeliveryStatus.PENDING;
   }
 
   public isSuccess(): boolean {
-    return this.props.status === WebhookDeliveryStatus.SUCCESS;
+    return this._status === WebhookDeliveryStatus.SUCCESS;
   }
 
   public isFailed(): boolean {
-    return this.props.status === WebhookDeliveryStatus.FAILED;
+    return this._status === WebhookDeliveryStatus.FAILED;
   }
 
   public isRetrying(): boolean {
-    return this.props.status === WebhookDeliveryStatus.RETRYING;
+    return this._status === WebhookDeliveryStatus.RETRYING;
   }
 
   public canRetry(): boolean {
     return (
-      this.props.attemptCount < this.props.maxAttempts &&
+      this._attemptCount < this._maxAttempts &&
       (this.isFailed() || this.isRetrying())
     );
   }
 
   public markAsSuccess(httpStatus: number, responseBody?: string): void {
-    this.props.status = WebhookDeliveryStatus.SUCCESS;
-    this.props.httpStatus = httpStatus;
-    this.props.responseBody = responseBody;
-    this.props.deliveredAt = new Date();
-    this.props.updatedAt = new Date();
+    this._status = WebhookDeliveryStatus.SUCCESS;
+    this._httpStatus = httpStatus;
+    this._responseBody = responseBody;
+    this._deliveredAt = new Date();
+    this.markAsUpdated();
   }
 
   public markAsFailed(
@@ -392,11 +488,11 @@ export class WebhookDelivery extends BaseEntity<WebhookDeliveryProps> {
     errorMessage?: string,
     responseBody?: string
   ): void {
-    this.props.status = WebhookDeliveryStatus.FAILED;
-    this.props.httpStatus = httpStatus;
-    this.props.errorMessage = errorMessage;
-    this.props.responseBody = responseBody;
-    this.props.updatedAt = new Date();
+    this._status = WebhookDeliveryStatus.FAILED;
+    this._httpStatus = httpStatus;
+    this._errorMessage = errorMessage;
+    this._responseBody = responseBody;
+    this.markAsUpdated();
   }
 
   public scheduleRetry(retryDelayMs: number = 60000): void {
@@ -404,17 +500,15 @@ export class WebhookDelivery extends BaseEntity<WebhookDeliveryProps> {
       throw new Error('Cannot retry this delivery');
     }
 
-    this.props.status = WebhookDeliveryStatus.RETRYING;
-    this.props.attemptCount++;
-    this.props.nextRetryAt = new Date(Date.now() + retryDelayMs);
-    this.props.updatedAt = new Date();
+    this._status = WebhookDeliveryStatus.RETRYING;
+    this._attemptCount++;
+    this._nextRetryAt = new Date(Date.now() + retryDelayMs);
+    this.markAsUpdated();
   }
 
   public isReadyForRetry(): boolean {
     return (
-      this.isRetrying() &&
-      this.props.nextRetryAt &&
-      new Date() >= this.props.nextRetryAt
+      this.isRetrying() && this._nextRetryAt && new Date() >= this._nextRetryAt
     );
   }
 
@@ -436,11 +530,23 @@ export class WebhookDelivery extends BaseEntity<WebhookDeliveryProps> {
   }
 
   protected validate(): void {
-    // WebhookDelivery validation will be handled by the infrastructure layer
-    // This is a legacy entity that needs refactoring
+    if (!this._webhookId || this._webhookId.trim().length === 0) {
+      throw ValidationError.forField('webhookId', 'Webhook ID cannot be empty');
+    }
+    if (!this._payload) {
+      throw ValidationError.forField('payload', 'Payload cannot be empty');
+    }
   }
 
   getValidationErrors(): string[] {
-    return [];
+    const errors: string[] = [];
+    try {
+      this.validate();
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        errors.push(error.message);
+      }
+    }
+    return errors;
   }
 }

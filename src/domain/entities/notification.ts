@@ -328,7 +328,7 @@ export class NotificationPreferences extends BaseEntity<NotificationId> {
   private _smsEnabled: boolean;
   private _webhookEnabled: boolean;
   private _quietHours: QuietHours;
-  private _typePreferences: Record<NotificationType, TypePreference>;
+  private _typePreferences: Partial<Record<NotificationType, TypePreference>>;
 
   constructor(
     id: NotificationId,
@@ -344,7 +344,7 @@ export class NotificationPreferences extends BaseEntity<NotificationId> {
       endTime: '08:00',
       timezone: 'UTC',
     },
-    typePreferences: Record<NotificationType, TypePreference> = {},
+    typePreferences: Partial<Record<NotificationType, TypePreference>> = {},
     workspaceId?: WorkspaceId,
     createdAt?: Date,
     updatedAt?: Date
@@ -394,7 +394,7 @@ export class NotificationPreferences extends BaseEntity<NotificationId> {
     return { ...this._quietHours };
   }
 
-  get typePreferences(): Record<NotificationType, TypePreference> {
+  get typePreferences(): Partial<Record<NotificationType, TypePreference>> {
     return { ...this._typePreferences };
   }
 
@@ -500,7 +500,12 @@ export class NotificationPreferences extends BaseEntity<NotificationId> {
       true,
       false,
       false,
-      undefined,
+      {
+        enabled: false,
+        startTime: '22:00',
+        endTime: '08:00',
+        timezone: 'UTC',
+      },
       {},
       workspaceId
     );

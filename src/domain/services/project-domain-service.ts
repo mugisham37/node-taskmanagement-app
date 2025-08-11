@@ -1,16 +1,13 @@
 import { Project, ProjectMember } from '../entities/project';
 import { Task } from '../entities/task';
 import {
-  ProjectId,
   UserId,
   ProjectRoleVO,
-  ProjectStatusVO,
 } from '../value-objects';
 import {
   ProjectRole,
   ProjectStatus,
 } from '../../shared/constants/project-constants';
-import { DomainError } from '../../shared/errors';
 
 /**
  * Project Access Result interface
@@ -18,7 +15,7 @@ import { DomainError } from '../../shared/errors';
 export interface ProjectAccessResult {
   hasAccess: boolean;
   reason?: string;
-  requiredRole?: ProjectRole;
+  requiredRole?: ProjectRoleVO;
 }
 
 /**
@@ -36,7 +33,7 @@ export interface ProjectHealthAssessment {
  */
 export interface ProjectCompletionReadiness {
   canComplete: boolean;
-  reason?: string;
+  reason?: string | undefined;
   incompleteTasks: number;
   blockers: string[];
 }
@@ -47,7 +44,7 @@ export interface ProjectCompletionReadiness {
 export interface MemberRoleChangeValidation {
   isValid: boolean;
   reason?: string;
-  warnings?: string[];
+  warnings?: string[] | undefined;
 }
 
 /**
@@ -86,7 +83,7 @@ export class ProjectDomainService {
           return {
             hasAccess: false,
             reason: 'User does not have permission to create tasks',
-            requiredRole: ProjectRole.MEMBER,
+            requiredRole: ProjectRoleVO.create(ProjectRole.MEMBER),
           };
         }
         break;
@@ -96,7 +93,7 @@ export class ProjectDomainService {
           return {
             hasAccess: false,
             reason: 'User does not have permission to update tasks',
-            requiredRole: ProjectRole.MEMBER,
+            requiredRole: ProjectRoleVO.create(ProjectRole.MEMBER),
           };
         }
         break;
@@ -106,7 +103,7 @@ export class ProjectDomainService {
           return {
             hasAccess: false,
             reason: 'User does not have permission to delete tasks',
-            requiredRole: ProjectRole.MANAGER,
+            requiredRole: ProjectRoleVO.create(ProjectRole.MANAGER),
           };
         }
         break;
@@ -116,7 +113,7 @@ export class ProjectDomainService {
           return {
             hasAccess: false,
             reason: 'User does not have permission to assign tasks',
-            requiredRole: ProjectRole.MEMBER,
+            requiredRole: ProjectRoleVO.create(ProjectRole.MEMBER),
           };
         }
         break;
@@ -126,7 +123,7 @@ export class ProjectDomainService {
           return {
             hasAccess: false,
             reason: 'User does not have permission to manage members',
-            requiredRole: ProjectRole.MANAGER,
+            requiredRole: ProjectRoleVO.create(ProjectRole.MANAGER),
           };
         }
         break;
@@ -136,7 +133,7 @@ export class ProjectDomainService {
           return {
             hasAccess: false,
             reason: 'User does not have permission to update project',
-            requiredRole: ProjectRole.MANAGER,
+            requiredRole: ProjectRoleVO.create(ProjectRole.MANAGER),
           };
         }
         break;
@@ -146,7 +143,7 @@ export class ProjectDomainService {
           return {
             hasAccess: false,
             reason: 'User does not have permission to delete project',
-            requiredRole: ProjectRole.OWNER,
+            requiredRole: ProjectRoleVO.create(ProjectRole.OWNER),
           };
         }
         break;

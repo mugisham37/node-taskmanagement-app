@@ -2,11 +2,10 @@
  * Project-related constants and enums
  */
 
-import { ProjectStatus, UserRole } from '../enums/common.enums';
+import { ProjectStatus, ProjectRole } from '../enums/common.enums';
 
 // Re-export enums for convenience
-export { ProjectStatus };
-export const ProjectRole = UserRole;
+export { ProjectStatus, ProjectRole };
 
 /**
  * Project status transitions
@@ -28,9 +27,24 @@ export const PROJECT_STATUS_TRANSITIONS: Record<
 };
 
 /**
+ * Project permission types
+ */
+export type ProjectPermission = 
+  | 'CREATE_TASK'
+  | 'UPDATE_TASK' 
+  | 'DELETE_TASK'
+  | 'ASSIGN_TASK'
+  | 'MANAGE_MEMBERS'
+  | 'UPDATE_PROJECT'
+  | 'DELETE_PROJECT'
+  | 'ARCHIVE_PROJECT'
+  | 'VIEW_TASKS'
+  | 'VIEW_PROJECT';
+
+/**
  * Project role permissions
  */
-export const PROJECT_ROLE_PERMISSIONS = {
+export const PROJECT_ROLE_PERMISSIONS: Record<ProjectRole, readonly ProjectPermission[]> = {
   [ProjectRole.OWNER]: [
     'CREATE_TASK',
     'UPDATE_TASK',

@@ -5,6 +5,9 @@ import {
   PROJECT_STATUS_TRANSITIONS,
 } from '../../shared/constants/project-constants';
 
+// Re-export the enum for convenience
+export { ProjectStatus } from '../../shared/constants/project-constants';
+
 /**
  * Project Status value object
  * Represents a project status with state transition validation

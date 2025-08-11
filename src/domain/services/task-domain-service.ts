@@ -1,13 +1,9 @@
 import { Task } from '../entities/task';
 import {
   TaskId,
-  UserId,
-  ProjectId,
   Priority,
-  TaskStatusVO,
 } from '../value-objects';
 import { TaskStatus } from '../../shared/constants/task-constants';
-import { DomainError } from '../../shared/errors';
 import { TaskDependency } from '../aggregates/task-aggregate';
 
 /**
@@ -47,8 +43,6 @@ export class TaskDomainService {
    */
   validateTaskAssignment(
     task: Task,
-    assigneeId: UserId,
-    assignedBy: UserId,
     userActiveTasks: Task[]
   ): TaskAssignmentResult {
     // Check if task can be assigned

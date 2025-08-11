@@ -55,16 +55,16 @@ export class ProjectCanBeCompletedSpecification extends Specification<{
 export class UserHasProjectRoleSpecification extends Specification<{
   project: Project;
   userId: UserId;
-  role: ProjectRole;
+  role: ProjectRoleVO;
 }> {
   isSatisfiedBy(candidate: {
     project: Project;
     userId: UserId;
-    role: ProjectRole;
+    role: ProjectRoleVO;
   }): boolean {
     const { project, userId, role } = candidate;
     const userRole = project.getUserRole(userId);
-    return userRole?.value === role;
+    return userRole?.equals(role) ?? false;
   }
 }
 
