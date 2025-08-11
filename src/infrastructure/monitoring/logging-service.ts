@@ -479,7 +479,7 @@ export class LoggingService {
 }
 // Default logger instance for application use
 const defaultConfig: LoggingConfig = {
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env['LOG_LEVEL'] || 'info',
   format: 'json',
   enableConsole: true,
   enableFile: false,
@@ -489,8 +489,11 @@ const defaultConfig: LoggingConfig = {
   metadata: {
     service: 'task-management',
     version: '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
+    environment: process.env['NODE_ENV'] || 'development',
   },
 };
 
 export const logger = new LoggingService(defaultConfig);
+
+// Export the LoggingService class as Logger for compatibility
+export { LoggingService as Logger };

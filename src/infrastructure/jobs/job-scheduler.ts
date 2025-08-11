@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { CronJob } from 'cron';
 import { Logger } from '../monitoring/logging-service';
-import { JobDefinition, JobSchedule, JobConfig } from './job-types';
+import { JobDefinition, JobSchedule } from './job-types';
 import { JobType } from '../../shared/enums/common.enums';
 
 export class JobScheduler extends EventEmitter {
@@ -10,8 +10,7 @@ export class JobScheduler extends EventEmitter {
   private isRunning = false;
 
   constructor(
-    private logger: Logger,
-    private config: JobConfig
+    private logger: Logger
   ) {
     super();
   }
@@ -32,9 +31,10 @@ export class JobScheduler extends EventEmitter {
     for (const [scheduleId, cronJob] of this.cronJobs.entries()) {
       try {
         cronJob.start();
-        this.logger.debug('Started cron job', { scheduleId });
+        this.logger.debug('Started cron job', { operation: 'start-cron-job', scheduleId });
       } catch (error) {
-        this.logger.error('Failed to start cron job', {
+        this.logger.error('Failed to start cron job', undefined, {
+          operation: 'start-cron-job',
           scheduleId,
           error: error instanceof Error ? error.message : 'Unknown error',
         });
@@ -58,11 +58,11 @@ export class JobScheduler extends EventEmitter {
     for (const [scheduleId, cronJob] of this.cronJobs.entries()) {
       try {
         cronJob.stop();
-        this.logger.debug('Stopped cron job', { scheduleId });
+        this.logger.debug('Stopped cron job', { operation: 'stop-cron-job', scheduleId });
       } catch (error) {
-        this.logger.error('Failed to stop cron job', {
+        this.logger.error('Failed to stop cron job', error instanceof Error ? error : new Error('Unknown error'), {
+          operation: 'stop-cron-job',
           scheduleId,
-          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     }
@@ -121,11 +121,11 @@ export class JobScheduler extends EventEmitter {
 
       return scheduleId;
     } catch (error) {
-      this.logger.error('Failed to schedule job', {
+      this.logger.error('Failed to schedule job', error instanceof Error ? error : new Error('Unknown error'), {
+        operation: 'schedule-job',
         jobId: job.id,
         jobName: job.name,
         cronExpression,
-        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -156,9 +156,9 @@ export class JobScheduler extends EventEmitter {
 
       return true;
     } catch (error) {
-      this.logger.error('Failed to unschedule job', {
+      this.logger.error('Failed to unschedule job', error instanceof Error ? error : new Error('Unknown error'), {
+        operation: 'unschedule-job',
         scheduleId,
-        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return false;
     }
@@ -195,9 +195,9 @@ export class JobScheduler extends EventEmitter {
 
       return true;
     } catch (error) {
-      this.logger.error('Failed to enable schedule', {
+      this.logger.error('Failed to enable schedule', error instanceof Error ? error : new Error('Unknown error'), {
+        operation: 'enable-schedule',
         scheduleId,
-        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return false;
     }
@@ -231,9 +231,9 @@ export class JobScheduler extends EventEmitter {
 
       return true;
     } catch (error) {
-      this.logger.error('Failed to disable schedule', {
+      this.logger.error('Failed to disable schedule', error instanceof Error ? error : new Error('Unknown error'), {
+        operation: 'disable-schedule',
         scheduleId,
-        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return false;
     }
@@ -328,10 +328,10 @@ export class JobScheduler extends EventEmitter {
 
       return true;
     } catch (error) {
-      this.logger.error('Failed to update schedule', {
+      this.logger.error('Failed to update schedule', error instanceof Error ? error : new Error('Unknown error'), {
+        operation: 'update-schedule',
         scheduleId,
         cronExpression,
-        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return false;
     }
@@ -394,10 +394,10 @@ export class JobScheduler extends EventEmitter {
         nextRun: schedule.nextRun,
       });
     } catch (error) {
-      this.logger.error('Error executing scheduled job', {
+      this.logger.error('Error executing scheduled job', error instanceof Error ? error : new Error('Unknown error'), {
+        operation: 'execute-scheduled-job',
         scheduleId,
         jobId: job.id,
-        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -426,12 +426,12 @@ export class JobScheduler extends EventEmitter {
         false,
         timezone
       );
-      return cronJob.nextDate().toDate();
+      return cronJob.nextDate().toJSDate();
     } catch (error) {
-      this.logger.error('Failed to calculate next run time', {
+      this.logger.error('Failed to calculate next run time', error instanceof Error ? error : new Error('Unknown error'), {
+        operation: 'calculate-next-run',
         cronExpression,
         timezone,
-        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return new Date(Date.now() + 60000); // Default to 1 minute from now
     }

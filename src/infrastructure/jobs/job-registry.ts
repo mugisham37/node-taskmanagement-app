@@ -135,9 +135,9 @@ export class JobRegistry {
         this.validateHandler(handler);
         this.register(handler);
       } catch (error) {
-        this.logger.error('Failed to register job handler', {
+        this.logger.error('Failed to register job handler', error instanceof Error ? error : new Error('Unknown error'), {
+          operation: 'register-handler',
           handlerName: handler.name,
-          error: error instanceof Error ? error.message : 'Unknown error',
         });
         throw error;
       }

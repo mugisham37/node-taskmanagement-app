@@ -23,9 +23,10 @@ export class NotificationJobHandler implements JobHandler {
    */
   async execute(payload: NotificationJobPayload): Promise<any> {
     this.logger.info('Processing notification job', {
+      operation: 'notification-job',
       type: payload.type,
-      userId: payload.userId,
-      taskId: payload.taskId,
+      ...(payload.userId && { userId: payload.userId }),
+      ...(payload.taskId && { taskId: payload.taskId }),
     });
 
     switch (payload.type) {
@@ -68,9 +69,8 @@ export class NotificationJobHandler implements JobHandler {
    * Handle notification processing failure
    */
   async onFailure(error: Error): Promise<void> {
-    this.logger.error('Notification job failed', {
-      error: error.message,
-      stack: error.stack,
+    this.logger.error('Notification job failed', error, {
+      operation: 'notification-job-failure',
     });
   }
 
@@ -88,7 +88,7 @@ export class NotificationJobHandler implements JobHandler {
    * Process overdue task notifications
    */
   private async processOverdueNotifications(
-    payload: NotificationJobPayload
+    _payload: NotificationJobPayload
   ): Promise<any> {
     const startTime = Date.now();
     let notificationsSent = 0;
@@ -138,9 +138,9 @@ export class NotificationJobHandler implements JobHandler {
             error instanceof Error ? error.message : 'Unknown error';
           errors.push(`Task ${task.id}: ${errorMessage}`);
 
-          this.logger.error('Failed to send overdue notification', {
+          this.logger.error('Failed to send overdue notification', error instanceof Error ? error : new Error(errorMessage), {
+            operation: 'send-overdue-notification',
             taskId: task.id,
-            error: errorMessage,
           });
         }
       }
@@ -155,8 +155,8 @@ export class NotificationJobHandler implements JobHandler {
         processingTime,
       };
     } catch (error) {
-      this.logger.error('Error processing overdue notifications', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+      this.logger.error('Error processing overdue notifications', error instanceof Error ? error : new Error('Unknown error'), {
+        operation: 'process-overdue-notifications',
       });
       throw error;
     }
@@ -166,7 +166,7 @@ export class NotificationJobHandler implements JobHandler {
    * Process upcoming due date notifications
    */
   private async processUpcomingNotifications(
-    payload: NotificationJobPayload
+    _payload: NotificationJobPayload
   ): Promise<any> {
     const startTime = Date.now();
     let notificationsSent = 0;
@@ -226,9 +226,9 @@ export class NotificationJobHandler implements JobHandler {
             error instanceof Error ? error.message : 'Unknown error';
           errors.push(`Task ${task.id}: ${errorMessage}`);
 
-          this.logger.error('Failed to send upcoming notification', {
+          this.logger.error('Failed to send upcoming notification', error instanceof Error ? error : new Error(errorMessage), {
+            operation: 'send-upcoming-notification',
             taskId: task.id,
-            error: errorMessage,
           });
         }
       }
@@ -243,8 +243,8 @@ export class NotificationJobHandler implements JobHandler {
         processingTime,
       };
     } catch (error) {
-      this.logger.error('Error processing upcoming notifications', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+      this.logger.error('Error processing upcoming notifications', error instanceof Error ? error : new Error('Unknown error'), {
+        operation: 'process-upcoming-notifications',
       });
       throw error;
     }
@@ -261,8 +261,9 @@ export class NotificationJobHandler implements JobHandler {
 
     try {
       this.logger.debug('Processing reminder notifications', {
-        userId: payload.userId,
-        taskId: payload.taskId,
+        operation: 'reminder-notifications',
+        ...(payload.userId && { userId: payload.userId }),
+        ...(payload.taskId && { taskId: payload.taskId }),
       });
 
       if (payload.taskId && payload.userId) {
@@ -270,7 +271,7 @@ export class NotificationJobHandler implements JobHandler {
         await this.notificationService.createNotification({
           type: 'task_reminder',
           title: 'Task Reminder',
-          message: payload.data?.message || 'You have a task reminder',
+          message: payload.data?.['message'] || 'You have a task reminder',
           userId: payload.userId,
           taskId: payload.taskId,
           data: payload.data,
@@ -289,8 +290,8 @@ export class NotificationJobHandler implements JobHandler {
         processingTime,
       };
     } catch (error) {
-      this.logger.error('Error processing reminder notifications', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+      this.logger.error('Error processing reminder notifications', error instanceof Error ? error : new Error('Unknown error'), {
+        operation: 'process-reminder-notifications',
       });
       throw error;
     }
@@ -300,7 +301,7 @@ export class NotificationJobHandler implements JobHandler {
    * Process daily digest notifications
    */
   private async processDigestNotifications(
-    payload: NotificationJobPayload
+    _payload: NotificationJobPayload
   ): Promise<any> {
     const startTime = Date.now();
     let notificationsSent = 0;
@@ -334,9 +335,9 @@ export class NotificationJobHandler implements JobHandler {
             error instanceof Error ? error.message : 'Unknown error';
           errors.push(`User ${user.id}: ${errorMessage}`);
 
-          this.logger.error('Failed to send digest notification', {
+          this.logger.error('Failed to send digest notification', error instanceof Error ? error : new Error(errorMessage), {
+            operation: 'send-digest-notification',
             userId: user.id,
-            error: errorMessage,
           });
         }
       }
@@ -351,8 +352,8 @@ export class NotificationJobHandler implements JobHandler {
         processingTime,
       };
     } catch (error) {
-      this.logger.error('Error processing digest notifications', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+      this.logger.error('Error processing digest notifications', error instanceof Error ? error : new Error('Unknown error'), {
+        operation: 'process-digest-notifications',
       });
       throw error;
     }
@@ -418,8 +419,8 @@ export class NotificationJobHandler implements JobHandler {
       const newAssignments = await this.taskService.getTasks(
         {
           assignedTo: userId,
-          assignedFrom: startOfDay,
-          assignedTo: endOfDay,
+          dueDateFrom: startOfDay,
+          dueDateTo: endOfDay,
           status: [TaskStatus.TODO, TaskStatus.IN_PROGRESS],
         },
         { limit: 10 },
@@ -438,9 +439,9 @@ export class NotificationJobHandler implements JobHandler {
         newAssignments: newAssignments.data,
       };
     } catch (error) {
-      this.logger.error('Error generating user digest', {
+      this.logger.error('Error generating user digest', error instanceof Error ? error : new Error('Unknown error'), {
+        operation: 'generate-user-digest',
         userId,
-        error: error instanceof Error ? error.message : 'Unknown error',
       });
 
       return {

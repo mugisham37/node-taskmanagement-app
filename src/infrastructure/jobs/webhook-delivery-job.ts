@@ -121,9 +121,8 @@ export class WebhookDeliveryJobHandler implements JobHandler {
    * Handle webhook delivery processing failure
    */
   async onFailure(error: Error): Promise<void> {
-    this.logger.error('Webhook delivery job failed', {
-      error: error.message,
-      stack: error.stack,
+    this.logger.error('Webhook delivery job failed', error, {
+      operation: 'webhook-delivery-job-failure',
     });
   }
 
@@ -177,10 +176,10 @@ export class WebhookDeliveryJobHandler implements JobHandler {
           failed++;
           processed++;
 
-          this.logger.error('Failed to process webhook delivery', {
+          this.logger.error('Failed to process webhook delivery', error instanceof Error ? error : new Error(errorMessage), {
+            operation: 'process-webhook-delivery',
             deliveryId: delivery.id,
             webhookId: delivery.webhookId,
-            error: errorMessage,
           });
         }
       }
@@ -196,8 +195,8 @@ export class WebhookDeliveryJobHandler implements JobHandler {
         processingTime,
       };
     } catch (error) {
-      this.logger.error('Error processing pending webhook deliveries', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+      this.logger.error('Error processing pending webhook deliveries', error instanceof Error ? error : new Error('Unknown error'), {
+        operation: 'process-pending-webhook-deliveries',
       });
       throw error;
     }
@@ -261,8 +260,8 @@ export class WebhookDeliveryJobHandler implements JobHandler {
         processingTime,
       };
     } catch (error) {
-      this.logger.error('Error processing webhook retry queue', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+      this.logger.error('Error processing webhook retry queue', error instanceof Error ? error : new Error('Unknown error'), {
+        operation: 'process-webhook-retry-queue',
       });
       throw error;
     }
@@ -323,8 +322,8 @@ export class WebhookDeliveryJobHandler implements JobHandler {
         processingTime,
       };
     } catch (error) {
-      this.logger.error('Error processing scheduled webhook deliveries', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+      this.logger.error('Error processing scheduled webhook deliveries', error instanceof Error ? error : new Error('Unknown error'), {
+        operation: 'process-scheduled-webhook-deliveries',
       });
       throw error;
     }
@@ -366,9 +365,9 @@ export class WebhookDeliveryJobHandler implements JobHandler {
         processingTime,
       };
     } catch (error) {
-      this.logger.error('Error delivering specific webhook', {
+      this.logger.error('Error delivering specific webhook', error instanceof Error ? error : new Error('Unknown error'), {
+        operation: 'deliver-specific-webhook',
         deliveryId,
-        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -416,11 +415,11 @@ export class WebhookDeliveryJobHandler implements JobHandler {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
 
-      this.logger.error('Webhook delivery failed', {
+      this.logger.error('Webhook delivery failed', error instanceof Error ? error : new Error(errorMessage), {
+        operation: 'webhook-delivery',
         deliveryId: delivery.id,
         webhookId: delivery.webhookId,
         url: delivery.url,
-        error: errorMessage,
         deliveryTime,
         attemptCount: delivery.attemptCount,
       });
@@ -589,7 +588,7 @@ export class WebhookDeliveryJobHandler implements JobHandler {
    * Get pending webhook deliveries
    */
   private async getPendingDeliveries(
-    limit: number
+    _limit: number
   ): Promise<WebhookDelivery[]> {
     // This would be implemented to fetch from database
     // For now, return empty array
@@ -599,7 +598,7 @@ export class WebhookDeliveryJobHandler implements JobHandler {
   /**
    * Get retry webhook deliveries
    */
-  private async getRetryDeliveries(limit: number): Promise<WebhookDelivery[]> {
+  private async getRetryDeliveries(_limit: number): Promise<WebhookDelivery[]> {
     // This would be implemented to fetch from database
     // For now, return empty array
     return [];
@@ -609,7 +608,7 @@ export class WebhookDeliveryJobHandler implements JobHandler {
    * Get scheduled webhook deliveries
    */
   private async getScheduledDeliveries(
-    limit: number
+    _limit: number
   ): Promise<WebhookDelivery[]> {
     // This would be implemented to fetch from database
     // For now, return empty array
@@ -620,7 +619,7 @@ export class WebhookDeliveryJobHandler implements JobHandler {
    * Get specific webhook delivery
    */
   private async getWebhookDelivery(
-    deliveryId: string
+    _deliveryId: string
   ): Promise<WebhookDelivery | null> {
     // This would be implemented to fetch from database
     // For now, return null

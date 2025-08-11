@@ -7,7 +7,7 @@ export interface JobDefinition {
   payload: Record<string, any>;
   priority?: number;
   maxRetries?: number;
-  delay?: number;
+  delay?: number | undefined;
   cronExpression?: string;
   timeout?: number;
   tags?: string[];

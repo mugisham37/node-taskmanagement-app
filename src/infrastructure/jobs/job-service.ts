@@ -32,9 +32,7 @@ export class JobService {
 
       this.logger.info('Job service initialized successfully');
     } catch (error) {
-      this.logger.error('Failed to initialize job service', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      this.logger.error('Failed to initialize job service', error instanceof Error ? error : new Error('Unknown error'));
       throw error;
     }
   }
@@ -52,9 +50,7 @@ export class JobService {
       this.isInitialized = false;
       this.logger.info('Job service shut down successfully');
     } catch (error) {
-      this.logger.error('Error shutting down job service', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      this.logger.error('Error shutting down job service', error instanceof Error ? error : new Error('Unknown error'));
       throw error;
     }
   }
@@ -83,7 +79,7 @@ export class JobService {
         data: options.data,
       },
       priority: options.priority || 5,
-      delay: options.delay,
+      ...(options.delay !== undefined && { delay: options.delay }),
     };
 
     return await this.jobManager.addJob(job);
@@ -111,7 +107,7 @@ export class JobService {
         userId: options.userId,
       },
       priority: options.priority || 5,
-      delay: options.delay,
+      ...(options.delay !== undefined && { delay: options.delay }),
     };
 
     return await this.jobManager.addJob(job);
@@ -141,7 +137,7 @@ export class JobService {
         reminderType: options.reminderType,
       },
       priority: options.priority || 5,
-      delay: options.delay,
+      ...(options.delay !== undefined && { delay: options.delay }),
     };
 
     return await this.jobManager.addJob(job);
@@ -175,7 +171,7 @@ export class JobService {
         maxProcessingTime: options.maxProcessingTime,
       },
       priority: options.priority || 5,
-      delay: options.delay,
+      ...(options.delay !== undefined && { delay: options.delay }),
     };
 
     return await this.jobManager.addJob(job);
@@ -262,9 +258,7 @@ export class JobService {
 
       this.logger.info('Recurring jobs scheduled successfully');
     } catch (error) {
-      this.logger.error('Failed to schedule recurring jobs', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      this.logger.error('Failed to schedule recurring jobs', error instanceof Error ? error : new Error('Unknown error'));
       throw error;
     }
   }
@@ -344,9 +338,7 @@ export class JobService {
 
       this.logger.info('Default jobs scheduled successfully');
     } catch (error) {
-      this.logger.error('Failed to schedule default jobs', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      this.logger.error('Failed to schedule default jobs', error instanceof Error ? error : new Error('Unknown error'));
       // Don't throw here - service can still work without scheduled jobs
     }
   }

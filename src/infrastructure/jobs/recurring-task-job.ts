@@ -45,9 +45,10 @@ export class RecurringTaskJobHandler implements JobHandler {
    */
   async execute(payload: RecurringTaskJobPayload): Promise<any> {
     this.logger.info('Processing recurring task job', {
+      operation: 'recurring-task-job',
       type: payload.type,
-      recurringTaskId: payload.recurringTaskId,
-      userId: payload.userId,
+      ...(payload.recurringTaskId && { recurringTaskId: payload.recurringTaskId }),
+      ...(payload.userId && { userId: payload.userId }),
     });
 
     switch (payload.type) {
@@ -99,9 +100,8 @@ export class RecurringTaskJobHandler implements JobHandler {
    * Handle recurring task processing failure
    */
   async onFailure(error: Error): Promise<void> {
-    this.logger.error('Recurring task job failed', {
-      error: error.message,
-      stack: error.stack,
+    this.logger.error('Recurring task job failed', error, {
+      operation: 'recurring-task-job-failure',
     });
   }
 
@@ -142,9 +142,9 @@ export class RecurringTaskJobHandler implements JobHandler {
             error instanceof Error ? error.message : 'Unknown error';
           errors.push(`Recurring task ${recurringTask.id}: ${errorMessage}`);
 
-          this.logger.error('Failed to process recurring task', {
+          this.logger.error('Failed to process recurring task', error instanceof Error ? error : new Error(errorMessage), {
+            operation: 'process-recurring-task',
             recurringTaskId: recurringTask.id,
-            error: errorMessage,
           });
         }
       }
@@ -159,8 +159,8 @@ export class RecurringTaskJobHandler implements JobHandler {
         processingTime,
       };
     } catch (error) {
-      this.logger.error('Error processing all recurring tasks', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+      this.logger.error('Error processing all recurring tasks', error instanceof Error ? error : new Error('Unknown error'), {
+        operation: 'process-all-recurring-tasks',
       });
       throw error;
     }
@@ -195,9 +195,9 @@ export class RecurringTaskJobHandler implements JobHandler {
         processingTime,
       };
     } catch (error) {
-      this.logger.error('Error processing specific recurring task', {
+      this.logger.error('Error processing specific recurring task', error instanceof Error ? error : new Error('Unknown error'), {
+        operation: 'process-specific-recurring-task',
         recurringTaskId,
-        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -233,9 +233,9 @@ export class RecurringTaskJobHandler implements JobHandler {
 
       return true;
     } catch (error) {
-      this.logger.error('Error processing recurring task', {
+      this.logger.error('Error processing recurring task', error instanceof Error ? error : new Error('Unknown error'), {
+        operation: 'process-recurring-task',
         recurringTaskId: recurringTask.id,
-        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -273,11 +273,11 @@ export class RecurringTaskJobHandler implements JobHandler {
       assignedTo: recurringTask.userId,
       projectId: recurringTask.projectId,
       dueDate,
-      priority: recurringTask.templateData.priority || 'medium',
-      tags: recurringTask.templateData.tags || [],
-      estimatedHours: recurringTask.templateData.estimatedHours,
+      priority: recurringTask.templateData['priority'] || 'medium',
+      tags: recurringTask.templateData['tags'] || [],
+      estimatedHours: recurringTask.templateData['estimatedHours'],
       metadata: {
-        ...recurringTask.templateData.metadata,
+        ...recurringTask.templateData['metadata'],
         recurringTaskId: recurringTask.id,
         createdFromRecurring: true,
       },
@@ -318,7 +318,6 @@ export class RecurringTaskJobHandler implements JobHandler {
    * Calculate next due date based on recurrence pattern
    */
   private calculateNextDueDate(recurringTask: RecurringTask): Date {
-    const now = new Date();
     const pattern = recurringTask.pattern;
     const baseDate = recurringTask.lastCreated || recurringTask.createdAt;
 
@@ -379,21 +378,21 @@ export class RecurringTaskJobHandler implements JobHandler {
   private calculateTaskDueDate(recurringTask: RecurringTask): Date | null {
     const templateData = recurringTask.templateData;
 
-    if (!templateData.dueAfterDays && !templateData.dueTime) {
+    if (!templateData['dueAfterDays'] && !templateData['dueTime']) {
       return null; // No due date
     }
 
     const now = new Date();
 
-    if (templateData.dueAfterDays) {
+    if (templateData['dueAfterDays']) {
       return new Date(
-        now.getTime() + templateData.dueAfterDays * 24 * 60 * 60 * 1000
+        now.getTime() + templateData['dueAfterDays'] * 24 * 60 * 60 * 1000
       );
     }
 
-    if (templateData.dueTime) {
+    if (templateData['dueTime']) {
       const dueDate = new Date(now);
-      const [hours, minutes] = templateData.dueTime.split(':').map(Number);
+      const [hours, minutes] = templateData['dueTime'].split(':').map(Number);
       dueDate.setHours(hours, minutes, 0, 0);
 
       // If time has passed today, set for tomorrow
@@ -442,7 +441,7 @@ export class RecurringTaskJobHandler implements JobHandler {
   /**
    * Calculate next date based on cron expression
    */
-  private calculateNextCronDate(cronExpression: string, fromDate: Date): Date {
+  private calculateNextCronDate(_cronExpression: string, fromDate: Date): Date {
     // This would require a cron parser library
     // For now, return a simple fallback
     return new Date(fromDate.getTime() + 24 * 60 * 60 * 1000);
@@ -460,7 +459,7 @@ export class RecurringTaskJobHandler implements JobHandler {
   /**
    * Get specific recurring task
    */
-  private async getRecurringTask(id: string): Promise<RecurringTask | null> {
+  private async getRecurringTask(_id: string): Promise<RecurringTask | null> {
     // This would be implemented to fetch from database
     // For now, return null
     return null;
