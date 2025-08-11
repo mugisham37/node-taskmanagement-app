@@ -1,5 +1,3 @@
-import { IdGenerator } from '../../shared/utils/id-generator';
-
 /**
  * Base Domain Event interface
  */
@@ -45,24 +43,18 @@ export interface DomainEvent {
  */
 export abstract class BaseDomainEvent implements DomainEvent {
   protected readonly eventId: string;
-  protected readonly aggregateId: string;
   protected readonly occurredOn: Date;
   protected readonly version: number;
   protected readonly metadata: Record<string, any>;
-  protected readonly eventData: Record<string, any>;
 
   constructor(
-    aggregateId: string,
-    eventData: Record<string, any> = {},
     metadata: Record<string, any> = {},
     version: number = 1
   ) {
     this.eventId = this.generateEventId();
-    this.aggregateId = aggregateId;
     this.occurredOn = new Date();
     this.version = version;
     this.metadata = metadata;
-    this.eventData = eventData;
   }
 
   getEventId(): string {
@@ -70,10 +62,8 @@ export abstract class BaseDomainEvent implements DomainEvent {
   }
 
   abstract getEventName(): string;
-
-  getAggregateId(): string {
-    return this.aggregateId;
-  }
+  abstract getAggregateId(): string;
+  protected abstract getPayload(): Record<string, any>;
 
   getOccurredOn(): Date {
     return this.occurredOn;
@@ -88,7 +78,12 @@ export abstract class BaseDomainEvent implements DomainEvent {
   }
 
   getEventData(): Record<string, any> {
-    return { ...this.eventData };
+    return this.getPayload();
+  }
+
+  // Add getter for backward compatibility with event handlers
+  get occurredAt(): Date {
+    return this.occurredOn;
   }
 
   private generateEventId(): string {

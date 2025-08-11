@@ -1,16 +1,15 @@
-import { DomainEvent } from './domain-event';
+import { BaseDomainEvent } from './domain-event';
 import {
   TaskId,
   UserId,
   ProjectId,
   Priority,
-  TaskStatusVO,
 } from '../value-objects';
 
 /**
  * Task Created Event
  */
-export class TaskCreatedEvent extends DomainEvent {
+export class TaskCreatedEvent extends BaseDomainEvent {
   constructor(
     public readonly taskId: TaskId,
     public readonly title: string,
@@ -49,7 +48,7 @@ export class TaskCreatedEvent extends DomainEvent {
 /**
  * Task Assigned Event
  */
-export class TaskAssignedEvent extends DomainEvent {
+export class TaskAssignedEvent extends BaseDomainEvent {
   constructor(
     public readonly taskId: TaskId,
     public readonly assigneeId: UserId,
@@ -80,7 +79,7 @@ export class TaskAssignedEvent extends DomainEvent {
 /**
  * Task Unassigned Event
  */
-export class TaskUnassignedEvent extends DomainEvent {
+export class TaskUnassignedEvent extends BaseDomainEvent {
   constructor(
     public readonly taskId: TaskId,
     public readonly previousAssigneeId: UserId,
@@ -111,7 +110,7 @@ export class TaskUnassignedEvent extends DomainEvent {
 /**
  * Task Started Event
  */
-export class TaskStartedEvent extends DomainEvent {
+export class TaskStartedEvent extends BaseDomainEvent {
   constructor(
     public readonly taskId: TaskId,
     public readonly startedBy: UserId,
@@ -140,7 +139,7 @@ export class TaskStartedEvent extends DomainEvent {
 /**
  * Task Completed Event
  */
-export class TaskCompletedEvent extends DomainEvent {
+export class TaskCompletedEvent extends BaseDomainEvent {
   constructor(
     public readonly taskId: TaskId,
     public readonly completedBy: UserId,
@@ -171,7 +170,7 @@ export class TaskCompletedEvent extends DomainEvent {
 /**
  * Task Cancelled Event
  */
-export class TaskCancelledEvent extends DomainEvent {
+export class TaskCancelledEvent extends BaseDomainEvent {
   constructor(
     public readonly taskId: TaskId,
     public readonly cancelledBy: UserId,
@@ -202,7 +201,7 @@ export class TaskCancelledEvent extends DomainEvent {
 /**
  * Task Reopened Event
  */
-export class TaskReopenedEvent extends DomainEvent {
+export class TaskReopenedEvent extends BaseDomainEvent {
   constructor(
     public readonly taskId: TaskId,
     public readonly reopenedBy: UserId,
@@ -231,7 +230,7 @@ export class TaskReopenedEvent extends DomainEvent {
 /**
  * Task Priority Changed Event
  */
-export class TaskPriorityChangedEvent extends DomainEvent {
+export class TaskPriorityChangedEvent extends BaseDomainEvent {
   constructor(
     public readonly taskId: TaskId,
     public readonly oldPriority: Priority,
@@ -264,7 +263,7 @@ export class TaskPriorityChangedEvent extends DomainEvent {
 /**
  * Task Updated Event
  */
-export class TaskUpdatedEvent extends DomainEvent {
+export class TaskUpdatedEvent extends BaseDomainEvent {
   constructor(
     public readonly taskId: TaskId,
     public readonly updatedBy: UserId,
@@ -295,7 +294,7 @@ export class TaskUpdatedEvent extends DomainEvent {
 /**
  * Task Dependency Added Event
  */
-export class TaskDependencyAddedEvent extends DomainEvent {
+export class TaskDependencyAddedEvent extends BaseDomainEvent {
   constructor(
     public readonly taskId: TaskId,
     public readonly dependsOnId: TaskId,
@@ -326,7 +325,7 @@ export class TaskDependencyAddedEvent extends DomainEvent {
 /**
  * Task Dependency Removed Event
  */
-export class TaskDependencyRemovedEvent extends DomainEvent {
+export class TaskDependencyRemovedEvent extends BaseDomainEvent {
   constructor(
     public readonly taskId: TaskId,
     public readonly dependsOnId: TaskId,
@@ -357,7 +356,7 @@ export class TaskDependencyRemovedEvent extends DomainEvent {
 /**
  * Task Status Changed Event
  */
-export class TaskStatusChangedEvent extends DomainEvent {
+export class TaskStatusChangedEvent extends BaseDomainEvent {
   constructor(
     public readonly taskId: TaskId,
     public readonly previousStatus: string,

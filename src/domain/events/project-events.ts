@@ -1,4 +1,4 @@
-import { DomainEvent } from './domain-event';
+import { BaseDomainEvent } from './domain-event';
 import {
   ProjectId,
   UserId,
@@ -10,7 +10,7 @@ import {
 /**
  * Project Created Event
  */
-export class ProjectCreatedEvent extends DomainEvent {
+export class ProjectCreatedEvent extends BaseDomainEvent {
   constructor(
     public readonly projectId: ProjectId,
     public readonly name: string,
@@ -47,7 +47,7 @@ export class ProjectCreatedEvent extends DomainEvent {
 /**
  * Project Updated Event
  */
-export class ProjectUpdatedEvent extends DomainEvent {
+export class ProjectUpdatedEvent extends BaseDomainEvent {
   constructor(
     public readonly projectId: ProjectId,
     public readonly updatedBy: UserId,
@@ -76,7 +76,7 @@ export class ProjectUpdatedEvent extends DomainEvent {
 /**
  * Project Member Added Event
  */
-export class ProjectMemberAddedEvent extends DomainEvent {
+export class ProjectMemberAddedEvent extends BaseDomainEvent {
   constructor(
     public readonly projectId: ProjectId,
     public readonly userId: UserId,
@@ -109,7 +109,7 @@ export class ProjectMemberAddedEvent extends DomainEvent {
 /**
  * Project Member Removed Event
  */
-export class ProjectMemberRemovedEvent extends DomainEvent {
+export class ProjectMemberRemovedEvent extends BaseDomainEvent {
   constructor(
     public readonly projectId: ProjectId,
     public readonly userId: UserId,
@@ -140,7 +140,7 @@ export class ProjectMemberRemovedEvent extends DomainEvent {
 /**
  * Project Member Role Updated Event
  */
-export class ProjectMemberRoleUpdatedEvent extends DomainEvent {
+export class ProjectMemberRoleUpdatedEvent extends BaseDomainEvent {
   constructor(
     public readonly projectId: ProjectId,
     public readonly userId: UserId,
@@ -173,7 +173,7 @@ export class ProjectMemberRoleUpdatedEvent extends DomainEvent {
 /**
  * Project Status Changed Event
  */
-export class ProjectStatusChangedEvent extends DomainEvent {
+export class ProjectStatusChangedEvent extends BaseDomainEvent {
   constructor(
     public readonly projectId: ProjectId,
     public readonly oldStatus: ProjectStatusVO,
@@ -204,7 +204,7 @@ export class ProjectStatusChangedEvent extends DomainEvent {
 /**
  * Project Put On Hold Event
  */
-export class ProjectPutOnHoldEvent extends DomainEvent {
+export class ProjectPutOnHoldEvent extends BaseDomainEvent {
   constructor(
     public readonly projectId: ProjectId,
     public readonly putOnHoldBy: UserId,
@@ -233,7 +233,7 @@ export class ProjectPutOnHoldEvent extends DomainEvent {
 /**
  * Project Activated Event
  */
-export class ProjectActivatedEvent extends DomainEvent {
+export class ProjectActivatedEvent extends BaseDomainEvent {
   constructor(
     public readonly projectId: ProjectId,
     public readonly activatedBy: UserId
@@ -260,7 +260,7 @@ export class ProjectActivatedEvent extends DomainEvent {
 /**
  * Project Completed Event
  */
-export class ProjectCompletedEvent extends DomainEvent {
+export class ProjectCompletedEvent extends BaseDomainEvent {
   constructor(
     public readonly projectId: ProjectId,
     public readonly completedBy: UserId
@@ -287,7 +287,7 @@ export class ProjectCompletedEvent extends DomainEvent {
 /**
  * Project Cancelled Event
  */
-export class ProjectCancelledEvent extends DomainEvent {
+export class ProjectCancelledEvent extends BaseDomainEvent {
   constructor(
     public readonly projectId: ProjectId,
     public readonly cancelledBy: UserId,
@@ -316,7 +316,7 @@ export class ProjectCancelledEvent extends DomainEvent {
 /**
  * Project Archived Event
  */
-export class ProjectArchivedEvent extends DomainEvent {
+export class ProjectArchivedEvent extends BaseDomainEvent {
   constructor(
     public readonly projectId: ProjectId,
     public readonly archivedBy: UserId

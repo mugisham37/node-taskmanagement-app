@@ -1,10 +1,10 @@
-import { DomainEvent } from './domain-event';
-import { UserId, Email, UserStatusVO } from '../value-objects';
+import { BaseDomainEvent } from './domain-event';
+import { UserId, Email } from '../value-objects';
 
 /**
  * User Created Event
  */
-export class UserCreatedEvent extends DomainEvent {
+export class UserCreatedEvent extends BaseDomainEvent {
   constructor(
     public readonly userId: UserId,
     public readonly email: Email,
@@ -33,7 +33,7 @@ export class UserCreatedEvent extends DomainEvent {
 /**
  * User Profile Updated Event
  */
-export class UserProfileUpdatedEvent extends DomainEvent {
+export class UserProfileUpdatedEvent extends BaseDomainEvent {
   constructor(
     public readonly userId: UserId,
     public readonly changes: Record<string, any>
@@ -60,7 +60,7 @@ export class UserProfileUpdatedEvent extends DomainEvent {
 /**
  * User Activated Event
  */
-export class UserActivatedEvent extends DomainEvent {
+export class UserActivatedEvent extends BaseDomainEvent {
   constructor(
     public readonly userId: UserId,
     public readonly activatedBy?: UserId
@@ -87,7 +87,7 @@ export class UserActivatedEvent extends DomainEvent {
 /**
  * User Deactivated Event
  */
-export class UserDeactivatedEvent extends DomainEvent {
+export class UserDeactivatedEvent extends BaseDomainEvent {
   constructor(
     public readonly userId: UserId,
     public readonly deactivatedBy?: UserId,
@@ -116,7 +116,7 @@ export class UserDeactivatedEvent extends DomainEvent {
 /**
  * User Suspended Event
  */
-export class UserSuspendedEvent extends DomainEvent {
+export class UserSuspendedEvent extends BaseDomainEvent {
   constructor(
     public readonly userId: UserId,
     public readonly suspendedBy: UserId,
@@ -145,7 +145,7 @@ export class UserSuspendedEvent extends DomainEvent {
 /**
  * User Login Recorded Event
  */
-export class UserLoginRecordedEvent extends DomainEvent {
+export class UserLoginRecordedEvent extends BaseDomainEvent {
   constructor(
     public readonly userId: UserId,
     public readonly loginTime: Date,
@@ -176,7 +176,7 @@ export class UserLoginRecordedEvent extends DomainEvent {
 /**
  * User Password Updated Event
  */
-export class UserPasswordUpdatedEvent extends DomainEvent {
+export class UserPasswordUpdatedEvent extends BaseDomainEvent {
   constructor(
     public readonly userId: UserId,
     public readonly updatedBy?: UserId
@@ -203,7 +203,7 @@ export class UserPasswordUpdatedEvent extends DomainEvent {
 /**
  * User Email Changed Event
  */
-export class UserEmailChangedEvent extends DomainEvent {
+export class UserEmailChangedEvent extends BaseDomainEvent {
   constructor(
     public readonly userId: UserId,
     public readonly oldEmail: Email,
@@ -232,7 +232,7 @@ export class UserEmailChangedEvent extends DomainEvent {
 /**
  * User Registered Event
  */
-export class UserRegisteredEvent extends DomainEvent {
+export class UserRegisteredEvent extends BaseDomainEvent {
   constructor(
     public readonly userId: UserId,
     public readonly email: Email,

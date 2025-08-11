@@ -38,24 +38,20 @@ export class EventBus implements IEventBus {
     const handlers = this.handlers.get(eventName) || [];
 
     this.logger.info(`Publishing event: ${eventName}`, {
-      eventId: event.eventId,
+      eventId: event.getEventId(),
     });
 
     const promises = handlers.map(async handler => {
       try {
         await handler.handle(event);
         this.logger.info(`Event handler completed for ${eventName}`, {
-          eventId: event.eventId,
+          eventId: event.getEventId(),
         });
       } catch (error) {
-        this.logger.error(
-          `Event handler failed for ${eventName}`,
-          error as Error,
-          {
-            eventId: event.eventId,
-            handler: handler.constructor.name,
-          }
-        );
+        this.logger.error(`Event handler failed for ${eventName}`, error as Error, {
+          eventId: event.getEventId(),
+          handler: handler.constructor.name,
+        });
         // Continue with other handlers even if one fails
       }
     });

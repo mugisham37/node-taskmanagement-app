@@ -729,4 +729,260 @@ This is an automated message, please do not reply to this email.
       throw error;
     }
   }
+
+  /**
+   * Send task creation notification
+   */
+  async sendTaskCreationNotification(
+    recipientEmail: string,
+    recipientName: string,
+    taskTitle: string,
+    taskDescription: string,
+    projectName: string,
+    creatorName: string,
+    dueDate?: Date
+  ): Promise<boolean> {
+    try {
+      const subject = `New Task Created: ${taskTitle}`;
+      const html = `
+        <h2>New Task Created</h2>
+        <p>Hello ${recipientName},</p>
+        <p>A new task has been created in project <strong>${projectName}</strong>:</p>
+        <ul>
+          <li><strong>Title:</strong> ${taskTitle}</li>
+          <li><strong>Description:</strong> ${taskDescription}</li>
+          <li><strong>Created by:</strong> ${creatorName}</li>
+          ${dueDate ? `<li><strong>Due Date:</strong> ${dueDate.toLocaleDateString()}</li>` : ''}
+        </ul>
+        <p>Best regards,<br>Task Management Team</p>
+      `;
+
+      return this.sendEmail({
+        to: recipientEmail,
+        subject,
+        html,
+        priority: 'normal',
+        tags: ['task', 'notification'],
+      });
+    } catch (error) {
+      this.logger.error('Failed to send task creation notification', error as Error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send task assignment notification
+   */
+  async sendTaskAssignmentNotification(
+    recipientEmail: string,
+    recipientName: string,
+    taskTitle: string,
+    taskDescription: string,
+    projectName: string,
+    assignedByName: string,
+    dueDate?: Date
+  ): Promise<boolean> {
+    try {
+      const subject = `Task Assigned: ${taskTitle}`;
+      const html = `
+        <h2>Task Assigned to You</h2>
+        <p>Hello ${recipientName},</p>
+        <p>You have been assigned a task in project <strong>${projectName}</strong>:</p>
+        <ul>
+          <li><strong>Title:</strong> ${taskTitle}</li>
+          <li><strong>Description:</strong> ${taskDescription}</li>
+          <li><strong>Assigned by:</strong> ${assignedByName}</li>
+          ${dueDate ? `<li><strong>Due Date:</strong> ${dueDate.toLocaleDateString()}</li>` : ''}
+        </ul>
+        <p>Please review and start working on this task.</p>
+        <p>Best regards,<br>Task Management Team</p>
+      `;
+
+      return this.sendEmail({
+        to: recipientEmail,
+        subject,
+        html,
+        priority: 'normal',
+        tags: ['task', 'assignment'],
+      });
+    } catch (error) {
+      this.logger.error('Failed to send task assignment notification', error as Error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send task completion notification
+   */
+  async sendTaskCompletionNotification(
+    recipientEmail: string,
+    recipientName: string,
+    taskTitle: string,
+    projectName: string,
+    completedByName: string,
+    completedAt: Date
+  ): Promise<boolean> {
+    try {
+      const subject = `Task Completed: ${taskTitle}`;
+      const html = `
+        <h2>Task Completed</h2>
+        <p>Hello ${recipientName},</p>
+        <p>A task has been completed in project <strong>${projectName}</strong>:</p>
+        <ul>
+          <li><strong>Title:</strong> ${taskTitle}</li>
+          <li><strong>Completed by:</strong> ${completedByName}</li>
+          <li><strong>Completed at:</strong> ${completedAt.toLocaleDateString()}</li>
+        </ul>
+        <p>Best regards,<br>Task Management Team</p>
+      `;
+
+      return this.sendEmail({
+        to: recipientEmail,
+        subject,
+        html,
+        priority: 'normal',
+        tags: ['task', 'completion'],
+      });
+    } catch (error) {
+      this.logger.error('Failed to send task completion notification', error as Error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send project member welcome notification
+   */
+  async sendProjectMemberWelcome(
+    recipientEmail: string,
+    recipientName: string,
+    projectName: string,
+    projectDescription: string,
+    addedByName: string,
+    role: string
+  ): Promise<boolean> {
+    try {
+      const subject = `Welcome to Project: ${projectName}`;
+      const html = `
+        <h2>Welcome to the Project</h2>
+        <p>Hello ${recipientName},</p>
+        <p>You have been added to project <strong>${projectName}</strong> by ${addedByName}.</p>
+        <ul>
+          <li><strong>Project:</strong> ${projectName}</li>
+          <li><strong>Description:</strong> ${projectDescription}</li>
+          <li><strong>Your Role:</strong> ${role}</li>
+        </ul>
+        <p>Welcome to the team!</p>
+        <p>Best regards,<br>Task Management Team</p>
+      `;
+
+      return this.sendEmail({
+        to: recipientEmail,
+        subject,
+        html,
+        priority: 'normal',
+        tags: ['project', 'welcome'],
+      });
+    } catch (error) {
+      this.logger.error('Failed to send project member welcome', error as Error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send welcome email to new user
+   */
+  async sendWelcomeEmail(
+    recipientEmail: string,
+    recipientName: string
+  ): Promise<boolean> {
+    try {
+      const subject = 'Welcome to Task Management System';
+      const html = `
+        <h2>Welcome!</h2>
+        <p>Hello ${recipientName},</p>
+        <p>Welcome to our Task Management System! Your account has been successfully created.</p>
+        <p>You can now start creating projects, managing tasks, and collaborating with your team.</p>
+        <p>Best regards,<br>Task Management Team</p>
+      `;
+
+      return this.sendEmail({
+        to: recipientEmail,
+        subject,
+        html,
+        priority: 'normal',
+        tags: ['welcome', 'registration'],
+      });
+    } catch (error) {
+      this.logger.error('Failed to send welcome email', error as Error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send task start notification
+   */
+  async sendTaskStartNotification(
+    recipientEmail: string,
+    recipientName: string,
+    taskTitle: string,
+    projectName: string,
+    startedByName: string,
+    startedAt: Date
+  ): Promise<boolean> {
+    try {
+      const subject = `Task Started: ${taskTitle}`;
+      const html = `
+        <h2>Task Started</h2>
+        <p>Hello ${recipientName},</p>
+        <p>Work has started on a task in project <strong>${projectName}</strong>:</p>
+        <ul>
+          <li><strong>Title:</strong> ${taskTitle}</li>
+          <li><strong>Started by:</strong> ${startedByName}</li>
+          <li><strong>Started at:</strong> ${startedAt.toLocaleDateString()}</li>
+        </ul>
+        <p>Best regards,<br>Task Management Team</p>
+      `;
+
+      return this.sendEmail({
+        to: recipientEmail,
+        subject,
+        html,
+        priority: 'normal',
+        tags: ['task', 'start'],
+      });
+    } catch (error) {
+      this.logger.error('Failed to send task start notification', error as Error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send user activation confirmation
+   */
+  async sendUserActivationConfirmation(
+    recipientEmail: string,
+    recipientName: string
+  ): Promise<boolean> {
+    try {
+      const subject = 'Account Activated Successfully';
+      const html = `
+        <h2>Account Activated</h2>
+        <p>Hello ${recipientName},</p>
+        <p>Your account has been successfully activated!</p>
+        <p>You now have full access to all features of the Task Management System.</p>
+        <p>Best regards,<br>Task Management Team</p>
+      `;
+
+      return this.sendEmail({
+        to: recipientEmail,
+        subject,
+        html,
+        priority: 'normal',
+        tags: ['activation', 'confirmation'],
+      });
+    } catch (error) {
+      this.logger.error('Failed to send user activation confirmation', error as Error);
+      throw error;
+    }
+  }
 }

@@ -500,6 +500,19 @@ export class ApplicationEventHandlers {
     // Register all event handlers with the domain event bus
     // This is where you would register the actual handlers
     // For now, this is a placeholder implementation
+    
+    // Example of how to use the services:
+    if (this.domainEventBus) {
+      // Register handlers with the event bus
+    }
+    
+    if (this.notificationApplicationService) {
+      // Setup notification handlers
+    }
+    
+    if (this.auditLogRepository) {
+      // Setup audit logging
+    }
   }
 
   public initialize(): void {

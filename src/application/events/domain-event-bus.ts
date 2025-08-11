@@ -77,14 +77,14 @@ export class DomainEventBus implements IDomainEventBus {
 
     if (eventHandlers.length === 0) {
       this.logger.debug(`No handlers registered for event: ${eventName}`, {
-        eventId: event.eventId,
+        eventId: event.getEventId(),
         eventName,
       });
       return;
     }
 
     this.logger.info(`Publishing event: ${eventName}`, {
-      eventId: event.eventId,
+      eventId: event.getEventId(),
       eventName,
       handlerCount: eventHandlers.length,
     });
@@ -112,7 +112,7 @@ export class DomainEventBus implements IDomainEventBus {
       const duration = timer.end();
 
       this.logger.info(`Event published successfully: ${eventName}`, {
-        eventId: event.eventId,
+        eventId: event.getEventId(),
         eventName,
         duration,
         handlerCount: eventHandlers.length,
@@ -136,7 +136,7 @@ export class DomainEventBus implements IDomainEventBus {
         `Event publishing failed: ${eventName}`,
         error as Error,
         {
-          eventId: event.eventId,
+          eventId: event.getEventId(),
           eventName,
           duration,
         }
@@ -306,7 +306,7 @@ export class DomainEventBus implements IDomainEventBus {
       this.logger.debug(`Handler cannot handle event`, {
         handlerName: handler.constructor.name,
         eventName: event.getEventName(),
-        eventId: event.eventId,
+        eventId: event.getEventId(),
       });
       return;
     }
@@ -328,7 +328,7 @@ export class DomainEventBus implements IDomainEventBus {
         this.logger.debug(`Event handler completed`, {
           handlerName,
           eventName: event.getEventName(),
-          eventId: event.eventId,
+          eventId: event.getEventId(),
           attempt: attempt + 1,
           duration,
         });
@@ -352,7 +352,7 @@ export class DomainEventBus implements IDomainEventBus {
         this.logger.error(`Event handler failed`, lastError, {
           handlerName,
           eventName: event.getEventName(),
-          eventId: event.eventId,
+          eventId: event.getEventId(),
           attempt,
           maxRetries: this.options.maxRetries,
         });
@@ -378,7 +378,7 @@ export class DomainEventBus implements IDomainEventBus {
     this.logger.error(`Event handler failed after all retries`, lastError!, {
       handlerName,
       eventName: event.getEventName(),
-      eventId: event.eventId,
+      eventId: event.getEventId(),
       totalAttempts: attempt,
     });
 

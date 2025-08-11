@@ -502,7 +502,7 @@ class AuditLoggingHandler implements EventHandler {
 
   async handle(event: DomainEvent): Promise<void> {
     // Log event for audit purposes
-    console.log(`Audit: ${event.getEventName()} occurred at ${event.occurredAt}`);
+    console.log(`Audit: ${event.getEventName()} occurred at ${event.getOccurredOn()}`);
   }
 }
 
