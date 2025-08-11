@@ -23,11 +23,14 @@ export interface CustomMetricConfig {
   percentiles?: number[];
 }
 
+/**
+ * Metrics Service
+ *
+ * Provides application metrics collection and reporting functionality
+ */
 export class MetricsService {
-  private counters: Map<string, Counter> = new Map();
-  private histograms: Map<string, Histogram> = new Map();
-  private gauges: Map<string, Gauge> = new Map();
-  private summaries: Map<string, Summary> = new Map();
+  private counters = new Map<string, number>();
+  private histograms = new Map<string, number[]>();
 
   constructor(private readonly config: MetricsConfig) {
     this.initialize();
@@ -611,5 +614,21 @@ export class MetricsService {
   private getSummary(name: string): Summary | undefined {
     const fullName = `${this.config.prefix}${name}`;
     return this.summaries.get(fullName);
+  }
+
+  /**
+   * Build metric key with labels
+   */
+  private buildMetricKey(name: string, labels?: Record<string, string>): string {
+    if (!labels || Object.keys(labels).length === 0) {
+      return name;
+    }
+
+    const labelString = Object.entries(labels)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => `${key}="${value}"`)
+      .join(',');
+
+    return `${name}{${labelString}}`;
   }
 }

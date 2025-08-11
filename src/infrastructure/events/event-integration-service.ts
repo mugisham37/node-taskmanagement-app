@@ -6,6 +6,13 @@ import { LoggingService } from '../monitoring/logging-service';
 import { MetricsService } from '../monitoring/metrics-service';
 
 /**
+ * Timer interface for measuring operation duration
+ */
+interface Timer {
+  end(): number;
+}
+
+/**
  * Event Integration Service
  *
  * Provides comprehensive event system integration throughout the application,
@@ -85,7 +92,7 @@ export class EventIntegrationService {
       return;
     }
 
-    const timer = this.metrics.startTimer('event_publishing_duration');
+    const timer = this.startTimer();
 
     try {
       // Publish events within transaction context
@@ -96,7 +103,7 @@ export class EventIntegrationService {
       });
 
       const duration = timer.end();
-      this.metrics.incrementCounter('events_published_total', events.length);
+      this.metrics.incrementCounter('events_published_total', { count: events.length.toString() });
       this.metrics.recordHistogram('event_publishing_duration', duration);
 
       this.logger.info('Domain events published successfully', {
@@ -117,7 +124,7 @@ export class EventIntegrationService {
    * Publish a single domain event
    */
   private async publishSingleEvent(event: DomainEvent): Promise<void> {
-    const eventType = event.eventName;
+    const eventType = event.getEventName();
 
     try {
       // Publish to domain event bus
@@ -141,7 +148,7 @@ export class EventIntegrationService {
         `Failed to publish event: ${eventType}`,
         error as Error,
         {
-          eventId: event.eventId,
+          eventId: event.getEventId(),
           eventType,
         }
       );
@@ -160,8 +167,8 @@ export class EventIntegrationService {
       await handler(event);
     } catch (error) {
       this.logger.error('Event handler execution failed', error as Error, {
-        eventId: event.eventId,
-        eventType: event.eventName,
+        eventId: event.getEventId(),
+        eventType: event.getEventName(),
         handlerName: handler.constructor.name,
       });
       // Don't rethrow to prevent one handler failure from affecting others
@@ -176,21 +183,21 @@ export class EventIntegrationService {
     this.registerEventHandler('TaskCreated', async event => {
       // Trigger notifications, audit logging, etc.
       this.logger.debug('Handling TaskCreated event', {
-        taskId: event.aggregateId,
+        taskId: event.getAggregateId(),
       });
     });
 
     this.registerEventHandler('TaskCompleted', async event => {
       // Update project progress, send notifications, etc.
       this.logger.debug('Handling TaskCompleted event', {
-        taskId: event.aggregateId,
+        taskId: event.getAggregateId(),
       });
     });
 
     this.registerEventHandler('TaskAssigned', async event => {
       // Send assignment notifications, update calendars, etc.
       this.logger.debug('Handling TaskAssigned event', {
-        taskId: event.aggregateId,
+        taskId: event.getAggregateId(),
       });
     });
 
@@ -198,14 +205,14 @@ export class EventIntegrationService {
     this.registerEventHandler('ProjectCreated', async event => {
       // Set up default webhooks, create calendar entries, etc.
       this.logger.debug('Handling ProjectCreated event', {
-        projectId: event.aggregateId,
+        projectId: event.getAggregateId(),
       });
     });
 
     this.registerEventHandler('ProjectMemberAdded', async event => {
       // Send welcome notifications, update permissions, etc.
       this.logger.debug('Handling ProjectMemberAdded event', {
-        projectId: event.aggregateId,
+        projectId: event.getAggregateId(),
       });
     });
 
@@ -213,7 +220,7 @@ export class EventIntegrationService {
     this.registerEventHandler('UserRegistered', async event => {
       // Send welcome email, create default preferences, etc.
       this.logger.debug('Handling UserRegistered event', {
-        userId: event.aggregateId,
+        userId: event.getAggregateId(),
       });
     });
 
@@ -221,7 +228,7 @@ export class EventIntegrationService {
     this.registerEventHandler('WorkspaceCreated', async event => {
       // Set up default settings, create admin permissions, etc.
       this.logger.debug('Handling WorkspaceCreated event', {
-        workspaceId: event.aggregateId,
+        workspaceId: event.getAggregateId(),
       });
     });
 
@@ -229,7 +236,7 @@ export class EventIntegrationService {
     this.registerEventHandler('NotificationCreated', async event => {
       // Trigger delivery mechanisms, update counters, etc.
       this.logger.debug('Handling NotificationCreated event', {
-        notificationId: event.aggregateId,
+        notificationId: event.getAggregateId(),
       });
     });
 
@@ -237,7 +244,7 @@ export class EventIntegrationService {
     this.registerEventHandler('WebhookTriggered', async event => {
       // Log delivery attempts, update statistics, etc.
       this.logger.debug('Handling WebhookTriggered event', {
-        webhookId: event.aggregateId,
+        webhookId: event.getAggregateId(),
       });
     });
 
@@ -326,5 +333,17 @@ export class EventIntegrationService {
       );
       throw error;
     }
+  }
+
+  /**
+   * Create a timer for measuring operation duration
+   */
+  private startTimer(): Timer {
+    const start = Date.now();
+    return {
+      end(): number {
+        return Date.now() - start;
+      }
+    };
   }
 }
