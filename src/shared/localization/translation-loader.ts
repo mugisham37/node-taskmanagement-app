@@ -69,11 +69,10 @@ export class TranslationLoader {
     filePath: string
   ): Promise<void> {
     const fs = require('fs').promises;
-    const path = require('path');
 
     try {
       const content = await fs.readFile(filePath, 'utf8');
-      const translations = JSON.parse(content);
+      const translations = JSON.parse(content) as TranslationResource;
 
       if (this.options.validate) {
         this.validateTranslationStructure(translations);
@@ -120,7 +119,7 @@ export class TranslationLoader {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const translations = await response.json();
+      const translations = await response.json() as TranslationResource;
 
       if (this.options.validate) {
         this.validateTranslationStructure(translations);
@@ -217,7 +216,7 @@ export class TranslationLoader {
   isLoaded(locale: string, namespace: string): boolean {
     const key = `${locale}:${namespace}`;
     return (
-      this.loadedFiles.has(key) || (this.options.cache && this.cache.has(key))
+      this.loadedFiles.has(key) || (this.options.cache === true && this.cache.has(key))
     );
   }
 
@@ -246,11 +245,14 @@ export class TranslationLoader {
   exportTranslations(format: 'json' | 'csv' | 'xlsx' = 'json'): any {
     const exported: Record<string, Record<string, TranslationResource>> = {};
 
-    for (const [key, file] of this.loadedFiles) {
+    for (const [, file] of this.loadedFiles) {
       if (!exported[file.locale]) {
         exported[file.locale] = {};
       }
-      exported[file.locale][file.namespace] = file.content;
+      const localeExports = exported[file.locale];
+      if (localeExports) {
+        localeExports[file.namespace] = file.content;
+      }
     }
 
     switch (format) {
@@ -279,7 +281,7 @@ export class TranslationLoader {
 
     switch (format) {
       case 'json':
-        translations = data;
+        translations = data as Record<string, Record<string, TranslationResource>>;
         break;
       case 'csv':
         translations = this.importFromCSV(data);
@@ -299,7 +301,7 @@ export class TranslationLoader {
 
         await i18nManager.importTranslations(locale, content, {
           namespace,
-          merge,
+          merge: merge,
           validate,
         });
 
@@ -355,7 +357,7 @@ export class TranslationLoader {
       const watcher = fs.watch(
         basePath,
         { recursive: true },
-        (eventType: string, filename: string) => {
+        (_eventType: string, filename: string | null) => {
           if (filename && filename.endsWith('.json')) {
             const fullPath = path.join(basePath, filename);
             const pathParts = filename.split(path.sep);
@@ -364,10 +366,12 @@ export class TranslationLoader {
               const locale = pathParts[0];
               const namespace = path.basename(pathParts[1], '.json');
 
-              console.log(`Translation file changed: ${filename}`);
-              this.loadFromFile(locale, namespace, fullPath).catch(error => {
-                console.error(`Failed to reload ${filename}:`, error);
-              });
+              if (locale && namespace) {
+                console.log(`Translation file changed: ${filename}`);
+                this.loadFromFile(locale, namespace, fullPath).catch(error => {
+                  console.error(`Failed to reload ${filename}:`, error);
+                });
+              }
             }
           }
         }
@@ -487,20 +491,23 @@ export class TranslationLoader {
     csvData: string
   ): Record<string, Record<string, TranslationResource>> {
     const lines = csvData.split('\n');
-    const headers = lines[0].split(',');
+    // Skip header line
+    lines.shift();
+    
     const translations: Record<
       string,
       Record<string, TranslationResource>
     > = {};
 
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]?.trim();
       if (!line) continue;
 
       const values = this.parseCSVLine(line);
       if (values.length < 4) continue;
 
       const [key, namespace, locale, value] = values;
+      if (!key || !namespace || !locale || value === undefined) continue;
 
       if (!translations[locale]) {
         translations[locale] = {};
@@ -558,13 +565,18 @@ export class TranslationLoader {
 
     for (let i = 0; i < keys.length - 1; i++) {
       const key = keys[i];
+      if (!key) continue;
+      
       if (!(key in current) || typeof current[key] !== 'object') {
         current[key] = {};
       }
       current = current[key];
     }
 
-    current[keys[keys.length - 1]] = value;
+    const lastKey = keys[keys.length - 1];
+    if (lastKey) {
+      current[lastKey] = value;
+    }
   }
 
   /**

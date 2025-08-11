@@ -1,0 +1,16 @@
+{
+  "common": {
+    "hello": "Hola",
+    "goodbye": "Adiós",
+    "welcome": "Bienvenido",
+    "error": "Error",
+    "success": "Éxito"
+  },
+  "tasks": {
+    "create": "Crear Tarea",
+    "edit": "Editar Tarea",
+    "delete": "Eliminar Tarea",
+    "completed": "Tarea Completada",
+    "pending": "Tarea Pendiente"
+  }
+}

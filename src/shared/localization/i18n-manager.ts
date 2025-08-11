@@ -475,7 +475,7 @@ export class I18nManager {
     const parts = key.split(':');
     if (parts.length > 1) {
       return {
-        namespace: parts[0],
+        namespace: parts[0] || 'common',
         translationKey: parts.slice(1).join(':'),
       };
     }
@@ -547,16 +547,16 @@ export class I18nManager {
     // Default English pluralization rules
     if (typeof translation === 'object') {
       if (count === 0 && 'zero' in translation) {
-        return translation.zero as string;
+        return translation['zero'] as string;
       }
       if (count === 1 && 'one' in translation) {
-        return translation.one as string;
+        return translation['one'] as string;
       }
       if ('other' in translation) {
-        return translation.other as string;
+        return translation['other'] as string;
       }
       if ('many' in translation) {
-        return translation.many as string;
+        return translation['many'] as string;
       }
     }
 
@@ -572,8 +572,8 @@ export class I18nManager {
     escapeValue: boolean = true
   ): string {
     return translation.replace(this.interpolationPattern, (match, key) => {
-      const trimmedKey = key.trim();
-      if (trimmedKey in variables) {
+      const trimmedKey = key?.trim();
+      if (trimmedKey && trimmedKey in variables) {
         let value = String(variables[trimmedKey]);
         if (escapeValue) {
           value = this.escapeHtml(value);
@@ -595,7 +595,7 @@ export class I18nManager {
       '"': '&quot;',
       "'": '&#039;',
     };
-    return text.replace(/[&<>"']/g, m => map[m]);
+    return text.replace(/[&<>"']/g, m => map[m] || m);
   }
 
   /**

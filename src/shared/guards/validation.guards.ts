@@ -216,7 +216,7 @@ export function guardAgainstInvalidArrayItems<T>(
   parameterName: string
 ): void {
   guardAgainstEmptyArray(array, parameterName);
-  const invalidItems = array.filter((item, index) => !validator(item));
+  const invalidItems = array.filter((item) => !validator(item));
   if (invalidItems.length > 0) {
     throw new DomainError(`${parameterName} contains invalid items`);
   }

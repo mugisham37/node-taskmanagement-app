@@ -8,6 +8,9 @@ export type {
 } from './i18n-manager';
 export type { TranslationFile, LoaderOptions } from './translation-loader';
 
+import { i18nManager } from './i18n-manager';
+import { translationLoader } from './translation-loader';
+
 // Initialize the i18n system with default configuration
 export async function initializeI18n(config?: {
   defaultLocale?: string;
@@ -22,12 +25,17 @@ export async function initializeI18n(config?: {
     autoLoad = true,
   } = config || {};
 
-  await i18nManager.initialize({
+  const initConfig: Parameters<typeof i18nManager.initialize>[0] = {
     defaultLocale,
     fallbackLocale,
     namespaces: ['translation'],
-    translationsPath: autoLoad ? translationsPath : undefined,
-  });
+  };
+
+  if (autoLoad && translationsPath) {
+    initConfig.translationsPath = translationsPath;
+  }
+
+  await i18nManager.initialize(initConfig);
 
   if (autoLoad) {
     await translationLoader.loadFromDirectory(translationsPath);
