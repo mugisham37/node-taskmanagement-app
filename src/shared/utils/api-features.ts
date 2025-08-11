@@ -57,8 +57,9 @@ export const safeAnd = (
     (c): c is SQL => c !== null && c !== undefined
   );
   if (validConditions.length === 0) return null;
-  if (validConditions.length === 1) return validConditions[0];
-  return and(...validConditions);
+  if (validConditions.length === 1) return validConditions[0] ?? null;
+  const result = and(...validConditions);
+  return result ?? null;
 };
 
 export const safeOr = (
@@ -68,8 +69,9 @@ export const safeOr = (
     (c): c is SQL => c !== null && c !== undefined
   );
   if (validConditions.length === 0) return null;
-  if (validConditions.length === 1) return validConditions[0];
-  return or(...validConditions);
+  if (validConditions.length === 1) return validConditions[0] ?? null;
+  const result = or(...validConditions);
+  return result ?? null;
 };
 
 export class APIFeatures<T extends PgTable> {
@@ -180,7 +182,7 @@ export class APIFeatures<T extends PgTable> {
         // Handle advanced filtering with operators
         if (typeof value === 'string' && value.includes('$')) {
           const operatorMatch = value.match(/\$(\w+):(.+)/);
-          if (operatorMatch) {
+          if (operatorMatch && operatorMatch[1] && operatorMatch[2]) {
             const [, operator, operatorValue] = operatorMatch;
             const condition = this.buildOperatorCondition(
               column,

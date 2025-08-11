@@ -77,7 +77,7 @@ export function getInjectionTokens(target: any): Array<string | symbol | Functio
 /**
  * Simple container for managing injectable instances
  */
-export class Container {
+export class InjectableContainer {
   private instances = new Map<string | symbol, any>();
   private constructors = new Map<string | symbol, any>();
 
@@ -146,4 +146,4 @@ export class Container {
 }
 
 // Global container instance
-export const container = new Container();
+export const injectableContainer = new InjectableContainer();

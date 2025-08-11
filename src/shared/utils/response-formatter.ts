@@ -62,7 +62,7 @@ export const successResponse = <T>(
     meta: {
       timestamp: new Date().toISOString(),
       requestId: (res.req as any).requestId,
-      version: process.env.API_VERSION || 'v1',
+      version: process.env['API_VERSION'] || 'v1',
       ...meta,
     },
   };
@@ -107,7 +107,7 @@ export const errorResponse = (
     meta: {
       timestamp: new Date().toISOString(),
       requestId: (res.req as any).requestId,
-      version: process.env.API_VERSION || 'v1',
+      version: process.env['API_VERSION'] || 'v1',
       ...(code && { code }),
     },
     ...(errors && { errors }),

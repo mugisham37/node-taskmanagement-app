@@ -10,8 +10,8 @@ export class AppError extends Error {
   public readonly statusCode: number;
   public readonly status: string;
   public readonly isOperational: boolean;
-  public readonly code?: string;
-  public readonly errors?: any[];
+  public readonly code?: string | undefined;
+  public readonly errors?: any[] | undefined;
 
   /**
    * @param message Error message
@@ -172,7 +172,7 @@ export class DatabaseError extends AppError {
    */
   constructor(message: string = 'Database error', originalError?: Error) {
     super(message, 500, true, 'DATABASE_ERROR');
-    if (originalError) {
+    if (originalError?.stack) {
       this.stack = originalError.stack;
     }
   }
@@ -236,12 +236,12 @@ export const formatErrorForLogging = (
   };
 
   if (isAppError(error)) {
-    errorInfo.statusCode = error.statusCode;
-    errorInfo.status = error.status;
-    errorInfo.code = error.code;
-    errorInfo.isOperational = error.isOperational;
+    errorInfo['statusCode'] = error.statusCode;
+    errorInfo['status'] = error.status;
+    errorInfo['code'] = error.code;
+    errorInfo['isOperational'] = error.isOperational;
     if (error.errors) {
-      errorInfo.errors = error.errors;
+      errorInfo['errors'] = error.errors;
     }
   }
 

@@ -13,8 +13,8 @@ interface PerformanceMetrics {
   duration: number;
   timestamp: Date;
   userId?: string;
-  userAgent?: string;
-  ip?: string;
+  userAgent?: string | undefined;
+  ip?: string | undefined;
   memoryUsage?: NodeJS.MemoryUsage;
   cpuUsage?: NodeJS.CpuUsage;
 }
