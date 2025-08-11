@@ -8,9 +8,9 @@ export interface EndpointDocumentation {
   description?: string;
   tags?: string[];
   operationId?: string;
-  parameters?: OpenAPIV3.ParameterObject[];
+  parameters?: (OpenAPIV3.ReferenceObject | OpenAPIV3.ParameterObject)[];
   requestBody?: OpenAPIV3.RequestBodyObject;
-  responses: Record<string, OpenAPIV3.ResponseObject>;
+  responses: Record<string, OpenAPIV3.ResponseObject | OpenAPIV3.ReferenceObject>;
   security?: OpenAPIV3.SecurityRequirementObject[];
   deprecated?: boolean;
   examples?: Record<string, any>;
@@ -54,7 +54,7 @@ export class OpenAPIGenerator {
       },
       servers: [
         {
-          url: process.env.API_BASE_URL || 'http://localhost:3000',
+          url: process.env['API_BASE_URL'] || 'http://localhost:3000',
           description: 'Development server',
         },
         {
@@ -72,8 +72,8 @@ export class OpenAPIGenerator {
         title: finalConfig.title,
         description: finalConfig.description,
         version: finalConfig.version,
-        contact: finalConfig.contact,
-        license: finalConfig.license,
+        ...(finalConfig.contact && { contact: finalConfig.contact }),
+        ...(finalConfig.license && { license: finalConfig.license }),
       },
       servers: finalConfig.servers,
       paths: {},
@@ -350,42 +350,46 @@ export class OpenAPIGenerator {
 
     const operation: OpenAPIV3.OperationObject = {
       summary: endpoint.summary,
-      description: endpoint.description,
       tags: endpoint.tags || ['General'],
-      operationId: endpoint.operationId,
-      parameters: endpoint.parameters,
-      requestBody: endpoint.requestBody,
       responses: {
         ...endpoint.responses,
-        '401': { $ref: '#/components/responses/UnauthorizedError' },
-        '403': { $ref: '#/components/responses/ForbiddenError' },
-        '429': { $ref: '#/components/responses/RateLimitError' },
-        '500': { $ref: '#/components/responses/InternalServerError' },
+        '401': { $ref: '#/components/responses/UnauthorizedError' } as OpenAPIV3.ReferenceObject,
+        '403': { $ref: '#/components/responses/ForbiddenError' } as OpenAPIV3.ReferenceObject,
+        '429': { $ref: '#/components/responses/RateLimitError' } as OpenAPIV3.ReferenceObject,
+        '500': { $ref: '#/components/responses/InternalServerError' } as OpenAPIV3.ReferenceObject,
       },
       security: endpoint.security || [{ bearerAuth: [] }],
-      deprecated: endpoint.deprecated,
+      ...(endpoint.description && { description: endpoint.description }),
+      ...(endpoint.operationId && { operationId: endpoint.operationId }),
+      ...(endpoint.parameters && { parameters: endpoint.parameters }),
+      ...(endpoint.requestBody && { requestBody: endpoint.requestBody }),
+      ...(endpoint.deprecated && { deprecated: endpoint.deprecated }),
     };
 
     // Add examples if provided
-    if (endpoint.examples) {
-      if (operation.requestBody?.content?.['application/json']) {
-        operation.requestBody.content['application/json'].examples =
-          endpoint.examples;
+    if (endpoint.examples && operation.requestBody && 'content' in operation.requestBody) {
+      const requestBody = operation.requestBody as OpenAPIV3.RequestBodyObject;
+      if (requestBody.content?.['application/json']) {
+        requestBody.content['application/json'].examples = endpoint.examples;
       }
     }
 
-    this.spec.paths[endpoint.path][endpoint.method] = operation;
+    // Ensure the path object exists
+    const pathObject = this.spec.paths[endpoint.path];
+    if (pathObject) {
+      pathObject[endpoint.method] = operation;
+    }
   }
 
   /**
    * Convert Zod schema to OpenAPI schema
    */
-  zodToOpenAPI(schema: z.ZodSchema, name?: string): OpenAPIV3.SchemaObject {
+  zodToOpenAPI(schema: z.ZodSchema, name?: string): OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject {
     const openApiSchema = this.convertZodSchema(schema);
 
     if (name && openApiSchema) {
       this.spec.components!.schemas![name] = openApiSchema;
-      return { $ref: `#/components/schemas/${name}` };
+      return { $ref: `#/components/schemas/${name}` } as OpenAPIV3.ReferenceObject;
     }
 
     return openApiSchema || {};
@@ -443,22 +447,22 @@ export class OpenAPIGenerator {
       tags,
       operationId: `list${capitalizedName}s`,
       parameters: [
-        { $ref: '#/components/parameters/PageParam' },
-        { $ref: '#/components/parameters/LimitParam' },
-        { $ref: '#/components/parameters/SortParam' },
-        { $ref: '#/components/parameters/SearchParam' },
+        { $ref: '#/components/parameters/PageParam' } as OpenAPIV3.ReferenceObject,
+        { $ref: '#/components/parameters/LimitParam' } as OpenAPIV3.ReferenceObject,
+        { $ref: '#/components/parameters/SortParam' } as OpenAPIV3.ReferenceObject,
+        { $ref: '#/components/parameters/SearchParam' } as OpenAPIV3.ReferenceObject,
         ...(schemas.query
           ? [
               {
                 name: 'filter',
-                in: 'query',
+                in: 'query' as const,
                 description: `Additional filtering options for ${name}s`,
-                style: 'deepObject',
+                style: 'deepObject' as const,
                 explode: true,
                 schema: {
                   $ref: `#/components/schemas/${capitalizedName}QueryParams`,
-                },
-              },
+                } as OpenAPIV3.ReferenceObject,
+              } as OpenAPIV3.ParameterObject,
             ]
           : []),
       ],
@@ -469,7 +473,7 @@ export class OpenAPIGenerator {
             'application/json': {
               schema: {
                 allOf: [
-                  { $ref: '#/components/schemas/SuccessResponse' },
+                  { $ref: '#/components/schemas/SuccessResponse' } as OpenAPIV3.ReferenceObject,
                   {
                     type: 'object',
                     properties: {
@@ -477,38 +481,38 @@ export class OpenAPIGenerator {
                         type: 'array',
                         items: {
                           $ref: `#/components/schemas/${capitalizedName}`,
-                        },
+                        } as OpenAPIV3.ReferenceObject,
                       },
-                      meta: { $ref: '#/components/schemas/PaginationMeta' },
+                      meta: { $ref: '#/components/schemas/PaginationMeta' } as OpenAPIV3.ReferenceObject,
                     },
                   },
                 ],
               },
-              examples: examples.entity
-                ? {
-                    success: {
-                      summary: `Successful ${name} list`,
-                      value: {
-                        success: true,
-                        data: [examples.entity],
-                        meta: {
-                          page: 1,
-                          limit: 20,
-                          total: 1,
-                          totalPages: 1,
-                        },
-                        timestamp: '2024-01-15T12:00:00Z',
+              ...(examples.entity && {
+                examples: {
+                  success: {
+                    summary: `Successful ${name} list`,
+                    value: {
+                      success: true,
+                      data: [examples.entity],
+                      meta: {
+                        page: 1,
+                        limit: 20,
+                        total: 1,
+                        totalPages: 1,
                       },
+                      timestamp: '2024-01-15T12:00:00Z',
                     },
-                  }
-                : undefined,
+                  },
+                },
+              }),
             },
           },
         },
       },
-      security: permissions.read
-        ? [{ bearerAuth: [], oauth2: [permissions.read] }]
-        : undefined,
+      ...(permissions.read && {
+        security: [{ bearerAuth: [], oauth2: [permissions.read] }],
+      }),
     });
 
     // POST /resources - Create
@@ -526,15 +530,15 @@ export class OpenAPIGenerator {
           'application/json': {
             schema: {
               $ref: `#/components/schemas/Create${capitalizedName}Request`,
-            },
-            examples: examples.create
-              ? {
-                  example: {
-                    summary: `Create ${name} example`,
-                    value: examples.create,
-                  },
-                }
-              : undefined,
+            } as OpenAPIV3.ReferenceObject,
+            ...(examples.create && {
+              examples: {
+                example: {
+                  summary: `Create ${name} example`,
+                  value: examples.create,
+                },
+              },
+            }),
           },
         },
       },
@@ -545,36 +549,36 @@ export class OpenAPIGenerator {
             'application/json': {
               schema: {
                 allOf: [
-                  { $ref: '#/components/schemas/SuccessResponse' },
+                  { $ref: '#/components/schemas/SuccessResponse' } as OpenAPIV3.ReferenceObject,
                   {
                     type: 'object',
                     properties: {
-                      data: { $ref: `#/components/schemas/${capitalizedName}` },
+                      data: { $ref: `#/components/schemas/${capitalizedName}` } as OpenAPIV3.ReferenceObject,
                     },
                   },
                 ],
               },
-              examples: examples.entity
-                ? {
-                    success: {
-                      summary: `Successfully created ${name}`,
-                      value: {
-                        success: true,
-                        data: examples.entity,
-                        message: `${capitalizedName} created successfully`,
-                        timestamp: '2024-01-15T12:00:00Z',
-                      },
+              ...(examples.entity && {
+                examples: {
+                  success: {
+                    summary: `Successfully created ${name}`,
+                    value: {
+                      success: true,
+                      data: examples.entity,
+                      message: `${capitalizedName} created successfully`,
+                      timestamp: '2024-01-15T12:00:00Z',
                     },
-                  }
-                : undefined,
+                  },
+                },
+              }),
             },
           },
         },
-        '400': { $ref: '#/components/responses/ValidationError' },
+        '400': { $ref: '#/components/responses/ValidationError' } as OpenAPIV3.ReferenceObject,
       },
-      security: permissions.create
-        ? [{ bearerAuth: [], oauth2: [permissions.create] }]
-        : undefined,
+      ...(permissions.create && {
+        security: [{ bearerAuth: [], oauth2: [permissions.create] }],
+      }),
     });
 
     // GET /resources/:id - Get by ID
@@ -588,7 +592,7 @@ export class OpenAPIGenerator {
       parameters: [
         {
           name: 'id',
-          in: 'path',
+          in: 'path' as const,
           required: true,
           schema: { type: 'string', format: 'uuid' },
           description: `Unique identifier for the ${name}`,
@@ -602,35 +606,35 @@ export class OpenAPIGenerator {
             'application/json': {
               schema: {
                 allOf: [
-                  { $ref: '#/components/schemas/SuccessResponse' },
+                  { $ref: '#/components/schemas/SuccessResponse' } as OpenAPIV3.ReferenceObject,
                   {
                     type: 'object',
                     properties: {
-                      data: { $ref: `#/components/schemas/${capitalizedName}` },
+                      data: { $ref: `#/components/schemas/${capitalizedName}` } as OpenAPIV3.ReferenceObject,
                     },
                   },
                 ],
               },
-              examples: examples.entity
-                ? {
-                    success: {
-                      summary: `Successfully retrieved ${name}`,
-                      value: {
-                        success: true,
-                        data: examples.entity,
-                        timestamp: '2024-01-15T12:00:00Z',
-                      },
+              ...(examples.entity && {
+                examples: {
+                  success: {
+                    summary: `Successfully retrieved ${name}`,
+                    value: {
+                      success: true,
+                      data: examples.entity,
+                      timestamp: '2024-01-15T12:00:00Z',
                     },
-                  }
-                : undefined,
+                  },
+                },
+              }),
             },
           },
         },
-        '404': { $ref: '#/components/responses/NotFoundError' },
+        '404': { $ref: '#/components/responses/NotFoundError' } as OpenAPIV3.ReferenceObject,
       },
-      security: permissions.read
-        ? [{ bearerAuth: [], oauth2: [permissions.read] }]
-        : undefined,
+      ...(permissions.read && {
+        security: [{ bearerAuth: [], oauth2: [permissions.read] }],
+      }),
     });
 
     // PUT /resources/:id - Update
@@ -644,7 +648,7 @@ export class OpenAPIGenerator {
       parameters: [
         {
           name: 'id',
-          in: 'path',
+          in: 'path' as const,
           required: true,
           schema: { type: 'string', format: 'uuid' },
           description: `Unique identifier for the ${name}`,
@@ -658,15 +662,15 @@ export class OpenAPIGenerator {
           'application/json': {
             schema: {
               $ref: `#/components/schemas/Update${capitalizedName}Request`,
-            },
-            examples: examples.update
-              ? {
-                  example: {
-                    summary: `Update ${name} example`,
-                    value: examples.update,
-                  },
-                }
-              : undefined,
+            } as OpenAPIV3.ReferenceObject,
+            ...(examples.update && {
+              examples: {
+                example: {
+                  summary: `Update ${name} example`,
+                  value: examples.update,
+                },
+              },
+            }),
           },
         },
       },
@@ -677,11 +681,11 @@ export class OpenAPIGenerator {
             'application/json': {
               schema: {
                 allOf: [
-                  { $ref: '#/components/schemas/SuccessResponse' },
+                  { $ref: '#/components/schemas/SuccessResponse' } as OpenAPIV3.ReferenceObject,
                   {
                     type: 'object',
                     properties: {
-                      data: { $ref: `#/components/schemas/${capitalizedName}` },
+                      data: { $ref: `#/components/schemas/${capitalizedName}` } as OpenAPIV3.ReferenceObject,
                     },
                   },
                 ],
@@ -689,12 +693,12 @@ export class OpenAPIGenerator {
             },
           },
         },
-        '400': { $ref: '#/components/responses/ValidationError' },
-        '404': { $ref: '#/components/responses/NotFoundError' },
+        '400': { $ref: '#/components/responses/ValidationError' } as OpenAPIV3.ReferenceObject,
+        '404': { $ref: '#/components/responses/NotFoundError' } as OpenAPIV3.ReferenceObject,
       },
-      security: permissions.update
-        ? [{ bearerAuth: [], oauth2: [permissions.update] }]
-        : undefined,
+      ...(permissions.update && {
+        security: [{ bearerAuth: [], oauth2: [permissions.update] }],
+      }),
     });
 
     // DELETE /resources/:id - Delete
@@ -708,7 +712,7 @@ export class OpenAPIGenerator {
       parameters: [
         {
           name: 'id',
-          in: 'path',
+          in: 'path' as const,
           required: true,
           schema: { type: 'string', format: 'uuid' },
           description: `Unique identifier for the ${name}`,
@@ -719,11 +723,11 @@ export class OpenAPIGenerator {
         '204': {
           description: `${capitalizedName} deleted successfully`,
         },
-        '404': { $ref: '#/components/responses/NotFoundError' },
+        '404': { $ref: '#/components/responses/NotFoundError' } as OpenAPIV3.ReferenceObject,
       },
-      security: permissions.delete
-        ? [{ bearerAuth: [], oauth2: [permissions.delete] }]
-        : undefined,
+      ...(permissions.delete && {
+        security: [{ bearerAuth: [], oauth2: [permissions.delete] }],
+      }),
     });
   }
 
@@ -1102,11 +1106,16 @@ export class OpenAPIGenerator {
         }
       }
 
-      return {
+      const result: OpenAPIV3.SchemaObject = {
         type: 'object',
         properties,
-        required: required.length > 0 ? required : undefined,
       };
+
+      if (required.length > 0) {
+        result.required = required;
+      }
+
+      return result;
     }
 
     // Handle ZodEnum

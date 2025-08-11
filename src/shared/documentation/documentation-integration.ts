@@ -183,14 +183,14 @@ export class DocumentationIntegration {
    * Health check for all systems
    */
   async healthCheck(): Promise<{
-    localization: { status: string; details?: any };
-    apiDocumentation: { status: string; details?: any };
+    localization: { status: string; details: any };
+    apiDocumentation: { status: string; details: any };
   }> {
     const result = {
-      localization: { status: 'unknown' as string, details: undefined as any },
+      localization: { status: 'unknown' as string, details: null as any },
       apiDocumentation: {
         status: 'unknown' as string,
-        details: undefined as any,
+        details: null as any,
       },
     };
 
@@ -209,7 +209,7 @@ export class DocumentationIntegration {
           },
         };
       } else {
-        result.localization = { status: 'disabled' };
+        result.localization = { status: 'disabled', details: null };
       }
     } catch (error) {
       result.localization = {
@@ -235,7 +235,7 @@ export class DocumentationIntegration {
           },
         };
       } else {
-        result.apiDocumentation = { status: 'disabled' };
+        result.apiDocumentation = { status: 'disabled', details: null };
       }
     } catch (error) {
       result.apiDocumentation = {

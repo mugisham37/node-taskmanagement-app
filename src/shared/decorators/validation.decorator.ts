@@ -70,8 +70,8 @@ export function ValidateParams(
   schema?: any
 ) {
   return function (
-    target: any,
-    propertyName: string,
+    _target: any,
+    _propertyName: string,
     descriptor: PropertyDescriptor
   ) {
     const method = descriptor.value;
@@ -97,8 +97,8 @@ export function ValidateResult(
   schema?: any
 ) {
   return function (
-    target: any,
-    propertyName: string,
+    _target: any,
+    _propertyName: string,
     descriptor: PropertyDescriptor
   ) {
     const method = descriptor.value;
@@ -124,8 +124,8 @@ export function ValidateParameters(
   paramSchemas: Array<{ name: string; schema: any }>
 ) {
   return function (
-    target: any,
-    propertyName: string,
+    _target: any,
+    _propertyName: string,
     descriptor: PropertyDescriptor
   ) {
     const method = descriptor.value;
@@ -379,7 +379,7 @@ export function ValidateArray(
 
         if (itemValidator) {
           const invalidItems = newValue.filter(
-            (item, index) => !itemValidator(item)
+            (item, _index) => !itemValidator(item)
           );
           if (invalidItems.length > 0) {
             throw new Error(`Property '${propertyKey}' contains invalid items`);

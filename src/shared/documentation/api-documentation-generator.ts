@@ -1,5 +1,6 @@
-import { OpenAPIGenerator, EndpointDocumentation } from './openapi-generator';
+import { OpenAPIGenerator } from './openapi-generator';
 import { z } from 'zod';
+import { OpenAPIV3 } from 'openapi-types';
 
 export interface APIDocumentationOptions {
   includeExamples?: boolean;
@@ -102,7 +103,7 @@ export class APIDocumentationGenerator {
     });
 
     // Add CRUD endpoints
-    this.generator.addCrudEndpoints({
+    const taskEndpointConfig: Parameters<typeof this.generator.addCrudEndpoints>[0] = {
       name: 'task',
       path: '/api/v1/tasks',
       schemas: {
@@ -118,43 +119,46 @@ export class APIDocumentationGenerator {
         update: 'write:tasks',
         delete: 'delete:tasks',
       },
-      examples: this.options.includeExamples
-        ? {
-            entity: {
-              id: '123e4567-e89b-12d3-a456-426614174000',
-              title: 'Implement user authentication',
-              description:
-                'Add JWT-based authentication system with proper security measures',
-              status: 'IN_PROGRESS',
-              priority: 'HIGH',
-              assigneeId: '456e7890-e89b-12d3-a456-426614174001',
-              projectId: '789e0123-e89b-12d3-a456-426614174002',
-              dueDate: '2024-02-01T00:00:00Z',
-              estimatedHours: 8,
-              actualHours: 4,
-              tags: ['authentication', 'security', 'backend'],
-              createdAt: '2024-01-15T00:00:00Z',
-              updatedAt: '2024-01-16T00:00:00Z',
-              createdById: '789e0123-e89b-12d3-a456-426614174003',
-            },
-            create: {
-              title: 'Implement user authentication',
-              description:
-                'Add JWT-based authentication system with proper security measures',
-              priority: 'HIGH',
-              assigneeId: '456e7890-e89b-12d3-a456-426614174001',
-              projectId: '789e0123-e89b-12d3-a456-426614174002',
-              dueDate: '2024-02-01T00:00:00Z',
-              estimatedHours: 8,
-              tags: ['authentication', 'security', 'backend'],
-            },
-            update: {
-              status: 'IN_PROGRESS',
-              actualHours: 4,
-            },
-          }
-        : undefined,
-    });
+    };
+
+    if (this.options.includeExamples) {
+      taskEndpointConfig.examples = {
+        entity: {
+          id: '123e4567-e89b-12d3-a456-426614174000',
+          title: 'Implement user authentication',
+          description:
+            'Add JWT-based authentication system with proper security measures',
+          status: 'IN_PROGRESS',
+          priority: 'HIGH',
+          assigneeId: '456e7890-e89b-12d3-a456-426614174001',
+          projectId: '789e0123-e89b-12d3-a456-426614174002',
+          dueDate: '2024-02-01T00:00:00Z',
+          estimatedHours: 8,
+          actualHours: 4,
+          tags: ['authentication', 'security', 'backend'],
+          createdAt: '2024-01-15T00:00:00Z',
+          updatedAt: '2024-01-16T00:00:00Z',
+          createdById: '789e0123-e89b-12d3-a456-426614174003',
+        },
+        create: {
+          title: 'Implement user authentication',
+          description:
+            'Add JWT-based authentication system with proper security measures',
+          priority: 'HIGH',
+          assigneeId: '456e7890-e89b-12d3-a456-426614174001',
+          projectId: '789e0123-e89b-12d3-a456-426614174002',
+          dueDate: '2024-02-01T00:00:00Z',
+          estimatedHours: 8,
+          tags: ['authentication', 'security', 'backend'],
+        },
+        update: {
+          status: 'IN_PROGRESS',
+          actualHours: 4,
+        },
+      };
+    }
+
+    this.generator.addCrudEndpoints(taskEndpointConfig);
 
     // Add custom task endpoints
     this.addTaskSpecificEndpoints();
@@ -252,18 +256,18 @@ export class APIDocumentationGenerator {
               },
               required: ['email', 'password'],
             },
-            examples: this.options.includeExamples
-              ? {
-                  login: {
-                    summary: 'Login example',
-                    value: {
-                      email: 'user@example.com',
-                      password: 'SecurePassword123!',
-                      rememberMe: false,
-                    },
+            ...(this.options.includeExamples && {
+              examples: {
+                login: {
+                  summary: 'Login example',
+                  value: {
+                    email: 'user@example.com',
+                    password: 'SecurePassword123!',
+                    rememberMe: false,
                   },
-                }
-              : undefined,
+                },
+              },
+            }),
           },
         },
       },
@@ -508,20 +512,20 @@ export class APIDocumentationGenerator {
           description: 'Service is healthy',
           content: {
             'application/json': {
-              schema: { $ref: '#/components/schemas/HealthStatus' },
-              examples: this.options.includeExamples
-                ? {
-                    healthy: {
-                      summary: 'Healthy service',
-                      value: {
-                        status: 'healthy',
-                        timestamp: '2024-01-15T12:00:00Z',
-                        uptime: 3600,
-                        version: '1.0.0',
-                      },
+              schema: { $ref: '#/components/schemas/HealthStatus' } as OpenAPIV3.ReferenceObject,
+              ...(this.options.includeExamples && {
+                examples: {
+                  healthy: {
+                    summary: 'Healthy service',
+                    value: {
+                      status: 'healthy',
+                      timestamp: '2024-01-15T12:00:00Z',
+                      uptime: 3600,
+                      version: '1.0.0',
                     },
-                  }
-                : undefined,
+                  },
+                },
+              }),
             },
           },
         },
@@ -541,37 +545,37 @@ export class APIDocumentationGenerator {
           description: 'Detailed health status',
           content: {
             'application/json': {
-              schema: { $ref: '#/components/schemas/HealthStatus' },
-              examples: this.options.includeExamples
-                ? {
-                    detailed: {
-                      summary: 'Detailed health status',
-                      value: {
-                        status: 'healthy',
-                        timestamp: '2024-01-15T12:00:00Z',
-                        uptime: 3600,
-                        version: '1.0.0',
-                        checks: {
-                          database: {
-                            status: 'healthy',
-                            responseTime: 15,
-                            message: 'Database connection successful',
-                          },
-                          redis: {
-                            status: 'healthy',
-                            responseTime: 5,
-                            message: 'Redis connection successful',
-                          },
-                          externalApi: {
-                            status: 'healthy',
-                            responseTime: 120,
-                            message: 'External API accessible',
-                          },
+              schema: { $ref: '#/components/schemas/HealthStatus' } as OpenAPIV3.ReferenceObject,
+              ...(this.options.includeExamples && {
+                examples: {
+                  detailed: {
+                    summary: 'Detailed health status',
+                    value: {
+                      status: 'healthy',
+                      timestamp: '2024-01-15T12:00:00Z',
+                      uptime: 3600,
+                      version: '1.0.0',
+                      checks: {
+                        database: {
+                          status: 'healthy',
+                          responseTime: 15,
+                          message: 'Database connection successful',
+                        },
+                        redis: {
+                          status: 'healthy',
+                          responseTime: 5,
+                          message: 'Redis connection successful',
+                        },
+                        externalApi: {
+                          status: 'healthy',
+                          responseTime: 120,
+                          message: 'External API accessible',
                         },
                       },
                     },
-                  }
-                : undefined,
+                  },
+                },
+              }),
             },
           },
         },
