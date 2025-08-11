@@ -1,15 +1,9 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { JWTService, TokenPayload } from './jwt-service';
+import { JWTService } from './jwt-service';
 import { RateLimitService } from './rate-limit-service';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
-
-export interface AuthenticatedRequest extends FastifyRequest {
-  user: TokenPayload & {
-    id: string;
-    sessionId: string;
-  };
-}
+import { AuthenticatedRequest } from '../../shared/types/auth-types';
 
 export interface AuthMiddlewareConfig {
   jwtService: JWTService;
@@ -85,8 +79,12 @@ export class AuthMiddleware {
 
         // Attach user to request
         (request as AuthenticatedRequest).user = {
-          ...payload,
           id: payload.userId,
+          email: payload.email,
+          name: payload.email, // Use email as name if not provided
+          isActive: true,
+          roles: payload.roles || [],
+          permissions: payload.permissions || [],
           sessionId: payload.sessionId,
         };
       } catch (error) {
@@ -380,7 +378,7 @@ export class AuthMiddleware {
     }
 
     // Check for token in cookies
-    const cookieToken = request.cookies?.accessToken;
+    const cookieToken = (request as any).cookies?.accessToken;
     if (cookieToken) {
       return cookieToken;
     }

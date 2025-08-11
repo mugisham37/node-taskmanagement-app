@@ -94,21 +94,21 @@ export class AuditLogger {
       audit: true,
       eventType: auditEvent.eventType,
       severity: auditEvent.severity,
-      userId: auditEvent.userId,
-      sessionId: auditEvent.sessionId,
-      ipAddress: auditEvent.ipAddress,
-      userAgent: auditEvent.userAgent,
-      resource: auditEvent.resource,
-      action: auditEvent.action,
+      userId: auditEvent.userId || undefined,
+      sessionId: auditEvent.sessionId || undefined,
+      ipAddress: auditEvent.ipAddress || undefined,
+      userAgent: auditEvent.userAgent || undefined,
+      resource: auditEvent.resource || undefined,
+      action: auditEvent.action || undefined,
       outcome: auditEvent.outcome,
-      details: auditEvent.details,
+      details: auditEvent.details || undefined,
       timestamp: auditEvent.timestamp.toISOString(),
-      requestId: auditEvent.requestId,
+      requestId: auditEvent.requestId || undefined,
     });
 
     // For critical events, also log as error for immediate attention
     if (event.severity === AuditSeverity.CRITICAL) {
-      this.logger.error('Critical security event detected', {
+      this.logger.error('Critical security event detected', undefined, {
         eventType: auditEvent.eventType,
         details: auditEvent.details,
       });
@@ -339,6 +339,69 @@ export class AuditLogger {
       },
       ...context,
     });
+  }
+
+  /**
+   * Log permission denied event
+   */
+  logPermissionDenied(context: AuditContext & {
+    resource?: string;
+    action?: string;
+    reason?: string;
+  }): void {
+    const eventData: any = {
+      eventType: AuditEventType.ACCESS_DENIED,
+      severity: AuditSeverity.MEDIUM,
+      outcome: 'BLOCKED',
+    };
+
+    if (context.resource) eventData.resource = context.resource;
+    if (context.action) eventData.action = context.action;
+    if (context.reason) eventData.details = { reason: context.reason };
+    if (context.userId) eventData.userId = context.userId;
+    if (context.sessionId) eventData.sessionId = context.sessionId;
+    if (context.ipAddress) eventData.ipAddress = context.ipAddress;
+    if (context.userAgent) eventData.userAgent = context.userAgent;
+    if (context.requestId) eventData.requestId = context.requestId;
+
+    this.logEvent(eventData);
+  }
+
+  /**
+   * Log request for audit trail
+   */
+  logRequest(context: {
+    method: string;
+    url: string;
+    statusCode?: number;
+    duration?: number;
+    userId?: string;
+    sessionId?: string;
+    ipAddress?: string;
+    userAgent?: string;
+    requestId?: string;
+  }): void {
+    const eventData: any = {
+      eventType: AuditEventType.DATA_ACCESS,
+      severity: AuditSeverity.LOW,
+      outcome: context.statusCode && context.statusCode >= 400 ? 'FAILURE' : 'SUCCESS',
+      resource: context.url,
+      action: context.method,
+    };
+
+    if (context.statusCode || context.duration) {
+      eventData.details = {};
+      if (context.statusCode) eventData.details.statusCode = context.statusCode;
+      if (context.duration) eventData.details.duration = context.duration;
+    }
+
+    if (context.userId) eventData.userId = context.userId;
+    if (context.sessionId) eventData.sessionId = context.sessionId;
+    if (context.ipAddress) eventData.ipAddress = context.ipAddress;
+    if (context.userAgent) eventData.userAgent = context.userAgent;
+    if (context.requestId) eventData.requestId = context.requestId;
+
+    this.logEvent(eventData);
   }
 
   private getLogLevel(severity: AuditSeverity): string {

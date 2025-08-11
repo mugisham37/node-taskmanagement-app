@@ -9,7 +9,6 @@ import { CacheService } from '../caching/cache-service';
 import { LoggingService } from '../monitoring/logging-service';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { UserId } from '../../domain/value-objects/user-id';
 
 export interface SessionData {
   sessionId: string;
@@ -109,7 +108,7 @@ export class SessionManager {
         lastActivity: now,
         expiresAt,
         isActive: true,
-        deviceFingerprint: request.deviceFingerprint,
+        ...(request.deviceFingerprint && { deviceFingerprint: request.deviceFingerprint }),
         loginMethod: request.loginMethod,
         metadata: request.metadata || {},
       };
@@ -407,7 +406,6 @@ export class SessionManager {
   async cleanupExpiredSessions(): Promise<number> {
     try {
       let cleanedCount = 0;
-      const now = new Date();
 
       // This is a simplified implementation
       // In production, you would use Redis SCAN to iterate through sessions
@@ -449,7 +447,7 @@ export class SessionManager {
   private async storeSession(session: SessionData): Promise<void> {
     const key = this.getSessionKey(session.sessionId);
     const ttl = Math.ceil((session.expiresAt.getTime() - Date.now()) / 1000);
-    await this.cacheService.set(key, session, ttl);
+    await this.cacheService.set(key, session, { ttl });
   }
 
   private async getSession(sessionId: string): Promise<SessionData | null> {
@@ -480,7 +478,7 @@ export class SessionManager {
     await this.cacheService.set(
       key,
       sessions,
-      this.getConfig().sessionDuration / 1000
+      { ttl: this.getConfig().sessionDuration / 1000 }
     );
   }
 
@@ -494,7 +492,7 @@ export class SessionManager {
     await this.cacheService.set(
       key,
       filtered,
-      this.getConfig().sessionDuration / 1000
+      { ttl: this.getConfig().sessionDuration / 1000 }
     );
   }
 
@@ -521,7 +519,7 @@ export class SessionManager {
       await this.cacheService.set(
         key,
         sessions,
-        this.getConfig().sessionDuration / 1000
+        { ttl: this.getConfig().sessionDuration / 1000 }
       );
     }
   }
@@ -532,20 +530,23 @@ export class SessionManager {
 
     if (sessions.length >= maxSessions) {
       // Remove oldest session
-      const oldestSession = sessions.sort(
+      const sortedSessions = sessions.sort(
         (a, b) => a.lastActivity.getTime() - b.lastActivity.getTime()
-      )[0];
-
-      await this.invalidateSession(oldestSession.sessionId);
-
-      this.logger.info(
-        'Oldest session invalidated due to concurrent session limit',
-        {
-          userId,
-          invalidatedSessionId: oldestSession.sessionId,
-          maxSessions,
-        }
       );
+      const oldestSession = sortedSessions[0];
+
+      if (oldestSession) {
+        await this.invalidateSession(oldestSession.sessionId);
+
+        this.logger.info(
+          'Oldest session invalidated due to concurrent session limit',
+          {
+            userId,
+            invalidatedSessionId: oldestSession.sessionId,
+            maxSessions,
+          }
+        );
+      }
     }
   }
 

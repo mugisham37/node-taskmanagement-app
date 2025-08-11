@@ -15,7 +15,10 @@ import { JWTService } from './jwt-service';
 import { RBACService } from './rbac-service';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
 import { ValidationError } from '../../shared/errors/validation-error';
-import { InfrastructureError } from '../../shared/errors/infrastructure-error';
+import {
+  AuthenticatedRequest,
+  SecurityContext,
+} from '../../shared/types/auth-types';
 
 export interface SecurityConfig {
   // Rate limiting
@@ -91,29 +94,6 @@ export interface SecurityConfig {
     logPermissionDenied: boolean;
     logSuspiciousActivity: boolean;
   };
-}
-
-export interface SecurityContext {
-  requestId: string;
-  userId?: string;
-  sessionId?: string;
-  ipAddress: string;
-  userAgent: string;
-  timestamp: Date;
-  endpoint: string;
-  method: string;
-}
-
-export interface AuthenticatedRequest extends FastifyRequest {
-  user?: {
-    id: string;
-    email: string;
-    roles: string[];
-    permissions: string[];
-    sessionId: string;
-  };
-  securityContext: SecurityContext;
-  csrfToken?: string;
 }
 
 export class ComprehensiveSecurityMiddleware {
@@ -306,7 +286,7 @@ export class ComprehensiveSecurityMiddleware {
   requireAuth = () => {
     return async (
       request: FastifyRequest,
-      reply: FastifyReply
+      _reply: FastifyReply
     ): Promise<void> => {
       const authRequest = request as AuthenticatedRequest;
 
@@ -327,7 +307,7 @@ export class ComprehensiveSecurityMiddleware {
   requirePermission = (resource: string, action: string) => {
     return async (
       request: FastifyRequest,
-      reply: FastifyReply
+      _reply: FastifyReply
     ): Promise<void> => {
       const authRequest = request as AuthenticatedRequest;
 
@@ -335,24 +315,39 @@ export class ComprehensiveSecurityMiddleware {
         throw new AuthorizationError('Authentication required');
       }
 
-      const accessResult = await this.rbacService.checkAccess({
+      const accessParams: any = {
         userId: authRequest.user.id,
         resource,
         action,
-        resourceId: this.extractResourceId(request),
-        workspaceId: this.extractWorkspaceId(request),
-      });
+      };
+
+      const resourceId = this.extractResourceId(request);
+      if (resourceId) {
+        accessParams.resourceId = resourceId;
+      }
+
+      const workspaceId = this.extractWorkspaceId(request);
+      if (workspaceId) {
+        accessParams.workspaceId = workspaceId;
+      }
+
+      const accessResult = await this.rbacService.checkAccess(accessParams);
 
       if (!accessResult.allowed) {
-        this.auditLogger.logPermissionDenied({
+        const auditParams: any = {
           userId: authRequest.user.id,
           resource,
           action,
-          reason: accessResult.reason,
           ipAddress: authRequest.securityContext.ipAddress,
           userAgent: authRequest.securityContext.userAgent,
           requestId: authRequest.securityContext.requestId,
-        });
+        };
+
+        if (accessResult.reason) {
+          auditParams.reason = accessResult.reason;
+        }
+
+        this.auditLogger.logPermissionDenied(auditParams);
 
         throw new AuthorizationError(
           `Access denied: ${accessResult.reason || 'Insufficient permissions'}`
@@ -376,7 +371,7 @@ export class ComprehensiveSecurityMiddleware {
 
     return async (
       request: FastifyRequest,
-      reply: FastifyReply
+      _reply: FastifyReply
     ): Promise<void> => {
       const authRequest = request as AuthenticatedRequest;
 
@@ -422,6 +417,13 @@ export class ComprehensiveSecurityMiddleware {
       timestamp: new Date(),
       endpoint: request.url,
       method: request.method,
+      riskScore: 0,
+      previousLogins: 0,
+      suspiciousActivity: false,
+      rateLimitStatus: {
+        remaining: 100,
+        reset: new Date(Date.now() + 3600000), // 1 hour from now
+      },
     };
   }
 
@@ -526,7 +528,7 @@ export class ComprehensiveSecurityMiddleware {
 
       if (!result.allowed) {
         this.setRateLimitHeaders(reply, result);
-        throw new ValidationError('Rate limit exceeded for this endpoint');
+        throw ValidationError.forField('rate_limit', 'Rate limit exceeded for this endpoint');
       }
     }
 
@@ -539,7 +541,7 @@ export class ComprehensiveSecurityMiddleware {
 
     if (!globalResult.allowed) {
       this.setRateLimitHeaders(reply, globalResult);
-      throw new ValidationError('Global rate limit exceeded');
+      throw ValidationError.forField('rate_limit', 'Global rate limit exceeded');
     }
 
     // Set rate limit headers for successful requests
@@ -553,7 +555,6 @@ export class ComprehensiveSecurityMiddleware {
     // Sanitize request body
     if (request.body && typeof request.body === 'object') {
       const result = this.inputSanitizer.sanitizeObject(request.body, {
-        strictMode: config.strictMode,
         allowedTags: config.allowedTags,
         allowedAttributes: config.allowedAttributes,
       });
@@ -563,7 +564,7 @@ export class ComprehensiveSecurityMiddleware {
         this.logger.warn('Request body was sanitized', {
           requestId: (request as AuthenticatedRequest).securityContext
             .requestId,
-          modifications: result.modifications,
+          wasModified: result.wasModified,
         });
       }
     }
@@ -571,7 +572,7 @@ export class ComprehensiveSecurityMiddleware {
     // Sanitize query parameters
     if (request.query && typeof request.query === 'object') {
       const result = this.inputSanitizer.sanitizeObject(request.query, {
-        strictMode: config.strictMode,
+        allowedTags: config.allowedTags,
       });
 
       if (result.wasModified) {
@@ -606,11 +607,11 @@ export class ComprehensiveSecurityMiddleware {
     }
 
     if (!token) {
-      throw new ValidationError('CSRF token is required');
+      throw ValidationError.forField('csrf_token', 'CSRF token is required');
     }
 
     if (!this.validateCSRFToken(sessionId, token)) {
-      throw new ValidationError('Invalid CSRF token');
+      throw ValidationError.forField('csrf_token', 'Invalid CSRF token');
     }
   }
 
@@ -638,6 +639,8 @@ export class ComprehensiveSecurityMiddleware {
       (request as AuthenticatedRequest).user = {
         id: payload.userId,
         email: payload.email,
+        name: payload.email, // Use email as name if not provided
+        isActive: true,
         roles: payload.roles || [],
         permissions: payload.permissions || [],
         sessionId: payload.sessionId,
@@ -726,7 +729,7 @@ export class ComprehensiveSecurityMiddleware {
   ): string | null {
     return (
       (request.headers[config.headerName] as string) ||
-      request.cookies?.[config.cookieName] ||
+      (request as any).cookies?.[config.cookieName] ||
       null
     );
   }
@@ -741,7 +744,7 @@ export class ComprehensiveSecurityMiddleware {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       return authHeader.substring(7);
     }
-    return request.cookies?.accessToken || null;
+    return (request as any).cookies?.accessToken || null;
   }
 
   private extractResourceId(request: FastifyRequest): string | undefined {
@@ -770,9 +773,9 @@ export class ComprehensiveSecurityMiddleware {
     token: string,
     config: SecurityConfig['csrfProtection']
   ): void {
-    reply.setCookie(config.cookieName, token, {
+    (reply as any).setCookie(config.cookieName, token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env['NODE_ENV'] === 'production',
       sameSite: 'strict',
       maxAge: 3600, // 1 hour
     });

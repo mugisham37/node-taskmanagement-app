@@ -8,7 +8,6 @@
 import { LoggingService } from '../monitoring/logging-service';
 import { CacheService } from '../caching/cache-service';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
 import { ValidationError } from '../../shared/errors/validation-error';
 
 export interface Role {
@@ -18,7 +17,7 @@ export interface Role {
   permissions: string[];
   parentRoles: string[];
   isSystemRole: boolean;
-  workspaceId?: string;
+  workspaceId?: string | undefined;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,10 +48,10 @@ export interface PermissionCondition {
 export interface UserRole {
   userId: string;
   roleId: string;
-  workspaceId?: string;
+  workspaceId?: string | undefined;
   assignedBy: string;
   assignedAt: Date;
-  expiresAt?: Date;
+  expiresAt?: Date | undefined;
   isActive: boolean;
 }
 
@@ -63,7 +62,7 @@ export interface ResourcePermission {
   permissions: string[];
   grantedBy: string;
   grantedAt: Date;
-  expiresAt?: Date;
+  expiresAt?: Date | undefined;
   isActive: boolean;
 }
 
@@ -196,7 +195,11 @@ export class RBACService {
       // Validate role exists
       const role = await this.getRole(roleId, workspaceId);
       if (!role) {
-        throw new ValidationError(`Role ${roleId} not found`);
+        throw new ValidationError([{
+          field: 'roleId',
+          message: `Role ${roleId} not found`,
+          value: roleId
+        }]);
       }
 
       // Check if assignment already exists
@@ -207,7 +210,11 @@ export class RBACService {
       );
 
       if (existingAssignment && existingAssignment.isActive) {
-        throw new ValidationError('Role already assigned to user');
+        throw new ValidationError([{
+          field: 'roleAssignment',
+          message: 'Role already assigned to user',
+          value: { userId, roleId, workspaceId }
+        }]);
       }
 
       const userRole: UserRole = {
@@ -264,9 +271,11 @@ export class RBACService {
       );
 
       if (!userRole || !userRole.isActive) {
-        throw new ValidationError(
-          'Role assignment not found or already inactive'
-        );
+        throw new ValidationError([{
+          field: 'roleAssignment',
+          message: 'Role assignment not found or already inactive',
+          value: { userId, roleId, workspaceId }
+        }]);
       }
 
       userRole.isActive = false;
@@ -426,7 +435,11 @@ export class RBACService {
           !this.systemPermissions.has(permission) &&
           !permission.includes(':')
         ) {
-          throw new ValidationError(`Invalid permission: ${permission}`);
+          throw new ValidationError([{
+            field: 'permission',
+            message: `Invalid permission: ${permission}`,
+            value: permission
+          }]);
         }
       }
 
@@ -434,7 +447,11 @@ export class RBACService {
       for (const parentRoleId of parentRoles) {
         const parentRole = await this.getRole(parentRoleId, workspaceId);
         if (!parentRole) {
-          throw new ValidationError(`Parent role not found: ${parentRoleId}`);
+          throw new ValidationError([{
+            field: 'parentRole',
+            message: `Parent role not found: ${parentRoleId}`,
+            value: parentRoleId
+          }]);
         }
       }
 
@@ -491,11 +508,19 @@ export class RBACService {
     try {
       const role = await this.getRole(roleId, workspaceId);
       if (!role) {
-        throw new ValidationError(`Role ${roleId} not found`);
+        throw new ValidationError([{
+          field: 'roleId',
+          message: `Role ${roleId} not found`,
+          value: roleId
+        }]);
       }
 
       if (role.isSystemRole) {
-        throw new ValidationError('Cannot modify system role');
+        throw new ValidationError([{
+          field: 'role',
+          message: 'Cannot modify system role',
+          value: roleId
+        }]);
       }
 
       // Validate permissions if provided
@@ -505,7 +530,11 @@ export class RBACService {
             !this.systemPermissions.has(permission) &&
             !permission.includes(':')
           ) {
-            throw new ValidationError(`Invalid permission: ${permission}`);
+            throw new ValidationError([{
+              field: 'permission',
+              message: `Invalid permission: ${permission}`,
+              value: permission
+            }]);
           }
         }
       }
@@ -515,7 +544,11 @@ export class RBACService {
         for (const parentRoleId of updates.parentRoles) {
           const parentRole = await this.getRole(parentRoleId, workspaceId);
           if (!parentRole) {
-            throw new ValidationError(`Parent role not found: ${parentRoleId}`);
+            throw new ValidationError([{
+              field: 'parentRole',
+              message: `Parent role not found: ${parentRoleId}`,
+              value: parentRoleId
+            }]);
           }
         }
       }
@@ -557,19 +590,29 @@ export class RBACService {
     try {
       const role = await this.getRole(roleId, workspaceId);
       if (!role) {
-        throw new ValidationError(`Role ${roleId} not found`);
+        throw new ValidationError([{
+          field: 'roleId',
+          message: `Role ${roleId} not found`,
+          value: roleId
+        }]);
       }
 
       if (role.isSystemRole) {
-        throw new ValidationError('Cannot delete system role');
+        throw new ValidationError([{
+          field: 'role',
+          message: 'Cannot delete system role',
+          value: roleId
+        }]);
       }
 
       // Check if role is assigned to any users
       const assignments = await this.getRoleAssignments(roleId, workspaceId);
       if (assignments.length > 0) {
-        throw new ValidationError(
-          `Cannot delete role: ${assignments.length} users still have this role assigned`
-        );
+        throw new ValidationError([{
+          field: 'roleAssignments',
+          message: `Cannot delete role: ${assignments.length} users still have this role assigned`,
+          value: { roleId, assignmentCount: assignments.length }
+        }]);
       }
 
       await this.removeRole(roleId, workspaceId);
@@ -615,7 +658,7 @@ export class RBACService {
    * Get user's permissions from roles
    */
   async getUserPermissions(
-    userId: string,
+    _userId: string,
     effectiveRoles: string[]
   ): Promise<string[]> {
     const permissions = new Set<string>();
@@ -784,8 +827,8 @@ export class RBACService {
   }
 
   private async getUserRoles(
-    userId: string,
-    workspaceId?: string
+    _userId: string,
+    _workspaceId?: string
   ): Promise<string[]> {
     // This would typically query the database
     // For now, return empty array as placeholder
@@ -794,7 +837,7 @@ export class RBACService {
 
   private async getRole(
     roleId: string,
-    workspaceId?: string
+    _workspaceId?: string
   ): Promise<Role | null> {
     // Check system roles first
     if (this.systemRoles.has(roleId)) {
@@ -807,9 +850,9 @@ export class RBACService {
   }
 
   private async getUserRoleAssignment(
-    userId: string,
-    roleId: string,
-    workspaceId?: string
+    _userId: string,
+    _roleId: string,
+    _workspaceId?: string
   ): Promise<UserRole | null> {
     // This would typically query the database
     // For now, return null as placeholder
@@ -817,9 +860,9 @@ export class RBACService {
   }
 
   private async getResourcePermissions(
-    userId: string,
-    resource: string,
-    resourceId?: string
+    _userId: string,
+    _resource: string,
+    _resourceId?: string
   ): Promise<string[]> {
     // This would typically query the database
     // For now, return empty array as placeholder
@@ -889,8 +932,8 @@ export class RBACService {
   }
 
   private async getRoleAssignments(
-    roleId: string,
-    workspaceId?: string
+    _roleId: string,
+    _workspaceId?: string
   ): Promise<UserRole[]> {
     // This would typically query the database
     // For now, return empty array as placeholder
@@ -905,7 +948,7 @@ export class RBACService {
     ];
 
     for (const key of cacheKeys) {
-      await this.cacheService.delete(key);
+      await this.cacheService.del(key);
     }
   }
 

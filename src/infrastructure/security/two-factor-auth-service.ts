@@ -162,7 +162,7 @@ export class TwoFactorAuthService {
     try {
       const tempSetup = await this.getTempSetup(userId);
       if (!tempSetup) {
-        throw new ValidationError('No pending 2FA setup found');
+        throw ValidationError.forField('setup', 'No pending 2FA setup found');
       }
 
       // Verify the token
@@ -176,7 +176,7 @@ export class TwoFactorAuthService {
       });
 
       if (!isValid) {
-        throw new ValidationError('Invalid verification token');
+        throw ValidationError.forField('token', 'Invalid verification token');
       }
 
       // Enable 2FA
@@ -237,7 +237,7 @@ export class TwoFactorAuthService {
 
       const config = await this.get2FAConfig(userId);
       if (!config || !config.isEnabled) {
-        throw new ValidationError('2FA is not enabled for this user');
+        throw ValidationError.forField('user', '2FA is not enabled for this user');
       }
 
       // Try TOTP verification first
@@ -359,7 +359,7 @@ export class TwoFactorAuthService {
 
       const config = await this.get2FAConfig(userId);
       if (!config) {
-        throw new ValidationError('2FA is not enabled for this user');
+        throw ValidationError.forField('user', '2FA is not enabled for this user');
       }
 
       // Generate new backup codes
@@ -473,11 +473,11 @@ export class TwoFactorAuthService {
       await this.storeEmailCode(request.userId, code);
 
       // Send email
-      await this.emailService.sendTwoFactorCode({
-        recipientEmail: request.email,
+      await this.emailService.sendTwoFactorCode(
+        request.email,
         code,
-        expiresInMinutes: 5,
-      });
+        5
+      );
 
       this.logger.info('Email verification code sent', {
         userId: request.userId,
@@ -575,7 +575,7 @@ export class TwoFactorAuthService {
     const attempts = (await this.cacheService.get<number>(key)) || 0;
     const ttl = this.getConfig().rateLimitWindow;
 
-    await this.cacheService.set(key, attempts + 1, ttl);
+    await this.cacheService.set(key, attempts + 1, { ttl });
   }
 
   private async clearRateLimit(userId: string): Promise<void> {
@@ -585,7 +585,7 @@ export class TwoFactorAuthService {
 
   private async storeTempSetup(userId: string, setup: any): Promise<void> {
     const key = `2fa-temp-setup:${userId}`;
-    await this.cacheService.set(key, setup, 600); // 10 minutes
+    await this.cacheService.set(key, setup, { ttl: 600 }); // 10 minutes
   }
 
   private async getTempSetup(userId: string): Promise<any> {
@@ -600,7 +600,8 @@ export class TwoFactorAuthService {
 
   private async store2FAConfig(userId: string, config: any): Promise<void> {
     const key = `2fa-config:${userId}`;
-    await this.cacheService.set(key, config, 0); // No expiration
+    // No expiration for permanent config, but we need to provide options object
+    await this.cacheService.set(key, config, {});
   }
 
   private async get2FAConfig(userId: string): Promise<any> {
@@ -623,12 +624,12 @@ export class TwoFactorAuthService {
 
   private async storeSMSCode(userId: string, code: string): Promise<void> {
     const key = `sms-code:${userId}`;
-    await this.cacheService.set(key, code, 300); // 5 minutes
+    await this.cacheService.set(key, code, { ttl: 300 }); // 5 minutes
   }
 
   private async storeEmailCode(userId: string, code: string): Promise<void> {
     const key = `email-code:${userId}`;
-    await this.cacheService.set(key, code, 300); // 5 minutes
+    await this.cacheService.set(key, code, { ttl: 300 }); // 5 minutes
   }
 
   private async sendSMS(phoneNumber: string, code: string): Promise<void> {
@@ -647,7 +648,7 @@ export class TwoFactorAuthService {
 
   private maskEmail(email: string): string {
     const [local, domain] = email.split('@');
-    if (local.length <= 2) return email;
+    if (!local || !domain || local.length <= 2) return email;
     return local.slice(0, 2) + '*'.repeat(local.length - 2) + '@' + domain;
   }
 }

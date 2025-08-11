@@ -91,6 +91,24 @@ export interface OAuthState {
   codeVerifier?: string;
 }
 
+export interface OAuthTokenData {
+  access_token: string;
+  refresh_token?: string;
+  token_type?: string;
+  expires_in?: number;
+  scope?: string;
+  id_token?: string;
+}
+
+export interface JWTPayload {
+  sub?: string;
+  aud?: string;
+  exp?: number;
+  nbf?: number;
+  iat?: number;
+  [key: string]: any;
+}
+
 export class OAuthService {
   private readonly defaultConfig: Partial<OAuthConfig> = {
     stateExpiration: 600, // 10 minutes
@@ -165,12 +183,17 @@ export class OAuthService {
         scopes: request.scopes || provider.scope,
       });
 
-      return {
+      const result: AuthorizationUrlResponse = {
         url,
         state,
         nonce,
-        codeVerifier,
       };
+
+      if (codeVerifier) {
+        result.codeVerifier = codeVerifier;
+      }
+
+      return result;
     } catch (error) {
       this.logger.error(
         'Failed to generate authorization URL',
@@ -235,18 +258,18 @@ export class OAuthService {
         );
       }
 
-      const tokenData = await response.json();
+      const tokenData = await response.json() as OAuthTokenData;
 
       // Clean up state
       await this.removeState(request.state);
 
       const tokenResponse: TokenResponse = {
         accessToken: tokenData.access_token,
-        refreshToken: tokenData.refresh_token,
+        ...(tokenData.refresh_token && { refreshToken: tokenData.refresh_token }),
         tokenType: tokenData.token_type || 'Bearer',
         expiresIn: tokenData.expires_in || 3600,
         scope: tokenData.scope || provider.scope.join(' '),
-        idToken: tokenData.id_token,
+        ...(tokenData.id_token && { idToken: tokenData.id_token }),
       };
 
       this.logger.info('OAuth token exchange successful', {
@@ -350,16 +373,21 @@ export class OAuthService {
         );
       }
 
-      const tokenData = await response.json();
+      const tokenData = await response.json() as OAuthTokenData;
 
       const tokenResponse: TokenResponse = {
         accessToken: tokenData.access_token,
-        refreshToken: tokenData.refresh_token || refreshToken,
         tokenType: tokenData.token_type || 'Bearer',
         expiresIn: tokenData.expires_in || 3600,
         scope: tokenData.scope || providerConfig.scope.join(' '),
-        idToken: tokenData.id_token,
+        ...(tokenData.refresh_token && { refreshToken: tokenData.refresh_token }),
+        ...(tokenData.id_token && { idToken: tokenData.id_token }),
       };
+
+      // If no new refresh token was provided, keep the old one
+      if (!tokenData.refresh_token && refreshToken) {
+        tokenResponse.refreshToken = refreshToken;
+      }
 
       this.logger.info('OAuth token refresh successful', {
         provider,
@@ -444,25 +472,29 @@ export class OAuthService {
 
       const parts = idToken.split('.');
       if (parts.length !== 3) {
-        throw new ValidationError('Invalid ID token format');
+        throw ValidationError.forField('idToken', 'Invalid ID token format', idToken);
       }
 
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+      if (!parts[1]) {
+        throw ValidationError.forField('idToken', 'Missing payload in ID token', idToken);
+      }
+
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString()) as JWTPayload;
 
       // Basic validation
       const now = Math.floor(Date.now() / 1000);
 
       if (payload.exp && payload.exp < now) {
-        throw new ValidationError('ID token has expired');
+        throw ValidationError.forField('idToken', 'ID token has expired', payload.exp);
       }
 
       if (payload.nbf && payload.nbf > now) {
-        throw new ValidationError('ID token not yet valid');
+        throw ValidationError.forField('idToken', 'ID token not yet valid', payload.nbf);
       }
 
       const providerConfig = this.getProvider(provider);
       if (payload.aud !== providerConfig.clientId) {
-        throw new ValidationError('ID token audience mismatch');
+        throw ValidationError.forField('idToken', 'ID token audience mismatch', payload.aud);
       }
 
       this.logger.info('ID token validated successfully', {
@@ -515,7 +547,7 @@ export class OAuthService {
   private getProvider(name: string): OAuthProvider {
     const provider = this.config.providers[name];
     if (!provider) {
-      throw new ValidationError(`Unknown OAuth provider: ${name}`);
+      throw ValidationError.forField('provider', `Unknown OAuth provider: ${name}`, name);
     }
     return provider;
   }
@@ -549,7 +581,7 @@ export class OAuthService {
     const key = `oauth-state:${state}`;
     const ttl =
       this.config.stateExpiration || this.defaultConfig.stateExpiration!;
-    await this.cacheService.set(key, data, ttl);
+    await this.cacheService.set(key, data, { ttl });
   }
 
   private async getState(state: string): Promise<OAuthState | null> {
@@ -559,7 +591,7 @@ export class OAuthService {
 
   private async removeState(state: string): Promise<void> {
     const key = `oauth-state:${state}`;
-    await this.cacheService.delete(key);
+    await this.cacheService.del(key);
   }
 
   private normalizeUserInfo(provider: string, userData: any): UserInfo {

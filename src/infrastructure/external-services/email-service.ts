@@ -649,4 +649,84 @@ Please activate your account by clicking the link below:
   addFallbackProvider(provider: EmailService): void {
     this.fallbackProviders.push(provider);
   }
+
+  /**
+   * Send two-factor authentication code via email
+   */
+  async sendTwoFactorCode(
+    email: string,
+    code: string,
+    expirationMinutes: number = 10
+  ): Promise<void> {
+    try {
+      const subject = 'Your Two-Factor Authentication Code';
+      const html = `
+        <html>
+          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+              <h2 style="color: #343a40; margin-bottom: 16px;">Two-Factor Authentication Code</h2>
+              <p style="color: #6c757d; margin-bottom: 16px;">
+                You have requested a two-factor authentication code. Please use the code below to complete your login:
+              </p>
+              <div style="background-color: #ffffff; padding: 20px; border-radius: 4px; border: 2px solid #007bff; text-align: center; margin: 20px 0;">
+                <h1 style="color: #007bff; font-size: 32px; letter-spacing: 8px; margin: 0; font-family: monospace;">
+                  ${code}
+                </h1>
+              </div>
+              <p style="color: #6c757d; font-size: 14px; margin-bottom: 8px;">
+                <strong>Important:</strong>
+              </p>
+              <ul style="color: #6c757d; font-size: 14px; margin-bottom: 16px;">
+                <li>This code will expire in ${expirationMinutes} minutes</li>
+                <li>Do not share this code with anyone</li>
+                <li>If you didn't request this code, please secure your account immediately</li>
+              </ul>
+            </div>
+            <div style="color: #6c757d; font-size: 12px; text-align: center; border-top: 1px solid #dee2e6; padding-top: 16px;">
+              <p>This is an automated message, please do not reply to this email.</p>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const text = `
+Your Two-Factor Authentication Code
+
+You have requested a two-factor authentication code. Please use the code below to complete your login:
+
+Code: ${code}
+
+Important:
+- This code will expire in ${expirationMinutes} minutes
+- Do not share this code with anyone
+- If you didn't request this code, please secure your account immediately
+
+This is an automated message, please do not reply to this email.
+      `.trim();
+
+      await this.sendEmail({
+        to: email,
+        subject,
+        html,
+        text,
+        priority: 'high',
+        tags: ['2fa', 'security'],
+        metadata: {
+          type: 'two_factor_auth',
+          expirationMinutes,
+        },
+      });
+
+      this.logger.info('Two-factor authentication code sent', {
+        email,
+        expirationMinutes,
+      });
+    } catch (error) {
+      this.logger.error('Failed to send two-factor authentication code', error as Error, {
+        email,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
 }

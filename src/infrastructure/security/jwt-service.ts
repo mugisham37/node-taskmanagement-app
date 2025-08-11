@@ -47,7 +47,7 @@ export class JWTService {
 
       // Generate access token
       const accessTokenOptions: SignOptions = {
-        expiresIn: this.config.accessTokenExpiresIn,
+        expiresIn: this.parseExpirationTime(this.config.accessTokenExpiresIn),
         issuer: this.config.issuer,
         audience: this.config.audience,
         subject: payload.userId,
@@ -69,7 +69,7 @@ export class JWTService {
 
       // Generate refresh token
       const refreshTokenOptions: SignOptions = {
-        expiresIn: this.config.refreshTokenExpiresIn,
+        expiresIn: this.parseExpirationTime(this.config.refreshTokenExpiresIn),
         issuer: this.config.issuer,
         audience: this.config.audience,
         subject: payload.userId,
@@ -126,7 +126,7 @@ export class JWTService {
         verifyOptions
       ) as TokenPayload & JwtPayload;
 
-      if (decoded.type !== 'access') {
+      if (decoded['type'] !== 'access') {
         throw new AuthorizationError('Invalid token type');
       }
 
@@ -163,7 +163,7 @@ export class JWTService {
         verifyOptions
       ) as RefreshTokenPayload & JwtPayload;
 
-      if (decoded.type !== 'refresh') {
+      if (decoded['type'] !== 'refresh') {
         throw new AuthorizationError('Invalid token type');
       }
 
@@ -243,7 +243,7 @@ export class JWTService {
 
       // Generate new access token
       const accessTokenOptions: SignOptions = {
-        expiresIn: this.config.accessTokenExpiresIn,
+        expiresIn: this.parseExpirationTime(this.config.accessTokenExpiresIn),
         issuer: this.config.issuer,
         audience: this.config.audience,
         subject: newPayload.userId,
@@ -448,7 +448,7 @@ export class JWTService {
       );
     }
 
-    const value = parseInt(match[1], 10);
+    const value = parseInt(match[1]!, 10);
     const unit = match[2];
 
     switch (unit) {

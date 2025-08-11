@@ -11,7 +11,7 @@ export interface PasswordConfig {
   requireSpecialChars: boolean;
   preventCommonPasswords: boolean;
   hashingOptions: {
-    type: argon2.Type;
+    type: number; // argon2.Type
     memoryCost: number;
     timeCost: number;
     parallelism: number;
@@ -78,13 +78,14 @@ export class PasswordService {
       // Validate password before hashing
       const strength = this.checkPasswordStrength(password);
       if (!strength.isValid) {
-        throw new ValidationError(
-          `Password validation failed: ${strength.feedback.join(', ')}`
-        );
+        throw new ValidationError([{
+          field: 'password',
+          message: `Password validation failed: ${strength.feedback.join(', ')}`
+        }]);
       }
 
       const hash = await argon2.hash(password, {
-        type: this.config.hashingOptions.type,
+        type: this.config.hashingOptions.type as 0 | 1 | 2,
         memoryCost: this.config.hashingOptions.memoryCost,
         timeCost: this.config.hashingOptions.timeCost,
         parallelism: this.config.hashingOptions.parallelism,
@@ -121,11 +122,9 @@ export class PasswordService {
   async needsRehashing(hash: string): Promise<boolean> {
     try {
       return argon2.needsRehash(hash, {
-        type: this.config.hashingOptions.type,
         memoryCost: this.config.hashingOptions.memoryCost,
         timeCost: this.config.hashingOptions.timeCost,
         parallelism: this.config.hashingOptions.parallelism,
-        hashLength: this.config.hashingOptions.hashLength,
       });
     } catch (error) {
       // If we can't determine if it needs rehashing, assume it does for security
@@ -387,7 +386,9 @@ export class PasswordService {
     const array = str.split('');
     for (let i = array.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
+      const temp = array[i]!;
+      array[i] = array[j]!;
+      array[j] = temp;
     }
     return array.join('');
   }

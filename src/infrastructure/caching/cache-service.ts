@@ -6,6 +6,7 @@ export interface CacheOptions {
   ttl?: number;
   namespace?: string;
   tags?: string[];
+  useMemoryFallback?: boolean;
 }
 
 export interface CacheKeyPattern {
@@ -302,6 +303,13 @@ export class CacheService {
     } catch (error) {
       this.logError('Cache delete error', { key: fullKey }, error);
     }
+  }
+
+  /**
+   * Delete value from both L1 and L2 cache (alias for del)
+   */
+  async delete(key: string): Promise<void> {
+    return this.del(key);
   }
 
   /**
@@ -791,30 +799,29 @@ export class CacheService {
   }
 }
 
-export class RedisCacheService implements CacheService {
+export class RedisCacheService {
   constructor(private redisClient: any) {}
 
-  async get(key: string): Promise<string | null> {
-    return await this.redisClient.get(key);
+  async get<T>(key: string): Promise<T | null> {
+    const result = await this.redisClient.get(key);
+    return result ? JSON.parse(result) : null;
   }
 
-  async set(key: string, value: string, options?: CacheOptions): Promise<boolean> {
+  async set(key: string, value: any, options?: CacheOptions): Promise<void> {
+    const serializedValue = JSON.stringify(value);
     if (options?.ttl) {
-      await this.redisClient.setex(key, options.ttl, value);
+      await this.redisClient.setex(key, options.ttl, serializedValue);
     } else {
-      await this.redisClient.set(key, value);
+      await this.redisClient.set(key, serializedValue);
     }
-    return true;
   }
 
-  async delete(key: string): Promise<boolean> {
-    const result = await this.redisClient.del(key);
-    return result > 0;
+  async delete(key: string): Promise<void> {
+    await this.redisClient.del(key);
   }
 
-  async clear(): Promise<boolean> {
+  async clear(): Promise<void> {
     await this.redisClient.flushdb();
-    return true;
   }
 
   async has(key: string): Promise<boolean> {
@@ -830,8 +837,7 @@ export class RedisCacheService implements CacheService {
     return await this.redisClient.ttl(key);
   }
 
-  async expire(key: string, ttl: number): Promise<boolean> {
-    const result = await this.redisClient.expire(key, ttl);
-    return result === 1;
+  async expire(key: string, ttl: number): Promise<void> {
+    await this.redisClient.expire(key, ttl);
   }
 }

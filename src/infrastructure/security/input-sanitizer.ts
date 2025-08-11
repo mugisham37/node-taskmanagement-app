@@ -107,9 +107,9 @@ export class InputSanitizer {
         /onblur=/gi,
         /onchange=/gi,
         /onsubmit=/gi,
-        /<script[^>]*>.*?<\/script>/gis,
-        /<iframe[^>]*>.*?<\/iframe>/gis,
-        /<object[^>]*>.*?<\/object>/gis,
+        /<script[^>]*>.*?<\/script>/gi,
+        /<iframe[^>]*>.*?<\/iframe>/gi,
+        /<object[^>]*>.*?<\/object>/gi,
         /<embed[^>]*>/gi,
         /<link[^>]*>/gi,
         /<meta[^>]*>/gi,
@@ -133,11 +133,16 @@ export class InputSanitizer {
       });
     }
 
-    return {
+    const result: SanitizationResult = {
       sanitized,
       wasModified,
-      removedContent: removedContent.length > 0 ? removedContent : undefined,
     };
+
+    if (removedContent.length > 0) {
+      result.removedContent = removedContent;
+    }
+
+    return result;
   }
 
   /**

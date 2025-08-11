@@ -35,16 +35,16 @@ export interface LoggingConfig {
 }
 
 export interface LogContext {
-  userId?: string;
-  sessionId?: string;
-  requestId?: string;
-  correlationId?: string;
-  operation?: string;
-  resource?: string;
-  action?: string;
-  ip?: string;
-  userAgent?: string;
-  duration?: number;
+  userId?: string | undefined;
+  sessionId?: string | undefined;
+  requestId?: string | undefined;
+  correlationId?: string | undefined;
+  operation?: string | undefined;
+  resource?: string | undefined;
+  action?: string | undefined;
+  ip?: string | undefined;
+  userAgent?: string | undefined;
+  duration?: number | undefined;
   [key: string]: any;
 }
 
@@ -358,7 +358,10 @@ export class LoggingService {
     await this.flush();
   }
 
-  private log(level: string, message: string, context?: LogContext): void {
+  /**
+   * Public log method for external services
+   */
+  public log(level: string, message: string, context?: LogContext): void {
     const logEntry = {
       message,
       service: this.config.metadata.service,
