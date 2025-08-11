@@ -145,9 +145,8 @@ export class FileAttachmentRepository
         this.toDomain(result as FileAttachmentDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding file attachments by checksum', {
+      logger.error('Error finding file attachments by checksum', error as Error, {
         checksum,
-        error,
       });
       throw error;
     }
@@ -176,9 +175,8 @@ export class FileAttachmentRepository
         this.toDomain(result as FileAttachmentDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding file attachments by uploaded by', {
+      logger.error('Error finding file attachments by uploaded by', error as Error, {
         userId,
-        error,
       });
       throw error;
     }
@@ -207,9 +205,8 @@ export class FileAttachmentRepository
         this.toDomain(result as FileAttachmentDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding file attachments by workspace ID', {
+      logger.error('Error finding file attachments by workspace ID', error as Error, {
         workspaceId,
-        error,
       });
       throw error;
     }
@@ -238,9 +235,8 @@ export class FileAttachmentRepository
         this.toDomain(result as FileAttachmentDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding file attachments by project ID', {
+      logger.error('Error finding file attachments by project ID', error as Error, {
         projectId,
-        error,
       });
       throw error;
     }
@@ -269,9 +265,8 @@ export class FileAttachmentRepository
         this.toDomain(result as FileAttachmentDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding file attachments by task ID', {
+      logger.error('Error finding file attachments by task ID', error as Error, {
         taskId,
-        error,
       });
       throw error;
     }
@@ -294,9 +289,8 @@ export class FileAttachmentRepository
         this.toDomain(result as FileAttachmentDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding file attachments by comment ID', {
+      logger.error('Error finding file attachments by comment ID', error as Error, {
         commentId,
-        error,
       });
       throw error;
     }
@@ -322,7 +316,7 @@ export class FileAttachmentRepository
         this.toDomain(result as FileAttachmentDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding file attachments by type', { type, error });
+      logger.error('Error finding file attachments by type', error as Error, { type });
       throw error;
     }
   }
@@ -345,9 +339,8 @@ export class FileAttachmentRepository
         this.toDomain(result as FileAttachmentDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding file attachments by status', {
+      logger.error('Error finding file attachments by status', error as Error, {
         status,
-        error,
       });
       throw error;
     }
@@ -376,9 +369,8 @@ export class FileAttachmentRepository
         this.toDomain(result as FileAttachmentDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding file attachments by MIME type', {
+      logger.error('Error finding file attachments by MIME type', error as Error, {
         mimeType,
-        error,
       });
       throw error;
     }
@@ -401,7 +393,7 @@ export class FileAttachmentRepository
         this.toDomain(result as FileAttachmentDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding deleted file attachments', { error });
+      logger.error('Error finding deleted file attachments', error as Error);
       throw error;
     }
   }
@@ -426,7 +418,7 @@ export class FileAttachmentRepository
         this.toDomain(result as FileAttachmentDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding orphaned file attachments', { error });
+      logger.error('Error finding orphaned file attachments', error as Error);
       throw error;
     }
   }
@@ -449,9 +441,8 @@ export class FileAttachmentRepository
         this.toDomain(result as FileAttachmentDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding large file attachments', {
+      logger.error('Error finding large file attachments', error as Error, {
         minSizeMB,
-        error,
       });
       throw error;
     }
@@ -516,10 +507,9 @@ export class FileAttachmentRepository
 
       return stats;
     } catch (error) {
-      logger.error('Error getting file attachment storage stats', {
-        workspaceId,
-        userId,
-        error,
+      logger.error('Error getting file attachment storage stats', error as Error, {
+        ...(workspaceId && { workspaceId }),
+        ...(userId && { userId }),
       });
       throw error;
     }
@@ -599,7 +589,7 @@ export class FileAttachmentRepository
         this.toDomain(result as FileAttachmentDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error searching file attachments', { query, error });
+      logger.error('Error searching file attachments', error as Error, { query });
       throw error;
     }
   }
@@ -610,7 +600,7 @@ export class FileAttachmentRepository
         .delete(fileAttachments)
         .where(eq(fileAttachments.id, id));
     } catch (error) {
-      logger.error('Error hard deleting file attachment', { id, error });
+      logger.error('Error hard deleting file attachment', error as Error, { id });
       throw error;
     }
   }
@@ -626,9 +616,8 @@ export class FileAttachmentRepository
         })
         .where(eq(fileAttachments.uploadedBy, userId));
     } catch (error) {
-      logger.error('Error deleting file attachments by uploaded by', {
+      logger.error('Error deleting file attachments by uploaded by', error as Error, {
         userId,
-        error,
       });
       throw error;
     }
@@ -645,9 +634,8 @@ export class FileAttachmentRepository
         })
         .where(eq(fileAttachments.workspaceId, workspaceId));
     } catch (error) {
-      logger.error('Error deleting file attachments by workspace ID', {
+      logger.error('Error deleting file attachments by workspace ID', error as Error, {
         workspaceId,
-        error,
       });
       throw error;
     }
@@ -664,9 +652,8 @@ export class FileAttachmentRepository
         })
         .where(eq(fileAttachments.projectId, projectId));
     } catch (error) {
-      logger.error('Error deleting file attachments by project ID', {
+      logger.error('Error deleting file attachments by project ID', error as Error, {
         projectId,
-        error,
       });
       throw error;
     }
@@ -683,9 +670,8 @@ export class FileAttachmentRepository
         })
         .where(eq(fileAttachments.taskId, taskId));
     } catch (error) {
-      logger.error('Error deleting file attachments by task ID', {
+      logger.error('Error deleting file attachments by task ID', error as Error, {
         taskId,
-        error,
       });
       throw error;
     }
@@ -710,9 +696,8 @@ export class FileAttachmentRepository
 
       return results.length;
     } catch (error) {
-      logger.error('Error deleting file attachments older than date', {
+      logger.error('Error deleting file attachments older than date', error as Error, {
         date,
-        error,
       });
       throw error;
     }
@@ -740,7 +725,7 @@ export class FileAttachmentRepository
 
       return results.length;
     } catch (error) {
-      logger.error('Error cleaning up orphaned file attachments', { error });
+      logger.error('Error cleaning up orphaned file attachments', error as Error);
       throw error;
     }
   }

@@ -13,7 +13,7 @@ import {
   isNotNull,
 } from 'drizzle-orm';
 import { getDatabase } from '../connection';
-import { tasks, users, projects, taskDependencies } from '../schema';
+import { tasks, taskDependencies } from '../schema';
 import {
   ITaskRepository,
   TaskFilters,
@@ -26,7 +26,7 @@ import {
   TaskAggregate,
   TaskDependency,
 } from '../../../domain/aggregates/task-aggregate';
-import { TaskId, UserId, ProjectId } from '../../../domain/value-objects';
+import { TaskId, UserId, ProjectId, TaskStatusVO, Priority } from '../../../domain/value-objects';
 import { TaskStatus } from '../../../shared/constants/task-constants';
 
 export class TaskRepository implements ITaskRepository {
@@ -60,36 +60,36 @@ export class TaskRepository implements ITaskRepository {
     sort?: TaskSortOptions,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Task>> {
-    let query = this.db
-      .select()
-      .from(tasks)
-      .where(eq(tasks.projectId, projectId.value));
+    const whereConditions: any[] = [eq(tasks.projectId, projectId.value)];
 
     // Apply filters
     if (filters) {
-      const conditions = this.buildFilterConditions(filters);
-      if (conditions.length > 0) {
-        query = query.where(
-          and(eq(tasks.projectId, projectId.value), ...conditions)
-        );
-      }
+      const filterConditions = this.buildFilterConditions(filters);
+      whereConditions.push(...filterConditions);
     }
 
-    // Apply sorting
-    if (sort) {
-      const orderBy = sort.direction === 'DESC' ? desc : asc;
-      query = query.orderBy(orderBy(tasks[sort.field]));
-    } else {
-      query = query.orderBy(desc(tasks.createdAt));
-    }
+    // Build base query components
+    const selectClause = this.db.select().from(tasks);
+    const whereClause = and(...whereConditions);
+    const orderByClause = sort 
+      ? (sort.direction === 'DESC' ? desc(tasks[sort.field]) : asc(tasks[sort.field]))
+      : desc(tasks.createdAt);
 
-    // Apply pagination
+    // Execute the main query
+    let result;
     if (pagination) {
       const offset = (pagination.page - 1) * pagination.limit;
-      query = query.limit(pagination.limit).offset(offset);
+      result = await selectClause
+        .where(whereClause)
+        .orderBy(orderByClause)
+        .limit(pagination.limit)
+        .offset(offset);
+    } else {
+      result = await selectClause
+        .where(whereClause)
+        .orderBy(orderByClause);
     }
 
-    const result = await query;
     const total = await this.count(projectId, filters);
 
     return {
@@ -107,54 +107,43 @@ export class TaskRepository implements ITaskRepository {
     sort?: TaskSortOptions,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Task>> {
-    let query = this.db
-      .select()
-      .from(tasks)
-      .where(eq(tasks.assigneeId, assigneeId.value));
+    const whereConditions: any[] = [eq(tasks.assigneeId, assigneeId.value)];
 
     // Apply filters
     if (filters) {
-      const conditions = this.buildFilterConditions(filters);
-      if (conditions.length > 0) {
-        query = query.where(
-          and(eq(tasks.assigneeId, assigneeId.value), ...conditions)
-        );
-      }
+      const filterConditions = this.buildFilterConditions(filters);
+      whereConditions.push(...filterConditions);
     }
 
-    // Apply sorting
-    if (sort) {
-      const orderBy = sort.direction === 'DESC' ? desc : asc;
-      query = query.orderBy(orderBy(tasks[sort.field]));
-    } else {
-      query = query.orderBy(desc(tasks.createdAt));
-    }
+    // Build base query components
+    const selectClause = this.db.select().from(tasks);
+    const whereClause = and(...whereConditions);
+    const orderByClause = sort 
+      ? (sort.direction === 'DESC' ? desc(tasks[sort.field]) : asc(tasks[sort.field]))
+      : desc(tasks.createdAt);
 
-    // Apply pagination
+    // Execute the main query
+    let result;
     if (pagination) {
       const offset = (pagination.page - 1) * pagination.limit;
-      query = query.limit(pagination.limit).offset(offset);
+      result = await selectClause
+        .where(whereClause)
+        .orderBy(orderByClause)
+        .limit(pagination.limit)
+        .offset(offset);
+    } else {
+      result = await selectClause
+        .where(whereClause)
+        .orderBy(orderByClause);
     }
-
-    const result = await query;
 
     // Count total
-    let countQuery = this.db
+    const totalResult = await this.db
       .select({ count: count() })
       .from(tasks)
-      .where(eq(tasks.assigneeId, assigneeId.value));
-
-    if (filters) {
-      const conditions = this.buildFilterConditions(filters);
-      if (conditions.length > 0) {
-        countQuery = countQuery.where(
-          and(eq(tasks.assigneeId, assigneeId.value), ...conditions)
-        );
-      }
-    }
-
-    const totalResult = await countQuery;
-    const total = totalResult[0].count;
+      .where(whereClause);
+    
+    const total = totalResult[0]?.count || 0;
 
     return {
       items: result.map(row => this.mapToEntity(row)),
@@ -171,54 +160,43 @@ export class TaskRepository implements ITaskRepository {
     sort?: TaskSortOptions,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Task>> {
-    let query = this.db
-      .select()
-      .from(tasks)
-      .where(eq(tasks.createdById, createdById.value));
+    const whereConditions: any[] = [eq(tasks.createdById, createdById.value)];
 
     // Apply filters
     if (filters) {
-      const conditions = this.buildFilterConditions(filters);
-      if (conditions.length > 0) {
-        query = query.where(
-          and(eq(tasks.createdById, createdById.value), ...conditions)
-        );
-      }
+      const filterConditions = this.buildFilterConditions(filters);
+      whereConditions.push(...filterConditions);
     }
 
-    // Apply sorting
-    if (sort) {
-      const orderBy = sort.direction === 'DESC' ? desc : asc;
-      query = query.orderBy(orderBy(tasks[sort.field]));
-    } else {
-      query = query.orderBy(desc(tasks.createdAt));
-    }
+    // Build base query components
+    const selectClause = this.db.select().from(tasks);
+    const whereClause = and(...whereConditions);
+    const orderByClause = sort 
+      ? (sort.direction === 'DESC' ? desc(tasks[sort.field]) : asc(tasks[sort.field]))
+      : desc(tasks.createdAt);
 
-    // Apply pagination
+    // Execute the main query
+    let result;
     if (pagination) {
       const offset = (pagination.page - 1) * pagination.limit;
-      query = query.limit(pagination.limit).offset(offset);
+      result = await selectClause
+        .where(whereClause)
+        .orderBy(orderByClause)
+        .limit(pagination.limit)
+        .offset(offset);
+    } else {
+      result = await selectClause
+        .where(whereClause)
+        .orderBy(orderByClause);
     }
-
-    const result = await query;
 
     // Count total
-    let countQuery = this.db
+    const totalResult = await this.db
       .select({ count: count() })
       .from(tasks)
-      .where(eq(tasks.createdById, createdById.value));
-
-    if (filters) {
-      const conditions = this.buildFilterConditions(filters);
-      if (conditions.length > 0) {
-        countQuery = countQuery.where(
-          and(eq(tasks.createdById, createdById.value), ...conditions)
-        );
-      }
-    }
-
-    const totalResult = await countQuery;
-    const total = totalResult[0].count;
+      .where(whereClause);
+    
+    const total = totalResult[0]?.count || 0;
 
     return {
       items: result.map(row => this.mapToEntity(row)),
@@ -235,21 +213,10 @@ export class TaskRepository implements ITaskRepository {
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Task>> {
     const now = new Date();
-    let query = this.db
-      .select()
-      .from(tasks)
-      .where(
-        and(
-          lte(tasks.dueDate, now),
-          isNotNull(tasks.dueDate),
-          inArray(tasks.status, ['TODO', 'IN_PROGRESS', 'IN_REVIEW'])
-        )
-      );
-
     const conditions: any[] = [
       lte(tasks.dueDate, now),
       isNotNull(tasks.dueDate),
-      inArray(tasks.status, ['TODO', 'IN_PROGRESS', 'IN_REVIEW']),
+      inArray(tasks.status, ['TODO', 'IN_PROGRESS', 'IN_REVIEW'] as const),
     ];
 
     if (projectId) {
@@ -260,25 +227,29 @@ export class TaskRepository implements ITaskRepository {
       conditions.push(eq(tasks.assigneeId, assigneeId.value));
     }
 
-    query = this.db
-      .select()
-      .from(tasks)
-      .where(and(...conditions));
+    // Build base query components
+    const selectClause = this.db.select().from(tasks);
+    const whereClause = and(...conditions);
 
-    // Apply pagination
+    // Execute the main query
+    let result;
     if (pagination) {
       const offset = (pagination.page - 1) * pagination.limit;
-      query = query.limit(pagination.limit).offset(offset);
+      result = await selectClause
+        .where(whereClause)
+        .limit(pagination.limit)
+        .offset(offset);
+    } else {
+      result = await selectClause
+        .where(whereClause);
     }
-
-    const result = await query;
 
     // Count total
     const totalResult = await this.db
       .select({ count: count() })
       .from(tasks)
-      .where(and(...conditions));
-    const total = totalResult[0].count;
+      .where(whereClause);
+    const total = totalResult[0]?.count || 0;
 
     return {
       items: result.map(row => this.mapToEntity(row)),
@@ -301,7 +272,7 @@ export class TaskRepository implements ITaskRepository {
     const conditions: any[] = [
       lte(tasks.dueDate, futureDate),
       isNotNull(tasks.dueDate),
-      inArray(tasks.status, ['TODO', 'IN_PROGRESS', 'IN_REVIEW']),
+      inArray(tasks.status, ['TODO', 'IN_PROGRESS', 'IN_REVIEW'] as const),
     ];
 
     if (projectId) {
@@ -312,25 +283,29 @@ export class TaskRepository implements ITaskRepository {
       conditions.push(eq(tasks.assigneeId, assigneeId.value));
     }
 
-    let query = this.db
-      .select()
-      .from(tasks)
-      .where(and(...conditions));
+    // Build base query components
+    const selectClause = this.db.select().from(tasks);
+    const whereClause = and(...conditions);
 
-    // Apply pagination
+    // Execute the main query
+    let result;
     if (pagination) {
       const offset = (pagination.page - 1) * pagination.limit;
-      query = query.limit(pagination.limit).offset(offset);
+      result = await selectClause
+        .where(whereClause)
+        .limit(pagination.limit)
+        .offset(offset);
+    } else {
+      result = await selectClause
+        .where(whereClause);
     }
-
-    const result = await query;
 
     // Count total
     const totalResult = await this.db
       .select({ count: count() })
       .from(tasks)
-      .where(and(...conditions));
-    const total = totalResult[0].count;
+      .where(whereClause);
+    const total = totalResult[0]?.count || 0;
 
     return {
       items: result.map(row => this.mapToEntity(row)),
@@ -363,25 +338,29 @@ export class TaskRepository implements ITaskRepository {
       conditions.push(...filterConditions);
     }
 
-    let query = this.db
-      .select()
-      .from(tasks)
-      .where(and(...conditions));
+    // Build base query components
+    const selectClause = this.db.select().from(tasks);
+    const whereClause = and(...conditions);
 
-    // Apply pagination
+    // Execute the main query
+    let result;
     if (pagination) {
       const offset = (pagination.page - 1) * pagination.limit;
-      query = query.limit(pagination.limit).offset(offset);
+      result = await selectClause
+        .where(whereClause)
+        .limit(pagination.limit)
+        .offset(offset);
+    } else {
+      result = await selectClause
+        .where(whereClause);
     }
-
-    const result = await query;
 
     // Count total
     const totalResult = await this.db
       .select({ count: count() })
       .from(tasks)
-      .where(and(...conditions));
-    const total = totalResult[0].count;
+      .where(whereClause);
+    const total = totalResult[0]?.count || 0;
 
     return {
       items: result.map(row => this.mapToEntity(row)),
@@ -442,10 +421,10 @@ export class TaskRepository implements ITaskRepository {
           eq(tasks.projectId, projectId.value),
           lte(tasks.dueDate, now),
           isNotNull(tasks.dueDate),
-          inArray(tasks.status, ['TODO', 'IN_PROGRESS', 'IN_REVIEW'])
+          inArray(tasks.status, ['TODO', 'IN_PROGRESS', 'IN_REVIEW'] as const)
         )
       );
-    const overdue = overdueResult[0].count;
+    const overdue = overdueResult[0]?.count || 0;
 
     // Get completed count
     const completedResult = await this.db
@@ -454,7 +433,7 @@ export class TaskRepository implements ITaskRepository {
       .where(
         and(eq(tasks.projectId, projectId.value), eq(tasks.status, 'COMPLETED'))
       );
-    const completed = completedResult[0].count;
+    const completed = completedResult[0]?.count || 0;
 
     return {
       total,
@@ -570,8 +549,6 @@ export class TaskRepository implements ITaskRepository {
   }
 
   async count(projectId?: ProjectId, filters?: TaskFilters): Promise<number> {
-    let query = this.db.select({ count: count() }).from(tasks);
-
     const conditions: any[] = [];
 
     if (projectId) {
@@ -583,21 +560,21 @@ export class TaskRepository implements ITaskRepository {
       conditions.push(...filterConditions);
     }
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
+    const query = conditions.length > 0 
+      ? this.db.select({ count: count() }).from(tasks).where(and(...conditions))
+      : this.db.select({ count: count() }).from(tasks);
 
     const result = await query;
-    return result[0].count;
+    return result[0]?.count || 0;
   }
 
   // Placeholder implementations for complex methods
-  async getTaskAggregate(projectId: ProjectId): Promise<TaskAggregate | null> {
+  async getTaskAggregate(): Promise<TaskAggregate | null> {
     // This would require complex logic to build the aggregate
     return null;
   }
 
-  async saveTaskAggregate(aggregate: TaskAggregate): Promise<void> {
+  async saveTaskAggregate(): Promise<void> {
     // This would require complex logic to save the aggregate
   }
 
@@ -640,23 +617,22 @@ export class TaskRepository implements ITaskRepository {
   }
 
   // Additional placeholder methods
-  async getTaskCompletionHistory(
-    projectId: ProjectId,
-    fromDate: Date,
-    toDate: Date
-  ): Promise<any[]> {
+  async getTaskCompletionHistory(): Promise<any[]> {
     return [];
   }
-  async getUserTaskWorkload(userId: UserId): Promise<any> {
+  
+  async getUserTaskWorkload(): Promise<any> {
     return {};
   }
+  
   async bulkUpdateStatus(taskIds: TaskId[], status: TaskStatus): Promise<void> {
     const idValues = taskIds.map(id => id.value);
     await this.db
       .update(tasks)
-      .set({ status, updatedAt: new Date() })
+      .set({ status: status as any, updatedAt: new Date() })
       .where(inArray(tasks.id, idValues));
   }
+  
   async bulkAssignTasks(taskIds: TaskId[], assigneeId: UserId): Promise<void> {
     const idValues = taskIds.map(id => id.value);
     await this.db
@@ -664,10 +640,8 @@ export class TaskRepository implements ITaskRepository {
       .set({ assigneeId: assigneeId.value, updatedAt: new Date() })
       .where(inArray(tasks.id, idValues));
   }
-  async getTasksRequiringAttention(
-    projectId?: ProjectId,
-    assigneeId?: UserId
-  ): Promise<Task[]> {
+  
+  async getTasksRequiringAttention(): Promise<Task[]> {
     return [];
   }
 
@@ -675,7 +649,8 @@ export class TaskRepository implements ITaskRepository {
     const conditions: any[] = [];
 
     if (filters.status && filters.status.length > 0) {
-      conditions.push(inArray(tasks.status, filters.status));
+      const statusValues = filters.status.map(s => s as string);
+      conditions.push(inArray(tasks.status, statusValues as any));
     }
 
     if (filters.assigneeId) {
@@ -687,7 +662,7 @@ export class TaskRepository implements ITaskRepository {
     }
 
     if (filters.priority && filters.priority.length > 0) {
-      conditions.push(inArray(tasks.priority, filters.priority));
+      conditions.push(inArray(tasks.priority, filters.priority as any));
     }
 
     if (filters.dueDateFrom) {
@@ -704,7 +679,7 @@ export class TaskRepository implements ITaskRepository {
         and(
           lte(tasks.dueDate, now),
           isNotNull(tasks.dueDate),
-          inArray(tasks.status, ['TODO', 'IN_PROGRESS', 'IN_REVIEW'])
+          inArray(tasks.status, ['TODO', 'IN_PROGRESS', 'IN_REVIEW'] as const)
         )
       );
     }
@@ -730,27 +705,40 @@ export class TaskRepository implements ITaskRepository {
   }
 
   private mapToEntity(row: any): Task {
-    // This would need to be implemented based on the actual Task entity structure
-    return {} as Task;
+    return Task.restore(
+      TaskId.create(row.id),
+      row.title,
+      row.description || '',
+      TaskStatusVO.fromString(row.status),
+      Priority.fromString(row.priority),
+      row.assigneeId ? UserId.create(row.assigneeId) : null,
+      ProjectId.create(row.projectId),
+      UserId.create(row.createdById),
+      row.dueDate,
+      row.estimatedHours,
+      row.actualHours,
+      row.completedAt,
+      row.createdAt,
+      row.updatedAt
+    );
   }
 
   private mapFromEntity(task: Task): any {
-    // This would need to be implemented based on the actual Task entity structure
     return {
-      id: '', // task.id.value,
-      title: '', // task.title,
-      description: '', // task.description,
-      status: 'TODO', // task.status.value,
-      priority: 'MEDIUM', // task.priority.value,
-      assigneeId: null, // task.assigneeId?.value,
-      projectId: '', // task.projectId.value,
-      createdById: '', // task.createdById.value,
-      dueDate: null, // task.dueDate,
-      estimatedHours: null, // task.estimatedHours,
-      actualHours: null, // task.actualHours,
-      completedAt: null, // task.completedAt,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      id: task.id.value,
+      title: task.title,
+      description: task.description,
+      status: task.status.value,
+      priority: task.priority.value,
+      assigneeId: task.assigneeId?.value || null,
+      projectId: task.projectId.value,
+      createdById: task.createdById.value,
+      dueDate: task.dueDate,
+      estimatedHours: task.estimatedHours,
+      actualHours: task.actualHours,
+      completedAt: task.completedAt,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt,
     };
   }
 }

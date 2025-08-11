@@ -4,9 +4,7 @@ import {
   or,
   desc,
   asc,
-  count,
   sql,
-  inArray,
   isNull,
   gte,
   lte,
@@ -18,6 +16,8 @@ import {
   WebhookStatus,
   WebhookDelivery,
   WebhookDeliveryStatus,
+  WebhookProps,
+  WebhookDeliveryProps,
 } from '../../../domain/entities/webhook';
 import {
   IWebhookRepository,
@@ -27,8 +27,6 @@ import { ISpecification } from '../../../domain/base/repository.interface';
 import {
   webhooks,
   webhookDeliveries,
-  webhookStatusEnum,
-  webhookDeliveryStatusEnum,
 } from '../schema/webhooks';
 import { logger } from '../../monitoring/logging-service';
 
@@ -50,27 +48,49 @@ export class WebhookRepository
   }
 
   protected toDomain(drizzleModel: DrizzleWebhook): Webhook {
-    return new Webhook({
+    const props: WebhookProps = {
       id: drizzleModel.id,
       workspaceId: drizzleModel.workspaceId,
       name: drizzleModel.name,
       url: drizzleModel.url,
       events: (drizzleModel.events as string[]).map(e => e as WebhookEvent),
       headers: (drizzleModel.headers as Record<string, string>) || {},
-      secret: drizzleModel.secret || undefined,
       status: drizzleModel.status as WebhookStatus,
-      description: drizzleModel.description || undefined,
       retryCount: drizzleModel.retryCount,
       maxRetries: drizzleModel.maxRetries,
       timeout: drizzleModel.timeout,
-      lastDeliveryAt: drizzleModel.lastDeliveryAt || undefined,
-      lastSuccessAt: drizzleModel.lastSuccessAt || undefined,
-      lastFailureAt: drizzleModel.lastFailureAt || undefined,
-      failureReason: drizzleModel.failureReason || undefined,
+      failureCount: drizzleModel.failureCount,
+      maxFailures: drizzleModel.maxFailures,
       createdBy: drizzleModel.createdBy,
       createdAt: drizzleModel.createdAt,
       updatedAt: drizzleModel.updatedAt,
-    });
+      metadata: (drizzleModel.metadata as Record<string, any>) || {},
+    };
+
+    // Add optional properties only if they exist
+    if (drizzleModel.secret !== null) {
+      props.secret = drizzleModel.secret;
+    }
+    if (drizzleModel.description !== null) {
+      props.description = drizzleModel.description;
+    }
+    if (drizzleModel.lastDeliveryAt !== null) {
+      props.lastDeliveryAt = drizzleModel.lastDeliveryAt;
+    }
+    if (drizzleModel.lastSuccessAt !== null) {
+      props.lastSuccessAt = drizzleModel.lastSuccessAt;
+    }
+    if (drizzleModel.lastFailureAt !== null) {
+      props.lastFailureAt = drizzleModel.lastFailureAt;
+    }
+    if (drizzleModel.failureReason !== null) {
+      props.failureReason = drizzleModel.failureReason;
+    }
+    if (drizzleModel.lastTriggeredAt !== null) {
+      props.lastTriggeredAt = drizzleModel.lastTriggeredAt;
+    }
+
+    return new Webhook(props);
   }
 
   protected toDrizzle(entity: Webhook): Partial<DrizzleWebhook> {
@@ -81,40 +101,52 @@ export class WebhookRepository
       url: entity.url,
       events: entity.events,
       headers: entity.headers,
-      secret: entity.secret,
+      secret: entity.secret || null,
       status: entity.status,
-      description: entity.description,
+      description: entity.description || null,
+      lastDeliveryAt: entity.lastDeliveryAt || null,
+      lastSuccessAt: entity.lastSuccessAt || null,
+      lastFailureAt: entity.lastFailureAt || null,
+      failureReason: entity.failureReason || null,
       retryCount: entity.retryCount,
       maxRetries: entity.maxRetries,
       timeout: entity.timeout,
-      lastDeliveryAt: entity.lastDeliveryAt,
-      lastSuccessAt: entity.lastSuccessAt,
-      lastFailureAt: entity.lastFailureAt,
-      failureReason: entity.failureReason,
+      lastTriggeredAt: entity.lastTriggeredAt || null,
+      failureCount: entity.failureCount,
+      maxFailures: entity.maxFailures,
       createdBy: entity.createdBy,
       updatedAt: new Date(),
+      metadata: entity.metadata,
     };
   }
 
-  protected buildWhereClause(specification: ISpecification<Webhook>): any {
+  protected buildWhereClause(_specification: ISpecification<Webhook>): any {
+    // TODO: Implement specification pattern for complex queries
     return undefined;
   }
 
-  async save(webhook: Webhook): Promise<void> {
+  override async save(webhook: Webhook): Promise<Webhook> {
     try {
       const data = this.toDrizzle(webhook);
-      await this.database
+      const results = await this.database
         .insert(webhooks)
         .values(data as any)
         .onConflictDoUpdate({
           target: webhooks.id,
           set: data,
-        });
+        })
+        .returning();
+
+      if (!results || results.length === 0) {
+        throw new Error('Failed to save webhook - no results returned');
+      }
+
+      return this.toDomain(results[0]!);
     } catch (error) {
       logger.error('Error saving webhook', {
         webhookId: webhook.id,
-        error,
-      });
+        error: error
+      } as any);
       throw error;
     }
   }
@@ -136,9 +168,9 @@ export class WebhookRepository
       return results.map(result => this.toDomain(result));
     } catch (error) {
       logger.error('Error finding webhooks by workspace ID', {
-        workspaceId,
-        error,
-      });
+        workspaceId: workspaceId,
+        error: error
+      } as any);
       throw error;
     }
   }
@@ -159,7 +191,10 @@ export class WebhookRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding webhooks by status', { status, error });
+      logger.error('Error finding webhooks by status', { 
+        status: status, 
+        error: error 
+      } as any);
       throw error;
     }
   }
@@ -172,7 +207,7 @@ export class WebhookRepository
       let whereClause = sql`JSON_CONTAINS(${webhooks.events}, '"${event}"')`;
 
       if (workspaceId) {
-        whereClause = and(whereClause, eq(webhooks.workspaceId, workspaceId));
+        whereClause = and(whereClause, eq(webhooks.workspaceId, workspaceId))!;
       }
 
       const results = await this.database
@@ -183,7 +218,10 @@ export class WebhookRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding webhooks by event', { event, error });
+      logger.error('Error finding webhooks by event', { 
+        event: event, 
+        error: error 
+      } as any);
       throw error;
     }
   }
@@ -193,7 +231,7 @@ export class WebhookRepository
       let whereClause = eq(webhooks.status, 'active');
 
       if (workspaceId) {
-        whereClause = and(whereClause, eq(webhooks.workspaceId, workspaceId));
+        whereClause = and(whereClause, eq(webhooks.workspaceId, workspaceId))!;
       }
 
       const results = await this.database
@@ -204,7 +242,43 @@ export class WebhookRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding active webhooks', { workspaceId, error });
+      logger.error('Error finding active webhooks', { 
+        workspaceId: workspaceId, 
+        error: error 
+      } as any);
+      throw error;
+    }
+  }
+
+  async findFailed(): Promise<Webhook[]> {
+    try {
+      const results = await this.database
+        .select()
+        .from(webhooks)
+        .where(eq(webhooks.status, 'failed'))
+        .orderBy(desc(webhooks.createdAt));
+
+      return results.map(result => this.toDomain(result));
+    } catch (error) {
+      logger.error('Error finding failed webhooks', { error: error } as any);
+      throw error;
+    }
+  }
+
+  async findByUrl(url: string): Promise<Webhook[]> {
+    try {
+      const results = await this.database
+        .select()
+        .from(webhooks)
+        .where(eq(webhooks.url, url))
+        .orderBy(desc(webhooks.createdAt));
+
+      return results.map(result => this.toDomain(result));
+    } catch (error) {
+      logger.error('Error finding webhooks by URL', { 
+        url: url, 
+        error: error 
+      } as any);
       throw error;
     }
   }
@@ -225,7 +299,10 @@ export class WebhookRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding webhooks by created by', { userId, error });
+      logger.error('Error finding webhooks by created by', { 
+        userId: userId, 
+        error: error 
+      } as any);
       throw error;
     }
   }
@@ -233,10 +310,11 @@ export class WebhookRepository
   async getWebhookStats(workspaceId?: string): Promise<{
     total: number;
     active: number;
-    inactive: number;
     failed: number;
+    suspended: number;
     byEvent: Record<WebhookEvent, number>;
-    averageResponseTime: number;
+    totalDeliveries: number;
+    successRate: number;
   }> {
     try {
       let whereClause = undefined;
@@ -254,53 +332,59 @@ export class WebhookRepository
       const stats = {
         total: webhookList.length,
         active: webhookList.filter(w => w.status === 'active').length,
-        inactive: webhookList.filter(w => w.status === 'inactive').length,
         failed: webhookList.filter(w => w.status === 'failed').length,
+        suspended: webhookList.filter(w => w.status === 'suspended').length,
         byEvent: {} as Record<WebhookEvent, number>,
-        averageResponseTime: 0,
+        totalDeliveries: 0,
+        successRate: 0,
       };
 
       // Initialize event counts
-      Object.values(WebhookEvent).forEach(event => {
+      Object.values(WebhookEvent).forEach((event: WebhookEvent) => {
         stats.byEvent[event] = 0;
       });
 
       // Count events
       webhookList.forEach(webhook => {
-        webhook.events.forEach(event => {
-          stats.byEvent[event]++;
+        webhook.events.forEach((event: WebhookEvent) => {
+          if (stats.byEvent[event] !== undefined) {
+            stats.byEvent[event]++;
+          }
         });
       });
 
       return stats;
     } catch (error) {
-      logger.error('Error getting webhook stats', { workspaceId, error });
+      logger.error('Error getting webhook stats', { 
+        workspaceId: workspaceId, 
+        error: error 
+      } as any);
       throw error;
     }
   }
 
-  async delete(id: string): Promise<void> {
+  override async delete(id: string): Promise<void> {
     try {
       await this.database.delete(webhooks).where(eq(webhooks.id, id));
     } catch (error) {
-      logger.error('Error deleting webhook', { id, error });
+      logger.error('Error deleting webhook', { 
+        id: id, 
+        error: error 
+      } as any);
       throw error;
     }
   }
 
-  async deleteByWorkspaceId(workspaceId: string): Promise<number> {
+  async deleteByWorkspaceId(workspaceId: string): Promise<void> {
     try {
-      const results = await this.database
+      await this.database
         .delete(webhooks)
-        .where(eq(webhooks.workspaceId, workspaceId))
-        .returning({ id: webhooks.id });
-
-      return results.length;
+        .where(eq(webhooks.workspaceId, workspaceId));
     } catch (error) {
       logger.error('Error deleting webhooks by workspace ID', {
-        workspaceId,
-        error,
-      });
+        workspaceId: workspaceId,
+        error: error
+      } as any);
       throw error;
     }
   }
@@ -320,26 +404,45 @@ export class WebhookDeliveryRepository
   }
 
   protected toDomain(drizzleModel: DrizzleWebhookDelivery): WebhookDelivery {
-    return new WebhookDelivery({
+    const props: WebhookDeliveryProps = {
       id: drizzleModel.id,
       webhookId: drizzleModel.webhookId,
       event: drizzleModel.event as WebhookEvent,
       payload: (drizzleModel.payload as Record<string, any>) || {},
-      headers: (drizzleModel.headers as Record<string, string>) || {},
       status: drizzleModel.status as WebhookDeliveryStatus,
-      httpStatus: drizzleModel.httpStatus || undefined,
-      responseBody: drizzleModel.responseBody || undefined,
-      responseHeaders:
-        (drizzleModel.responseHeaders as Record<string, string>) || {},
-      duration: drizzleModel.duration || undefined,
       attempt: drizzleModel.attempt,
       maxAttempts: drizzleModel.maxAttempts,
-      nextRetryAt: drizzleModel.nextRetryAt || undefined,
-      errorMessage: drizzleModel.errorMessage || undefined,
-      deliveredAt: drizzleModel.deliveredAt || undefined,
       createdAt: drizzleModel.createdAt,
       updatedAt: drizzleModel.updatedAt,
-    });
+    };
+
+    // Add optional properties only if they exist
+    if (drizzleModel.headers !== null) {
+      props.headers = drizzleModel.headers as Record<string, string>;
+    }
+    if (drizzleModel.httpStatus !== null) {
+      props.httpStatus = drizzleModel.httpStatus;
+    }
+    if (drizzleModel.responseBody !== null) {
+      props.responseBody = drizzleModel.responseBody;
+    }
+    if (drizzleModel.responseHeaders !== null) {
+      props.responseHeaders = drizzleModel.responseHeaders as Record<string, string>;
+    }
+    if (drizzleModel.duration !== null) {
+      props.duration = drizzleModel.duration;
+    }
+    if (drizzleModel.nextRetryAt !== null) {
+      props.nextRetryAt = drizzleModel.nextRetryAt;
+    }
+    if (drizzleModel.errorMessage !== null) {
+      props.errorMessage = drizzleModel.errorMessage;
+    }
+    if (drizzleModel.deliveredAt !== null) {
+      props.deliveredAt = drizzleModel.deliveredAt;
+    }
+
+    return new WebhookDelivery(props);
   }
 
   protected toDrizzle(
@@ -350,42 +453,50 @@ export class WebhookDeliveryRepository
       webhookId: entity.webhookId,
       event: entity.event,
       payload: entity.payload,
-      headers: entity.headers,
+      headers: entity.headers || null,
       status: entity.status,
-      httpStatus: entity.httpStatus,
-      responseBody: entity.responseBody,
-      responseHeaders: entity.responseHeaders,
-      duration: entity.duration,
+      httpStatus: entity.httpStatus || null,
+      responseBody: entity.responseBody || null,
+      responseHeaders: entity.responseHeaders || null,
+      duration: entity.duration || null,
       attempt: entity.attempt,
       maxAttempts: entity.maxAttempts,
-      nextRetryAt: entity.nextRetryAt,
-      errorMessage: entity.errorMessage,
-      deliveredAt: entity.deliveredAt,
+      nextRetryAt: entity.nextRetryAt || null,
+      errorMessage: entity.errorMessage || null,
+      deliveredAt: entity.deliveredAt || null,
       updatedAt: new Date(),
     };
   }
 
   protected buildWhereClause(
-    specification: ISpecification<WebhookDelivery>
+    _specification: ISpecification<WebhookDelivery>
   ): any {
+    // TODO: Implement specification pattern for complex queries
     return undefined;
   }
 
-  async save(delivery: WebhookDelivery): Promise<void> {
+  override async save(delivery: WebhookDelivery): Promise<WebhookDelivery> {
     try {
       const data = this.toDrizzle(delivery);
-      await this.database
+      const results = await this.database
         .insert(webhookDeliveries)
         .values(data as any)
         .onConflictDoUpdate({
           target: webhookDeliveries.id,
           set: data,
-        });
+        })
+        .returning();
+
+      if (!results || results.length === 0) {
+        throw new Error('Failed to save webhook delivery - no results returned');
+      }
+
+      return this.toDomain(results[0]!);
     } catch (error) {
       logger.error('Error saving webhook delivery', {
         deliveryId: delivery.id,
-        error,
-      });
+        error: error
+      } as any);
       throw error;
     }
   }
@@ -407,9 +518,9 @@ export class WebhookDeliveryRepository
       return results.map(result => this.toDomain(result));
     } catch (error) {
       logger.error('Error finding webhook deliveries by webhook ID', {
-        webhookId,
-        error,
-      });
+        webhookId: webhookId,
+        error: error
+      } as any);
       throw error;
     }
   }
@@ -431,14 +542,31 @@ export class WebhookDeliveryRepository
       return results.map(result => this.toDomain(result));
     } catch (error) {
       logger.error('Error finding webhook deliveries by status', {
-        status,
-        error,
-      });
+        status: status,
+        error: error
+      } as any);
       throw error;
     }
   }
 
-  async findPendingRetries(): Promise<WebhookDelivery[]> {
+  async findPending(): Promise<WebhookDelivery[]> {
+    try {
+      const results = await this.database
+        .select()
+        .from(webhookDeliveries)
+        .where(eq(webhookDeliveries.status, 'pending'))
+        .orderBy(asc(webhookDeliveries.createdAt));
+
+      return results.map(result => this.toDomain(result));
+    } catch (error) {
+      logger.error('Error finding pending webhook deliveries', { 
+        error: error 
+      } as any);
+      throw error;
+    }
+  }
+
+  async findReadyForRetry(): Promise<WebhookDelivery[]> {
     try {
       const now = new Date();
       const results = await this.database
@@ -452,13 +580,15 @@ export class WebhookDeliveryRepository
               isNull(webhookDeliveries.nextRetryAt),
               lte(webhookDeliveries.nextRetryAt, now)
             )
-          )
+          )!
         )
         .orderBy(asc(webhookDeliveries.nextRetryAt));
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding pending retry webhook deliveries', { error });
+      logger.error('Error finding ready for retry webhook deliveries', { 
+        error: error 
+      } as any);
       throw error;
     }
   }
@@ -480,9 +610,40 @@ export class WebhookDeliveryRepository
       return results.map(result => this.toDomain(result));
     } catch (error) {
       logger.error('Error finding webhook deliveries by event', {
-        event,
-        error,
-      });
+        event: event,
+        error: error
+      } as any);
+      throw error;
+    }
+  }
+
+  async findByDateRange(
+    startDate: Date,
+    endDate: Date,
+    limit: number = 50,
+    offset: number = 0
+  ): Promise<WebhookDelivery[]> {
+    try {
+      const results = await this.database
+        .select()
+        .from(webhookDeliveries)
+        .where(
+          and(
+            gte(webhookDeliveries.createdAt, startDate),
+            lte(webhookDeliveries.createdAt, endDate)
+          )!
+        )
+        .orderBy(desc(webhookDeliveries.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      return results.map(result => this.toDomain(result));
+    } catch (error) {
+      logger.error('Error finding webhook deliveries by date range', {
+        startDate: startDate,
+        endDate: endDate,
+        error: error
+      } as any);
       throw error;
     }
   }
@@ -496,9 +657,10 @@ export class WebhookDeliveryRepository
     successful: number;
     failed: number;
     pending: number;
-    averageResponseTime: number;
+    retrying: number;
     successRate: number;
-    byStatus: Record<WebhookDeliveryStatus, number>;
+    averageAttempts: number;
+    byEvent: Record<WebhookEvent, { total: number; successful: number }>;
   }> {
     try {
       const conditions = [];
@@ -528,69 +690,94 @@ export class WebhookDeliveryRepository
         successful: deliveries.filter(d => d.status === 'success').length,
         failed: deliveries.filter(d => d.status === 'failed').length,
         pending: deliveries.filter(d => d.status === 'pending').length,
-        averageResponseTime: 0,
+        retrying: deliveries.filter(d => d.status === 'retrying').length,
         successRate: 0,
-        byStatus: {} as Record<WebhookDeliveryStatus, number>,
+        averageAttempts: 0,
+        byEvent: {} as Record<WebhookEvent, { total: number; successful: number }>,
       };
 
-      // Initialize status counts
-      Object.values(WebhookDeliveryStatus).forEach(status => {
-        stats.byStatus[status] = 0;
+      // Initialize event stats
+      Object.values(WebhookEvent).forEach((event: WebhookEvent) => {
+        stats.byEvent[event] = { total: 0, successful: 0 };
       });
 
       // Calculate statistics
-      let totalDuration = 0;
-      let durationCount = 0;
+      let totalAttempts = 0;
 
       deliveries.forEach(delivery => {
-        stats.byStatus[delivery.status]++;
-        if (delivery.duration) {
-          totalDuration += delivery.duration;
-          durationCount++;
+        const eventStats = stats.byEvent[delivery.event];
+        if (eventStats) {
+          eventStats.total++;
+          if (delivery.status === 'success') {
+            eventStats.successful++;
+          }
         }
+        totalAttempts += delivery.attempt;
       });
 
-      stats.averageResponseTime =
-        durationCount > 0 ? totalDuration / durationCount : 0;
       stats.successRate =
         stats.total > 0 ? (stats.successful / stats.total) * 100 : 0;
+      stats.averageAttempts =
+        stats.total > 0 ? totalAttempts / stats.total : 0;
 
       return stats;
     } catch (error) {
       logger.error('Error getting webhook delivery stats', {
-        webhookId,
-        startDate,
-        endDate,
-        error,
-      });
+        webhookId: webhookId,
+        startDate: startDate,
+        endDate: endDate,
+        error: error
+      } as any);
       throw error;
     }
   }
 
-  async delete(id: string): Promise<void> {
+  async getRecentDeliveries(
+    webhookId: string,
+    limit: number = 50
+  ): Promise<WebhookDelivery[]> {
+    try {
+      const results = await this.database
+        .select()
+        .from(webhookDeliveries)
+        .where(eq(webhookDeliveries.webhookId, webhookId))
+        .orderBy(desc(webhookDeliveries.createdAt))
+        .limit(limit);
+
+      return results.map(result => this.toDomain(result));
+    } catch (error) {
+      logger.error('Error finding recent webhook deliveries', {
+        webhookId: webhookId,
+        error: error
+      } as any);
+      throw error;
+    }
+  }
+
+  override async delete(id: string): Promise<void> {
     try {
       await this.database
         .delete(webhookDeliveries)
         .where(eq(webhookDeliveries.id, id));
     } catch (error) {
-      logger.error('Error deleting webhook delivery', { id, error });
+      logger.error('Error deleting webhook delivery', { 
+        id: id, 
+        error: error 
+      } as any);
       throw error;
     }
   }
 
-  async deleteByWebhookId(webhookId: string): Promise<number> {
+  async deleteByWebhookId(webhookId: string): Promise<void> {
     try {
-      const results = await this.database
+      await this.database
         .delete(webhookDeliveries)
-        .where(eq(webhookDeliveries.webhookId, webhookId))
-        .returning({ id: webhookDeliveries.id });
-
-      return results.length;
+        .where(eq(webhookDeliveries.webhookId, webhookId));
     } catch (error) {
       logger.error('Error deleting webhook deliveries by webhook ID', {
-        webhookId,
-        error,
-      });
+        webhookId: webhookId,
+        error: error
+      } as any);
       throw error;
     }
   }
@@ -605,9 +792,31 @@ export class WebhookDeliveryRepository
       return results.length;
     } catch (error) {
       logger.error('Error deleting webhook deliveries older than date', {
-        date,
-        error,
-      });
+        date: date,
+        error: error
+      } as any);
+      throw error;
+    }
+  }
+
+  async deleteSuccessfulOlderThan(date: Date): Promise<number> {
+    try {
+      const results = await this.database
+        .delete(webhookDeliveries)
+        .where(
+          and(
+            eq(webhookDeliveries.status, 'success'),
+            lte(webhookDeliveries.createdAt, date)
+          )!
+        )
+        .returning({ id: webhookDeliveries.id });
+
+      return results.length;
+    } catch (error) {
+      logger.error('Error deleting successful webhook deliveries older than date', {
+        date: date,
+        error: error
+      } as any);
       throw error;
     }
   }

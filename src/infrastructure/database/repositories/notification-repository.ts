@@ -6,13 +6,11 @@ import {
   asc,
   count,
   sql,
-  inArray,
   isNull,
   lt,
   lte,
   gte,
 } from 'drizzle-orm';
-import { BaseDrizzleRepository } from './base-drizzle-repository';
 import {
   Notification,
   NotificationPreferences,
@@ -24,91 +22,94 @@ import {
   INotificationRepository,
   INotificationPreferencesRepository,
 } from '../../../domain/repositories/notification-repository';
-import { ISpecification } from '../../../domain/base/repository.interface';
 import {
   notifications,
   notificationPreferences,
-  notificationTypeEnum,
-  notificationStatusEnum,
-  notificationChannelEnum,
 } from '../schema/notifications';
 import { logger } from '../../monitoring/logging-service';
+import { db } from '../connection';
+import {
+  NotificationId,
+  UserId,
+  WorkspaceId,
+  ProjectId,
+  TaskId,
+} from '../../../domain/value-objects';
 
 // Drizzle model types
 type DrizzleNotification = typeof notifications.$inferSelect;
 type DrizzleNotificationPreferences =
   typeof notificationPreferences.$inferSelect;
 
-export class NotificationRepository
-  extends BaseDrizzleRepository<
-    Notification,
-    string,
-    DrizzleNotification,
-    typeof notifications
-  >
-  implements INotificationRepository
-{
-  constructor() {
-    super(notifications, 'Notification');
+/**
+ * Notification Repository Implementation
+ * Direct implementation without extending BaseDrizzleRepository to avoid type conflicts
+ */
+export class NotificationRepository implements INotificationRepository {
+  private readonly database = db;
+
+  private toDomain(drizzleModel: DrizzleNotification): Notification {
+    // Handle existing notifications that might have null values for some audit fields
+    const notification = new Notification(
+      NotificationId.create(drizzleModel.id),
+      UserId.create(drizzleModel.userId),
+      drizzleModel.type as NotificationType,
+      drizzleModel.title,
+      drizzleModel.message,
+      (drizzleModel.channels as string[]).map(c => c as NotificationChannel),
+      drizzleModel.workspaceId ? WorkspaceId.create(drizzleModel.workspaceId) : undefined,
+      drizzleModel.projectId ? ProjectId.create(drizzleModel.projectId) : undefined,
+      drizzleModel.taskId ? TaskId.create(drizzleModel.taskId) : undefined,
+      (drizzleModel.data as Record<string, any>) || undefined,
+      drizzleModel.status as NotificationStatus,
+      drizzleModel.maxRetries,
+      drizzleModel.scheduledFor || undefined,
+      drizzleModel.expiresAt || undefined,
+      drizzleModel.createdAt,
+      drizzleModel.updatedAt
+    );
+
+    // Set additional fields that are not in constructor but exist in database
+    if (drizzleModel.readAt) {
+      (notification as any)._readAt = drizzleModel.readAt;
+    }
+    if (drizzleModel.sentAt) {
+      (notification as any)._sentAt = drizzleModel.sentAt;
+    }
+    if (drizzleModel.deliveredAt) {
+      (notification as any)._deliveredAt = drizzleModel.deliveredAt;
+    }
+    if (drizzleModel.failureReason) {
+      (notification as any)._failureReason = drizzleModel.failureReason;
+    }
+    (notification as any)._retryCount = drizzleModel.retryCount;
+
+    return notification;
   }
 
-  protected toDomain(drizzleModel: DrizzleNotification): Notification {
-    return new Notification({
-      id: drizzleModel.id,
-      userId: drizzleModel.userId,
-      workspaceId: drizzleModel.workspaceId || undefined,
-      projectId: drizzleModel.projectId || undefined,
-      taskId: drizzleModel.taskId || undefined,
-      type: drizzleModel.type as NotificationType,
-      title: drizzleModel.title,
-      message: drizzleModel.message,
-      data: (drizzleModel.data as Record<string, any>) || undefined,
-      channels: (drizzleModel.channels as string[]).map(
-        c => c as NotificationChannel
-      ),
-      status: drizzleModel.status as NotificationStatus,
-      readAt: drizzleModel.readAt || undefined,
-      sentAt: drizzleModel.sentAt || undefined,
-      deliveredAt: drizzleModel.deliveredAt || undefined,
-      failureReason: drizzleModel.failureReason || undefined,
-      retryCount: drizzleModel.retryCount,
-      maxRetries: drizzleModel.maxRetries,
-      scheduledFor: drizzleModel.scheduledFor || undefined,
-      expiresAt: drizzleModel.expiresAt || undefined,
-      createdAt: drizzleModel.createdAt,
-      updatedAt: drizzleModel.updatedAt,
-    });
-  }
-
-  protected toDrizzle(entity: Notification): Partial<DrizzleNotification> {
+  private toDrizzle(entity: Notification): Partial<DrizzleNotification> {
     return {
-      id: entity.id,
-      userId: entity.userId,
-      workspaceId: entity.workspaceId,
-      projectId: entity.projectId,
-      taskId: entity.taskId,
+      id: entity.id.value,
+      userId: entity.userId.value,
+      workspaceId: entity.workspaceId?.value || null,
+      projectId: entity.projectId?.value || null,
+      taskId: entity.taskId?.value || null,
       type: entity.type,
       title: entity.title,
       message: entity.message,
-      data: entity.data,
+      data: entity.data || null,
       channels: entity.channels,
       status: entity.status,
-      readAt: entity.readAt,
-      sentAt: entity.sentAt,
-      deliveredAt: entity.deliveredAt,
-      failureReason: entity.failureReason,
+      readAt: entity.readAt || null,
+      sentAt: entity.sentAt || null,
+      deliveredAt: entity.deliveredAt || null,
+      failureReason: entity.failureReason || null,
       retryCount: entity.retryCount,
       maxRetries: entity.maxRetries,
-      scheduledFor: entity.scheduledFor,
-      expiresAt: entity.expiresAt,
+      scheduledFor: entity.scheduledFor || null,
+      expiresAt: entity.expiresAt || null,
       updatedAt: new Date(),
     };
-  }
-
-  protected buildWhereClause(specification: ISpecification<Notification>): any {
-    // This would be implemented based on your specification pattern
-    // For now, returning undefined as a placeholder
-    return undefined;
   }
 
   async save(notification: Notification): Promise<void> {
@@ -122,10 +123,27 @@ export class NotificationRepository
           set: data,
         });
     } catch (error) {
-      logger.error('Error saving notification', {
-        notificationId: notification.id,
-        error,
-      });
+      logger.error('Error saving notification', error as Error);
+      throw error;
+    }
+  }
+
+  async findById(id: string): Promise<Notification | null> {
+    try {
+      const results = await this.database
+        .select()
+        .from(notifications)
+        .where(eq(notifications.id, id))
+        .limit(1);
+
+      if (results.length === 0) return null;
+      
+      const result = results[0];
+      if (!result) return null;
+      
+      return this.toDomain(result);
+    } catch (error) {
+      logger.error('Error finding notification by ID', error as Error);
       throw error;
     }
   }
@@ -146,7 +164,7 @@ export class NotificationRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding notifications by user ID', { userId, error });
+      logger.error('Error finding notifications by user ID', error as Error);
       throw error;
     }
   }
@@ -167,10 +185,7 @@ export class NotificationRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding notifications by workspace ID', {
-        workspaceId,
-        error,
-      });
+      logger.error('Error finding notifications by workspace ID', error as Error);
       throw error;
     }
   }
@@ -191,7 +206,7 @@ export class NotificationRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding notifications by type', { type, error });
+      logger.error('Error finding notifications by type', error as Error);
       throw error;
     }
   }
@@ -212,7 +227,7 @@ export class NotificationRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding notifications by status', { status, error });
+      logger.error('Error finding notifications by status', error as Error);
       throw error;
     }
   }
@@ -242,7 +257,7 @@ export class NotificationRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding unread notifications', { userId, error });
+      logger.error('Error finding unread notifications', error as Error);
       throw error;
     }
   }
@@ -270,7 +285,7 @@ export class NotificationRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding pending delivery notifications', { error });
+      logger.error('Error finding pending delivery notifications', error as Error);
       throw error;
     }
   }
@@ -291,7 +306,7 @@ export class NotificationRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding scheduled notifications', { error });
+      logger.error('Error finding scheduled notifications', error as Error);
       throw error;
     }
   }
@@ -314,7 +329,7 @@ export class NotificationRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding expired notifications', { error });
+      logger.error('Error finding expired notifications', error as Error);
       throw error;
     }
   }
@@ -334,7 +349,7 @@ export class NotificationRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding failed retryable notifications', { error });
+      logger.error('Error finding failed retryable notifications', error as Error);
       throw error;
     }
   }
@@ -350,7 +365,7 @@ export class NotificationRepository
         })
         .where(eq(notifications.id, id));
     } catch (error) {
-      logger.error('Error marking notification as read', { id, error });
+      logger.error('Error marking notification as read', error as Error);
       throw error;
     }
   }
@@ -378,10 +393,7 @@ export class NotificationRepository
 
       return results.length;
     } catch (error) {
-      logger.error('Error marking all notifications as read', {
-        userId,
-        error,
-      });
+      logger.error('Error marking all notifications as read', error as Error);
       throw error;
     }
   }
@@ -404,7 +416,7 @@ export class NotificationRepository
 
       return results[0]?.count || 0;
     } catch (error) {
-      logger.error('Error getting unread count', { userId, error });
+      logger.error('Error getting unread count', error as Error);
       throw error;
     }
   }
@@ -473,7 +485,7 @@ export class NotificationRepository
         byStatus,
       };
     } catch (error) {
-      logger.error('Error getting notification stats', { userId, error });
+      logger.error('Error getting notification stats', error as Error);
       throw error;
     }
   }
@@ -482,7 +494,7 @@ export class NotificationRepository
     try {
       await this.database.delete(notifications).where(eq(notifications.id, id));
     } catch (error) {
-      logger.error('Error deleting notification', { id, error });
+      logger.error('Error deleting notification', error as Error);
       throw error;
     }
   }
@@ -505,11 +517,7 @@ export class NotificationRepository
 
       return results.length;
     } catch (error) {
-      logger.error('Error deleting read notifications', {
-        userId,
-        olderThan,
-        error,
-      });
+      logger.error('Error deleting read notifications', error as Error);
       throw error;
     }
   }
@@ -524,51 +532,45 @@ export class NotificationRepository
 
       return results.length;
     } catch (error) {
-      logger.error('Error deleting expired notifications', { error });
+      logger.error('Error deleting expired notifications', error as Error);
       throw error;
     }
   }
 }
 
-export class NotificationPreferencesRepository
-  extends BaseDrizzleRepository<
-    NotificationPreferences,
-    string,
-    DrizzleNotificationPreferences,
-    typeof notificationPreferences
-  >
-  implements INotificationPreferencesRepository
-{
-  constructor() {
-    super(notificationPreferences, 'NotificationPreferences');
-  }
+/**
+ * Notification Preferences Repository Implementation
+ * Direct implementation without extending BaseDrizzleRepository to avoid type conflicts
+ */
+export class NotificationPreferencesRepository implements INotificationPreferencesRepository {
+  private readonly database = db;
 
-  protected toDomain(
+  private toDomain(
     drizzleModel: DrizzleNotificationPreferences
   ): NotificationPreferences {
-    return new NotificationPreferences({
-      id: drizzleModel.id,
-      userId: drizzleModel.userId,
-      workspaceId: drizzleModel.workspaceId || undefined,
-      emailEnabled: drizzleModel.emailEnabled,
-      pushEnabled: drizzleModel.pushEnabled,
-      inAppEnabled: drizzleModel.inAppEnabled,
-      smsEnabled: drizzleModel.smsEnabled,
-      webhookEnabled: drizzleModel.webhookEnabled,
-      quietHours: drizzleModel.quietHours as any,
-      typePreferences: drizzleModel.typePreferences as any,
-      createdAt: drizzleModel.createdAt,
-      updatedAt: drizzleModel.updatedAt,
-    });
+    return new NotificationPreferences(
+      NotificationId.create(drizzleModel.id),
+      UserId.create(drizzleModel.userId),
+      drizzleModel.emailEnabled,
+      drizzleModel.pushEnabled,
+      drizzleModel.inAppEnabled,
+      drizzleModel.smsEnabled,
+      drizzleModel.webhookEnabled,
+      drizzleModel.quietHours as any,
+      drizzleModel.typePreferences as any,
+      drizzleModel.workspaceId ? WorkspaceId.create(drizzleModel.workspaceId) : undefined,
+      drizzleModel.createdAt,
+      drizzleModel.updatedAt
+    );
   }
 
-  protected toDrizzle(
+  private toDrizzle(
     entity: NotificationPreferences
   ): Partial<DrizzleNotificationPreferences> {
     return {
-      id: entity.id,
-      userId: entity.userId,
-      workspaceId: entity.workspaceId,
+      id: entity.id.value,
+      userId: entity.userId.value,
+      workspaceId: entity.workspaceId?.value || null,
       emailEnabled: entity.emailEnabled,
       pushEnabled: entity.pushEnabled,
       inAppEnabled: entity.inAppEnabled,
@@ -578,12 +580,6 @@ export class NotificationPreferencesRepository
       typePreferences: entity.typePreferences as any,
       updatedAt: new Date(),
     };
-  }
-
-  protected buildWhereClause(
-    specification: ISpecification<NotificationPreferences>
-  ): any {
-    return undefined;
   }
 
   async save(preferences: NotificationPreferences): Promise<void> {
@@ -597,10 +593,27 @@ export class NotificationPreferencesRepository
           set: data,
         });
     } catch (error) {
-      logger.error('Error saving notification preferences', {
-        preferencesId: preferences.id,
-        error,
-      });
+      logger.error('Error saving notification preferences', error as Error);
+      throw error;
+    }
+  }
+
+  async findById(id: string): Promise<NotificationPreferences | null> {
+    try {
+      const results = await this.database
+        .select()
+        .from(notificationPreferences)
+        .where(eq(notificationPreferences.id, id))
+        .limit(1);
+
+      if (results.length === 0) return null;
+      
+      const result = results[0];
+      if (!result) return null;
+      
+      return this.toDomain(result);
+    } catch (error) {
+      logger.error('Error finding notification preferences by ID', error as Error);
       throw error;
     }
   }
@@ -618,12 +631,14 @@ export class NotificationPreferencesRepository
         )
         .limit(1);
 
-      return results.length > 0 ? this.toDomain(results[0]) : null;
+      if (results.length === 0) return null;
+      
+      const result = results[0];
+      if (!result) return null;
+      
+      return this.toDomain(result);
     } catch (error) {
-      logger.error('Error finding notification preferences by user ID', {
-        userId,
-        error,
-      });
+      logger.error('Error finding notification preferences by user ID', error as Error);
       throw error;
     }
   }
@@ -644,12 +659,14 @@ export class NotificationPreferencesRepository
         )
         .limit(1);
 
-      return results.length > 0 ? this.toDomain(results[0]) : null;
+      if (results.length === 0) return null;
+      
+      const result = results[0];
+      if (!result) return null;
+      
+      return this.toDomain(result);
     } catch (error) {
-      logger.error(
-        'Error finding notification preferences by user and workspace',
-        { userId, workspaceId, error }
-      );
+      logger.error('Error finding notification preferences by user and workspace', error as Error);
       throw error;
     }
   }
@@ -671,12 +688,7 @@ export class NotificationPreferencesRepository
 
       return preferences.getEnabledChannelsForType(type);
     } catch (error) {
-      logger.error('Error getting enabled channels', {
-        userId,
-        type,
-        workspaceId,
-        error,
-      });
+      logger.error('Error getting enabled channels', error as Error);
       throw error;
     }
   }
@@ -697,12 +709,7 @@ export class NotificationPreferencesRepository
 
       return preferences.isTypeEnabled(type);
     } catch (error) {
-      logger.error('Error checking if type is enabled', {
-        userId,
-        type,
-        workspaceId,
-        error,
-      });
+      logger.error('Error checking if type is enabled', error as Error);
       throw error;
     }
   }
@@ -720,7 +727,7 @@ export class NotificationPreferencesRepository
 
       return preferences.isInQuietHours(date);
     } catch (error) {
-      logger.error('Error checking quiet hours', { userId, date, error });
+      logger.error('Error checking quiet hours', error as Error);
       throw error;
     }
   }
@@ -731,7 +738,7 @@ export class NotificationPreferencesRepository
         .delete(notificationPreferences)
         .where(eq(notificationPreferences.id, id));
     } catch (error) {
-      logger.error('Error deleting notification preferences', { id, error });
+      logger.error('Error deleting notification preferences', error as Error);
       throw error;
     }
   }
@@ -742,10 +749,7 @@ export class NotificationPreferencesRepository
         .delete(notificationPreferences)
         .where(eq(notificationPreferences.userId, userId));
     } catch (error) {
-      logger.error('Error deleting notification preferences by user ID', {
-        userId,
-        error,
-      });
+      logger.error('Error deleting notification preferences by user ID', error as Error);
       throw error;
     }
   }

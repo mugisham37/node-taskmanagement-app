@@ -7,7 +7,7 @@ import {
 } from '../entities/webhook';
 
 export interface IWebhookRepository {
-  save(webhook: Webhook): Promise<void>;
+  save(webhook: Webhook): Promise<Webhook>;
   findById(id: string): Promise<Webhook | null>;
   findByWorkspaceId(
     workspaceId: string,
@@ -23,7 +23,7 @@ export interface IWebhookRepository {
   findActive(): Promise<Webhook[]>;
   findFailed(): Promise<Webhook[]>;
   findByUrl(url: string): Promise<Webhook[]>;
-  getWebhookStats(workspaceId: string): Promise<{
+  getWebhookStats(workspaceId?: string): Promise<{
     total: number;
     active: number;
     failed: number;
@@ -37,7 +37,7 @@ export interface IWebhookRepository {
 }
 
 export interface IWebhookDeliveryRepository {
-  save(delivery: WebhookDelivery): Promise<void>;
+  save(delivery: WebhookDelivery): Promise<WebhookDelivery>;
   findById(id: string): Promise<WebhookDelivery | null>;
   findByWebhookId(
     webhookId: string,

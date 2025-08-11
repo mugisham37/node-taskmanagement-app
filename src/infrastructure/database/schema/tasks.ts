@@ -17,6 +17,7 @@ export const taskStatusEnum = pgEnum('task_status', [
   'IN_REVIEW',
   'COMPLETED',
   'CANCELLED',
+  'ON_HOLD',
 ]);
 
 export const priorityEnum = pgEnum('priority', [
@@ -24,6 +25,7 @@ export const priorityEnum = pgEnum('priority', [
   'MEDIUM',
   'HIGH',
   'URGENT',
+  'CRITICAL',
 ]);
 
 export const tasks = pgTable('tasks', {

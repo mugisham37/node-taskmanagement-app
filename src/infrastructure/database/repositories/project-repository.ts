@@ -9,11 +9,10 @@ import {
   desc,
   asc,
   inArray,
-  isNull,
   isNotNull,
 } from 'drizzle-orm';
 import { getDatabase } from '../connection';
-import { projects, users, workspaces, projectMembers, tasks } from '../schema';
+import { projects, users, projectMembers } from '../schema';
 import {
   IProjectRepository,
   ProjectFilters,
@@ -24,7 +23,18 @@ import {
 import { Project, ProjectMember } from '../../../domain/entities/project';
 import { ProjectAggregate } from '../../../domain/aggregates/project-aggregate';
 import { ProjectId, UserId, WorkspaceId } from '../../../domain/value-objects';
-import { ProjectStatus } from '../../../shared/constants/project-constants';
+import { ProjectStatus } from '../../../shared/enums/common.enums';
+import { 
+  DbProjectStatus,
+  DbProjectRole
+} from '../types';
+import {
+  mapRowToProject,
+  mapProjectToInsert,
+  mapRowToProjectMember,
+  mapProjectMemberToInsert,
+  mapDomainStatusToDb
+} from '../mappers/project-mapper';
 
 export class ProjectRepository implements IProjectRepository {
   private get db() {
@@ -38,7 +48,10 @@ export class ProjectRepository implements IProjectRepository {
       .where(eq(projects.id, id.value))
       .limit(1);
 
-    return result.length > 0 ? this.mapToEntity(result[0]) : null;
+    if (result.length === 0) return null;
+
+    const members = await this.getProjectMembers(id);
+    return mapRowToProject(result[0]!, members);
   }
 
   async findByIds(ids: ProjectId[]): Promise<Project[]> {
@@ -48,7 +61,14 @@ export class ProjectRepository implements IProjectRepository {
       .from(projects)
       .where(inArray(projects.id, idValues));
 
-    return result.map(row => this.mapToEntity(row));
+    const projectsWithMembers = await Promise.all(
+      result.map(async row => {
+        const members = await this.getProjectMembers(ProjectId.create(row.id));
+        return mapRowToProject(row, members);
+      })
+    );
+
+    return projectsWithMembers;
   }
 
   async findByWorkspaceId(
@@ -57,40 +77,63 @@ export class ProjectRepository implements IProjectRepository {
     sort?: ProjectSortOptions,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Project>> {
-    let query = this.db
-      .select()
-      .from(projects)
-      .where(eq(projects.workspaceId, workspaceId.value));
-
+    const conditions = [eq(projects.workspaceId, workspaceId.value)];
+    
     // Apply filters
     if (filters) {
-      const conditions = this.buildFilterConditions(filters);
-      if (conditions.length > 0) {
-        query = query.where(
-          and(eq(projects.workspaceId, workspaceId.value), ...conditions)
-        );
+      const filterConditions = this.buildFilterConditions(filters);
+      conditions.push(...filterConditions);
+    }
+
+    // Count total first
+    const total = await this.countWithConditions(conditions);
+
+    // Build the query with all clauses at once
+    const baseQuery = this.db.select().from(projects);
+    
+    let finalQuery;
+    
+    if (sort?.field) {
+      const orderFn = sort.direction === 'DESC' ? desc : asc;
+      if (pagination) {
+        const offset = (pagination.page - 1) * pagination.limit;
+        finalQuery = baseQuery
+          .where(and(...conditions))
+          .orderBy(orderFn(projects[sort.field]))
+          .limit(pagination.limit)
+          .offset(offset);
+      } else {
+        finalQuery = baseQuery
+          .where(and(...conditions))
+          .orderBy(orderFn(projects[sort.field]));
+      }
+    } else {
+      if (pagination) {
+        const offset = (pagination.page - 1) * pagination.limit;
+        finalQuery = baseQuery
+          .where(and(...conditions))
+          .orderBy(desc(projects.createdAt))
+          .limit(pagination.limit)
+          .offset(offset);
+      } else {
+        finalQuery = baseQuery
+          .where(and(...conditions))
+          .orderBy(desc(projects.createdAt));
       }
     }
 
-    // Apply sorting
-    if (sort) {
-      const orderBy = sort.direction === 'DESC' ? desc : asc;
-      query = query.orderBy(orderBy(projects[sort.field]));
-    } else {
-      query = query.orderBy(desc(projects.createdAt));
-    }
+    const result = await finalQuery;
 
-    // Apply pagination
-    if (pagination) {
-      const offset = (pagination.page - 1) * pagination.limit;
-      query = query.limit(pagination.limit).offset(offset);
-    }
-
-    const result = await query;
-    const total = await this.count(workspaceId, filters);
+    // Load members for each project
+    const projectsWithMembers = await Promise.all(
+      result.map(async row => {
+        const members = await this.getProjectMembers(ProjectId.create(row.id));
+        return mapRowToProject(row, members);
+      })
+    );
 
     return {
-      items: result.map(row => this.mapToEntity(row)),
+      items: projectsWithMembers,
       total,
       page: pagination?.page || 1,
       limit: pagination?.limit || result.length,
@@ -104,48 +147,72 @@ export class ProjectRepository implements IProjectRepository {
     sort?: ProjectSortOptions,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Project>> {
-    let query = this.db
-      .select()
-      .from(projects)
-      .innerJoin(projectMembers, eq(projects.id, projectMembers.projectId))
-      .where(eq(projectMembers.userId, userId.value));
+    const baseConditions = [eq(projectMembers.userId, userId.value)];
 
     // Apply filters
     if (filters) {
-      const conditions = this.buildFilterConditions(filters);
-      if (conditions.length > 0) {
-        query = query.where(
-          and(eq(projectMembers.userId, userId.value), ...conditions)
-        );
-      }
+      const filterConditions = this.buildFilterConditions(filters);
+      baseConditions.push(...filterConditions);
     }
 
-    // Apply sorting
-    if (sort) {
-      const orderBy = sort.direction === 'DESC' ? desc : asc;
-      query = query.orderBy(orderBy(projects[sort.field]));
-    } else {
-      query = query.orderBy(desc(projects.createdAt));
-    }
-
-    // Apply pagination
-    if (pagination) {
-      const offset = (pagination.page - 1) * pagination.limit;
-      query = query.limit(pagination.limit).offset(offset);
-    }
-
-    const result = await query;
-
-    // Count total
+    // Count total first
     const totalResult = await this.db
       .select({ count: count() })
       .from(projects)
       .innerJoin(projectMembers, eq(projects.id, projectMembers.projectId))
-      .where(eq(projectMembers.userId, userId.value));
-    const total = totalResult[0].count;
+      .where(and(...baseConditions));
+    
+    const total = totalResult[0]?.count ?? 0;
+
+    // Build query with join - construct the complete query at once
+    const baseQuery = this.db
+      .select({ projects })
+      .from(projects)
+      .innerJoin(projectMembers, eq(projects.id, projectMembers.projectId));
+
+    let finalQuery;
+    
+    if (sort?.field) {
+      const orderFn = sort.direction === 'DESC' ? desc : asc;
+      if (pagination) {
+        const offset = (pagination.page - 1) * pagination.limit;
+        finalQuery = baseQuery
+          .where(and(...baseConditions))
+          .orderBy(orderFn(projects[sort.field]))
+          .limit(pagination.limit)
+          .offset(offset);
+      } else {
+        finalQuery = baseQuery
+          .where(and(...baseConditions))
+          .orderBy(orderFn(projects[sort.field]));
+      }
+    } else {
+      if (pagination) {
+        const offset = (pagination.page - 1) * pagination.limit;
+        finalQuery = baseQuery
+          .where(and(...baseConditions))
+          .orderBy(desc(projects.createdAt))
+          .limit(pagination.limit)
+          .offset(offset);
+      } else {
+        finalQuery = baseQuery
+          .where(and(...baseConditions))
+          .orderBy(desc(projects.createdAt));
+      }
+    }
+
+    const result = await finalQuery;
+
+    // Load members for each project
+    const projectsWithMembers = await Promise.all(
+      result.map(async row => {
+        const members = await this.getProjectMembers(ProjectId.create(row.projects.id));
+        return mapRowToProject(row.projects, members);
+      })
+    );
 
     return {
-      items: result.map(row => this.mapToEntity(row.projects)),
+      items: projectsWithMembers,
       total,
       page: pagination?.page || 1,
       limit: pagination?.limit || result.length,
@@ -159,57 +226,63 @@ export class ProjectRepository implements IProjectRepository {
     sort?: ProjectSortOptions,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Project>> {
-    let query = this.db
-      .select()
-      .from(projects)
-      .where(eq(projects.managerId, managerId.value));
+    const conditions = [eq(projects.managerId, managerId.value)];
 
     // Apply filters
     if (filters) {
-      const conditions = this.buildFilterConditions(filters);
-      if (conditions.length > 0) {
-        query = query.where(
-          and(eq(projects.managerId, managerId.value), ...conditions)
-        );
-      }
+      const filterConditions = this.buildFilterConditions(filters);
+      conditions.push(...filterConditions);
     }
 
-    // Apply sorting
-    if (sort) {
-      const orderBy = sort.direction === 'DESC' ? desc : asc;
-      query = query.orderBy(orderBy(projects[sort.field]));
+    // Count total first
+    const total = await this.countWithConditions(conditions);
+
+    // Build query - construct the complete query at once
+    const baseQuery = this.db.select().from(projects);
+    
+    let finalQuery;
+    
+    if (sort?.field) {
+      const orderFn = sort.direction === 'DESC' ? desc : asc;
+      if (pagination) {
+        const offset = (pagination.page - 1) * pagination.limit;
+        finalQuery = baseQuery
+          .where(and(...conditions))
+          .orderBy(orderFn(projects[sort.field]))
+          .limit(pagination.limit)
+          .offset(offset);
+      } else {
+        finalQuery = baseQuery
+          .where(and(...conditions))
+          .orderBy(orderFn(projects[sort.field]));
+      }
     } else {
-      query = query.orderBy(desc(projects.createdAt));
-    }
-
-    // Apply pagination
-    if (pagination) {
-      const offset = (pagination.page - 1) * pagination.limit;
-      query = query.limit(pagination.limit).offset(offset);
-    }
-
-    const result = await query;
-
-    // Count total
-    let countQuery = this.db
-      .select({ count: count() })
-      .from(projects)
-      .where(eq(projects.managerId, managerId.value));
-
-    if (filters) {
-      const conditions = this.buildFilterConditions(filters);
-      if (conditions.length > 0) {
-        countQuery = countQuery.where(
-          and(eq(projects.managerId, managerId.value), ...conditions)
-        );
+      if (pagination) {
+        const offset = (pagination.page - 1) * pagination.limit;
+        finalQuery = baseQuery
+          .where(and(...conditions))
+          .orderBy(desc(projects.createdAt))
+          .limit(pagination.limit)
+          .offset(offset);
+      } else {
+        finalQuery = baseQuery
+          .where(and(...conditions))
+          .orderBy(desc(projects.createdAt));
       }
     }
 
-    const totalResult = await countQuery;
-    const total = totalResult[0].count;
+    const result = await finalQuery;
+
+    // Load members for each project
+    const projectsWithMembers = await Promise.all(
+      result.map(async row => {
+        const members = await this.getProjectMembers(ProjectId.create(row.id));
+        return mapRowToProject(row, members);
+      })
+    );
 
     return {
-      items: result.map(row => this.mapToEntity(row)),
+      items: projectsWithMembers,
       total,
       page: pagination?.page || 1,
       limit: pagination?.limit || result.length,
@@ -239,28 +312,36 @@ export class ProjectRepository implements IProjectRepository {
       conditions.push(...filterConditions);
     }
 
-    let query = this.db
-      .select()
-      .from(projects)
-      .where(and(...conditions));
+    // Count total first
+    const total = await this.countWithConditions(conditions);
 
-    // Apply pagination
+    // Build query - construct the complete query at once
+    const baseQuery = this.db.select().from(projects);
+    
+    let finalQuery;
+    
     if (pagination) {
       const offset = (pagination.page - 1) * pagination.limit;
-      query = query.limit(pagination.limit).offset(offset);
+      finalQuery = baseQuery
+        .where(and(...conditions))
+        .limit(pagination.limit)
+        .offset(offset);
+    } else {
+      finalQuery = baseQuery.where(and(...conditions));
     }
 
-    const result = await query;
+    const result = await finalQuery;
 
-    // Count total
-    const totalResult = await this.db
-      .select({ count: count() })
-      .from(projects)
-      .where(and(...conditions));
-    const total = totalResult[0].count;
+    // Load members for each project
+    const projectsWithMembers = await Promise.all(
+      result.map(async row => {
+        const members = await this.getProjectMembers(ProjectId.create(row.id));
+        return mapRowToProject(row, members);
+      })
+    );
 
     return {
-      items: result.map(row => this.mapToEntity(row)),
+      items: projectsWithMembers,
       total,
       page: pagination?.page || 1,
       limit: pagination?.limit || result.length,
@@ -275,11 +356,16 @@ export class ProjectRepository implements IProjectRepository {
       .where(
         and(
           eq(projects.workspaceId, workspaceId.value),
-          eq(projects.status, 'ACTIVE')
+          eq(projects.status, 'ACTIVE' as DbProjectStatus)
         )
       );
 
-    return result.map(row => this.mapToEntity(row));
+    return Promise.all(
+      result.map(async row => {
+        const members = await this.getProjectMembers(ProjectId.create(row.id));
+        return mapRowToProject(row, members);
+      })
+    );
   }
 
   async getProjectsRequiringAttention(
@@ -302,7 +388,7 @@ export class ProjectRepository implements IProjectRepository {
       and(
         lte(projects.endDate, now),
         isNotNull(projects.endDate),
-        inArray(projects.status, ['ACTIVE', 'ON_HOLD'])
+        inArray(projects.status, ['ACTIVE', 'ON_HOLD'] as DbProjectStatus[])
       )
     );
 
@@ -311,7 +397,12 @@ export class ProjectRepository implements IProjectRepository {
       .from(projects)
       .where(and(...conditions));
 
-    return result.map(row => this.mapToEntity(row));
+    return Promise.all(
+      result.map(async row => {
+        const members = await this.getProjectMembers(ProjectId.create(row.id));
+        return mapRowToProject(row, members);
+      })
+    );
   }
 
   async getProjectStatistics(workspaceId: WorkspaceId): Promise<{
@@ -344,8 +435,8 @@ export class ProjectRepository implements IProjectRepository {
       .from(projectMembers)
       .innerJoin(projects, eq(projectMembers.projectId, projects.id))
       .where(eq(projects.workspaceId, workspaceId.value));
-    const totalMembers = memberResult[0].count;
-
+    
+    const totalMembers = memberResult[0]?.count ?? 0;
     const averageMembersPerProject = total > 0 ? totalMembers / total : 0;
 
     return {
@@ -358,12 +449,19 @@ export class ProjectRepository implements IProjectRepository {
 
   async getProjectMembers(projectId: ProjectId): Promise<ProjectMember[]> {
     const result = await this.db
-      .select()
+      .select({
+        project_members: projectMembers,
+        users: {
+          id: users.id,
+          email: users.email,
+          name: users.name,
+        }
+      })
       .from(projectMembers)
       .innerJoin(users, eq(projectMembers.userId, users.id))
       .where(eq(projectMembers.projectId, projectId.value));
 
-    return result.map(row => this.mapToProjectMember(row));
+    return result.map(row => mapRowToProjectMember(row));
   }
 
   async getProjectMember(
@@ -371,7 +469,14 @@ export class ProjectRepository implements IProjectRepository {
     userId: UserId
   ): Promise<ProjectMember | null> {
     const result = await this.db
-      .select()
+      .select({
+        project_members: projectMembers,
+        users: {
+          id: users.id,
+          email: users.email,
+          name: users.name,
+        }
+      })
       .from(projectMembers)
       .innerJoin(users, eq(projectMembers.userId, users.id))
       .where(
@@ -382,18 +487,16 @@ export class ProjectRepository implements IProjectRepository {
       )
       .limit(1);
 
-    return result.length > 0 ? this.mapToProjectMember(result[0]) : null;
+    return result.length > 0 ? mapRowToProjectMember(result[0]!) : null;
   }
 
   async addProjectMember(
     projectId: ProjectId,
     member: ProjectMember
   ): Promise<void> {
+    const insertData = mapProjectMemberToInsert(projectId.value, member);
     await this.db.insert(projectMembers).values({
-      id: crypto.randomUUID(),
-      projectId: projectId.value,
-      userId: member.userId.value,
-      role: member.role,
+      ...insertData,
       joinedAt: member.joinedAt,
     });
   }
@@ -419,7 +522,7 @@ export class ProjectRepository implements IProjectRepository {
   ): Promise<void> {
     await this.db
       .update(projectMembers)
-      .set({ role: newRole as any })
+      .set({ role: newRole as DbProjectRole })
       .where(
         and(
           eq(projectMembers.projectId, projectId.value),
@@ -429,11 +532,15 @@ export class ProjectRepository implements IProjectRepository {
   }
 
   async save(project: Project): Promise<void> {
-    const data = this.mapFromEntity(project);
+    const data = mapProjectToInsert(project);
 
     await this.db
       .insert(projects)
-      .values(data)
+      .values({
+        ...data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
       .onConflictDoUpdate({
         target: projects.id,
         set: {
@@ -450,7 +557,11 @@ export class ProjectRepository implements IProjectRepository {
   async saveMany(projectList: Project[]): Promise<void> {
     if (projectList.length === 0) return;
 
-    const data = projectList.map(project => this.mapFromEntity(project));
+    const data = projectList.map(project => ({
+      ...mapProjectToInsert(project),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
 
     await this.db
       .insert(projects)
@@ -499,8 +610,6 @@ export class ProjectRepository implements IProjectRepository {
     workspaceId?: WorkspaceId,
     filters?: ProjectFilters
   ): Promise<number> {
-    let query = this.db.select({ count: count() }).from(projects);
-
     const conditions: any[] = [];
 
     if (workspaceId) {
@@ -512,30 +621,41 @@ export class ProjectRepository implements IProjectRepository {
       conditions.push(...filterConditions);
     }
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+    return this.countWithConditions(conditions);
+  }
+
+  private async countWithConditions(conditions: any[]): Promise<number> {
+    if (conditions.length === 0) {
+      const result = await this.db.select({ count: count() }).from(projects);
+      return result[0]?.count ?? 0;
     }
 
-    const result = await query;
-    return result[0].count;
+    const result = await this.db
+      .select({ count: count() })
+      .from(projects)
+      .where(and(...conditions));
+    
+    return result[0]?.count ?? 0;
   }
 
   // Placeholder implementations for complex methods
   async getProjectAggregate(
-    projectId: ProjectId
+    _projectId: ProjectId
   ): Promise<ProjectAggregate | null> {
+    // TODO: Implement project aggregate loading
     return null;
   }
 
-  async saveProjectAggregate(aggregate: ProjectAggregate): Promise<void> {
-    // Complex implementation needed
+  async saveProjectAggregate(_aggregate: ProjectAggregate): Promise<void> {
+    // TODO: Implement project aggregate saving
+    // This would involve saving the project and all its related entities atomically
   }
 
   async getProjectsByStatus(
     status: ProjectStatus,
     workspaceId?: WorkspaceId
   ): Promise<Project[]> {
-    const conditions: any[] = [eq(projects.status, status)];
+    const conditions: any[] = [eq(projects.status, mapDomainStatusToDb(status))];
 
     if (workspaceId) {
       conditions.push(eq(projects.workspaceId, workspaceId.value));
@@ -546,7 +666,12 @@ export class ProjectRepository implements IProjectRepository {
       .from(projects)
       .where(and(...conditions));
 
-    return result.map(row => this.mapToEntity(row));
+    return Promise.all(
+      result.map(async row => {
+        const members = await this.getProjectMembers(ProjectId.create(row.id));
+        return mapRowToProject(row, members);
+      })
+    );
   }
 
   async getProjectsEndingSoon(
@@ -559,7 +684,7 @@ export class ProjectRepository implements IProjectRepository {
     const conditions: any[] = [
       lte(projects.endDate, futureDate),
       isNotNull(projects.endDate),
-      inArray(projects.status, ['ACTIVE']),
+      eq(projects.status, 'ACTIVE' as DbProjectStatus),
     ];
 
     if (workspaceId) {
@@ -571,7 +696,12 @@ export class ProjectRepository implements IProjectRepository {
       .from(projects)
       .where(and(...conditions));
 
-    return result.map(row => this.mapToEntity(row));
+    return Promise.all(
+      result.map(async row => {
+        const members = await this.getProjectMembers(ProjectId.create(row.id));
+        return mapRowToProject(row, members);
+      })
+    );
   }
 
   async getOverdueProjects(workspaceId?: WorkspaceId): Promise<Project[]> {
@@ -579,7 +709,7 @@ export class ProjectRepository implements IProjectRepository {
     const conditions: any[] = [
       lte(projects.endDate, now),
       isNotNull(projects.endDate),
-      inArray(projects.status, ['ACTIVE', 'ON_HOLD']),
+      inArray(projects.status, ['ACTIVE', 'ON_HOLD'] as DbProjectStatus[]),
     ];
 
     if (workspaceId) {
@@ -591,25 +721,36 @@ export class ProjectRepository implements IProjectRepository {
       .from(projects)
       .where(and(...conditions));
 
-    return result.map(row => this.mapToEntity(row));
+    return Promise.all(
+      result.map(async row => {
+        const members = await this.getProjectMembers(ProjectId.create(row.id));
+        return mapRowToProject(row, members);
+      })
+    );
   }
 
   // Additional placeholder methods
   async getProjectCompletionHistory(
-    workspaceId: WorkspaceId,
-    fromDate: Date,
-    toDate: Date
+    _workspaceId: WorkspaceId,
+    _fromDate: Date,
+    _toDate: Date
   ): Promise<any[]> {
+    // TODO: Implement project completion history
     return [];
   }
-  async getUserProjectRoles(userId: UserId): Promise<any[]> {
+  
+  async getUserProjectRoles(_userId: UserId): Promise<any[]> {
+    // TODO: Implement user project roles retrieval
     return [];
   }
+  
   async getProjectHealthScores(
-    workspaceId: WorkspaceId
+    _workspaceId: WorkspaceId
   ): Promise<Map<string, number>> {
+    // TODO: Implement project health scoring
     return new Map();
   }
+  
   async bulkUpdateStatus(
     projectIds: ProjectId[],
     status: ProjectStatus
@@ -617,21 +758,26 @@ export class ProjectRepository implements IProjectRepository {
     const idValues = projectIds.map(id => id.value);
     await this.db
       .update(projects)
-      .set({ status, updatedAt: new Date() })
+      .set({ status: mapDomainStatusToDb(status), updatedAt: new Date() })
       .where(inArray(projects.id, idValues));
   }
+  
   async getProjectsReadyForArchival(
-    workspaceId?: WorkspaceId
+    _workspaceId?: WorkspaceId
   ): Promise<Project[]> {
+    // TODO: Implement logic to find projects ready for archival
     return [];
   }
+  
   async getProjectActivitySummary(
-    projectId: ProjectId,
-    fromDate: Date,
-    toDate: Date
+    _projectId: ProjectId,
+    _fromDate: Date,
+    _toDate: Date
   ): Promise<any> {
+    // TODO: Implement project activity summary
     return {};
   }
+  
   async userHasAccessToProject(
     projectId: ProjectId,
     userId: UserId
@@ -649,6 +795,7 @@ export class ProjectRepository implements IProjectRepository {
 
     return result.length > 0;
   }
+  
   async getUserPermissionLevel(
     projectId: ProjectId,
     userId: UserId
@@ -664,12 +811,14 @@ export class ProjectRepository implements IProjectRepository {
       )
       .limit(1);
 
-    return result.length > 0 ? result[0].role : null;
+    return result.length > 0 ? result[0]?.role || null : null;
   }
+  
   async getProjectsWithLowActivity(
-    days: number,
-    workspaceId?: WorkspaceId
+    _days: number,
+    _workspaceId?: WorkspaceId
   ): Promise<Project[]> {
+    // TODO: Implement logic to find projects with low activity
     return [];
   }
 
@@ -677,7 +826,8 @@ export class ProjectRepository implements IProjectRepository {
     const conditions: any[] = [];
 
     if (filters.status && filters.status.length > 0) {
-      conditions.push(inArray(projects.status, filters.status));
+      const dbStatuses = filters.status.map(status => mapDomainStatusToDb(status));
+      conditions.push(inArray(projects.status, dbStatuses));
     }
 
     if (filters.managerId) {
@@ -710,31 +860,5 @@ export class ProjectRepository implements IProjectRepository {
     }
 
     return conditions;
-  }
-
-  private mapToEntity(row: any): Project {
-    // This would need to be implemented based on the actual Project entity structure
-    return {} as Project;
-  }
-
-  private mapFromEntity(project: Project): any {
-    // This would need to be implemented based on the actual Project entity structure
-    return {
-      id: '', // project.id.value,
-      name: '', // project.name,
-      description: '', // project.description,
-      workspaceId: '', // project.workspaceId.value,
-      managerId: '', // project.managerId.value,
-      status: 'ACTIVE', // project.status.value,
-      startDate: null, // project.startDate,
-      endDate: null, // project.endDate,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-  }
-
-  private mapToProjectMember(row: any): ProjectMember {
-    // This would need to be implemented based on the actual ProjectMember structure
-    return {} as ProjectMember;
   }
 }

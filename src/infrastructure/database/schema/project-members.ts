@@ -11,7 +11,7 @@ import { projects } from './projects';
 
 export const projectRoleEnum = pgEnum('project_role', [
   'OWNER',
-  'ADMIN',
+  'MANAGER',
   'MEMBER',
   'VIEWER',
 ]);

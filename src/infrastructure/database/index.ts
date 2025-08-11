@@ -69,8 +69,18 @@ export type {
 // Export schema
 export * from './schema';
 
+// Export types
+export * from './types';
+
+// Export mappers
+export * from './mappers/project-mapper';
+
 // Export repository implementations
 export * from './repositories';
 
-// Export repository interfaces
-export * from '../../domain/repositories';
+// Export repository interfaces (avoiding conflicts)
+export type { 
+  IProjectRepository,
+  ProjectFilters,
+  ProjectSortOptions
+} from '../../domain/repositories/project-repository';

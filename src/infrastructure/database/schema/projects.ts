@@ -6,10 +6,12 @@ import { tasks } from './tasks';
 import { projectMembers } from './project-members';
 
 export const projectStatusEnum = pgEnum('project_status', [
+  'PLANNING',
   'ACTIVE',
+  'ON_HOLD', 
   'COMPLETED',
+  'CANCELLED',
   'ARCHIVED',
-  'ON_HOLD',
 ]);
 
 export const projects = pgTable('projects', {

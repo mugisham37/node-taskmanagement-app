@@ -9,8 +9,6 @@ import {
   desc,
   asc,
   inArray,
-  isNull,
-  isNotNull,
 } from 'drizzle-orm';
 import { getDatabase } from '../connection';
 import { workspaces, users, projects, projectMembers } from '../schema';
@@ -59,41 +57,44 @@ export class WorkspaceRepository implements IWorkspaceRepository {
     sort?: WorkspaceSortOptions,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Workspace>> {
-    let query = this.db
-      .select()
-      .from(workspaces)
-      .where(eq(workspaces.ownerId, ownerId.value));
-
+    // Build conditions array
+    const conditions = [eq(workspaces.ownerId, ownerId.value)];
+    
     // Apply filters
     if (filters) {
-      const conditions = this.buildFilterConditions(filters);
-      if (conditions.length > 0) {
-        query = query.where(
-          and(eq(workspaces.ownerId, ownerId.value), ...conditions)
-        );
-      }
+      const filterConditions = this.buildFilterConditions(filters);
+      conditions.push(...filterConditions);
     }
 
-    // Apply sorting
-    if (sort) {
-      const orderBy = sort.direction === 'DESC' ? desc : asc;
-      // Note: memberCount and projectCount would need to be calculated via joins
-      if (sort.field === 'memberCount' || sort.field === 'projectCount') {
-        query = query.orderBy(desc(workspaces.createdAt)); // Fallback
-      } else {
-        query = query.orderBy(orderBy(workspaces[sort.field]));
-      }
+    // Build order by clause
+    const orderDirection = sort?.direction === 'DESC' ? desc : asc;
+    let orderByClause;
+    if (sort && (sort.field === 'name' || sort.field === 'createdAt' || sort.field === 'updatedAt')) {
+      orderByClause = orderDirection(workspaces[sort.field]);
     } else {
-      query = query.orderBy(desc(workspaces.createdAt));
+      orderByClause = desc(workspaces.createdAt);
     }
 
-    // Apply pagination
+    // Build complete query in one go
+    let finalQuery;
+    const baseQuery = this.db
+      .select()
+      .from(workspaces);
+
     if (pagination) {
       const offset = (pagination.page - 1) * pagination.limit;
-      query = query.limit(pagination.limit).offset(offset);
+      finalQuery = baseQuery
+        .where(and(...conditions))
+        .orderBy(orderByClause)
+        .limit(pagination.limit)
+        .offset(offset);
+    } else {
+      finalQuery = baseQuery
+        .where(and(...conditions))
+        .orderBy(orderByClause);
     }
 
-    const result = await query;
+    const result = await finalQuery;
     const total = await this.count({ ownerId });
 
     return {
@@ -107,40 +108,55 @@ export class WorkspaceRepository implements IWorkspaceRepository {
 
   async findByMemberId(
     userId: UserId,
-    filters?: WorkspaceFilters,
-    sort?: WorkspaceSortOptions,
+    _filters?: WorkspaceFilters,
+    _sort?: WorkspaceSortOptions,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Workspace>> {
     // This would require a workspace members table which isn't in our current schema
     // For now, return workspaces where user is owner or has projects
-    let query = this.db
-      .select()
+    
+    // Build conditions for member search
+    const memberConditions = or(
+      eq(workspaces.ownerId, userId.value),
+      eq(projectMembers.userId, userId.value)
+    );
+
+    // Build complete query in one go
+    let finalQuery;
+    const baseQuery = this.db
+      .select({
+        id: workspaces.id,
+        name: workspaces.name,
+        description: workspaces.description,
+        ownerId: workspaces.ownerId,
+        isActive: workspaces.isActive,
+        createdAt: workspaces.createdAt,
+        updatedAt: workspaces.updatedAt,
+      })
       .from(workspaces)
       .leftJoin(projects, eq(workspaces.id, projects.workspaceId))
-      .leftJoin(projectMembers, eq(projects.id, projectMembers.projectId))
-      .where(
-        or(
-          eq(workspaces.ownerId, userId.value),
-          eq(projectMembers.userId, userId.value)
-        )
-      );
+      .leftJoin(projectMembers, eq(projects.id, projectMembers.projectId));
 
-    // Apply pagination
     if (pagination) {
       const offset = (pagination.page - 1) * pagination.limit;
-      query = query.limit(pagination.limit).offset(offset);
+      finalQuery = baseQuery
+        .where(memberConditions)
+        .orderBy(desc(workspaces.createdAt))
+        .limit(pagination.limit)
+        .offset(offset);
+    } else {
+      finalQuery = baseQuery
+        .where(memberConditions)
+        .orderBy(desc(workspaces.createdAt));
     }
 
-    const result = await query;
+    const result = await finalQuery;
 
     // Remove duplicates and map to entities
     const uniqueWorkspaces = new Map();
     result.forEach(row => {
-      if (row.workspaces && !uniqueWorkspaces.has(row.workspaces.id)) {
-        uniqueWorkspaces.set(
-          row.workspaces.id,
-          this.mapToEntity(row.workspaces)
-        );
+      if (row && !uniqueWorkspaces.has(row.id)) {
+        uniqueWorkspaces.set(row.id, this.mapToEntity(row));
       }
     });
 
@@ -161,35 +177,55 @@ export class WorkspaceRepository implements IWorkspaceRepository {
     sort?: WorkspaceSortOptions,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Workspace>> {
-    let query = this.db.select().from(workspaces);
-
-    // Apply filters
+    // Build conditions
+    const conditions: any[] = [];
     if (filters) {
-      const conditions = this.buildFilterConditions(filters);
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions));
-      }
+      const filterConditions = this.buildFilterConditions(filters);
+      conditions.push(...filterConditions);
     }
 
-    // Apply sorting
-    if (sort) {
-      const orderBy = sort.direction === 'DESC' ? desc : asc;
-      if (sort.field === 'memberCount' || sort.field === 'projectCount') {
-        query = query.orderBy(desc(workspaces.createdAt)); // Fallback
+    // Build order by clause
+    const orderDirection = sort?.direction === 'DESC' ? desc : asc;
+    let orderByClause;
+    if (sort && (sort.field === 'name' || sort.field === 'createdAt' || sort.field === 'updatedAt')) {
+      orderByClause = orderDirection(workspaces[sort.field]);
+    } else {
+      orderByClause = desc(workspaces.createdAt);
+    }
+
+    // Build complete query in one go
+    let finalQuery;
+    const baseQuery = this.db
+      .select()
+      .from(workspaces);
+
+    if (conditions.length > 0) {
+      if (pagination) {
+        const offset = (pagination.page - 1) * pagination.limit;
+        finalQuery = baseQuery
+          .where(and(...conditions))
+          .orderBy(orderByClause)
+          .limit(pagination.limit)
+          .offset(offset);
       } else {
-        query = query.orderBy(orderBy(workspaces[sort.field]));
+        finalQuery = baseQuery
+          .where(and(...conditions))
+          .orderBy(orderByClause);
       }
     } else {
-      query = query.orderBy(desc(workspaces.createdAt));
+      if (pagination) {
+        const offset = (pagination.page - 1) * pagination.limit;
+        finalQuery = baseQuery
+          .orderBy(orderByClause)
+          .limit(pagination.limit)
+          .offset(offset);
+      } else {
+        finalQuery = baseQuery
+          .orderBy(orderByClause);
+      }
     }
 
-    // Apply pagination
-    if (pagination) {
-      const offset = (pagination.page - 1) * pagination.limit;
-      query = query.limit(pagination.limit).offset(offset);
-    }
-
-    const result = await query;
+    const result = await finalQuery;
     const total = await this.count(filters);
 
     return {
@@ -218,25 +254,34 @@ export class WorkspaceRepository implements IWorkspaceRepository {
       conditions.push(...filterConditions);
     }
 
-    let query = this.db
+    // Build complete query in one go
+    let finalQuery;
+    const baseQuery = this.db
       .select()
-      .from(workspaces)
-      .where(and(...conditions));
+      .from(workspaces);
 
-    // Apply pagination
     if (pagination) {
       const offset = (pagination.page - 1) * pagination.limit;
-      query = query.limit(pagination.limit).offset(offset);
+      finalQuery = baseQuery
+        .where(and(...conditions))
+        .orderBy(desc(workspaces.createdAt))
+        .limit(pagination.limit)
+        .offset(offset);
+    } else {
+      finalQuery = baseQuery
+        .where(and(...conditions))
+        .orderBy(desc(workspaces.createdAt));
     }
 
-    const result = await query;
+    const result = await finalQuery;
 
     // Count total
     const totalResult = await this.db
       .select({ count: count() })
       .from(workspaces)
       .where(and(...conditions));
-    const total = totalResult[0].count;
+    
+    const total = totalResult?.[0]?.count || 0;
 
     return {
       items: result.map(row => this.mapToEntity(row)),
@@ -295,13 +340,13 @@ export class WorkspaceRepository implements IWorkspaceRepository {
     const projectResult = await this.db
       .select({ count: count() })
       .from(projects);
-    const totalProjects = projectResult[0].count;
+    const totalProjects = projectResult?.[0]?.count || 0;
 
     // Get total members (unique users across all projects)
     const memberResult = await this.db
       .select({ count: count() })
       .from(projectMembers);
-    const totalMembers = memberResult[0].count;
+    const totalMembers = memberResult?.[0]?.count || 0;
 
     return {
       total,
@@ -357,7 +402,7 @@ export class WorkspaceRepository implements IWorkspaceRepository {
       return this.mapToWorkspaceMember({
         users: { id: userId.value },
         role: 'OWNER',
-        joinedAt: ownerResult[0].createdAt,
+        joinedAt: ownerResult[0]?.createdAt || new Date(),
       });
     }
 
@@ -381,28 +426,31 @@ export class WorkspaceRepository implements IWorkspaceRepository {
   }
 
   async addWorkspaceMember(
-    workspaceId: WorkspaceId,
-    member: WorkspaceMember
+    _workspaceId: WorkspaceId,
+    _member: WorkspaceMember
   ): Promise<void> {
     // This would require a workspace members table
-    // For now, this is a placeholder
+    // For now, this is a placeholder implementation
+    // In a real system, you would insert into a workspace_members table
   }
 
   async removeWorkspaceMember(
-    workspaceId: WorkspaceId,
-    userId: UserId
+    _workspaceId: WorkspaceId,
+    _userId: UserId
   ): Promise<void> {
     // This would require a workspace members table
-    // For now, this is a placeholder
+    // For now, this is a placeholder implementation
+    // In a real system, you would delete from a workspace_members table
   }
 
   async updateWorkspaceMemberRole(
-    workspaceId: WorkspaceId,
-    userId: UserId,
-    newRole: 'ADMIN' | 'MEMBER'
+    _workspaceId: WorkspaceId,
+    _userId: UserId,
+    _newRole: 'ADMIN' | 'MEMBER'
   ): Promise<void> {
     // This would require a workspace members table
-    // For now, this is a placeholder
+    // For now, this is a placeholder implementation
+    // In a real system, you would update the role in a workspace_members table
   }
 
   async getWorkspaceProjects(workspaceId: WorkspaceId): Promise<ProjectId[]> {
@@ -427,7 +475,7 @@ export class WorkspaceRepository implements IWorkspaceRepository {
   }
 
   async removeWorkspaceProject(
-    workspaceId: WorkspaceId,
+    _workspaceId: WorkspaceId,
     projectId: ProjectId
   ): Promise<void> {
     // This could archive the project or move it to a different workspace
@@ -499,42 +547,54 @@ export class WorkspaceRepository implements IWorkspaceRepository {
   }
 
   async count(filters?: WorkspaceFilters): Promise<number> {
-    let query = this.db.select({ count: count() }).from(workspaces);
-
     if (filters) {
       const conditions = this.buildFilterConditions(filters);
       if (conditions.length > 0) {
-        query = query.where(and(...conditions));
+        const result = await this.db
+          .select({ count: count() })
+          .from(workspaces)
+          .where(and(...conditions));
+        return result?.[0]?.count || 0;
       }
     }
 
-    const result = await query;
-    return result[0].count;
+    const result = await this.db
+      .select({ count: count() })
+      .from(workspaces);
+    return result?.[0]?.count || 0;
   }
 
   // Placeholder implementations for complex methods
   async getWorkspaceAggregate(
-    workspaceId: WorkspaceId
+    _workspaceId: WorkspaceId
   ): Promise<WorkspaceAggregate | null> {
     return null;
   }
-  async saveWorkspaceAggregate(aggregate: WorkspaceAggregate): Promise<void> {}
+  
+  async saveWorkspaceAggregate(_aggregate: WorkspaceAggregate): Promise<void> {
+    // Implementation placeholder
+  }
+  
   async getWorkspaceActivitySummary(
-    workspaceId: WorkspaceId,
-    fromDate: Date,
-    toDate: Date
+    _workspaceId: WorkspaceId,
+    _fromDate: Date,
+    _toDate: Date
   ): Promise<any> {
     return {};
   }
+  
   async getWorkspaceHealthScores(): Promise<Map<string, number>> {
     return new Map();
   }
-  async getWorkspaceCapacityAnalysis(workspaceId: WorkspaceId): Promise<any> {
+  
+  async getWorkspaceCapacityAnalysis(_workspaceId: WorkspaceId): Promise<any> {
     return {};
   }
-  async getUserWorkspaceRoles(userId: UserId): Promise<any[]> {
+  
+  async getUserWorkspaceRoles(_userId: UserId): Promise<any[]> {
     return [];
   }
+  
   async userHasAccessToWorkspace(
     workspaceId: WorkspaceId,
     userId: UserId
@@ -568,6 +628,7 @@ export class WorkspaceRepository implements IWorkspaceRepository {
 
     return memberResult.length > 0;
   }
+  
   async getUserPermissionLevel(
     workspaceId: WorkspaceId,
     userId: UserId
@@ -601,46 +662,56 @@ export class WorkspaceRepository implements IWorkspaceRepository {
 
     return memberResult.length > 0 ? 'MEMBER' : null;
   }
+  
   async getWorkspacesWithLowActivity(
-    days: number,
+    _days: number,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Workspace>> {
     return this.findWorkspaces({}, undefined, pagination);
   }
+  
   async getWorkspacesOverCapacity(
-    capacityThreshold: number,
+    _capacityThreshold: number,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Workspace>> {
     return this.findWorkspaces({}, undefined, pagination);
   }
+  
   async getWorkspaceMemberActivity(
-    workspaceId: WorkspaceId,
-    fromDate: Date,
-    toDate: Date
+    _workspaceId: WorkspaceId,
+    _fromDate: Date,
+    _toDate: Date
   ): Promise<Map<string, Date>> {
     return new Map();
   }
+  
   async getWorkspaceProjectSummaries(
-    workspaceId: WorkspaceId
+    _workspaceId: WorkspaceId
   ): Promise<ProjectSummary[]> {
     return [];
   }
+  
   async updateWorkspaceProjectSummary(
-    workspaceId: WorkspaceId,
-    projectSummary: ProjectSummary
-  ): Promise<void> {}
+    _workspaceId: WorkspaceId,
+    _projectSummary: ProjectSummary
+  ): Promise<void> {
+    // Implementation placeholder
+  }
+  
   async getWorkspaceGrowthMetrics(
-    workspaceId: WorkspaceId,
-    fromDate: Date,
-    toDate: Date
+    _workspaceId: WorkspaceId,
+    _fromDate: Date,
+    _toDate: Date
   ): Promise<any> {
     return {};
   }
+  
   async getWorkspacesReadyForArchival(
-    inactiveDays: number
+    _inactiveDays: number
   ): Promise<Workspace[]> {
     return [];
   }
+  
   async bulkUpdateStatus(
     workspaceIds: WorkspaceId[],
     isActive: boolean
@@ -651,6 +722,7 @@ export class WorkspaceRepository implements IWorkspaceRepository {
       .set({ isActive, updatedAt: new Date() })
       .where(inArray(workspaces.id, idValues));
   }
+  
   async transferOwnership(
     workspaceId: WorkspaceId,
     currentOwnerId: UserId,
@@ -666,8 +738,9 @@ export class WorkspaceRepository implements IWorkspaceRepository {
         )
       );
   }
+  
   async getWorkspaceCollaborationMetrics(
-    workspaceId: WorkspaceId
+    _workspaceId: WorkspaceId
   ): Promise<any> {
     return {};
   }
@@ -704,25 +777,42 @@ export class WorkspaceRepository implements IWorkspaceRepository {
   }
 
   private mapToEntity(row: any): Workspace {
-    // This would need to be implemented based on the actual Workspace entity structure
-    return {} as Workspace;
+    // Create a proper workspace entity from database row
+    const workspaceId = WorkspaceId.create(row.id);
+    const ownerId = UserId.create(row.ownerId);
+    
+    const workspace = new Workspace(
+      workspaceId,
+      row.name,
+      row.description || '',
+      ownerId,
+      row.isActive,
+      row.createdAt,
+      row.updatedAt
+    );
+
+    return workspace;
   }
 
   private mapFromEntity(workspace: Workspace): any {
-    // This would need to be implemented based on the actual Workspace entity structure
+    // Map workspace entity to database format
     return {
-      id: '', // workspace.id.value,
-      name: '', // workspace.name,
-      description: '', // workspace.description,
-      ownerId: '', // workspace.ownerId.value,
-      isActive: true, // workspace.isActive,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      id: workspace.id.value,
+      name: workspace.name,
+      description: workspace.description,
+      ownerId: workspace.ownerId.value,
+      isActive: workspace.isActive,
+      createdAt: workspace.createdAt,
+      updatedAt: workspace.updatedAt,
     };
   }
 
   private mapToWorkspaceMember(row: any): WorkspaceMember {
-    // This would need to be implemented based on the actual WorkspaceMember structure
-    return {} as WorkspaceMember;
+    // Map database row to workspace member
+    return {
+      userId: UserId.create(row.users?.id || row.userId),
+      role: row.role || 'MEMBER',
+      joinedAt: row.joinedAt || new Date(),
+    };
   }
 }
