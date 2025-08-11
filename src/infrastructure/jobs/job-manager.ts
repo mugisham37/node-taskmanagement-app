@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { Logger } from '../monitoring/logging-service';
+import { logger, LoggingService } from '../monitoring/logging-service';
 import { JobScheduler } from './job-scheduler';
 import { JobQueue } from './job-queue';
 import { JobProcessor } from './job-processor';
@@ -14,7 +14,7 @@ import {
   JobEvent,
   JobEventType,
 } from './job-types';
-import { JobStatus, JobType } from '../../shared/enums/common.enums';
+import { JobType } from '../../shared/enums/common.enums';
 
 export class JobManager extends EventEmitter {
   private scheduler: JobScheduler;
@@ -26,7 +26,7 @@ export class JobManager extends EventEmitter {
   private config: JobConfig;
 
   constructor(
-    private logger: Logger,
+    private jobLogger: LoggingService = logger,
     config: Partial<JobConfig> = {}
   ) {
     super();
@@ -42,11 +42,11 @@ export class JobManager extends EventEmitter {
       ...config,
     };
 
-    this.registry = new JobRegistry(logger);
-    this.queue = new JobQueue(logger, this.config);
-    this.scheduler = new JobScheduler(logger, this.config);
-    this.processor = new JobProcessor(logger, this.config, this.registry);
-    this.monitoring = new JobMonitoring(logger, this.config);
+    this.registry = new JobRegistry(this.jobLogger);
+    this.queue = new JobQueue(this.jobLogger, this.config);
+    this.scheduler = new JobScheduler(this.jobLogger, this.config);
+    this.processor = new JobProcessor(this.jobLogger, this.config, this.registry);
+    this.monitoring = new JobMonitoring(this.jobLogger, this.config);
 
     this.setupEventHandlers();
   }
@@ -56,17 +56,17 @@ export class JobManager extends EventEmitter {
    */
   async start(): Promise<void> {
     if (this.isRunning) {
-      this.logger.warn('Job manager is already running');
+      this.jobLogger.warn('Job manager is already running');
       return;
     }
 
     if (!this.config.enabled) {
-      this.logger.info('Job manager is disabled');
+      this.jobLogger.info('Job manager is disabled');
       return;
     }
 
     try {
-      this.logger.info('Starting job manager...', {
+      this.jobLogger.info('Starting job manager...', {
         config: this.config,
       });
 
@@ -78,7 +78,7 @@ export class JobManager extends EventEmitter {
       this.isRunning = true;
       this.emit('manager.started');
 
-      this.logger.info('Job manager started successfully', {
+      this.jobLogger.info('Job manager started successfully', {
         registeredHandlers: this.registry.getHandlerNames(),
         queueSize: await this.queue.size(),
       });
@@ -86,8 +86,7 @@ export class JobManager extends EventEmitter {
       // Start processing jobs
       this.processJobs();
     } catch (error) {
-      this.logger.error('Failed to start job manager', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+      this.jobLogger.error('Failed to start job manager', error instanceof Error ? error : undefined, {
         stack: error instanceof Error ? error.stack : undefined,
       });
       throw error;
@@ -99,12 +98,12 @@ export class JobManager extends EventEmitter {
    */
   async stop(): Promise<void> {
     if (!this.isRunning) {
-      this.logger.warn('Job manager is not running');
+      this.jobLogger.warn('Job manager is not running');
       return;
     }
 
     try {
-      this.logger.info('Stopping job manager...');
+      this.jobLogger.info('Stopping job manager...');
 
       this.isRunning = false;
 
@@ -114,11 +113,9 @@ export class JobManager extends EventEmitter {
       await this.monitoring.stop();
 
       this.emit('manager.stopped');
-      this.logger.info('Job manager stopped successfully');
+      this.jobLogger.info('Job manager stopped successfully');
     } catch (error) {
-      this.logger.error('Error stopping job manager', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      this.jobLogger.error('Error stopping job manager', error instanceof Error ? error : undefined);
       throw error;
     }
   }
@@ -128,7 +125,7 @@ export class JobManager extends EventEmitter {
    */
   registerHandler(handler: JobHandler): void {
     this.registry.register(handler);
-    this.logger.info('Job handler registered', {
+    this.jobLogger.info('Job handler registered', {
       handlerName: handler.name,
     });
   }
@@ -138,7 +135,7 @@ export class JobManager extends EventEmitter {
    */
   unregisterHandler(name: string): void {
     this.registry.unregister(name);
-    this.logger.info('Job handler unregistered', {
+    this.jobLogger.info('Job handler unregistered', {
       handlerName: name,
     });
   }
@@ -160,7 +157,7 @@ export class JobManager extends EventEmitter {
 
       this.emitJobEvent('job.created', jobId, { job });
 
-      this.logger.info('Job added to queue', {
+      this.jobLogger.info('Job added to queue', {
         jobId,
         jobName: job.name,
         jobType: job.type,
@@ -169,9 +166,8 @@ export class JobManager extends EventEmitter {
 
       return jobId;
     } catch (error) {
-      this.logger.error('Failed to add job', {
+      this.jobLogger.error('Failed to add job', error instanceof Error ? error : undefined, {
         jobName: job.name,
-        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -193,7 +189,7 @@ export class JobManager extends EventEmitter {
 
     const scheduleId = await this.scheduler.schedule(job, cronExpression);
 
-    this.logger.info('Job scheduled', {
+    this.jobLogger.info('Job scheduled', {
       scheduleId,
       jobName: job.name,
       cronExpression,
@@ -211,14 +207,13 @@ export class JobManager extends EventEmitter {
 
       if (cancelled) {
         this.emitJobEvent('job.cancelled', jobId);
-        this.logger.info('Job cancelled', { jobId });
+        this.jobLogger.info('Job cancelled', { jobId });
       }
 
       return cancelled;
     } catch (error) {
-      this.logger.error('Failed to cancel job', {
+      this.jobLogger.error('Failed to cancel job', error instanceof Error ? error : undefined, {
         jobId,
-        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return false;
     }
@@ -263,7 +258,7 @@ export class JobManager extends EventEmitter {
   async pause(): Promise<void> {
     await this.queue.pause();
     this.emit('queue.paused');
-    this.logger.info('Job processing paused');
+    this.jobLogger.info('Job processing paused');
   }
 
   /**
@@ -272,7 +267,7 @@ export class JobManager extends EventEmitter {
   async resume(): Promise<void> {
     await this.queue.resume();
     this.emit('queue.resumed');
-    this.logger.info('Job processing resumed');
+    this.jobLogger.info('Job processing resumed');
   }
 
   /**
@@ -281,7 +276,7 @@ export class JobManager extends EventEmitter {
   async cleanup(): Promise<number> {
     const cleaned = await this.queue.cleanup(this.config.maxJobHistory);
 
-    this.logger.info('Job cleanup completed', {
+    this.jobLogger.info('Job cleanup completed', {
       cleanedJobs: cleaned,
       maxHistory: this.config.maxJobHistory,
     });
@@ -358,15 +353,12 @@ export class JobManager extends EventEmitter {
 
         // Process job in background
         this.processJob(job).catch(error => {
-          this.logger.error('Unhandled error in job processing', {
+          this.jobLogger.error('Unhandled error in job processing', error instanceof Error ? error : undefined, {
             jobId: job.id,
-            error: error instanceof Error ? error.message : 'Unknown error',
           });
         });
       } catch (error) {
-        this.logger.error('Error in job processing loop', {
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
+        this.jobLogger.error('Error in job processing loop', error instanceof Error ? error : undefined);
         await this.sleep(5000); // Wait before retrying
       }
     }
@@ -392,7 +384,7 @@ export class JobManager extends EventEmitter {
         executionTime,
       });
 
-      this.logger.debug('Job completed successfully', {
+      this.jobLogger.debug('Job completed successfully', {
         jobId: job.id,
         jobName: job.name,
         executionTime,
@@ -409,10 +401,10 @@ export class JobManager extends EventEmitter {
         executionTime,
       });
 
-      this.logger.error('Job failed', {
+      this.jobLogger.error('Job failed', error instanceof Error ? error : undefined, {
         jobId: job.id,
         jobName: job.name,
-        error: errorMessage,
+        errorMessage,
         executionTime,
       });
 
@@ -461,19 +453,18 @@ export class JobManager extends EventEmitter {
    * Setup event handlers
    */
   private setupEventHandlers(): void {
-    this.queue.on('job.completed', (jobId: string, result: any) => {
+    this.queue.on('job.completed', (jobId: string, _result: any) => {
       this.monitoring.recordJobCompletion(jobId, true, Date.now());
     });
 
-    this.queue.on('job.failed', (jobId: string, error: string) => {
+    this.queue.on('job.failed', (jobId: string, _error: string) => {
       this.monitoring.recordJobCompletion(jobId, false, Date.now());
     });
 
     this.scheduler.on('job.scheduled', (job: JobDefinition) => {
       this.addJob(job).catch(error => {
-        this.logger.error('Failed to add scheduled job', {
+        this.jobLogger.error('Failed to add scheduled job', error instanceof Error ? error : undefined, {
           jobName: job.name,
-          error: error instanceof Error ? error.message : 'Unknown error',
         });
       });
     });
@@ -491,7 +482,7 @@ export class JobManager extends EventEmitter {
       type,
       jobId,
       timestamp: new Date(),
-      data,
+      data: data || {},
     };
 
     this.emit(type, event);

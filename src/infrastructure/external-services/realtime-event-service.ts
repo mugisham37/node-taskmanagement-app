@@ -438,8 +438,20 @@ export class RealtimeEventService extends EventEmitter {
   }
 
   private async cacheEvent(event: RealtimeEvent): Promise<void> {
-    const key = `event:${event.entityId}:${event.id}`;
-    await this.cacheService.set(key, JSON.stringify(event), 3600); // 1 hour TTL
+    const cacheKey = `event:${event.id}`;
+    await this.cacheService.set(
+      cacheKey,
+      JSON.stringify(event),
+      { ttl: 3600 }
+    );
+
+    // Also cache in event history
+    const historyKey = `event-history:${event.userId}`;
+    await this.cacheService.set(
+      historyKey,
+      JSON.stringify(event),
+      { ttl: 86400 }
+    );
   }
 
   private async cacheNotification(

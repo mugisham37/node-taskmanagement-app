@@ -1,4 +1,4 @@
-import { Logger } from '../monitoring/logging-service';
+import { LoggingService } from '../monitoring/logging-service';
 import { JobRegistry } from './job-registry';
 import { JobExecution, JobConfig } from './job-types';
 import { CircuitBreaker } from '../external-services/circuit-breaker';
@@ -8,7 +8,7 @@ export class JobProcessor {
   private processingJobs = new Set<string>();
 
   constructor(
-    private logger: Logger,
+    private logger: LoggingService,
     private config: JobConfig,
     private registry: JobRegistry
   ) {}
@@ -115,14 +115,15 @@ export class JobProcessor {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
 
-      this.logger.error('Job processing failed', {
-        jobId: job.id,
-        jobName: job.name,
-        error: errorMessage,
-        executionTime,
-        retryCount: job.retryCount,
-        stack: error instanceof Error ? error.stack : undefined,
-      });
+      this.logger.error('Job processing failed', 
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          jobId: job.id,
+          jobName: job.name,
+          executionTime,
+          retryCount: job.retryCount,
+        }
+      );
 
       // Call failure handler if available
       const handler = this.registry.getHandler(job.name);

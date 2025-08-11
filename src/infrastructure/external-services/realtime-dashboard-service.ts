@@ -37,6 +37,54 @@ export interface UserActivityStats {
   isOnline: boolean;
 }
 
+export interface ProjectMetrics {
+  projectId: string;
+  taskMetrics: {
+    total: number;
+    completed: number;
+    inProgress: number;
+    overdue: number;
+  };
+  teamMetrics: {
+    totalMembers: number;
+    activeMembers: number;
+  };
+  performance: {
+    completionRate: number;
+    averageTaskDuration: number;
+    velocityTrend: number;
+  };
+  lastUpdated: Date;
+}
+
+export interface SystemHealth {
+  status: 'healthy' | 'degraded' | 'critical';
+  uptime: number;
+  memoryUsage: {
+    used: number;
+    total: number;
+    percentage: number;
+  };
+  cpuUsage: number;
+  dbStatus: 'connected' | 'disconnected' | 'slow';
+  cacheStatus: 'connected' | 'disconnected' | 'slow';
+  lastCheck: Date;
+}
+
+export interface DashboardData {
+  overview: DashboardStats;
+  projects: ProjectDashboardStats[];
+  userActivity: UserActivityStats;
+  systemHealth: SystemHealth;
+  recentActivity: Array<{
+    type: string;
+    message: string;
+    timestamp: Date;
+    userId?: string;
+    projectId?: string;
+  }>;
+}
+
 /**
  * Service for managing real-time dashboard statistics and updates
  */
@@ -110,7 +158,7 @@ export class RealtimeDashboardService {
       await this.cacheService.set(
         `dashboard:workspace:${workspaceId}`,
         JSON.stringify(updatedStats),
-        300 // 5 minutes TTL
+        { ttl: 300 } // 5 minutes TTL
       );
 
       // Broadcast to workspace subscribers
@@ -176,7 +224,7 @@ export class RealtimeDashboardService {
       await this.cacheService.set(
         `dashboard:project:${projectId}`,
         JSON.stringify(updatedStats),
-        300 // 5 minutes TTL
+        { ttl: 300 } // 5 minutes TTL
       );
 
       // Broadcast to project subscribers
@@ -231,7 +279,7 @@ export class RealtimeDashboardService {
       await this.cacheService.set(
         `dashboard:user:${userId}`,
         JSON.stringify(updatedStats),
-        300 // 5 minutes TTL
+        { ttl: 300 } // 5 minutes TTL
       );
 
       this.logger.debug('User activity updated', {
@@ -253,7 +301,7 @@ export class RealtimeDashboardService {
   ): Promise<DashboardStats | null> {
     try {
       // Try cache first
-      const cached = await this.cacheService.get(
+      const cached = await this.cacheService.get<string>(
         `dashboard:workspace:${workspaceId}`
       );
       if (cached) {
@@ -278,7 +326,7 @@ export class RealtimeDashboardService {
   ): Promise<ProjectDashboardStats | null> {
     try {
       // Try cache first
-      const cached = await this.cacheService.get(
+      const cached = await this.cacheService.get<string>(
         `dashboard:project:${projectId}`
       );
       if (cached) {

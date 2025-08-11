@@ -1,8 +1,27 @@
-import { EventEmitter } from 'events';
 import { WebSocketService } from './websocket-service';
 import { RealtimeEventService } from './realtime-event-service';
 import { LoggingService } from '../monitoring/logging-service';
 import { CacheService } from '../caching/cache-service';
+
+export enum OperationType {
+  INSERT = 'insert',
+  DELETE = 'delete',
+  REPLACE = 'replace',
+  MODIFY = 'modify'
+}
+
+export interface UserSession {
+  userId: string;
+  userEmail: string;
+  connectionIds: Set<string>;
+  lastActivity: Date;
+  currentDocument?: string;
+}
+
+export interface DocumentLock {
+  userId: string;
+  timestamp: Date;
+}
 
 export interface CollaborativeDocument {
   id: string;
@@ -14,25 +33,6 @@ export interface CollaborativeDocument {
   lastModifiedBy: string;
   collaborators: Set<string>;
   operations: DocumentOperation[];
-}
-
-export interface DocumentOperation {
-  id: string;
-  userId: string;
-  type: 'insert' | 'delete' | 'replace' | 'format';
-  position: number;
-  content?: string;
-  length?: number;
-  timestamp: Date;
-  version: number;
-}
-
-export interface TypingIndicator {
-  userId: string;
-  userEmail: string;
-  documentId: string;
-  isTyping: boolean;
-  lastActivity: Date;
 }
 
 export interface Comment {
@@ -48,23 +48,43 @@ export interface Comment {
   editedAt?: Date;
 }
 
-export class CollaborationService extends EventEmitter {
+export interface DocumentOperation {
+  id: string;
+  documentId: string;
+  userId: string;
+  userEmail: string;
+  type: OperationType;
+  position: number;
+  content: string;
+  length?: number;
+  timestamp: Date;
+  version: number;
+}
+
+export interface TypingIndicator {
+  userId: string;
+  userEmail: string;
+  documentId: string;
+  isTyping: boolean;
+  lastActivity: Date;
+}
+
+export class CollaborationService {
   private documents = new Map<string, CollaborativeDocument>();
+  private documentSessions = new Map<string, Set<string>>();
+  private userSessions = new Map<string, UserSession>();
+  private operationQueue = new Map<string, DocumentOperation[]>();
   private typingIndicators = new Map<string, Map<string, TypingIndicator>>();
   private comments = new Map<string, Comment[]>();
-  private documentLocks = new Map<
-    string,
-    { userId: string; timestamp: Date }
-  >();
+  private documentLocks = new Map<string, DocumentLock>();
 
   constructor(
-    private readonly webSocketService: WebSocketService,
-    private readonly realtimeEventService: RealtimeEventService,
+    private readonly websocketService: WebSocketService,
     private readonly logger: LoggingService,
-    private readonly cacheService: CacheService
+    private readonly cacheService: CacheService,
+    private readonly realtimeEventService: RealtimeEventService
   ) {
-    super();
-    this.setupCleanupInterval();
+    this.setupEventListeners();
   }
 
   // Document collaboration
@@ -100,23 +120,27 @@ export class CollaborationService extends EventEmitter {
     return document;
   }
 
-  async getDocument(documentId: string): Promise<CollaborativeDocument | null> {
+  async getDocument(documentId: string): Promise<CollaborativeDocument | undefined> {
+    // Try to get from memory first
     let document = this.documents.get(documentId);
-
+    
+    // If not in memory, try to get from cache
     if (!document) {
-      // Try to load from cache
-      document = await this.loadDocumentFromCache(documentId);
-      if (document) {
-        this.documents.set(documentId, document);
+      const cached = await this.getCachedDocument(documentId);
+      if (cached) {
+        // Restore Set objects from cached data
+        cached.collaborators = new Set(Array.isArray(cached.collaborators) ? cached.collaborators : []);
+        this.documents.set(documentId, cached);
+        document = cached;
       }
     }
-
-    return document || null;
+    
+    return document;
   }
 
   async applyOperation(
     documentId: string,
-    operation: Omit<DocumentOperation, 'id' | 'timestamp' | 'version'>,
+    operation: Omit<DocumentOperation, 'id' | 'timestamp'>,
     userId: string
   ): Promise<{
     success: boolean;
@@ -162,7 +186,14 @@ export class CollaborationService extends EventEmitter {
         document.operations.splice(0, document.operations.length - 100);
       }
 
+      // Add to operation queue for potential batching
+      if (!this.operationQueue.has(documentId)) {
+        this.operationQueue.set(documentId, []);
+      }
+      this.operationQueue.get(documentId)!.push(fullOperation);
+
       await this.cacheDocument(document);
+      await this.cacheOperations(documentId, this.operationQueue.get(documentId)!);
 
       // Broadcast operation to collaborators
       await this.broadcastOperation(documentId, fullOperation);
@@ -192,10 +223,16 @@ export class CollaborationService extends EventEmitter {
     document.collaborators.add(userId);
     await this.cacheDocument(document);
 
+    // Track in document sessions
+    if (!this.documentSessions.has(documentId)) {
+      this.documentSessions.set(documentId, new Set());
+    }
+    this.documentSessions.get(documentId)!.add(userId);
+
     // Subscribe user to document channel
-    const userConnections = this.webSocketService.getUserConnections(userId);
-    userConnections.forEach(connection => {
-      this.webSocketService.subscribeToChannel(
+    const userConnections = this.websocketService.getUserConnections(userId);
+    userConnections.forEach((connection: any) => {
+      this.websocketService.subscribeToChannel(
         connection.id,
         `document:${documentId}`
       );
@@ -220,10 +257,19 @@ export class CollaborationService extends EventEmitter {
     document.collaborators.delete(userId);
     await this.cacheDocument(document);
 
+    // Remove from document sessions
+    const documentSession = this.documentSessions.get(documentId);
+    if (documentSession) {
+      documentSession.delete(userId);
+      if (documentSession.size === 0) {
+        this.documentSessions.delete(documentId);
+      }
+    }
+
     // Unsubscribe user from document channel
-    const userConnections = this.webSocketService.getUserConnections(userId);
-    userConnections.forEach(connection => {
-      this.webSocketService.unsubscribeFromChannel(
+    const userConnections = this.websocketService.getUserConnections(userId);
+    userConnections.forEach((connection: any) => {
+      this.websocketService.unsubscribeFromChannel(
         connection.id,
         `document:${documentId}`
       );
@@ -245,6 +291,21 @@ export class CollaborationService extends EventEmitter {
     userEmail: string,
     isTyping: boolean
   ): void {
+    // Update user session
+    if (!this.userSessions.has(userId)) {
+      this.userSessions.set(userId, {
+        userId,
+        userEmail,
+        connectionIds: new Set(),
+        lastActivity: new Date(),
+        currentDocument: documentId,
+      });
+    } else {
+      const userSession = this.userSessions.get(userId)!;
+      userSession.lastActivity = new Date();
+      userSession.currentDocument = documentId;
+    }
+
     if (!this.typingIndicators.has(documentId)) {
       this.typingIndicators.set(documentId, new Map());
     }
@@ -264,7 +325,7 @@ export class CollaborationService extends EventEmitter {
     }
 
     // Broadcast typing indicator
-    this.webSocketService.broadcastToChannel(`document:${documentId}`, {
+    this.websocketService.broadcastToChannel(`document:${documentId}`, {
       type: isTyping ? 'user_typing_start' : 'user_typing_stop',
       payload: {
         userId,
@@ -302,8 +363,8 @@ export class CollaborationService extends EventEmitter {
       userId,
       userEmail,
       content,
-      position,
-      parentId,
+      ...(position !== undefined && { position }),
+      ...(parentId !== undefined && { parentId }),
       timestamp: new Date(),
       edited: false,
     };
@@ -316,7 +377,7 @@ export class CollaborationService extends EventEmitter {
     await this.cacheComments(documentId);
 
     // Broadcast comment to collaborators
-    this.webSocketService.broadcastToChannel(`document:${documentId}`, {
+    this.websocketService.broadcastToChannel(`document:${documentId}`, {
       type: 'comment_added',
       payload: comment,
       timestamp: new Date().toISOString(),
@@ -353,7 +414,7 @@ export class CollaborationService extends EventEmitter {
     await this.cacheComments(documentId);
 
     // Broadcast comment update
-    this.webSocketService.broadcastToChannel(`document:${documentId}`, {
+    this.websocketService.broadcastToChannel(`document:${documentId}`, {
       type: 'comment_updated',
       payload: comment,
       timestamp: new Date().toISOString(),
@@ -382,20 +443,31 @@ export class CollaborationService extends EventEmitter {
     if (commentIndex === -1) return false;
 
     const deletedComment = comments.splice(commentIndex, 1)[0];
+    if (!deletedComment) return false;
+    
     await this.cacheComments(documentId);
 
     // Broadcast comment deletion
-    this.webSocketService.broadcastToChannel(`document:${documentId}`, {
+    this.websocketService.broadcastToChannel(`document:${documentId}`, {
       type: 'comment_deleted',
-      payload: { commentId, documentId },
+      payload: { commentId, documentId, deletedComment },
       timestamp: new Date().toISOString(),
       messageId: this.generateMessageId(),
+    });
+
+    // Emit event for additional processing
+    this.realtimeEventService.emit('comment:deleted', {
+      documentId,
+      commentId,
+      userId,
+      deletedComment,
     });
 
     this.logger.info('Comment deleted', {
       documentId,
       commentId,
       userId,
+      commentContent: deletedComment.content.substring(0, 50),
     });
 
     return true;
@@ -403,6 +475,15 @@ export class CollaborationService extends EventEmitter {
 
   getComments(documentId: string): Comment[] {
     return this.comments.get(documentId) || [];
+  }
+
+  // User session management
+  getActiveUserSessions(): UserSession[] {
+    return Array.from(this.userSessions.values());
+  }
+
+  getUserSession(userId: string): UserSession | undefined {
+    return this.userSessions.get(userId);
   }
 
   // Document locking
@@ -423,7 +504,7 @@ export class CollaborationService extends EventEmitter {
     });
 
     // Broadcast lock acquisition
-    this.webSocketService.broadcastToChannel(`document:${documentId}`, {
+    this.websocketService.broadcastToChannel(`document:${documentId}`, {
       type: 'document_locked',
       payload: { documentId, userId },
       timestamp: new Date().toISOString(),
@@ -444,7 +525,7 @@ export class CollaborationService extends EventEmitter {
     this.documentLocks.delete(documentId);
 
     // Broadcast lock release
-    this.webSocketService.broadcastToChannel(`document:${documentId}`, {
+    this.websocketService.broadcastToChannel(`document:${documentId}`, {
       type: 'document_unlocked',
       payload: { documentId, userId },
       timestamp: new Date().toISOString(),
@@ -507,47 +588,59 @@ export class CollaborationService extends EventEmitter {
     documentId: string,
     operation: DocumentOperation
   ): Promise<void> {
-    this.webSocketService.broadcastToChannel(`document:${documentId}`, {
+    const message = {
       type: 'document_operation',
       payload: operation,
       timestamp: new Date().toISOString(),
       messageId: this.generateMessageId(),
+    };
+
+    // Broadcast via WebSocket
+    this.websocketService.broadcastToChannel(`document:${documentId}`, message);
+    
+    // Also emit via realtime event service for additional processing
+    this.realtimeEventService.emit('document:operation', {
+      documentId,
+      operation,
+      timestamp: new Date(),
     });
   }
 
   private async cacheDocument(document: CollaborativeDocument): Promise<void> {
-    const key = `document:${document.id}`;
-    await this.cacheService.set(key, JSON.stringify(document), 3600); // 1 hour TTL
+    await this.cacheService.set(
+      `document:${document.id}`,
+      JSON.stringify(document),
+      { ttl: 3600 }
+    );
   }
 
-  private async loadDocumentFromCache(
-    documentId: string
-  ): Promise<CollaborativeDocument | null> {
+  private async getCachedDocument(documentId: string): Promise<CollaborativeDocument | null> {
     try {
-      const key = `document:${documentId}`;
-      const cached = await this.cacheService.get(key);
-
-      if (cached) {
-        const document = JSON.parse(cached) as CollaborativeDocument;
-        document.collaborators = new Set(document.collaborators as any);
-        return document;
-      }
+      const cached = await this.cacheService.get<string>(`document:${documentId}`);
+      return cached ? JSON.parse(cached) : null;
     } catch (error) {
-      this.logger.error('Failed to load document from cache', error as Error, {
-        documentId,
-      });
+      this.logger.error('Failed to get cached document', error as Error, { documentId });
+      return null;
     }
-
-    return null;
   }
 
   private async cacheComments(documentId: string): Promise<void> {
     const comments = this.comments.get(documentId) || [];
     const key = `comments:${documentId}`;
-    await this.cacheService.set(key, JSON.stringify(comments), 3600); // 1 hour TTL
+    await this.cacheService.set(key, JSON.stringify(comments), { ttl: 3600 }); // 1 hour TTL
   }
 
-  private setupCleanupInterval(): void {
+  private async cacheOperations(documentId: string, operations: DocumentOperation[]): Promise<void> {
+    await this.cacheService.set(
+      `operations:${documentId}`,
+      JSON.stringify(operations),
+      { ttl: 3600 }
+    );
+  }
+
+  private setupEventListeners(): void {
+    // Setup event listeners for document and user events
+    
     // Clean up stale typing indicators every minute
     setInterval(() => {
       const now = new Date();
@@ -562,7 +655,7 @@ export class CollaborationService extends EventEmitter {
             documentTyping.delete(userId);
 
             // Broadcast typing stop
-            this.webSocketService.broadcastToChannel(`document:${documentId}`, {
+            this.websocketService.broadcastToChannel(`document:${documentId}`, {
               type: 'user_typing_stop',
               payload: {
                 userId,

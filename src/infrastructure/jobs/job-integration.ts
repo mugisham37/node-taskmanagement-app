@@ -1,4 +1,4 @@
-import { Logger } from '../monitoring/logging-service';
+import { LoggingService } from '../monitoring/logging-service';
 import { JobService } from './job-service';
 import { JobConfig } from './job-types';
 
@@ -7,9 +7,9 @@ import { JobConfig } from './job-types';
  */
 export class JobIntegrationService {
   private jobService: JobService;
-  private logger: Logger;
+  private logger: LoggingService;
 
-  constructor(logger: Logger, config: Partial<JobConfig> = {}) {
+  constructor(logger: LoggingService, config: Partial<JobConfig> = {}) {
     this.logger = logger;
     this.jobService = new JobService(logger, config);
   }
@@ -28,9 +28,9 @@ export class JobIntegrationService {
 
       this.logger.info('Job integration service initialized successfully');
     } catch (error) {
-      this.logger.error('Failed to initialize job integration service', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      this.logger.error('Failed to initialize job integration service', 
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -43,9 +43,9 @@ export class JobIntegrationService {
       await this.jobService.shutdown();
       this.logger.info('Job integration service shut down successfully');
     } catch (error) {
-      this.logger.error('Error shutting down job integration service', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      this.logger.error('Error shutting down job integration service', 
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -79,9 +79,9 @@ export class JobIntegrationService {
         migratedIntervals: jobIntervals,
       });
     } catch (error) {
-      this.logger.error('Failed to migrate existing jobs', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      this.logger.error('Failed to migrate existing jobs', 
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -122,9 +122,9 @@ export class JobIntegrationService {
         jobId: webhookJobId,
       });
     } catch (error) {
-      this.logger.error('Failed to process immediate jobs', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      this.logger.error('Failed to process immediate jobs', 
+        error instanceof Error ? error : new Error(String(error))
+      );
       // Don't throw here - this is not critical for initialization
     }
   }
@@ -152,7 +152,8 @@ export class JobIntegrationService {
    */
   async getJobStatuses(): Promise<any[]> {
     const metrics = await this.jobService.getMetrics();
-    const queueStatus = await this.jobService.getQueueStatus();
+    // Get queue status for future use
+    await this.jobService.getQueueStatus();
 
     return [
       {
@@ -220,10 +221,10 @@ export class JobIntegrationService {
 
       return true;
     } catch (error) {
-      this.logger.error('Failed to restart job', {
-        jobName,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      this.logger.error('Failed to restart job', 
+        error instanceof Error ? error : new Error(String(error)),
+        { jobName }
+      );
       return false;
     }
   }
@@ -277,9 +278,9 @@ export class JobIntegrationService {
     const startTime = Date.now();
 
     try {
-      const overdueJobId = await this.jobService.processOverdueNotifications();
-      const upcomingJobId =
-        await this.jobService.processUpcomingNotifications();
+      // Process overdue and upcoming notifications
+      await this.jobService.processOverdueNotifications();
+      await this.jobService.processUpcomingNotifications();
 
       const processingTime = Date.now() - startTime;
 

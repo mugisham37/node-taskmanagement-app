@@ -3,11 +3,9 @@ import { InfrastructureError } from '../../shared/errors/infrastructure-error';
 import { logger } from '../monitoring/logging-service';
 
 export interface CacheOptions {
-  ttl?: number; // Time to live in seconds
-  compress?: boolean;
+  ttl?: number;
+  namespace?: string;
   tags?: string[];
-  useMemoryFallback?: boolean;
-  encrypt?: boolean;
 }
 
 export interface CacheKeyPattern {
@@ -790,5 +788,50 @@ export class CacheService {
       await client.sadd(tagKey, key);
       await client.expire(tagKey, ttl + 300); // Tag expires 5 minutes after the key
     }
+  }
+}
+
+export class RedisCacheService implements CacheService {
+  constructor(private redisClient: any) {}
+
+  async get(key: string): Promise<string | null> {
+    return await this.redisClient.get(key);
+  }
+
+  async set(key: string, value: string, options?: CacheOptions): Promise<boolean> {
+    if (options?.ttl) {
+      await this.redisClient.setex(key, options.ttl, value);
+    } else {
+      await this.redisClient.set(key, value);
+    }
+    return true;
+  }
+
+  async delete(key: string): Promise<boolean> {
+    const result = await this.redisClient.del(key);
+    return result > 0;
+  }
+
+  async clear(): Promise<boolean> {
+    await this.redisClient.flushdb();
+    return true;
+  }
+
+  async has(key: string): Promise<boolean> {
+    const result = await this.redisClient.exists(key);
+    return result === 1;
+  }
+
+  async keys(pattern = '*'): Promise<string[]> {
+    return await this.redisClient.keys(pattern);
+  }
+
+  async ttl(key: string): Promise<number> {
+    return await this.redisClient.ttl(key);
+  }
+
+  async expire(key: string, ttl: number): Promise<boolean> {
+    const result = await this.redisClient.expire(key, ttl);
+    return result === 1;
   }
 }

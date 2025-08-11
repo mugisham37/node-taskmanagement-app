@@ -1,19 +1,19 @@
 import { EventEmitter } from 'events';
-import { Logger } from '../monitoring/logging-service';
+import { LoggingService } from '../monitoring/logging-service';
 import { JobDefinition, JobResult, JobExecution, JobConfig } from './job-types';
 import { JobStatus, JobType } from '../../shared/enums/common.enums';
 
 export class JobQueue extends EventEmitter {
   private jobs = new Map<string, JobExecution>();
   private queue: string[] = [];
-  private processing = new Set<string>();
-  private completed = new Map<string, JobResult>();
-  private failed = new Map<string, JobResult>();
+  private processingSet = new Set<string>();
+  private completedMap = new Map<string, JobResult>();
+  private failedMap = new Map<string, JobResult>();
   private paused = false;
   private nextJobId = 1;
 
   constructor(
-    private logger: Logger,
+    private logger: LoggingService,
     private config: JobConfig
   ) {
     super();
@@ -38,13 +38,13 @@ export class JobQueue extends EventEmitter {
     const maxWait = 30000; // 30 seconds
     const startTime = Date.now();
 
-    while (this.processing.size > 0 && Date.now() - startTime < maxWait) {
+    while (this.processingSet.size > 0 && Date.now() - startTime < maxWait) {
       await this.sleep(100);
     }
 
-    if (this.processing.size > 0) {
+    if (this.processingSet.size > 0) {
       this.logger.warn('Force stopping queue with jobs still processing', {
-        processingJobs: this.processing.size,
+        processingJobs: this.processingSet.size,
       });
     }
   }
@@ -56,12 +56,12 @@ export class JobQueue extends EventEmitter {
     const executionId = this.generateExecutionId();
 
     const execution: JobExecution = {
+      ...job,
       id: executionId,
       jobId: job.id,
       status: JobStatus.PENDING,
       startedAt: new Date(),
       retryCount: 0,
-      ...job,
     };
 
     this.jobs.set(executionId, execution);
@@ -108,6 +108,8 @@ export class JobQueue extends EventEmitter {
     const now = new Date();
     for (let i = 0; i < this.queue.length; i++) {
       const executionId = this.queue[i];
+      if (!executionId) continue;
+      
       const job = this.jobs.get(executionId);
 
       if (!job) {
@@ -123,7 +125,7 @@ export class JobQueue extends EventEmitter {
 
       // Remove from queue and mark as processing
       this.queue.splice(i, 1);
-      this.processing.add(executionId);
+      this.processingSet.add(executionId);
 
       job.status = JobStatus.RUNNING;
       job.startedAt = new Date();
@@ -150,7 +152,7 @@ export class JobQueue extends EventEmitter {
       return;
     }
 
-    this.processing.delete(executionId);
+    this.processingSet.delete(executionId);
 
     const jobResult: JobResult = {
       jobId: job.jobId,
@@ -162,7 +164,7 @@ export class JobQueue extends EventEmitter {
       completedAt: new Date(),
     };
 
-    this.completed.set(executionId, jobResult);
+    this.completedMap.set(executionId, jobResult);
     this.jobs.delete(executionId);
 
     this.emit('job.completed', executionId, result);
@@ -188,7 +190,7 @@ export class JobQueue extends EventEmitter {
       return;
     }
 
-    this.processing.delete(executionId);
+    this.processingSet.delete(executionId);
 
     const jobResult: JobResult = {
       jobId: job.jobId,
@@ -200,7 +202,7 @@ export class JobQueue extends EventEmitter {
       completedAt: new Date(),
     };
 
-    this.failed.set(executionId, jobResult);
+    this.failedMap.set(executionId, jobResult);
 
     // Don't delete job yet if it can be retried
     if (job.retryCount < (job.maxRetries || this.config.maxRetries)) {
@@ -256,7 +258,7 @@ export class JobQueue extends EventEmitter {
     }
 
     // Remove from queue if not processing
-    if (!this.processing.has(executionId)) {
+    if (!this.processingSet.has(executionId)) {
       const queueIndex = this.queue.indexOf(executionId);
       if (queueIndex !== -1) {
         this.queue.splice(queueIndex, 1);
@@ -283,13 +285,13 @@ export class JobQueue extends EventEmitter {
    */
   async getJobStatus(executionId: string): Promise<JobResult | null> {
     // Check completed jobs
-    const completed = this.completed.get(executionId);
+    const completed = this.completedMap.get(executionId);
     if (completed) {
       return completed;
     }
 
     // Check failed jobs
-    const failed = this.failed.get(executionId);
+    const failed = this.failedMap.get(executionId);
     if (failed) {
       return failed;
     }
@@ -321,21 +323,21 @@ export class JobQueue extends EventEmitter {
    * Get processing count
    */
   async processing(): Promise<number> {
-    return this.processing.size;
+    return this.processingSet.size;
   }
 
   /**
    * Get completed count
    */
   async completed(): Promise<number> {
-    return this.completed.size;
+    return this.completedMap.size;
   }
 
   /**
    * Get failed count
    */
   async failed(): Promise<number> {
-    return this.failed.size;
+    return this.failedMap.size;
   }
 
   /**
@@ -368,9 +370,9 @@ export class JobQueue extends EventEmitter {
     let cleaned = 0;
 
     // Clean up completed jobs
-    if (this.completed.size > maxHistory) {
-      const toDelete = this.completed.size - maxHistory;
-      const entries = Array.from(this.completed.entries());
+    if (this.completedMap.size > maxHistory) {
+      const toDelete = this.completedMap.size - maxHistory;
+      const entries = Array.from(this.completedMap.entries());
 
       // Sort by completion time and delete oldest
       entries.sort(
@@ -378,31 +380,37 @@ export class JobQueue extends EventEmitter {
       );
 
       for (let i = 0; i < toDelete; i++) {
-        this.completed.delete(entries[i][0]);
-        cleaned++;
+        const entry = entries[i];
+        if (entry) {
+          this.completedMap.delete(entry[0]);
+          cleaned++;
+        }
       }
     }
 
     // Clean up failed jobs
-    if (this.failed.size > maxHistory) {
-      const toDelete = this.failed.size - maxHistory;
-      const entries = Array.from(this.failed.entries());
+    if (this.failedMap.size > maxHistory) {
+      const toDelete = this.failedMap.size - maxHistory;
+      const entries = Array.from(this.failedMap.entries());
 
       entries.sort(
         (a, b) => a[1].completedAt.getTime() - b[1].completedAt.getTime()
       );
 
       for (let i = 0; i < toDelete; i++) {
-        this.failed.delete(entries[i][0]);
-        cleaned++;
+        const entry = entries[i];
+        if (entry) {
+          this.failedMap.delete(entry[0]);
+          cleaned++;
+        }
       }
     }
 
     if (cleaned > 0) {
       this.logger.debug('Cleaned up old job records', {
         cleaned,
-        completedJobs: this.completed.size,
-        failedJobs: this.failed.size,
+        completedJobs: this.completedMap.size,
+        failedJobs: this.failedMap.size,
       });
     }
 
@@ -421,10 +429,10 @@ export class JobQueue extends EventEmitter {
   } {
     return {
       queued: this.queue.length,
-      processing: this.processing.size,
-      completed: this.completed.size,
-      failed: this.failed.size,
-      total: this.jobs.size + this.completed.size + this.failed.size,
+      processing: this.processingSet.size,
+      completed: this.completedMap.size,
+      failed: this.failedMap.size,
+      total: this.jobs.size + this.completedMap.size + this.failedMap.size,
     };
   }
 
@@ -436,7 +444,10 @@ export class JobQueue extends EventEmitter {
 
     // Find insertion point based on priority (higher priority = lower number)
     for (let i = 0; i < this.queue.length; i++) {
-      const existingJob = this.jobs.get(this.queue[i]);
+      const queueId = this.queue[i];
+      if (!queueId) continue;
+      
+      const existingJob = this.jobs.get(queueId);
       if (existingJob && (existingJob.priority || 0) > priority) {
         insertIndex = i;
         break;

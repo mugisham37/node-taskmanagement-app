@@ -207,7 +207,7 @@ export class WebSocketService extends EventEmitter {
 
   broadcastToAll(message: WebSocketMessage): number {
     let sentCount = 0;
-    this.connections.forEach((connection, connectionId) => {
+    this.connections.forEach((_, connectionId) => {
       if (this.sendToConnection(connectionId, message)) {
         sentCount++;
       }
@@ -225,7 +225,7 @@ export class WebSocketService extends EventEmitter {
     const current = this.presenceInfo.get(userId) || {
       userId,
       userEmail: '',
-      status: 'offline',
+      status: 'offline' as const,
       lastSeen: new Date(),
     };
 
@@ -236,7 +236,7 @@ export class WebSocketService extends EventEmitter {
     this.cacheService.set(
       `presence:${userId}`,
       JSON.stringify(updated),
-      300 // 5 minutes TTL
+      { ttl: 300 } // 5 minutes TTL
     );
 
     // Broadcast presence update

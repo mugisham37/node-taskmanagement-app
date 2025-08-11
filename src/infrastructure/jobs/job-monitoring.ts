@@ -1,8 +1,7 @@
 import { EventEmitter } from 'events';
-import { Logger } from '../monitoring/logging-service';
+import { LoggingService } from '../monitoring/logging-service';
 import {
   JobMetrics,
-  JobConfig,
   JobEvent,
   JobMonitoringConfig,
 } from './job-types';
@@ -20,12 +19,11 @@ export class JobMonitoring extends EventEmitter {
 
   private executionTimes: number[] = [];
   private events: JobEvent[] = [];
-  private monitoringInterval?: NodeJS.Timeout;
+  private monitoringInterval?: NodeJS.Timeout | undefined;
   private alertThresholds: JobMonitoringConfig['alertThresholds'];
 
   constructor(
-    private logger: Logger,
-    private config: JobConfig,
+    private logger: LoggingService,
     private monitoringConfig: Partial<JobMonitoringConfig> = {}
   ) {
     super();
@@ -148,10 +146,16 @@ export class JobMonitoring extends EventEmitter {
    * Get current metrics
    */
   async getMetrics(): Promise<JobMetrics> {
-    return {
+    const lastProcessedTime = this.getLastProcessedTime();
+    const result: JobMetrics = {
       ...this.metrics,
-      lastProcessedAt: this.getLastProcessedTime(),
     };
+    
+    if (lastProcessedTime) {
+      result.lastProcessedAt = lastProcessedTime;
+    }
+    
+    return result;
   }
 
   /**
@@ -301,7 +305,7 @@ export class JobMonitoring extends EventEmitter {
 
     // Check for stuck jobs (running too long)
     if (
-      metrics['jobs.running'] > 0 &&
+      (metrics['jobs.running'] ?? 0) > 0 &&
       this.metrics.averageExecutionTime > 600000
     ) {
       // 10 minutes
@@ -309,7 +313,7 @@ export class JobMonitoring extends EventEmitter {
     }
 
     // Check for queue backup
-    if (metrics['jobs.queued'] > metrics['jobs.running'] * 10) {
+    if ((metrics['jobs.queued'] ?? 0) > (metrics['jobs.running'] ?? 0) * 10) {
       alerts.push(
         'Queue backup detected - jobs queuing faster than processing'
       );
@@ -344,11 +348,11 @@ export class JobMonitoring extends EventEmitter {
     const len = sorted.length;
 
     return {
-      min: sorted[0],
-      max: sorted[len - 1],
-      median: sorted[Math.floor(len / 2)],
-      p95: sorted[Math.floor(len * 0.95)],
-      p99: sorted[Math.floor(len * 0.99)],
+      min: sorted[0] ?? 0,
+      max: sorted[len - 1] ?? 0,
+      median: sorted[Math.floor(len / 2)] ?? 0,
+      p95: sorted[Math.floor(len * 0.95)] ?? 0,
+      p99: sorted[Math.floor(len * 0.99)] ?? 0,
     };
   }
 
@@ -393,14 +397,14 @@ export class JobMonitoring extends EventEmitter {
 
         if (event.type === 'job.completed') {
           data.completed++;
-          if (event.data?.executionTime) {
-            data.totalTime += event.data.executionTime;
+          if (event.data?.['executionTime']) {
+            data.totalTime += event.data['executionTime'];
             data.count++;
           }
         } else if (event.type === 'job.failed') {
           data.failed++;
-          if (event.data?.executionTime) {
-            data.totalTime += event.data.executionTime;
+          if (event.data?.['executionTime']) {
+            data.totalTime += event.data['executionTime'];
             data.count++;
           }
         }

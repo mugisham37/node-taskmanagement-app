@@ -27,11 +27,27 @@ export interface CircuitBreakerStats {
   failureCount: number;
   successCount: number;
   totalRequests: number;
-  lastFailureTime?: Date;
-  lastSuccessTime?: Date;
-  nextAttemptTime?: Date;
+  lastFailureTime?: Date | undefined;
+  lastSuccessTime?: Date | undefined;
+  nextAttemptTime?: Date | undefined;
   failureRate: number;
   uptime: number;
+}
+
+export interface RequestHistoryEntry {
+  timestamp: number;
+  success: boolean;
+  duration: number;
+}
+
+export interface CircuitBreakerConfig {
+  failureThreshold: number;
+  resetTimeout: number;
+  monitoringWindow: number;
+  volumeThreshold: number;
+  slowCallThreshold?: number;
+  slowCallDurationThreshold?: number;
+  halfOpenMaxCalls?: number;
 }
 
 export class CircuitBreaker {
@@ -39,12 +55,14 @@ export class CircuitBreaker {
   private failureCount = 0;
   private successCount = 0;
   private totalRequests = 0;
-  private lastFailureTime?: Date;
-  private lastSuccessTime?: Date;
-  private nextAttemptTime?: Date;
+  private lastFailureTime?: Date | undefined;
+  private lastSuccessTime?: Date | undefined;
+  private nextAttemptTime?: Date | undefined;
   private readonly options: Required<CircuitBreakerOptions>;
   private readonly startTime = new Date();
-  private monitoringInterval?: NodeJS.Timeout;
+  private monitoringInterval?: NodeJS.Timeout | undefined;
+  private resetTimeoutId?: NodeJS.Timeout | undefined;
+  private requestHistory: RequestHistoryEntry[] = [];
 
   constructor(
     private readonly name: string,
@@ -106,6 +124,9 @@ export class CircuitBreaker {
     this.lastSuccessTime = new Date();
     this.options.onSuccess();
 
+    // Add to request history
+    this.addToRequestHistory(true, duration);
+
     logger.debug(`Circuit breaker ${this.name} operation succeeded`, {
       duration,
       successCount: this.successCount,
@@ -125,6 +146,9 @@ export class CircuitBreaker {
     this.failureCount++;
     this.lastFailureTime = new Date();
     this.options.onFailure(error);
+
+    // Add to request history
+    this.addToRequestHistory(false, duration);
 
     logger.debug(`Circuit breaker ${this.name} operation failed`, {
       duration,
@@ -164,6 +188,22 @@ export class CircuitBreaker {
         error: error.message,
       });
     }
+  }
+
+  private addToRequestHistory(success: boolean, duration: number): void {
+    const entry: RequestHistoryEntry = {
+      timestamp: Date.now(),
+      success,
+      duration,
+    };
+
+    this.requestHistory.push(entry);
+
+    // Keep only recent history (last monitoring period)
+    const cutoff = Date.now() - this.options.monitoringPeriod;
+    this.requestHistory = this.requestHistory.filter(
+      (req: RequestHistoryEntry) => req.timestamp > cutoff
+    );
   }
 
   private onStateChange(): void {
@@ -217,11 +257,17 @@ export class CircuitBreaker {
   }
 
   public getStats(): CircuitBreakerStats {
-    const now = new Date();
-    const uptime = now.getTime() - this.startTime.getTime();
+    const now = Date.now();
+    const windowStart = now - this.options.monitoringPeriod;
+
+    const recentRequests = this.requestHistory.filter(
+      (req: RequestHistoryEntry) => req.timestamp > windowStart
+    );
+
+    const failures = recentRequests.filter((req: RequestHistoryEntry) => !req.success);
     const failureRate =
-      this.totalRequests > 0
-        ? (this.failureCount / this.totalRequests) * 100
+      recentRequests.length > 0
+        ? failures.length / recentRequests.length
         : 0;
 
     return {
@@ -232,19 +278,23 @@ export class CircuitBreaker {
       lastFailureTime: this.lastFailureTime,
       lastSuccessTime: this.lastSuccessTime,
       nextAttemptTime: this.nextAttemptTime,
-      failureRate: Math.round(failureRate * 100) / 100,
-      uptime,
+      failureRate,
+      uptime: now - this.startTime.getTime(),
     };
   }
 
   public reset(): void {
     this.state = CircuitBreakerState.CLOSED;
     this.failureCount = 0;
-    this.successCount = 0;
-    this.totalRequests = 0;
     this.lastFailureTime = undefined;
     this.lastSuccessTime = undefined;
     this.nextAttemptTime = undefined;
+
+    if (this.resetTimeoutId) {
+      clearTimeout(this.resetTimeoutId);
+      this.resetTimeoutId = undefined;
+    }
+
     this.onStateChange();
     logger.info(`Circuit breaker ${this.name} manually reset`);
   }
@@ -414,8 +464,8 @@ export function WithCircuitBreaker(
   options?: Partial<CircuitBreakerOptions>
 ) {
   return function (
-    target: any,
-    propertyKey: string,
+    _target: any,
+    _propertyKey: string,
     descriptor: PropertyDescriptor
   ) {
     const originalMethod = descriptor.value;

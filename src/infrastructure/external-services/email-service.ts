@@ -1,65 +1,22 @@
-import nodemailer, { Transporter, SendMailOptions } from 'nodemailer';
-import { InfrastructureError } from '../../shared/errors/infrastructure-error';
-import { CircuitBreaker, CircuitBreakerState } from './circuit-breaker';
-
-export interface EmailConfig {
-  host: string;
-  port: number;
-  secure: boolean;
-  auth: {
-    user: string;
-    pass: string;
-  };
-  from: {
-    name: string;
-    address: string;
-  };
-  replyTo?: string;
-  maxConnections?: number;
-  maxMessages?: number;
-  rateDelta?: number;
-  rateLimit?: number;
-  failureThreshold?: number;
-  recoveryTimeout?: number;
-  monitoringPeriod?: number;
-  maxAttachmentSize?: number;
-  maxTotalAttachmentSize?: number;
-  batchSize?: number;
-  batchDelay?: number;
-}
-
-export interface EmailTemplate {
-  id?: string;
-  name?: string;
-  subject: string;
-  html: string;
-  text?: string;
-  variables?: string[];
-  tags?: string[];
-}
+import * as nodemailer from 'nodemailer';
+import { CircuitBreaker } from './circuit-breaker';
+import { LoggingService } from '../monitoring/logging-service';
+import { EmailDeliveryStatus, EmailTemplate } from './email-types';
 
 export interface SendEmailData {
   to: string | string[];
   subject: string;
-  html?: string;
+  html: string;
   text?: string;
-  cc?: string | string[];
-  bcc?: string | string[];
-  attachments?: Array<{
-    filename: string;
-    content: Buffer | string;
-    contentType?: string;
-    encoding?: string;
-    cid?: string;
-    size?: number;
-  }>;
+  from?: string;
+  replyTo?: string;
+  cc?: string[];
+  bcc?: string[];
+  attachments?: any[];
   priority?: 'high' | 'normal' | 'low';
-  headers?: Record<string, string>;
-  templateId?: string;
-  templateData?: Record<string, any>;
   tags?: string[];
   metadata?: Record<string, any>;
-  from?: string;
+  templateId?: string;
 }
 
 export interface EmailQueueItem {
@@ -69,678 +26,252 @@ export interface EmailQueueItem {
   maxAttempts: number;
   createdAt: Date;
   scheduledAt?: Date;
+  lastError?: string;
   lastAttemptAt?: Date;
   error?: string;
 }
 
-export interface EmailSendResult {
-  messageId: string;
-  accepted: string[];
-  rejected: string[];
-  pending?: string[];
-  response?: string;
-  provider: string;
-  timestamp: Date;
+export interface TaskAssignmentTemplateData {
+  assigneeName: string;
+  taskTitle: string;
+  taskDescription: string;
+  projectName: string;
+  assignedByName: string;
+  dueDate?: Date;
 }
 
-export interface EmailDeliveryStatus {
-  messageId: string;
-  status:
-    | 'sent'
-    | 'delivered'
-    | 'bounced'
-    | 'complained'
-    | 'rejected'
-    | 'pending';
-  timestamp: Date;
-  error?: string;
-  provider: string;
-  metadata?: Record<string, any>;
+export interface TaskReminderTemplateData {
+  recipientName: string;
+  taskTitle: string;
+  taskDescription: string;
+  projectName: string;
+  creatorName: string;
+  dueDate?: Date;
 }
 
-export interface EmailProvider {
-  name: string;
-  type: 'smtp' | 'sendgrid' | 'ses' | 'mailgun';
-  config: Record<string, any>;
-  priority: number;
-  enabled: boolean;
+export interface UserActivationTemplateData {
+  userName: string;
+  activationLink?: string;
+}
+
+export interface EmailConfig {
+  smtp: {
+    host: string;
+    port: number;
+    secure: boolean;
+    auth: {
+      user: string;
+      pass: string;
+    };
+  };
+  from: string;
+  replyTo?: string;
+  maxAttachmentSize?: number;
+  maxTotalAttachmentSize?: number;
+}
+
+export interface EmailTemplateInterface {
+  subject: string;
+  html: string;
+  text: string;
 }
 
 export class EmailService {
-  private transporter: Transporter;
-  private queue: EmailQueueItem[] = [];
-  private isProcessingQueue = false;
-  private queueProcessingInterval: NodeJS.Timeout | null = null;
-  private circuitBreaker: CircuitBreaker;
+  private transporter!: nodemailer.Transporter;
+  private emailQueue: EmailQueueItem[] = [];
+  private isProcessing = false;
+  private circuitBreaker!: CircuitBreaker;
   private templates: Map<string, EmailTemplate> = new Map();
   private fallbackProviders: EmailService[] = [];
 
-  constructor(private readonly config: EmailConfig) {
+  constructor(
+    private readonly config: EmailConfig,
+    private readonly logger: LoggingService
+  ) {
     this.initializeTransporter();
     this.initializeCircuitBreaker();
     this.startQueueProcessor();
   }
 
   private initializeTransporter(): void {
-    try {
-      this.transporter = nodemailer.createTransporter({
-        host: this.config.host,
-        port: this.config.port,
-        secure: this.config.secure,
-        auth: this.config.auth,
-        maxConnections: this.config.maxConnections || 5,
-        maxMessages: this.config.maxMessages || 100,
-        rateDelta: this.config.rateDelta || 1000,
-        rateLimit: this.config.rateLimit || 10,
-        pool: true,
-      });
-
-      // Verify connection configuration
-      this.transporter.verify(error => {
-        if (error) {
-          console.error('Email service configuration error:', error);
-        } else {
-          console.log('Email service is ready to send messages');
-        }
-      });
-    } catch (error) {
-      throw new InfrastructureError(
-        `Failed to initialize email service: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
+    this.transporter = nodemailer.createTransport({
+      host: this.config.smtp.host,
+      port: this.config.smtp.port,
+      secure: this.config.smtp.secure,
+      auth: this.config.smtp.auth,
+    });
   }
 
   private initializeCircuitBreaker(): void {
-    this.circuitBreaker = new CircuitBreaker(`email-service`, {
-      failureThreshold: this.config.failureThreshold || 5,
-      recoveryTimeout: this.config.recoveryTimeout || 60000,
-      monitoringPeriod: this.config.monitoringPeriod || 300000,
-      onStateChange: state => {
-        console.log(`Email service circuit breaker state changed to: ${state}`);
-      },
+    this.circuitBreaker = new CircuitBreaker('email-service', {
+      failureThreshold: 5,
+      recoveryTimeout: 300000,
+      monitoringPeriod: 600000,
     });
   }
 
   /**
-   * Send email immediately with circuit breaker protection
+   * Send email immediately
    */
-  async sendEmail(data: SendEmailData): Promise<EmailSendResult> {
+  async sendEmail(data: SendEmailData): Promise<boolean> {
     this.validateMessage(data);
 
-    return await this.executeWithCircuitBreaker(async () => {
-      try {
-        // Handle templated emails
-        if (data.templateId) {
-          const template = this.templates.get(data.templateId);
-          if (!template) {
-            throw new Error(`Email template not found: ${data.templateId}`);
-          }
-
-          data.subject = this.renderTemplate(
-            template.subject,
-            data.templateData || {}
-          );
-          data.html = this.renderTemplate(
-            template.html,
-            data.templateData || {}
-          );
-          if (template.text) {
-            data.text = this.renderTemplate(
-              template.text,
-              data.templateData || {}
-            );
-          }
-        }
-
-        const mailOptions: SendMailOptions = {
-          from:
-            data.from ||
-            `${this.config.from.name} <${this.config.from.address}>`,
-          to: Array.isArray(data.to) ? data.to.join(', ') : data.to,
-          subject: data.subject,
-          html: data.html,
-          text: data.text,
-          cc: data.cc
-            ? Array.isArray(data.cc)
-              ? data.cc.join(', ')
-              : data.cc
-            : undefined,
-          bcc: data.bcc
-            ? Array.isArray(data.bcc)
-              ? data.bcc.join(', ')
-              : data.bcc
-            : undefined,
-          replyTo: this.config.replyTo,
-          priority: data.priority || 'normal',
-          headers: {
-            ...data.headers,
-            'X-Provider': 'smtp',
-            'X-Tags': data.tags?.join(','),
-          },
-          attachments: data.attachments?.map(att => ({
-            filename: att.filename,
-            content: att.content,
-            contentType: att.contentType,
-            encoding: att.encoding,
-            cid: att.cid,
-          })),
-        };
-
-        const result = await this.transporter.sendMail(mailOptions);
-        console.log('Email sent successfully:', result.messageId);
-
-        return {
-          messageId: result.messageId,
-          accepted: result.accepted || this.normalizeRecipients(data.to),
-          rejected: result.rejected || [],
-          response: result.response,
-          provider: 'smtp',
-          timestamp: new Date(),
-        };
-      } catch (error) {
-        // Try fallback providers if available
-        if (this.fallbackProviders.length > 0) {
-          for (const fallbackProvider of this.fallbackProviders) {
-            try {
-              console.log('Attempting fallback email provider');
-              return await fallbackProvider.sendEmail(data);
-            } catch (fallbackError) {
-              console.warn('Fallback email provider failed:', fallbackError);
-            }
-          }
-        }
-
-        throw new InfrastructureError(
-          `Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`
-        );
-      }
-    });
+    return await this.sendDirectEmail(data);
   }
 
   /**
-   * Send bulk emails with batching
+   * Send email directly using nodemailer
    */
-  async sendBulkEmail(messages: SendEmailData[]): Promise<EmailSendResult[]> {
-    const results: EmailSendResult[] = [];
-    const batchSize = this.config.batchSize || 10;
+  private async sendDirectEmail(data: SendEmailData): Promise<boolean> {
+    return this.circuitBreaker.execute(async () => {
+      const mailOptions: nodemailer.SendMailOptions = {
+        from: data.from || this.config.from,
+        to: data.to,
+        subject: data.subject,
+        html: data.html,
+        text: data.text,
+        replyTo: data.replyTo || this.config.replyTo,
+        cc: data.cc,
+        bcc: data.bcc,
+        attachments: data.attachments,
+        headers: {
+          'X-Provider': 'Task Management System',
+          'X-Tags': data.tags?.join(','),
+        } as Record<string, string>,
+      };
 
-    for (let i = 0; i < messages.length; i += batchSize) {
-      const batch = messages.slice(i, i + batchSize);
-      const batchPromises = batch.map(async message => {
-        try {
-          return await this.sendEmail(message);
-        } catch (error) {
-          console.error('Bulk email message failed:', error);
-          return {
-            messageId: '',
-            accepted: [],
-            rejected: this.normalizeRecipients(message.to),
-            provider: 'smtp',
-            timestamp: new Date(),
-          };
-        }
+      const info = await this.transporter.sendMail(mailOptions);
+
+      this.logger.info('Email sent successfully', {
+        messageId: info.messageId,
+        to: data.to,
+        subject: data.subject,
+        tags: data.tags,
       });
 
-      const batchResults = await Promise.allSettled(batchPromises);
-      results.push(
-        ...batchResults.map(r =>
-          r.status === 'fulfilled'
-            ? r.value
-            : {
-                messageId: '',
-                accepted: [],
-                rejected: [],
-                provider: 'smtp',
-                timestamp: new Date(),
-              }
-        )
-      );
-
-      // Add delay between batches if configured
-      if (this.config.batchDelay && i + batchSize < messages.length) {
-        await new Promise(resolve =>
-          setTimeout(resolve, this.config.batchDelay)
-        );
-      }
-    }
-
-    return results;
-  }
-
-  /**
-   * Send templated email
-   */
-  async sendTemplatedEmail(
-    templateId: string,
-    to: string | string[],
-    data: Record<string, any>
-  ): Promise<EmailSendResult> {
-    const template = this.templates.get(templateId);
-    if (!template) {
-      throw new Error(`Email template not found: ${templateId}`);
-    }
-
-    const message: SendEmailData = {
-      to,
-      subject: this.renderTemplate(template.subject, data),
-      html: this.renderTemplate(template.html, data),
-      text: template.text
-        ? this.renderTemplate(template.text, data)
-        : undefined,
-      tags: template.tags,
-      metadata: { templateId, templateData: data },
-    };
-
-    return await this.sendEmail(message);
-  }
-
-  /**
-   * Queue email for later delivery
-   */
-  async queueEmail(
-    data: SendEmailData,
-    scheduledAt?: Date,
-    maxAttempts: number = 3
-  ): Promise<string> {
-    const emailId = this.generateEmailId();
-
-    const queueItem: EmailQueueItem = {
-      id: emailId,
-      data,
-      attempts: 0,
-      maxAttempts,
-      createdAt: new Date(),
-      scheduledAt,
-    };
-
-    this.queue.push(queueItem);
-    console.log(`Email queued with ID: ${emailId}`);
-
-    return emailId;
-  }
-
-  /**
-   * Send task assignment notification
-   */
-  async sendTaskAssignmentNotification(
-    assigneeEmail: string,
-    assigneeName: string,
-    taskTitle: string,
-    taskDescription: string,
-    projectName: string,
-    assignedByName: string,
-    dueDate?: Date
-  ): Promise<void> {
-    const template = this.getTaskAssignmentTemplate({
-      assigneeName,
-      taskTitle,
-      taskDescription,
-      projectName,
-      assignedByName,
-      dueDate,
-    });
-
-    await this.sendEmail({
-      to: assigneeEmail,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
-      priority: 'normal',
-    });
-  }
-
-  /**
-   * Send task creation notification
-   */
-  async sendTaskCreationNotification(
-    recipientEmail: string,
-    recipientName: string,
-    taskTitle: string,
-    taskDescription: string,
-    projectName: string,
-    creatorName: string,
-    dueDate?: Date
-  ): Promise<void> {
-    const template = this.getTaskCreationTemplate({
-      recipientName,
-      taskTitle,
-      taskDescription,
-      projectName,
-      creatorName,
-      dueDate,
-    });
-
-    await this.sendEmail({
-      to: recipientEmail,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
-      priority: 'normal',
-    });
-  }
-
-  /**
-   * Send task completion notification
-   */
-  async sendTaskCompletionNotification(
-    recipientEmail: string,
-    recipientName: string,
-    taskTitle: string,
-    projectName: string,
-    completedByName: string,
-    completedAt: Date
-  ): Promise<void> {
-    const template = this.getTaskCompletionTemplate({
-      recipientName,
-      taskTitle,
-      projectName,
-      completedByName,
-      completedAt,
-    });
-
-    await this.sendEmail({
-      to: recipientEmail,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
-      priority: 'normal',
-    });
-  }
-
-  /**
-   * Send task start notification
-   */
-  async sendTaskStartNotification(
-    recipientEmail: string,
-    recipientName: string,
-    taskTitle: string,
-    projectName: string,
-    startedByName: string,
-    startedAt: Date
-  ): Promise<void> {
-    const template = this.getTaskStartTemplate({
-      recipientName,
-      taskTitle,
-      projectName,
-      startedByName,
-      startedAt,
-    });
-
-    await this.sendEmail({
-      to: recipientEmail,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
-      priority: 'normal',
-    });
-  }
-
-  /**
-   * Send user activation confirmation
-   */
-  async sendUserActivationConfirmation(
-    userEmail: string,
-    userName: string
-  ): Promise<void> {
-    const template = this.getUserActivationTemplate({
-      userName,
-    });
-
-    await this.sendEmail({
-      to: userEmail,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
-      priority: 'normal',
-    });
-  }
-
-  /**
-   * Send project invitation notification
-   */
-  async sendProjectInvitationNotification(
-    inviteeEmail: string,
-    inviteeName: string,
-    projectName: string,
-    invitedByName: string,
-    role: string,
-    invitationLink: string
-  ): Promise<void> {
-    const template = this.getProjectInvitationTemplate({
-      inviteeName,
-      projectName,
-      invitedByName,
-      role,
-      invitationLink,
-    });
-
-    await this.sendEmail({
-      to: inviteeEmail,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
-      priority: 'high',
-    });
-  }
-
-  /**
-   * Send password reset notification
-   */
-  async sendPasswordResetNotification(
-    userEmail: string,
-    userName: string,
-    resetLink: string,
-    expiresAt: Date
-  ): Promise<void> {
-    const template = this.getPasswordResetTemplate({
-      userName,
-      resetLink,
-      expiresAt,
-    });
-
-    await this.sendEmail({
-      to: userEmail,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
-      priority: 'high',
-    });
-  }
-
-  /**
-   * Send welcome email to new users
-   */
-  async sendWelcomeEmail(
-    userEmail: string,
-    userName: string,
-    activationLink?: string
-  ): Promise<void> {
-    const template = this.getWelcomeTemplate({
-      userName,
-      activationLink,
-    });
-
-    await this.sendEmail({
-      to: userEmail,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
-      priority: 'normal',
-    });
-  }
-
-  /**
-   * Send project member welcome notification
-   */
-  async sendProjectMemberWelcome(
-    memberEmail: string,
-    memberName: string,
-    projectName: string,
-    projectDescription: string,
-    inviterName: string,
-    role: string
-  ): Promise<void> {
-    const template = this.getProjectMemberWelcomeTemplate({
-      memberName,
-      projectName,
-      projectDescription,
-      inviterName,
-      role,
-    });
-
-    await this.sendEmail({
-      to: memberEmail,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
-      priority: 'normal',
-    });
-  }
-
-  /**
-   * Send daily digest email
-   */
-  async sendDailyDigest(
-    userEmail: string,
-    userName: string,
-    digestData: {
-      tasksCompleted: number;
-      tasksAssigned: number;
-      projectUpdates: number;
-      upcomingDeadlines: Array<{
-        taskTitle: string;
-        dueDate: Date;
-        projectName: string;
-      }>;
-    }
-  ): Promise<void> {
-    const template = this.getDailyDigestTemplate({
-      userName,
-      ...digestData,
-    });
-
-    await this.sendEmail({
-      to: userEmail,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
-      priority: 'low',
-    });
-  }
-
-  /**
-   * Validate email address
-   */
-  validateEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  }
-
-  /**
-   * Create email template
-   */
-  async createTemplate(template: EmailTemplate): Promise<void> {
-    if (!template.id) {
-      template.id = this.generateEmailId();
-    }
-    this.templates.set(template.id, template);
-    console.log(`Email template created: ${template.id}`);
-  }
-
-  /**
-   * Update email template
-   */
-  async updateTemplate(
-    templateId: string,
-    template: Partial<EmailTemplate>
-  ): Promise<void> {
-    const existing = this.templates.get(templateId);
-    if (!existing) {
-      throw new Error(`Email template not found: ${templateId}`);
-    }
-
-    const updated = { ...existing, ...template };
-    this.templates.set(templateId, updated);
-    console.log(`Email template updated: ${templateId}`);
-  }
-
-  /**
-   * Delete email template
-   */
-  async deleteTemplate(templateId: string): Promise<void> {
-    const deleted = this.templates.delete(templateId);
-    if (!deleted) {
-      throw new Error(`Email template not found: ${templateId}`);
-    }
-    console.log(`Email template deleted: ${templateId}`);
-  }
-
-  /**
-   * List all templates
-   */
-  async listTemplates(): Promise<EmailTemplate[]> {
-    return Array.from(this.templates.values());
-  }
-
-  /**
-   * Get delivery status
-   */
-  async getDeliveryStatus(messageId: string): Promise<EmailDeliveryStatus> {
-    // SMTP doesn't provide delivery status by default
-    return {
-      messageId,
-      status: 'sent',
-      timestamp: new Date(),
-      provider: 'smtp',
-    };
-  }
-
-  /**
-   * Check service health
-   */
-  async isHealthy(): Promise<boolean> {
-    try {
-      await this.transporter.verify();
       return true;
-    } catch (error) {
-      console.error('Email service health check failed:', error);
-      return false;
+    });
+  }
+
+  /**
+   * Send task assignment email
+   */
+  async sendTaskAssignmentEmail(
+    assigneeEmail: string,
+    data: TaskAssignmentTemplateData
+  ): Promise<boolean> {
+    const template = await this.getTemplate('task-assignment');
+    if (!template) {
+      throw new Error('Task assignment template not found');
     }
+
+    const html = this.renderTemplate(template.htmlContent, {
+      assigneeName: data.assigneeName,
+      taskTitle: data.taskTitle,
+      taskDescription: data.taskDescription,
+      projectName: data.projectName,
+      assignedByName: data.assignedByName,
+      dueDate: data.dueDate || undefined,
+    });
+
+    const text = template.textContent
+      ? this.renderTemplate(template.textContent, data)
+      : '';
+
+    return this.sendEmail({
+      to: assigneeEmail,
+      subject: this.renderTemplate(template.subject, data),
+      html,
+      text,
+      priority: 'normal',
+    });
   }
 
   /**
-   * Get health status including circuit breaker
+   * Send task reminder email
    */
-  async getHealthStatus(): Promise<Record<string, any>> {
-    const isHealthy = await this.isHealthy();
-    return {
-      smtp: {
-        healthy: isHealthy,
-        circuitBreakerState: this.circuitBreaker.getStats().state,
-      },
-    };
+  async sendTaskReminderEmail(
+    recipientEmail: string,
+    data: TaskReminderTemplateData
+  ): Promise<boolean> {
+    const template = await this.getTemplate('task-reminder');
+    if (!template) {
+      throw new Error('Task reminder template not found');
+    }
+
+    const html = this.renderTemplate(template.htmlContent, {
+      recipientName: data.recipientName,
+      taskTitle: data.taskTitle,
+      taskDescription: data.taskDescription,
+      projectName: data.projectName,
+      creatorName: data.creatorName,
+      dueDate: data.dueDate || undefined,
+    });
+
+    const text = template.textContent
+      ? this.renderTemplate(template.textContent, data)
+      : '';
+
+    return this.sendEmail({
+      to: recipientEmail,
+      subject: this.renderTemplate(template.subject, data),
+      html,
+      text,
+      priority: 'normal',
+    });
   }
 
   /**
-   * Add fallback provider
+   * Send user activation email
    */
-  addFallbackProvider(provider: EmailService): void {
-    this.fallbackProviders.push(provider);
+  async sendUserActivationEmail(
+    userEmail: string,
+    data: UserActivationTemplateData
+  ): Promise<boolean> {
+    const template = await this.getTemplate('user-activation');
+    if (!template) {
+      throw new Error('User activation template not found');
+    }
+
+    const html = this.renderTemplate(template.htmlContent, {
+      userName: data.userName,
+      activationLink: data.activationLink || undefined,
+    });
+
+    const text = template.textContent
+      ? this.renderTemplate(template.textContent, data)
+      : '';
+
+    return this.sendEmail({
+      to: userEmail,
+      subject: this.renderTemplate(template.subject, data),
+      html,
+      text,
+      priority: 'normal',
+    });
+  }
+
+  /**
+   * Add email to queue
+   */
+  async queueEmail(data: SendEmailData, scheduledAt?: Date): Promise<string> {
+    const emailId = this.addToQueue(data, scheduledAt);
+    return emailId;
   }
 
   /**
    * Process email queue
    */
   private async processQueue(): Promise<void> {
-    if (this.isProcessingQueue || this.queue.length === 0) {
+    if (this.isProcessing || this.emailQueue.length === 0) {
       return;
     }
 
-    this.isProcessingQueue = true;
+    this.isProcessing = true;
 
     try {
       const now = new Date();
-      const itemsToProcess = this.queue.filter(
+      const itemsToProcess = this.emailQueue.filter(
         item => !item.scheduledAt || item.scheduledAt <= now
       );
 
@@ -749,36 +280,40 @@ export class EmailService {
           await this.sendEmail(item.data);
 
           // Remove successfully sent email from queue
-          this.queue = this.queue.filter(queueItem => queueItem.id !== item.id);
-          console.log(
-            `Email ${item.id} sent successfully and removed from queue`
-          );
+          this.emailQueue = this.emailQueue.filter(queueItem => queueItem.id !== item.id);
+          this.logger.info('Email sent successfully and removed from queue', {
+            emailId: item.id,
+          });
         } catch (error) {
           item.attempts++;
-          item.lastAttemptAt = now;
-          item.error = error instanceof Error ? error.message : 'Unknown error';
+          item.lastError = error instanceof Error ? error.message : 'Unknown error';
 
           if (item.attempts >= item.maxAttempts) {
             // Remove failed email after max attempts
-            this.queue = this.queue.filter(
+            this.emailQueue = this.emailQueue.filter(
               queueItem => queueItem.id !== item.id
             );
-            console.error(
-              `Email ${item.id} failed after ${item.maxAttempts} attempts:`,
-              item.error
-            );
+            this.logger.error('Email failed after max attempts', undefined, {
+              emailId: item.id,
+              maxAttempts: item.maxAttempts,
+              errorMessage: item.lastError,
+            });
           } else {
-            console.warn(
-              `Email ${item.id} failed (attempt ${item.attempts}/${item.maxAttempts}):`,
-              item.error
-            );
+            this.logger.warn('Email attempt failed', {
+              emailId: item.id,
+              attempt: item.attempts,
+              maxAttempts: item.maxAttempts,
+              error: item.lastError,
+            });
           }
         }
       }
     } catch (error) {
-      console.error('Error processing email queue:', error);
+      this.logger.error('Error processing email queue', error as Error, {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
     } finally {
-      this.isProcessingQueue = false;
+      this.isProcessing = false;
     }
   }
 
@@ -786,588 +321,45 @@ export class EmailService {
    * Start queue processor
    */
   private startQueueProcessor(): void {
-    this.queueProcessingInterval = setInterval(() => {
+    setInterval(() => {
       this.processQueue();
     }, 30000); // Process queue every 30 seconds
   }
 
   /**
-   * Stop queue processor
+   * Add to queue
    */
-  stopQueueProcessor(): void {
-    if (this.queueProcessingInterval) {
-      clearInterval(this.queueProcessingInterval);
-      this.queueProcessingInterval = null;
-    }
+  private addToQueue(data: SendEmailData, scheduledAt?: Date): string {
+    const queueItem: EmailQueueItem = {
+      id: this.generateId(),
+      data,
+      attempts: 0,
+      maxAttempts: 3,
+      createdAt: new Date(),
+      ...(scheduledAt && { scheduledAt }),
+    };
+
+    this.emailQueue.push(queueItem);
+    return queueItem.id;
   }
 
   /**
-   * Get queue status
+   * Generate unique ID
    */
-  getQueueStatus(): {
-    totalItems: number;
-    pendingItems: number;
-    failedItems: number;
-  } {
-    const now = new Date();
-    const pendingItems = this.queue.filter(
-      item => !item.scheduledAt || item.scheduledAt <= now
-    ).length;
-
-    const failedItems = this.queue.filter(
-      item => item.attempts > 0 && item.attempts < item.maxAttempts
-    ).length;
-
-    return {
-      totalItems: this.queue.length,
-      pendingItems,
-      failedItems,
-    };
-  }
-
-  /**
-   * Clear queue
-   */
-  clearQueue(): void {
-    this.queue = [];
-  }
-
-  /**
-   * Close email service
-   */
-  async close(): Promise<void> {
-    this.stopQueueProcessor();
-
-    if (this.transporter) {
-      this.transporter.close();
-    }
-  }
-
-  // Template methods
-  private getTaskAssignmentTemplate(data: {
-    assigneeName: string;
-    taskTitle: string;
-    taskDescription: string;
-    projectName: string;
-    assignedByName: string;
-    dueDate?: Date;
-  }): EmailTemplate {
-    const dueDateText = data.dueDate
-      ? `Due: ${data.dueDate.toLocaleDateString()}`
-      : 'No due date set';
-
-    return {
-      subject: `New Task Assigned: ${data.taskTitle}`,
-      html: `
-        <h2>New Task Assignment</h2>
-        <p>Hello ${data.assigneeName},</p>
-        <p>You have been assigned a new task by ${data.assignedByName}.</p>
-        
-        <div style="background: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px;">
-          <h3>${data.taskTitle}</h3>
-          <p><strong>Project:</strong> ${data.projectName}</p>
-          <p><strong>Description:</strong> ${data.taskDescription}</p>
-          <p><strong>${dueDateText}</strong></p>
-        </div>
-        
-        <p>Please log in to your dashboard to view more details and start working on this task.</p>
-        <p>Best regards,<br>Task Management Team</p>
-      `,
-      text: `
-        New Task Assignment
-        
-        Hello ${data.assigneeName},
-        
-        You have been assigned a new task by ${data.assignedByName}.
-        
-        Task: ${data.taskTitle}
-        Project: ${data.projectName}
-        Description: ${data.taskDescription}
-        ${dueDateText}
-        
-        Please log in to your dashboard to view more details and start working on this task.
-        
-        Best regards,
-        Task Management Team
-      `,
-    };
-  }
-
-  private getTaskCreationTemplate(data: {
-    recipientName: string;
-    taskTitle: string;
-    taskDescription: string;
-    projectName: string;
-    creatorName: string;
-    dueDate?: Date;
-  }): EmailTemplate {
-    const dueDateText = data.dueDate
-      ? `Due: ${data.dueDate.toLocaleDateString()}`
-      : 'No due date set';
-
-    return {
-      subject: `New Task Created: ${data.taskTitle}`,
-      html: `
-        <h2>New Task Created</h2>
-        <p>Hello ${data.recipientName},</p>
-        <p>A new task has been created in your project by ${data.creatorName}.</p>
-        
-        <div style="background: #e6f3ff; padding: 15px; margin: 20px 0; border-radius: 5px;">
-          <h3>${data.taskTitle}</h3>
-          <p><strong>Project:</strong> ${data.projectName}</p>
-          <p><strong>Description:</strong> ${data.taskDescription}</p>
-          <p><strong>Created by:</strong> ${data.creatorName}</p>
-          <p><strong>${dueDateText}</strong></p>
-        </div>
-        
-        <p>Please log in to your dashboard to view more details and track the task progress.</p>
-        <p>Best regards,<br>Task Management Team</p>
-      `,
-      text: `
-        New Task Created
-        
-        Hello ${data.recipientName},
-        
-        A new task has been created in your project by ${data.creatorName}.
-        
-        Task: ${data.taskTitle}
-        Project: ${data.projectName}
-        Description: ${data.taskDescription}
-        Created by: ${data.creatorName}
-        ${dueDateText}
-        
-        Please log in to your dashboard to view more details and track the task progress.
-        
-        Best regards,
-        Task Management Team
-      `,
-    };
-  }
-
-  private getTaskCompletionTemplate(data: {
-    recipientName: string;
-    taskTitle: string;
-    projectName: string;
-    completedByName: string;
-    completedAt: Date;
-  }): EmailTemplate {
-    return {
-      subject: `Task Completed: ${data.taskTitle}`,
-      html: `
-        <h2>Task Completed</h2>
-        <p>Hello ${data.recipientName},</p>
-        <p>A task has been completed by ${data.completedByName}.</p>
-        
-        <div style="background: #e8f5e8; padding: 15px; margin: 20px 0; border-radius: 5px;">
-          <h3>${data.taskTitle}</h3>
-          <p><strong>Project:</strong> ${data.projectName}</p>
-          <p><strong>Completed by:</strong> ${data.completedByName}</p>
-          <p><strong>Completed at:</strong> ${data.completedAt.toLocaleString()}</p>
-        </div>
-        
-        <p>You can view the completed task details in your dashboard.</p>
-        <p>Best regards,<br>Task Management Team</p>
-      `,
-      text: `
-        Task Completed
-        
-        Hello ${data.recipientName},
-        
-        A task has been completed by ${data.completedByName}.
-        
-        Task: ${data.taskTitle}
-        Project: ${data.projectName}
-        Completed by: ${data.completedByName}
-        Completed at: ${data.completedAt.toLocaleString()}
-        
-        You can view the completed task details in your dashboard.
-        
-        Best regards,
-        Task Management Team
-      `,
-    };
-  }
-
-  private getProjectInvitationTemplate(data: {
-    inviteeName: string;
-    projectName: string;
-    invitedByName: string;
-    role: string;
-    invitationLink: string;
-  }): EmailTemplate {
-    return {
-      subject: `Project Invitation: ${data.projectName}`,
-      html: `
-        <h2>Project Invitation</h2>
-        <p>Hello ${data.inviteeName},</p>
-        <p>${data.invitedByName} has invited you to join the project "${data.projectName}" as a ${data.role}.</p>
-        
-        <div style="background: #f0f8ff; padding: 15px; margin: 20px 0; border-radius: 5px;">
-          <p><strong>Project:</strong> ${data.projectName}</p>
-          <p><strong>Role:</strong> ${data.role}</p>
-          <p><strong>Invited by:</strong> ${data.invitedByName}</p>
-        </div>
-        
-        <p><a href="${data.invitationLink}" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Accept Invitation</a></p>
-        
-        <p>If you cannot click the button, copy and paste this link into your browser:</p>
-        <p>${data.invitationLink}</p>
-        
-        <p>Best regards,<br>Task Management Team</p>
-      `,
-      text: `
-        Project Invitation
-        
-        Hello ${data.inviteeName},
-        
-        ${data.invitedByName} has invited you to join the project "${data.projectName}" as a ${data.role}.
-        
-        Project: ${data.projectName}
-        Role: ${data.role}
-        Invited by: ${data.invitedByName}
-        
-        To accept this invitation, please visit: ${data.invitationLink}
-        
-        Best regards,
-        Task Management Team
-      `,
-    };
-  }
-
-  private getPasswordResetTemplate(data: {
-    userName: string;
-    resetLink: string;
-    expiresAt: Date;
-  }): EmailTemplate {
-    return {
-      subject: 'Password Reset Request',
-      html: `
-        <h2>Password Reset Request</h2>
-        <p>Hello ${data.userName},</p>
-        <p>We received a request to reset your password. Click the button below to reset it:</p>
-        
-        <p><a href="${data.resetLink}" style="background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a></p>
-        
-        <p>If you cannot click the button, copy and paste this link into your browser:</p>
-        <p>${data.resetLink}</p>
-        
-        <p><strong>This link will expire at ${data.expiresAt.toLocaleString()}</strong></p>
-        
-        <p>If you didn't request this password reset, please ignore this email.</p>
-        
-        <p>Best regards,<br>Task Management Team</p>
-      `,
-      text: `
-        Password Reset Request
-        
-        Hello ${data.userName},
-        
-        We received a request to reset your password. Please visit the following link to reset it:
-        
-        ${data.resetLink}
-        
-        This link will expire at ${data.expiresAt.toLocaleString()}
-        
-        If you didn't request this password reset, please ignore this email.
-        
-        Best regards,
-        Task Management Team
-      `,
-    };
-  }
-
-  private getWelcomeTemplate(data: {
-    userName: string;
-    activationLink?: string;
-  }): EmailTemplate {
-    const activationSection = data.activationLink
-      ? `
-        <p>To get started, please activate your account by clicking the button below:</p>
-        <p><a href="${data.activationLink}" style="background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Activate Account</a></p>
-        <p>If you cannot click the button, copy and paste this link into your browser:</p>
-        <p>${data.activationLink}</p>
-      `
-      : '<p>Your account is ready to use. You can log in to your dashboard now.</p>';
-
-    return {
-      subject: 'Welcome to Task Management System',
-      html: `
-        <h2>Welcome to Task Management System!</h2>
-        <p>Hello ${data.userName},</p>
-        <p>Welcome to our task management platform! We're excited to have you on board.</p>
-        
-        ${activationSection}
-        
-        <p>Once you're logged in, you can:</p>
-        <ul>
-          <li>Create and manage tasks</li>
-          <li>Collaborate with team members</li>
-          <li>Track project progress</li>
-          <li>Organize your workspace</li>
-        </ul>
-        
-        <p>If you have any questions, feel free to reach out to our support team.</p>
-        
-        <p>Best regards,<br>Task Management Team</p>
-      `,
-      text: `
-        Welcome to Task Management System!
-        
-        Hello ${data.userName},
-        
-        Welcome to our task management platform! We're excited to have you on board.
-        
-        ${data.activationLink ? `To get started, please activate your account by visiting: ${data.activationLink}` : 'Your account is ready to use. You can log in to your dashboard now.'}
-        
-        Once you're logged in, you can:
-        - Create and manage tasks
-        - Collaborate with team members
-        - Track project progress
-        - Organize your workspace
-        
-        If you have any questions, feel free to reach out to our support team.
-        
-        Best regards,
-        Task Management Team
-      `,
-    };
-  }
-
-  private getProjectMemberWelcomeTemplate(data: {
-    memberName: string;
-    projectName: string;
-    projectDescription: string;
-    inviterName: string;
-    role: string;
-  }): EmailTemplate {
-    return {
-      subject: `Welcome to ${data.projectName}`,
-      html: `
-        <h2>Welcome to Project: ${data.projectName}</h2>
-        <p>Hello ${data.memberName},</p>
-        <p>You have been added as a ${data.role} to the project "${data.projectName}" by ${data.inviterName}.</p>
-        
-        <div style="background: #f0f8ff; padding: 15px; margin: 20px 0; border-radius: 5px;">
-          <p><strong>Project:</strong> ${data.projectName}</p>
-          <p><strong>Description:</strong> ${data.projectDescription}</p>
-          <p><strong>Your Role:</strong> ${data.role}</p>
-          <p><strong>Added by:</strong> ${data.inviterName}</p>
-        </div>
-        
-        <p>You can now start collaborating on this project and access all project resources.</p>
-        
-        <p>Best regards,<br>Task Management Team</p>
-      `,
-      text: `
-        Welcome to Project: ${data.projectName}
-        
-        Hello ${data.memberName},
-        
-        You have been added as a ${data.role} to the project "${data.projectName}" by ${data.inviterName}.
-        
-        Project: ${data.projectName}
-        Description: ${data.projectDescription}
-        Your Role: ${data.role}
-        Added by: ${data.inviterName}
-        
-        You can now start collaborating on this project and access all project resources.
-        
-        Best regards,
-        Task Management Team
-      `,
-    };
-  }
-
-  private getTaskStartTemplate(data: {
-    recipientName: string;
-    taskTitle: string;
-    projectName: string;
-    startedByName: string;
-    startedAt: Date;
-  }): EmailTemplate {
-    return {
-      subject: `Task Started: ${data.taskTitle}`,
-      html: `
-        <h2>Task Started</h2>
-        <p>Hello ${data.recipientName},</p>
-        <p>A task has been started by ${data.startedByName}.</p>
-        
-        <div style="background: #fff3cd; padding: 15px; margin: 20px 0; border-radius: 5px;">
-          <h3>${data.taskTitle}</h3>
-          <p><strong>Project:</strong> ${data.projectName}</p>
-          <p><strong>Started by:</strong> ${data.startedByName}</p>
-          <p><strong>Started at:</strong> ${data.startedAt.toLocaleString()}</p>
-        </div>
-        
-        <p>You can view the task progress in your dashboard.</p>
-        <p>Best regards,<br>Task Management Team</p>
-      `,
-      text: `
-        Task Started
-        
-        Hello ${data.recipientName},
-        
-        A task has been started by ${data.startedByName}.
-        
-        Task: ${data.taskTitle}
-        Project: ${data.projectName}
-        Started by: ${data.startedByName}
-        Started at: ${data.startedAt.toLocaleString()}
-        
-        You can view the task progress in your dashboard.
-        
-        Best regards,
-        Task Management Team
-      `,
-    };
-  }
-
-  private getUserActivationTemplate(data: {
-    userName: string;
-  }): EmailTemplate {
-    return {
-      subject: 'Account Activated Successfully',
-      html: `
-        <h2>Account Activated</h2>
-        <p>Hello ${data.userName},</p>
-        <p>Your account has been successfully activated! You now have full access to the task management system.</p>
-        
-        <div style="background: #d4edda; padding: 15px; margin: 20px 0; border-radius: 5px;">
-          <p><strong>✓ Account Status:</strong> Active</p>
-          <p><strong>✓ Full Access:</strong> Enabled</p>
-        </div>
-        
-        <p>You can now:</p>
-        <ul>
-          <li>Create and manage tasks</li>
-          <li>Join projects and collaborate with team members</li>
-          <li>Access all features of the platform</li>
-        </ul>
-        
-        <p>Welcome aboard!</p>
-        <p>Best regards,<br>Task Management Team</p>
-      `,
-      text: `
-        Account Activated
-        
-        Hello ${data.userName},
-        
-        Your account has been successfully activated! You now have full access to the task management system.
-        
-        Account Status: Active
-        Full Access: Enabled
-        
-        You can now:
-        - Create and manage tasks
-        - Join projects and collaborate with team members
-        - Access all features of the platform
-        
-        Welcome aboard!
-        
-        Best regards,
-        Task Management Team
-      `,
-    };
-  }
-
-  private getDailyDigestTemplate(data: {
-    userName: string;
-    tasksCompleted: number;
-    tasksAssigned: number;
-    projectUpdates: number;
-    upcomingDeadlines: Array<{
-      taskTitle: string;
-      dueDate: Date;
-      projectName: string;
-    }>;
-  }): EmailTemplate {
-    const deadlinesList = data.upcomingDeadlines
-      .map(
-        item =>
-          `<li>${item.taskTitle} (${item.projectName}) - Due: ${item.dueDate.toLocaleDateString()}</li>`
-      )
-      .join('');
-
-    return {
-      subject: 'Daily Activity Digest',
-      html: `
-        <h2>Daily Activity Digest</h2>
-        <p>Hello ${data.userName},</p>
-        <p>Here's your daily activity summary:</p>
-        
-        <div style="background: #f8f9fa; padding: 15px; margin: 20px 0; border-radius: 5px;">
-          <h3>Today's Activity</h3>
-          <ul>
-            <li><strong>Tasks Completed:</strong> ${data.tasksCompleted}</li>
-            <li><strong>New Tasks Assigned:</strong> ${data.tasksAssigned}</li>
-            <li><strong>Project Updates:</strong> ${data.projectUpdates}</li>
-          </ul>
-        </div>
-        
-        ${
-          data.upcomingDeadlines.length > 0
-            ? `
-          <div style="background: #fff3cd; padding: 15px; margin: 20px 0; border-radius: 5px;">
-            <h3>Upcoming Deadlines</h3>
-            <ul>${deadlinesList}</ul>
-          </div>
-        `
-            : ''
-        }
-        
-        <p>Have a productive day!</p>
-        <p>Best regards,<br>Task Management Team</p>
-      `,
-      text: `
-        Daily Activity Digest
-        
-        Hello ${data.userName},
-        
-        Here's your daily activity summary:
-        
-        Today's Activity:
-        - Tasks Completed: ${data.tasksCompleted}
-        - New Tasks Assigned: ${data.tasksAssigned}
-        - Project Updates: ${data.projectUpdates}
-        
-        ${
-          data.upcomingDeadlines.length > 0
-            ? `
-        Upcoming Deadlines:
-        ${data.upcomingDeadlines.map(item => `- ${item.taskTitle} (${item.projectName}) - Due: ${item.dueDate.toLocaleDateString()}`).join('\n')}
-        `
-            : ''
-        }
-        
-        Have a productive day!
-        
-        Best regards,
-        Task Management Team
-      `,
-    };
-  }
-
-  private generateEmailId(): string {
+  private generateId(): string {
     return `email_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  private normalizeRecipients(recipients: string | string[]): string[] {
-    return Array.isArray(recipients) ? recipients : [recipients];
-  }
-
+  /**
+   * Validate email message
+   */
   private validateMessage(message: SendEmailData): void {
     if (!message.to || (Array.isArray(message.to) && message.to.length === 0)) {
       throw new Error('Email message must have at least one recipient');
     }
 
-    if (!message.subject && !message.templateId) {
-      throw new Error('Email message must have a subject or template ID');
-    }
-
-    if (!message.text && !message.html && !message.templateId) {
-      throw new Error(
-        'Email message must have text, HTML content, or template ID'
-      );
+    if (!message.subject && !message.html && !message.text) {
+      throw new Error('Email message must have a subject and content');
     }
 
     // Validate all email addresses
@@ -1417,15 +409,244 @@ export class EmailService {
     }
   }
 
-  private renderTemplate(template: string, data: Record<string, any>): string {
-    return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-      return data[key] || match;
-    });
+  /**
+   * Normalize recipients to array
+   */
+  private normalizeRecipients(recipients: string | string[]): string[] {
+    return Array.isArray(recipients) ? recipients : [recipients];
   }
 
-  private async executeWithCircuitBreaker<T>(
-    operation: () => Promise<T>
-  ): Promise<T> {
-    return await this.circuitBreaker.execute(operation);
+  /**
+   * Validate email address
+   */
+  private validateEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  /**
+   * Render template with data
+   */
+  private renderTemplate(template: string, data: Record<string, any>): string {
+    let rendered = template;
+    Object.entries(data).forEach(([key, value]) => {
+      const placeholder = `{{${key}}}`;
+      const replacement = value?.toString() || '';
+      rendered = rendered.replace(new RegExp(placeholder, 'g'), replacement);
+    });
+    return rendered;
+  }
+
+  /**
+   * Get email template by name
+   */
+  private async getTemplate(name: string): Promise<EmailTemplate | null> {
+    // Simulate template retrieval
+    const templates: Record<string, EmailTemplate> = {
+      'task-assignment': {
+        id: 'task-assignment',
+        name: 'Task Assignment',
+        subject: 'New Task Assigned: {{taskTitle}}',
+        htmlContent: `<p>Hello {{assigneeName}},</p>
+                      <p>You have been assigned a new task: <strong>{{taskTitle}}</strong>.</p>
+                      <p>Project: {{projectName}}</p>
+                      <p>Description: {{taskDescription}}</p>
+                      <p>Due Date: {{dueDate}}</p>
+                      <p>Assigned by: {{assignedByName}}</p>`,
+        textContent: `Hello {{assigneeName}},
+
+You have been assigned a new task: {{taskTitle}}.
+
+Project: {{projectName}}
+Description: {{taskDescription}}
+Due Date: {{dueDate}}
+Assigned by: {{assignedByName}}`,
+        variables: [
+          'assigneeName',
+          'taskTitle',
+          'taskDescription',
+          'projectName',
+          'assignedByName',
+          'dueDate',
+        ],
+        html: `<p>Hello {{assigneeName}},</p>
+                      <p>You have been assigned a new task: <strong>{{taskTitle}}</strong>.</p>
+                      <p>Project: {{projectName}}</p>
+                      <p>Description: {{taskDescription}}</p>
+                      <p>Due Date: {{dueDate}}</p>
+                      <p>Assigned by: {{assignedByName}}</p>`,
+        text: `Hello {{assigneeName}},
+
+You have been assigned a new task: {{taskTitle}}.
+
+Project: {{projectName}}
+Description: {{taskDescription}}
+Due Date: {{dueDate}}
+Assigned by: {{assignedByName}}`,
+      },
+      'task-reminder': {
+        id: 'task-reminder',
+        name: 'Task Reminder',
+        subject: 'Reminder: Task "{{taskTitle}}" is due soon',
+        htmlContent: `<p>Hello {{recipientName}},</p>
+                      <p>This is a reminder that the task "<strong>{{taskTitle}}</strong>" is due soon.</p>
+                      <p>Project: {{projectName}}</p>
+                      <p>Description: {{taskDescription}}</p>
+                      <p>Due Date: {{dueDate}}</p>
+                      <p>Created by: {{creatorName}}</p>`,
+        textContent: `Hello {{recipientName}},
+
+This is a reminder that the task "{{taskTitle}}" is due soon.
+
+Project: {{projectName}}
+Description: {{taskDescription}}
+Due Date: {{dueDate}}
+Created by: {{creatorName}}`,
+        variables: [
+          'recipientName',
+          'taskTitle',
+          'taskDescription',
+          'projectName',
+          'creatorName',
+          'dueDate',
+        ],
+        html: `<p>Hello {{recipientName}},</p>
+                      <p>This is a reminder that the task "<strong>{{taskTitle}}</strong>" is due soon.</p>
+                      <p>Project: {{projectName}}</p>
+                      <p>Description: {{taskDescription}}</p>
+                      <p>Due Date: {{dueDate}}</p>
+                      <p>Created by: {{creatorName}}</p>`,
+        text: `Hello {{recipientName}},
+
+This is a reminder that the task "{{taskTitle}}" is due soon.
+
+Project: {{projectName}}
+Description: {{taskDescription}}
+Due Date: {{dueDate}}
+Created by: {{creatorName}}`,
+      },
+      'user-activation': {
+        id: 'user-activation',
+        name: 'User Activation',
+        subject: 'Activate your account',
+        htmlContent: `<p>Hello {{userName}},</p>
+                      <p>Welcome to the Task Management System!</p>
+                      <p>Please activate your account by clicking the link below:</p>
+                      <p><a href="{{activationLink}}">Activate Account</a></p>`,
+        textContent: `Hello {{userName}},
+
+Welcome to the Task Management System!
+
+Please activate your account by clicking the link below:
+{{activationLink}}`,
+        variables: ['userName', 'activationLink'],
+        html: `<p>Hello {{userName}},</p>
+                      <p>Welcome to the Task Management System!</p>
+                      <p>Please activate your account by clicking the link below:</p>
+                      <p><a href="{{activationLink}}">Activate Account</a></p>`,
+        text: `Hello {{userName}},
+
+Welcome to the Task Management System!
+
+Please activate your account by clicking the link below:
+{{activationLink}}`,
+      },
+    };
+
+    return templates[name] || null;
+  }
+
+  /**
+   * Create email template
+   */
+  async createTemplate(template: EmailTemplate): Promise<void> {
+    if (!template.id) {
+      template.id = this.generateId();
+    }
+    this.templates.set(template.id, template);
+    this.logger.info('Email template created', { templateId: template.id });
+  }
+
+  /**
+   * Update email template
+   */
+  async updateTemplate(
+    templateId: string,
+    template: Partial<EmailTemplate>
+  ): Promise<void> {
+    const existing = this.templates.get(templateId);
+    if (!existing) {
+      throw new Error(`Email template not found: ${templateId}`);
+    }
+
+    const updated = { ...existing, ...template };
+    this.templates.set(templateId, updated);
+    this.logger.info('Email template updated', { templateId });
+  }
+
+  /**
+   * Delete email template
+   */
+  async deleteTemplate(templateId: string): Promise<void> {
+    const deleted = this.templates.delete(templateId);
+    if (!deleted) {
+      throw new Error(`Email template not found: ${templateId}`);
+    }
+    this.logger.info('Email template deleted', { templateId });
+  }
+
+  /**
+   * List all templates
+   */
+  async listTemplates(): Promise<EmailTemplate[]> {
+    return Array.from(this.templates.values());
+  }
+
+  /**
+   * Get delivery status
+   */
+  async getDeliveryStatus(messageId: string): Promise<EmailDeliveryStatus> {
+    // SMTP doesn't provide delivery status by default
+    return {
+      messageId,
+      status: 'sent',
+      timestamp: new Date(),
+      provider: 'smtp',
+    };
+  }
+
+  /**
+   * Check service health
+   */
+  async isHealthy(): Promise<boolean> {
+    try {
+      await this.transporter.verify();
+      return true;
+    } catch (error) {
+      this.logger.error('Email service health check failed', error as Error, {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Get health status including circuit breaker
+   */
+  async getHealthStatus(): Promise<Record<string, any>> {
+    const isHealthy = await this.isHealthy();
+    return {
+      smtp: {
+        healthy: isHealthy,
+        circuitBreakerState: this.circuitBreaker.getStats().state,
+      },
+    };
+  }
+
+  /**
+   * Add fallback provider
+   */
+  addFallbackProvider(provider: EmailService): void {
+    this.fallbackProviders.push(provider);
   }
 }

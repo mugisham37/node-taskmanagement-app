@@ -1,6 +1,6 @@
-import { Logger } from '../monitoring/logging-service';
+import { LoggingService } from '../monitoring/logging-service';
 import { JobManager } from './job-manager';
-import { JobConfig, JobMonitoringConfig } from './job-types';
+import { JobConfig } from './job-types';
 import { NotificationJobHandler } from './notification-job';
 import { RecurringTaskJobHandler } from './recurring-task-job';
 import { CalendarReminderJobHandler } from './calendar-reminder-job';
@@ -8,7 +8,7 @@ import { WebhookDeliveryJobHandler } from './webhook-delivery-job';
 
 export class JobFactory {
   private static instance: JobFactory;
-  private jobManager?: JobManager;
+  private jobManager: JobManager | undefined;
 
   private constructor() {}
 
@@ -26,9 +26,8 @@ export class JobFactory {
    * Create and configure job manager
    */
   createJobManager(
-    logger: Logger,
-    config: Partial<JobConfig> = {},
-    monitoringConfig: Partial<JobMonitoringConfig> = {}
+    logger: LoggingService,
+    config: Partial<JobConfig> = {}
   ): JobManager {
     if (this.jobManager) {
       return this.jobManager;
@@ -65,7 +64,7 @@ export class JobFactory {
    */
   private registerDefaultHandlers(
     jobManager: JobManager,
-    logger: Logger
+    logger: LoggingService
   ): void {
     // These would be injected with proper dependencies in a real implementation
     const mockTaskService = this.createMockTaskService();
@@ -123,7 +122,7 @@ export class JobFactory {
    * Create job manager with custom handlers
    */
   createCustomJobManager(
-    logger: Logger,
+    logger: LoggingService,
     handlers: any[],
     config: Partial<JobConfig> = {}
   ): JobManager {

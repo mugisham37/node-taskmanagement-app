@@ -27,6 +27,15 @@ export interface JobResult {
 export interface JobExecution {
   id: string;
   jobId: string;
+  name: string;
+  type: JobType;
+  payload: Record<string, any>;
+  priority?: number;
+  maxRetries?: number;
+  delay?: number;
+  cronExpression?: string;
+  timeout?: number;
+  tags?: string[];
   status: JobStatus;
   startedAt: Date;
   completedAt?: Date;
@@ -76,7 +85,7 @@ export interface JobSchedule {
   timezone?: string;
 }
 
-export interface JobQueue {
+export interface JobQueueConfig {
   name: string;
   priority: number;
   concurrency: number;

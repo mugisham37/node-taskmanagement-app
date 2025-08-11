@@ -1,4 +1,4 @@
-import { Logger } from '../monitoring/logging-service';
+import { logger, LoggingService } from '../monitoring/logging-service';
 import { JobHandler } from './job-types';
 
 export interface CalendarReminderJobPayload {
@@ -39,7 +39,7 @@ export class CalendarReminderJobHandler implements JobHandler {
   name = 'calendar-reminder-job';
 
   constructor(
-    private logger: Logger,
+    private jobLogger: LoggingService = logger,
     private calendarService: any, // Will be injected
     private notificationService: any, // Will be injected
     private emailService: any // Will be injected
@@ -49,11 +49,11 @@ export class CalendarReminderJobHandler implements JobHandler {
    * Execute calendar reminder job
    */
   async execute(payload: CalendarReminderJobPayload): Promise<any> {
-    this.logger.info('Processing calendar reminder job', {
+    this.jobLogger.info('Processing calendar reminder job', {
       type: payload.type,
-      eventId: payload.eventId,
-      userId: payload.userId,
-      reminderType: payload.reminderType,
+      ...(payload.eventId && { eventId: payload.eventId }),
+      ...(payload.userId && { userId: payload.userId }),
+      ...(payload.reminderType && { reminderType: payload.reminderType }),
     });
 
     switch (payload.type) {
@@ -102,7 +102,7 @@ export class CalendarReminderJobHandler implements JobHandler {
    * Handle successful reminder processing
    */
   async onSuccess(result: any): Promise<void> {
-    this.logger.info('Calendar reminder job completed successfully', {
+    this.jobLogger.info('Calendar reminder job completed successfully', {
       remindersSent: result.remindersSent,
       eventsProcessed: result.eventsProcessed,
     });
@@ -112,17 +112,14 @@ export class CalendarReminderJobHandler implements JobHandler {
    * Handle reminder processing failure
    */
   async onFailure(error: Error): Promise<void> {
-    this.logger.error('Calendar reminder job failed', {
-      error: error.message,
-      stack: error.stack,
-    });
+    this.jobLogger.error('Calendar reminder job failed', error);
   }
 
   /**
    * Handle reminder job retry
    */
   async onRetry(attempt: number): Promise<void> {
-    this.logger.warn('Retrying calendar reminder job', {
+    this.jobLogger.warn('Retrying calendar reminder job', {
       attempt,
       maxRetries: 3,
     });
@@ -138,7 +135,7 @@ export class CalendarReminderJobHandler implements JobHandler {
     const errors: string[] = [];
 
     try {
-      this.logger.debug('Processing all calendar reminders');
+      this.jobLogger.debug('Processing all calendar reminders');
 
       // Get all events with pending reminders
       const events = await this.getEventsWithPendingReminders();
@@ -153,9 +150,8 @@ export class CalendarReminderJobHandler implements JobHandler {
             error instanceof Error ? error.message : 'Unknown error';
           errors.push(`Event ${event.id}: ${errorMessage}`);
 
-          this.logger.error('Failed to process event reminders', {
+          this.jobLogger.error('Failed to process event reminders', error instanceof Error ? error : new Error(errorMessage), {
             eventId: event.id,
-            error: errorMessage,
           });
         }
       }
@@ -170,9 +166,7 @@ export class CalendarReminderJobHandler implements JobHandler {
         processingTime,
       };
     } catch (error) {
-      this.logger.error('Error processing all calendar reminders', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+      this.jobLogger.error('Error processing all calendar reminders', error instanceof Error ? error : new Error('Unknown error'));
       throw error;
     }
   }
@@ -184,7 +178,7 @@ export class CalendarReminderJobHandler implements JobHandler {
     const startTime = Date.now();
 
     try {
-      this.logger.debug('Processing reminders for specific event', {
+      this.jobLogger.debug('Processing reminders for specific event', {
         eventId,
       });
 
@@ -204,9 +198,8 @@ export class CalendarReminderJobHandler implements JobHandler {
         processingTime,
       };
     } catch (error) {
-      this.logger.error('Error processing event reminders', {
+      this.jobLogger.error('Error processing event reminders', error instanceof Error ? error : new Error('Unknown error'), {
         eventId,
-        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -222,7 +215,7 @@ export class CalendarReminderJobHandler implements JobHandler {
     const errors: string[] = [];
 
     try {
-      this.logger.debug('Processing reminders for specific user', {
+      this.jobLogger.debug('Processing reminders for specific user', {
         userId,
       });
 
@@ -238,10 +231,9 @@ export class CalendarReminderJobHandler implements JobHandler {
             error instanceof Error ? error.message : 'Unknown error';
           errors.push(`Event ${event.id}: ${errorMessage}`);
 
-          this.logger.error('Failed to process user event reminders', {
+          this.jobLogger.error('Failed to process user event reminders', error instanceof Error ? error : new Error(errorMessage), {
             eventId: event.id,
             userId,
-            error: errorMessage,
           });
         }
       }
@@ -257,9 +249,8 @@ export class CalendarReminderJobHandler implements JobHandler {
         processingTime,
       };
     } catch (error) {
-      this.logger.error('Error processing user reminders', {
+      this.jobLogger.error('Error processing user reminders', error instanceof Error ? error : new Error('Unknown error'), {
         userId,
-        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -286,26 +277,24 @@ export class CalendarReminderJobHandler implements JobHandler {
           await this.markReminderAsSent(reminder.id);
           remindersSent++;
 
-          this.logger.debug('Reminder sent successfully', {
+          this.jobLogger.debug('Reminder sent successfully', {
             eventId: event.id,
             reminderId: reminder.id,
             type: reminder.type,
             minutesBefore: reminder.minutesBefore,
           });
         } catch (error) {
-          this.logger.error('Failed to send reminder', {
+          this.jobLogger.error('Failed to send reminder', error instanceof Error ? error : new Error('Unknown error'), {
             eventId: event.id,
             reminderId: reminder.id,
-            error: error instanceof Error ? error.message : 'Unknown error',
           });
         }
       }
 
       return remindersSent;
     } catch (error) {
-      this.logger.error('Error processing event reminders', {
+      this.jobLogger.error('Error processing event reminders', error instanceof Error ? error : new Error('Unknown error'), {
         eventId: event.id,
-        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -349,7 +338,7 @@ export class CalendarReminderJobHandler implements JobHandler {
   private async sendNotificationReminder(
     event: CalendarEvent,
     reminder: CalendarReminder,
-    data: any
+    _data: any
   ): Promise<void> {
     const timeText = this.formatTimeUntilEvent(reminder.minutesBefore);
 
@@ -359,7 +348,7 @@ export class CalendarReminderJobHandler implements JobHandler {
       message: `"${event.title}" ${timeText}`,
       userId: event.userId,
       data: {
-        ...data,
+        ..._data,
         eventId: event.id,
         reminderId: reminder.id,
       },
@@ -376,7 +365,7 @@ export class CalendarReminderJobHandler implements JobHandler {
           message: `"${event.title}" ${timeText}`,
           userId: attendeeId,
           data: {
-            ...data,
+            ..._data,
             eventId: event.id,
             reminderId: reminder.id,
             isAttendee: true,
@@ -394,7 +383,7 @@ export class CalendarReminderJobHandler implements JobHandler {
   private async sendEmailReminder(
     event: CalendarEvent,
     reminder: CalendarReminder,
-    data: any
+    _data: any
   ): Promise<void> {
     const timeText = this.formatTimeUntilEvent(reminder.minutesBefore);
 
@@ -404,7 +393,7 @@ export class CalendarReminderJobHandler implements JobHandler {
       subject: `Calendar Reminder: ${event.title}`,
       template: 'calendar_reminder',
       data: {
-        ...data,
+        ..._data,
         timeText,
         recipientType: 'owner',
       },
@@ -418,7 +407,7 @@ export class CalendarReminderJobHandler implements JobHandler {
           subject: `Calendar Reminder: ${event.title}`,
           template: 'calendar_reminder',
           data: {
-            ...data,
+            ..._data,
             timeText,
             recipientType: 'attendee',
           },
@@ -433,13 +422,13 @@ export class CalendarReminderJobHandler implements JobHandler {
   private async sendSMSReminder(
     event: CalendarEvent,
     reminder: CalendarReminder,
-    data: any
+    _data: any
   ): Promise<void> {
     const timeText = this.formatTimeUntilEvent(reminder.minutesBefore);
     const message = `Calendar Reminder: "${event.title}" ${timeText}`;
 
     // This would require SMS service integration
-    this.logger.info('SMS reminder would be sent', {
+    this.jobLogger.info('SMS reminder would be sent', {
       eventId: event.id,
       userId: event.userId,
       message,
@@ -498,7 +487,7 @@ export class CalendarReminderJobHandler implements JobHandler {
    * Get user events with pending reminders
    */
   private async getUserEventsWithPendingReminders(
-    userId: string
+    _userId: string
   ): Promise<CalendarEvent[]> {
     // This would be implemented to fetch from database
     // For now, return empty array
@@ -509,7 +498,7 @@ export class CalendarReminderJobHandler implements JobHandler {
    * Get specific calendar event
    */
   private async getCalendarEvent(
-    eventId: string
+    _eventId: string
   ): Promise<CalendarEvent | null> {
     // This would be implemented to fetch from database
     // For now, return null
