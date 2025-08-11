@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { LoggingService, LogContext } from './logging-service';
+import { LoggingService } from './logging-service';
 import { MetricsService } from './metrics-service';
 
 export interface AlertRule {
@@ -48,8 +48,8 @@ export interface Alert {
   timestamp: Date;
   resolvedAt?: Date;
   status: 'active' | 'resolved' | 'suppressed';
-  value?: number | string;
-  threshold?: number | string;
+  value: number | string;
+  threshold: number | string;
   metadata: Record<string, any>;
   tags: Record<string, string>;
   acknowledgedBy?: string;
@@ -182,6 +182,32 @@ export class AlertingService extends EventEmitter {
   }
 
   /**
+   * Record a metric with tags (enhanced version)
+   */
+  recordMetric(metric: string, value: number, tags: Record<string, string> = {}): void {
+    // Record the base metric
+    this.recordMetricValue(metric, value);
+    
+    // Also send to metrics service if available
+    if (this.metricsService) {
+      try {
+        this.metricsService.incrementCounter(metric, tags);
+        if (value !== 1) {
+          this.metricsService.recordHistogram(`${metric}_value`, value, tags);
+        }
+      } catch (error) {
+        // Silently handle metrics service errors
+        this.loggingService.debug('Failed to record metric in metrics service', {
+          metric,
+          value,
+          tags,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+  }
+
+  /**
    * Create an alert
    */
   createAlert(
@@ -205,7 +231,7 @@ export class AlertingService extends EventEmitter {
       source: 'alerting-service',
       timestamp: new Date(),
       status: 'active',
-      value,
+      value: value ?? 0,
       threshold: rule.condition.value,
       metadata,
       tags: rule.tags,
@@ -424,7 +450,6 @@ export class AlertingService extends EventEmitter {
    */
   private async evaluateRule(rule: AlertRule): Promise<void> {
     const now = Date.now();
-    const lastEvaluation = this.lastEvaluationTime.get(rule.id) || 0;
     const lastAlert = this.lastAlertTime.get(rule.id) || 0;
 
     // Check if we're in cooldown period
@@ -498,7 +523,7 @@ export class AlertingService extends EventEmitter {
         aggregatedValue = numericValues.length;
         break;
       default:
-        aggregatedValue = numericValues[numericValues.length - 1];
+        aggregatedValue = numericValues[numericValues.length - 1] ?? 0;
     }
 
     const thresholdValue =
@@ -604,7 +629,7 @@ export class AlertingService extends EventEmitter {
         // In a real implementation, you would make HTTP requests to webhooks
         this.loggingService.info('Webhook alert action executed', {
           alertId: alert.id,
-          webhookUrl: action.config.url,
+          webhookUrl: action.config['url'],
         });
         break;
 
@@ -612,7 +637,7 @@ export class AlertingService extends EventEmitter {
         // In a real implementation, you would send emails
         this.loggingService.info('Email alert action executed', {
           alertId: alert.id,
-          recipients: action.config.recipients,
+          recipients: action.config['recipients'],
         });
         break;
 
@@ -620,7 +645,7 @@ export class AlertingService extends EventEmitter {
         // In a real implementation, you would send Slack messages
         this.loggingService.info('Slack alert action executed', {
           alertId: alert.id,
-          channel: action.config.channel,
+          channel: action.config['channel'],
         });
         break;
     }

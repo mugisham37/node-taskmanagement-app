@@ -16,7 +16,7 @@ export async function setupMigrationRoutes(
   container: DIContainer
 ): Promise<void> {
   // Initialize migration session
-  app.post('/migration/initialize', async (request, reply) => {
+  app.post('/migration/initialize', async (_, reply) => {
     try {
       const migrationTracker = container.resolve<MigrationTrackerService>(
         MIGRATION_SERVICE_TOKENS.MIGRATION_TRACKER
@@ -31,15 +31,16 @@ export async function setupMigrationRoutes(
         message: 'Migration session initialized successfully',
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       return reply.status(500).send({
         success: false,
-        error: error.message,
+        error: errorMessage,
       });
     }
   });
 
   // Get migration status
-  app.get('/migration/status', async (request, reply) => {
+  app.get('/migration/status', async (_, reply) => {
     try {
       const migrationTracker = container.resolve<MigrationTrackerService>(
         MIGRATION_SERVICE_TOKENS.MIGRATION_TRACKER
@@ -67,15 +68,16 @@ export async function setupMigrationRoutes(
         },
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       return reply.status(500).send({
         success: false,
-        error: error.message,
+        error: errorMessage,
       });
     }
   });
 
   // Generate migration report
-  app.get('/migration/report', async (request, reply) => {
+  app.get('/migration/report', async (_, reply) => {
     try {
       const migrationTracker = container.resolve<MigrationTrackerService>(
         MIGRATION_SERVICE_TOKENS.MIGRATION_TRACKER
@@ -88,15 +90,16 @@ export async function setupMigrationRoutes(
         report: JSON.parse(report),
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       return reply.status(500).send({
         success: false,
-        error: error.message,
+        error: errorMessage,
       });
     }
   });
 
   // Get system structure
-  app.get('/migration/system-structure', async (request, reply) => {
+  app.get('/migration/system-structure', async (_, reply) => {
     try {
       const systemMapper = container.resolve<CurrentSystemMapperService>(
         MIGRATION_SERVICE_TOKENS.SYSTEM_MAPPER
@@ -109,9 +112,10 @@ export async function setupMigrationRoutes(
         structure,
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       return reply.status(500).send({
         success: false,
-        error: error.message,
+        error: errorMessage,
       });
     }
   });
@@ -144,9 +148,10 @@ export async function setupMigrationRoutes(
         },
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       return reply.status(500).send({
         success: false,
-        error: error.message,
+        error: errorMessage,
       });
     }
   });
@@ -178,9 +183,10 @@ export async function setupMigrationRoutes(
         integrationPoints,
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       return reply.status(500).send({
         success: false,
-        error: error.message,
+        error: errorMessage,
       });
     }
   });
@@ -214,15 +220,16 @@ export async function setupMigrationRoutes(
         verification: result,
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       return reply.status(500).send({
         success: false,
-        error: error.message,
+        error: errorMessage,
       });
     }
   });
 
   // List backups
-  app.get('/migration/backups', async (request, reply) => {
+  app.get('/migration/backups', async (_, reply) => {
     try {
       const backupService = container.resolve<BackupService>(
         MIGRATION_SERVICE_TOKENS.BACKUP_SERVICE
@@ -235,9 +242,10 @@ export async function setupMigrationRoutes(
         backups,
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       return reply.status(500).send({
         success: false,
-        error: error.message,
+        error: errorMessage,
       });
     }
   });
@@ -258,15 +266,16 @@ export async function setupMigrationRoutes(
         backup,
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       return reply.status(500).send({
         success: false,
-        error: error.message,
+        error: errorMessage,
       });
     }
   });
 
   // Get error summary
-  app.get('/migration/errors', async (request, reply) => {
+  app.get('/migration/errors', async (_, reply) => {
     try {
       const errorRecovery = container.resolve<ErrorRecoveryService>(
         MIGRATION_SERVICE_TOKENS.ERROR_RECOVERY
@@ -279,15 +288,16 @@ export async function setupMigrationRoutes(
         summary,
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       return reply.status(500).send({
         success: false,
-        error: error.message,
+        error: errorMessage,
       });
     }
   });
 
   // Complete migration
-  app.post('/migration/complete', async (request, reply) => {
+  app.post('/migration/complete', async (_, reply) => {
     try {
       const migrationTracker = container.resolve<MigrationTrackerService>(
         MIGRATION_SERVICE_TOKENS.MIGRATION_TRACKER
@@ -300,9 +310,10 @@ export async function setupMigrationRoutes(
         message: 'Migration completed successfully',
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       return reply.status(500).send({
         success: false,
-        error: error.message,
+        error: errorMessage,
       });
     }
   });
@@ -323,9 +334,10 @@ export async function setupMigrationRoutes(
         message: 'Backup cleanup completed',
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       return reply.status(500).send({
         success: false,
-        error: error.message,
+        error: errorMessage,
       });
     }
   });

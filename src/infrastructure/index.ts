@@ -10,8 +10,22 @@ export * from './external-services';
 // Security
 export * from './security';
 
-// Monitoring
-export * from './monitoring';
+// Monitoring (specific exports to avoid conflicts)
+export {
+  LoggingService,
+  MetricsService,
+  HealthService,
+  SystemHealth as MonitoringSystemHealth,
+  ComprehensiveMonitoring,
+} from './monitoring';
+
+// Migration
+export * from './migration/migration.module';
+export * from './migration/fastify-migration.controller';
+export * from './migration/migration-routes';
+
+// Integration
+export * from './integration/infrastructure-integration';
 
 // Performance Optimization
 export * from './performance-optimization-service';
@@ -33,8 +47,6 @@ export {
   EmailService,
   EmailConfig,
   SendEmailData,
-  EmailSendResult,
-  EmailTemplate,
 } from './external-services/email-service';
 export {
   CircuitBreaker,
