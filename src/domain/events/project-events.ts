@@ -80,6 +80,7 @@ export class ProjectMemberAddedEvent extends DomainEvent {
   constructor(
     public readonly projectId: ProjectId,
     public readonly userId: UserId,
+    public readonly memberId: UserId,
     public readonly role: ProjectRoleVO,
     public readonly addedBy: UserId
   ) {
@@ -98,7 +99,8 @@ export class ProjectMemberAddedEvent extends DomainEvent {
     return {
       projectId: this.projectId.toString(),
       userId: this.userId.toString(),
-      role: this.role.value,
+      memberId: this.memberId.toString(),
+      role: this.role.toString(),
       addedBy: this.addedBy.toString(),
     };
   }

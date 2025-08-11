@@ -111,6 +111,13 @@ export class EventHandlerLifecycleManager {
     }
 
     const registration = handlers[handlerIndex];
+    if (!registration) {
+      this.logger.warn('Handler registration not found during unregister', {
+        eventName,
+        handlerId,
+      });
+      return;
+    }
 
     // Unsubscribe from event bus
     registration.subscription.unsubscribe();
@@ -325,7 +332,7 @@ export class EventHandlerLifecycleManager {
       this.logger.info('Shutting down event handler lifecycle manager...');
 
       // Unregister all handlers
-      for (const [eventName, handlers] of this.registeredHandlers) {
+      for (const [_eventName, handlers] of this.registeredHandlers) {
         for (const registration of handlers) {
           registration.subscription.unsubscribe();
         }
@@ -354,10 +361,10 @@ class TaskCreatedHandler implements EventHandler {
   priority = 1;
 
   canHandle(event: DomainEvent): boolean {
-    return event.eventName === 'TaskCreated';
+    return event.getEventName() === 'TaskCreated';
   }
 
-  async handle(event: DomainEvent): Promise<void> {
+  async handle(_event: DomainEvent): Promise<void> {
     // Implementation would go here
   }
 }
@@ -366,10 +373,10 @@ class TaskCompletedHandler implements EventHandler {
   priority = 1;
 
   canHandle(event: DomainEvent): boolean {
-    return event.eventName === 'TaskCompleted';
+    return event.getEventName() === 'TaskCompleted';
   }
 
-  async handle(event: DomainEvent): Promise<void> {
+  async handle(_event: DomainEvent): Promise<void> {
     // Implementation would go here
   }
 }
@@ -378,10 +385,10 @@ class TaskAssignedHandler implements EventHandler {
   priority = 2;
 
   canHandle(event: DomainEvent): boolean {
-    return event.eventName === 'TaskAssigned';
+    return event.getEventName() === 'TaskAssigned';
   }
 
-  async handle(event: DomainEvent): Promise<void> {
+  async handle(_event: DomainEvent): Promise<void> {
     // Implementation would go here
   }
 }
@@ -390,10 +397,10 @@ class ProjectCreatedHandler implements EventHandler {
   priority = 1;
 
   canHandle(event: DomainEvent): boolean {
-    return event.eventName === 'ProjectCreated';
+    return event.getEventName() === 'ProjectCreated';
   }
 
-  async handle(event: DomainEvent): Promise<void> {
+  async handle(_event: DomainEvent): Promise<void> {
     // Implementation would go here
   }
 }
@@ -402,10 +409,10 @@ class ProjectMemberAddedHandler implements EventHandler {
   priority = 2;
 
   canHandle(event: DomainEvent): boolean {
-    return event.eventName === 'ProjectMemberAdded';
+    return event.getEventName() === 'ProjectMemberAdded';
   }
 
-  async handle(event: DomainEvent): Promise<void> {
+  async handle(_event: DomainEvent): Promise<void> {
     // Implementation would go here
   }
 }
@@ -414,10 +421,10 @@ class UserRegisteredHandler implements EventHandler {
   priority = 1;
 
   canHandle(event: DomainEvent): boolean {
-    return event.eventName === 'UserRegistered';
+    return event.getEventName() === 'UserRegistered';
   }
 
-  async handle(event: DomainEvent): Promise<void> {
+  async handle(_event: DomainEvent): Promise<void> {
     // Implementation would go here
   }
 }
@@ -426,10 +433,10 @@ class WorkspaceCreatedHandler implements EventHandler {
   priority = 1;
 
   canHandle(event: DomainEvent): boolean {
-    return event.eventName === 'WorkspaceCreated';
+    return event.getEventName() === 'WorkspaceCreated';
   }
 
-  async handle(event: DomainEvent): Promise<void> {
+  async handle(_event: DomainEvent): Promise<void> {
     // Implementation would go here
   }
 }
@@ -438,10 +445,10 @@ class NotificationCreatedHandler implements EventHandler {
   priority = 1;
 
   canHandle(event: DomainEvent): boolean {
-    return event.eventName === 'NotificationCreated';
+    return event.getEventName() === 'NotificationCreated';
   }
 
-  async handle(event: DomainEvent): Promise<void> {
+  async handle(_event: DomainEvent): Promise<void> {
     // Implementation would go here
   }
 }
@@ -450,10 +457,10 @@ class AuditLogCreatedHandler implements EventHandler {
   priority = 3;
 
   canHandle(event: DomainEvent): boolean {
-    return event.eventName === 'AuditLogCreated';
+    return event.getEventName() === 'AuditLogCreated';
   }
 
-  async handle(event: DomainEvent): Promise<void> {
+  async handle(_event: DomainEvent): Promise<void> {
     // Implementation would go here
   }
 }
@@ -462,10 +469,10 @@ class WebhookTriggeredHandler implements EventHandler {
   priority = 2;
 
   canHandle(event: DomainEvent): boolean {
-    return event.eventName === 'WebhookTriggered';
+    return event.getEventName() === 'WebhookTriggered';
   }
 
-  async handle(event: DomainEvent): Promise<void> {
+  async handle(_event: DomainEvent): Promise<void> {
     // Implementation would go here
   }
 }
@@ -475,13 +482,13 @@ class MetricsCollectionHandler implements EventHandler {
 
   constructor(private readonly metrics: MetricsService) {}
 
-  canHandle(event: DomainEvent): boolean {
+  canHandle(_event: DomainEvent): boolean {
     return true; // Handle all events
   }
 
   async handle(event: DomainEvent): Promise<void> {
     this.metrics.incrementCounter('domain_events_total', {
-      eventType: event.eventName,
+      eventType: event.getEventName(),
     });
   }
 }
@@ -489,13 +496,13 @@ class MetricsCollectionHandler implements EventHandler {
 class AuditLoggingHandler implements EventHandler {
   priority = 9;
 
-  canHandle(event: DomainEvent): boolean {
+  canHandle(_event: DomainEvent): boolean {
     return true; // Handle all events
   }
 
   async handle(event: DomainEvent): Promise<void> {
     // Log event for audit purposes
-    console.log(`Audit: ${event.eventName} occurred at ${event.occurredAt}`);
+    console.log(`Audit: ${event.getEventName()} occurred at ${event.occurredAt}`);
   }
 }
 

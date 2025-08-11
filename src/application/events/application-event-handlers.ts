@@ -9,14 +9,14 @@ import {
   TaskCreatedEvent,
   TaskAssignedEvent,
   TaskCompletedEvent,
-  TaskStatusChangedEvent,
+  TaskStartedEvent,
 } from '../../domain/events/task-events';
 import {
   ProjectCreatedEvent,
   ProjectMemberAddedEvent,
 } from '../../domain/events/project-events';
 import {
-  UserRegisteredEvent,
+  UserCreatedEvent,
   UserActivatedEvent,
 } from '../../domain/events/user-events';
 
@@ -24,7 +24,6 @@ export class TaskCreatedEventHandler
   implements IEventHandler<TaskCreatedEvent>
 {
   constructor(
-    private readonly taskRepository: ITaskRepository,
     private readonly projectRepository: IProjectRepository,
     private readonly userRepository: IUserRepository,
     private readonly emailService: EmailService,
@@ -51,10 +50,24 @@ export class TaskCreatedEventHandler
           event.projectId
         );
 
+        const creator = await this.userRepository.findById(event.createdById);
+
         for (const member of members) {
           if (!member.id.equals(event.createdById)) {
+            const memberUser = await this.userRepository.findById(member.userId);
+            if (memberUser && creator) {
+              await this.emailService.sendTaskCreationNotification(
+                memberUser.email.value,
+                memberUser.name,
+                event.title,
+                event.description,
+                project.name,
+                creator.name,
+                event.dueDate
+              );
+            }
             // In a real implementation, this would create in-app notifications
-            this.logger.info('Task creation notification queued', {
+            this.logger.info('Task creation notification sent', {
               taskId: event.taskId.value,
               memberId: member.id.value,
             });
@@ -79,6 +92,7 @@ export class TaskAssignedEventHandler
 {
   constructor(
     private readonly taskRepository: ITaskRepository,
+    private readonly projectRepository: IProjectRepository,
     private readonly userRepository: IUserRepository,
     private readonly emailService: EmailService,
     private readonly cacheService: CacheService,
@@ -103,7 +117,19 @@ export class TaskAssignedEventHandler
       const assignee = await this.userRepository.findById(event.assigneeId);
 
       if (task && assignee) {
-        await this.emailService.sendTaskAssignmentNotification(task, assignee);
+        // Get the project to have context for the notification
+        const project = await this.projectRepository.findById(event.projectId);
+        const assignedBy = await this.userRepository.findById(event.assignedBy);
+        
+        await this.emailService.sendTaskAssignmentNotification(
+          assignee.email.value,
+          assignee.name,
+          task.title,
+          task.description,
+          project?.name || 'Unknown Project',
+          assignedBy ? assignedBy.name : 'System',
+          task.dueDate || undefined
+        );
         this.logger.info('Task assignment notification sent', {
           taskId: event.taskId.value,
           assigneeId: event.assigneeId.value,
@@ -170,10 +196,19 @@ export class TaskCompletedEventHandler
       if (completedByUser) {
         for (const member of projectMembers) {
           if (!member.id.equals(event.completedBy)) {
-            await this.emailService.sendTaskCompletionNotification(
-              task,
-              completedByUser
-            );
+            const memberUser = await this.userRepository.findById(member.userId);
+            const project = await this.projectRepository.findById(task.projectId);
+            
+            if (memberUser) {
+              await this.emailService.sendTaskCompletionNotification(
+                memberUser.email.value,
+                memberUser.name,
+                task.title,
+                project?.name || 'Unknown Project',
+                completedByUser.name,
+                event.occurredAt
+              );
+            }
           }
         }
       }
@@ -194,8 +229,6 @@ export class ProjectCreatedEventHandler
   implements IEventHandler<ProjectCreatedEvent>
 {
   constructor(
-    private readonly projectRepository: IProjectRepository,
-    private readonly userRepository: IUserRepository,
     private readonly cacheService: CacheService,
     private readonly logger: LoggingService
   ) {}
@@ -259,12 +292,16 @@ export class ProjectMemberAddedEventHandler
       // Send welcome email to new member
       const project = await this.projectRepository.findById(event.projectId);
       const newMember = await this.userRepository.findById(event.memberId);
+      const addedByUser = await this.userRepository.findById(event.addedBy);
 
       if (project && newMember) {
         await this.emailService.sendProjectMemberWelcome(
-          project,
-          newMember,
-          event.role
+          newMember.email.value,
+          newMember.name,
+          project.name,
+          project.description,
+          addedByUser ? addedByUser.name : 'System',
+          event.role.toString()
         );
         this.logger.info('Project member welcome email sent', {
           projectId: event.projectId.value,
@@ -291,7 +328,7 @@ export class ProjectMemberAddedEventHandler
 }
 
 export class UserRegisteredEventHandler
-  implements IEventHandler<UserRegisteredEvent>
+  implements IEventHandler<UserCreatedEvent>
 {
   constructor(
     private readonly userRepository: IUserRepository,
@@ -299,7 +336,7 @@ export class UserRegisteredEventHandler
     private readonly logger: LoggingService
   ) {}
 
-  async handle(event: UserRegisteredEvent): Promise<void> {
+  async handle(event: UserCreatedEvent): Promise<void> {
     this.logger.info('Handling UserRegisteredEvent', {
       userId: event.userId.value,
     });
@@ -308,7 +345,10 @@ export class UserRegisteredEventHandler
       const user = await this.userRepository.findById(event.userId);
       if (user) {
         // Send welcome email
-        await this.emailService.sendWelcomeEmail(user);
+        await this.emailService.sendWelcomeEmail(
+          user.email.value,
+          user.name
+        );
         this.logger.info('Welcome email sent to new user', {
           userId: event.userId.value,
         });
@@ -325,6 +365,119 @@ export class UserRegisteredEventHandler
           userId: event.userId.value,
         }
       );
+      throw error;
+    }
+  }
+}
+
+export class TaskStartedEventHandler
+  implements IEventHandler<TaskStartedEvent>
+{
+  constructor(
+    private readonly taskRepository: ITaskRepository,
+    private readonly projectRepository: IProjectRepository,
+    private readonly userRepository: IUserRepository,
+    private readonly emailService: EmailService,
+    private readonly cacheService: CacheService,
+    private readonly logger: LoggingService
+  ) {}
+
+  async handle(event: TaskStartedEvent): Promise<void> {
+    this.logger.info('Handling TaskStartedEvent', {
+      taskId: event.taskId.value,
+      startedBy: event.startedBy.value,
+    });
+
+    try {
+      // Invalidate task caches
+      await this.cacheService.invalidatePattern(`task:${event.taskId.value}`);
+      await this.cacheService.invalidatePattern(
+        `tasks:project:${event.projectId.value}:*`
+      );
+      await this.cacheService.invalidatePattern(
+        `tasks:assignee:${event.startedBy.value}:*`
+      );
+      await this.cacheService.invalidatePattern('task-stats:*');
+
+      // Send notifications to project members
+      const task = await this.taskRepository.findById(event.taskId);
+      const startedByUser = await this.userRepository.findById(event.startedBy);
+      const project = await this.projectRepository.findById(event.projectId);
+
+      if (task && startedByUser && project) {
+        const projectMembers = await this.projectRepository.getProjectMembers(
+          event.projectId
+        );
+
+        for (const member of projectMembers) {
+          if (!member.id.equals(event.startedBy)) {
+            const memberUser = await this.userRepository.findById(member.userId);
+            if (memberUser) {
+              await this.emailService.sendTaskStartNotification(
+                memberUser.email.value,
+                memberUser.name,
+                task.title,
+                project.name,
+                startedByUser.name,
+                event.occurredAt
+              );
+            }
+          }
+        }
+      }
+
+      this.logger.info('TaskStartedEvent handled successfully', {
+        taskId: event.taskId.value,
+      });
+    } catch (error) {
+      this.logger.error('Failed to handle TaskStartedEvent', error as Error, {
+        taskId: event.taskId.value,
+      });
+      throw error;
+    }
+  }
+}
+
+export class UserActivatedEventHandler
+  implements IEventHandler<UserActivatedEvent>
+{
+  constructor(
+    private readonly userRepository: IUserRepository,
+    private readonly emailService: EmailService,
+    private readonly cacheService: CacheService,
+    private readonly logger: LoggingService
+  ) {}
+
+  async handle(event: UserActivatedEvent): Promise<void> {
+    this.logger.info('Handling UserActivatedEvent', {
+      userId: event.userId.value,
+    });
+
+    try {
+      // Invalidate user caches
+      await this.cacheService.invalidatePattern(`user:${event.userId.value}`);
+      await this.cacheService.invalidatePattern('user-stats:*');
+
+      // Send activation confirmation email
+      const user = await this.userRepository.findById(event.userId);
+      if (user) {
+        await this.emailService.sendUserActivationConfirmation(
+          user.email.value,
+          user.name
+        );
+        
+        this.logger.info('User activation confirmation email sent', {
+          userId: event.userId.value,
+        });
+      }
+
+      this.logger.info('UserActivatedEvent handled successfully', {
+        userId: event.userId.value,
+      });
+    } catch (error) {
+      this.logger.error('Failed to handle UserActivatedEvent', error as Error, {
+        userId: event.userId.value,
+      });
       throw error;
     }
   }

@@ -100,10 +100,92 @@ export class EventHandlerRegistry {
   private async registerApplicationEventHandlers(): Promise<void> {
     this.logger.info('Registering application event handlers...');
 
-    // Register existing application event handlers
-    // This integrates with the current event bus system
+    // Register application event handlers with the application event bus
+    let applicationHandlerCount = 0;
 
-    const applicationHandlerCount = 0; // Will be updated as handlers are added
+    // Import and register actual application event handlers
+    try {
+      const {
+        TaskCreatedEventHandler,
+        TaskAssignedEventHandler,
+        TaskCompletedEventHandler,
+        TaskStartedEventHandler,
+        UserActivatedEventHandler,
+        ProjectCreatedEventHandler,
+        ProjectMemberAddedEventHandler,
+        UserRegisteredEventHandler,
+      } = await import('./application-event-handlers');
+
+      // Register Task Event Handlers
+      await this.registerHandler(
+        'TaskCreatedEventHandler',
+        TaskCreatedEventHandler,
+        ['TaskCreated'],
+        1
+      );
+      applicationHandlerCount++;
+
+      await this.registerHandler(
+        'TaskAssignedEventHandler',
+        TaskAssignedEventHandler,
+        ['TaskAssigned'],
+        1
+      );
+      applicationHandlerCount++;
+
+      await this.registerHandler(
+        'TaskCompletedEventHandler',
+        TaskCompletedEventHandler,
+        ['TaskCompleted'],
+        1
+      );
+      applicationHandlerCount++;
+
+      await this.registerHandler(
+        'TaskStartedEventHandler',
+        TaskStartedEventHandler,
+        ['TaskStarted'],
+        1
+      );
+      applicationHandlerCount++;
+
+      // Register User Event Handlers
+      await this.registerHandler(
+        'UserActivatedEventHandler',
+        UserActivatedEventHandler,
+        ['UserActivated'],
+        1
+      );
+      applicationHandlerCount++;
+
+      await this.registerHandler(
+        'UserRegisteredEventHandler',
+        UserRegisteredEventHandler,
+        ['UserCreated'],
+        1
+      );
+      applicationHandlerCount++;
+
+      // Register Project Event Handlers
+      await this.registerHandler(
+        'ProjectCreatedEventHandler',
+        ProjectCreatedEventHandler,
+        ['ProjectCreated'],
+        1
+      );
+      applicationHandlerCount++;
+
+      await this.registerHandler(
+        'ProjectMemberAddedEventHandler',
+        ProjectMemberAddedEventHandler,
+        ['ProjectMemberAdded'],
+        1
+      );
+      applicationHandlerCount++;
+
+    } catch (error) {
+      this.logger.error('Failed to import application event handlers', error as Error);
+    }
 
     this.logger.info('Application event handlers registered successfully', {
       handlerCount: applicationHandlerCount,
@@ -115,7 +197,7 @@ export class EventHandlerRegistry {
    */
   async registerHandler(
     handlerName: string,
-    handler: any,
+    handlerClass: any,
     eventTypes: string[],
     priority: number = 0
   ): Promise<void> {
@@ -123,10 +205,16 @@ export class EventHandlerRegistry {
       // Register with appropriate event bus based on event types
       for (const eventType of eventTypes) {
         if (this.isDomainEvent(eventType)) {
-          this.domainEventBus.subscribe(eventType, handler);
+          // Register with domain event bus (uses string-based registration)
+          this.domainEventBus.subscribe(eventType, handlerClass);
         } else {
-          // Register with application event bus
-          // This would need to be adapted based on the current event bus interface
+          // For application event bus, we need to create handler instances
+          // and register them with the appropriate event class constructor
+          const eventClass = await this.getEventClass(eventType);
+          if (eventClass) {
+            const handlerInstance = new handlerClass();
+            this.applicationEventBus.subscribe(eventClass, handlerInstance);
+          }
         }
       }
 
@@ -306,6 +394,46 @@ export class EventHandlerRegistry {
       eventType.includes('Updated') ||
       eventType.includes('Deleted')
     );
+  }
+
+  /**
+   * Get event class constructor from event type string
+   */
+  private async getEventClass(eventType: string): Promise<(new (...args: any[]) => any) | undefined> {
+    try {
+      // Dynamically import event classes based on type
+      switch (eventType) {
+        case 'TaskCreated':
+          const { TaskCreatedEvent } = await import('../../domain/events/task-events');
+          return TaskCreatedEvent;
+        case 'TaskAssigned':
+          const { TaskAssignedEvent } = await import('../../domain/events/task-events');
+          return TaskAssignedEvent;
+        case 'TaskCompleted':
+          const { TaskCompletedEvent } = await import('../../domain/events/task-events');
+          return TaskCompletedEvent;
+        case 'TaskStarted':
+          const { TaskStartedEvent } = await import('../../domain/events/task-events');
+          return TaskStartedEvent;
+        case 'UserCreated':
+          const { UserCreatedEvent } = await import('../../domain/events/user-events');
+          return UserCreatedEvent;
+        case 'UserActivated':
+          const { UserActivatedEvent } = await import('../../domain/events/user-events');
+          return UserActivatedEvent;
+        case 'ProjectCreated':
+          const { ProjectCreatedEvent } = await import('../../domain/events/project-events');
+          return ProjectCreatedEvent;
+        case 'ProjectMemberAdded':
+          const { ProjectMemberAddedEvent } = await import('../../domain/events/project-events');
+          return ProjectMemberAddedEvent;
+        default:
+          return undefined;
+      }
+    } catch (error) {
+      this.logger.error(`Failed to load event class for ${eventType}`, error as Error);
+      return undefined;
+    }
   }
 }
 

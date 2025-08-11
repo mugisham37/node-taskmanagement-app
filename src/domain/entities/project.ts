@@ -11,6 +11,7 @@ import {
   ProjectRole,
 } from '../../shared/constants/project-constants';
 import { DomainError, ValidationError } from '../../shared/errors';
+import { ProjectMemberAddedEvent } from '../events/project-events';
 import {
   PROJECT_VALIDATION,
   PROJECT_BUSINESS_RULES,
@@ -20,6 +21,7 @@ import {
  * Project Member interface
  */
 export interface ProjectMember {
+  id: UserId;
   userId: UserId;
   role: ProjectRoleVO;
   joinedAt: Date;
@@ -173,6 +175,7 @@ export class Project extends BaseEntity<ProjectId> {
     }
 
     const member: ProjectMember = {
+      id: userId,
       userId,
       role,
       joinedAt: new Date(),
@@ -181,7 +184,15 @@ export class Project extends BaseEntity<ProjectId> {
     this._members.set(userIdStr, member);
     this.markAsUpdated();
 
-    // TODO: Add domain event for member added
+    // Fire domain event for member added
+    const event = new ProjectMemberAddedEvent(
+      this.id,
+      userId,
+      userId, // memberId is the same as userId in this case
+      role,
+      this._managerId // addedBy - using manager as default, should be passed as parameter in real implementation
+    );
+    this.addDomainEvent(event);
   }
 
   /**

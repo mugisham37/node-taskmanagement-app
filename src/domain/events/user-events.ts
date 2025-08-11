@@ -228,3 +228,34 @@ export class UserEmailChangedEvent extends DomainEvent {
     };
   }
 }
+
+/**
+ * User Registered Event
+ */
+export class UserRegisteredEvent extends DomainEvent {
+  constructor(
+    public readonly userId: UserId,
+    public readonly email: Email,
+    public readonly name: string,
+    public readonly registrationMethod: string = 'direct'
+  ) {
+    super();
+  }
+
+  getEventName(): string {
+    return 'UserRegistered';
+  }
+
+  getAggregateId(): string {
+    return this.userId.toString();
+  }
+
+  protected getPayload(): Record<string, any> {
+    return {
+      userId: this.userId.toString(),
+      email: this.email.value,
+      name: this.name,
+      registrationMethod: this.registrationMethod,
+    };
+  }
+}

@@ -353,3 +353,36 @@ export class TaskDependencyRemovedEvent extends DomainEvent {
     };
   }
 }
+
+/**
+ * Task Status Changed Event
+ */
+export class TaskStatusChangedEvent extends DomainEvent {
+  constructor(
+    public readonly taskId: TaskId,
+    public readonly previousStatus: string,
+    public readonly newStatus: string,
+    public readonly changedBy: UserId,
+    public readonly projectId: ProjectId
+  ) {
+    super();
+  }
+
+  getEventName(): string {
+    return 'TaskStatusChanged';
+  }
+
+  getAggregateId(): string {
+    return this.projectId.toString();
+  }
+
+  protected getPayload(): Record<string, any> {
+    return {
+      taskId: this.taskId.toString(),
+      previousStatus: this.previousStatus,
+      newStatus: this.newStatus,
+      changedBy: this.changedBy.toString(),
+      projectId: this.projectId.toString(),
+    };
+  }
+}

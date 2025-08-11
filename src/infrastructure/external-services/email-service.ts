@@ -390,6 +390,36 @@ export class EmailService {
   }
 
   /**
+   * Send task creation notification
+   */
+  async sendTaskCreationNotification(
+    recipientEmail: string,
+    recipientName: string,
+    taskTitle: string,
+    taskDescription: string,
+    projectName: string,
+    creatorName: string,
+    dueDate?: Date
+  ): Promise<void> {
+    const template = this.getTaskCreationTemplate({
+      recipientName,
+      taskTitle,
+      taskDescription,
+      projectName,
+      creatorName,
+      dueDate,
+    });
+
+    await this.sendEmail({
+      to: recipientEmail,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+      priority: 'normal',
+    });
+  }
+
+  /**
    * Send task completion notification
    */
   async sendTaskCompletionNotification(
@@ -410,6 +440,54 @@ export class EmailService {
 
     await this.sendEmail({
       to: recipientEmail,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+      priority: 'normal',
+    });
+  }
+
+  /**
+   * Send task start notification
+   */
+  async sendTaskStartNotification(
+    recipientEmail: string,
+    recipientName: string,
+    taskTitle: string,
+    projectName: string,
+    startedByName: string,
+    startedAt: Date
+  ): Promise<void> {
+    const template = this.getTaskStartTemplate({
+      recipientName,
+      taskTitle,
+      projectName,
+      startedByName,
+      startedAt,
+    });
+
+    await this.sendEmail({
+      to: recipientEmail,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+      priority: 'normal',
+    });
+  }
+
+  /**
+   * Send user activation confirmation
+   */
+  async sendUserActivationConfirmation(
+    userEmail: string,
+    userName: string
+  ): Promise<void> {
+    const template = this.getUserActivationTemplate({
+      userName,
+    });
+
+    await this.sendEmail({
+      to: userEmail,
       subject: template.subject,
       html: template.html,
       text: template.text,
@@ -484,6 +562,34 @@ export class EmailService {
 
     await this.sendEmail({
       to: userEmail,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+      priority: 'normal',
+    });
+  }
+
+  /**
+   * Send project member welcome notification
+   */
+  async sendProjectMemberWelcome(
+    memberEmail: string,
+    memberName: string,
+    projectName: string,
+    projectDescription: string,
+    inviterName: string,
+    role: string
+  ): Promise<void> {
+    const template = this.getProjectMemberWelcomeTemplate({
+      memberName,
+      projectName,
+      projectDescription,
+      inviterName,
+      role,
+    });
+
+    await this.sendEmail({
+      to: memberEmail,
       subject: template.subject,
       html: template.html,
       text: template.text,
@@ -787,6 +893,57 @@ export class EmailService {
     };
   }
 
+  private getTaskCreationTemplate(data: {
+    recipientName: string;
+    taskTitle: string;
+    taskDescription: string;
+    projectName: string;
+    creatorName: string;
+    dueDate?: Date;
+  }): EmailTemplate {
+    const dueDateText = data.dueDate
+      ? `Due: ${data.dueDate.toLocaleDateString()}`
+      : 'No due date set';
+
+    return {
+      subject: `New Task Created: ${data.taskTitle}`,
+      html: `
+        <h2>New Task Created</h2>
+        <p>Hello ${data.recipientName},</p>
+        <p>A new task has been created in your project by ${data.creatorName}.</p>
+        
+        <div style="background: #e6f3ff; padding: 15px; margin: 20px 0; border-radius: 5px;">
+          <h3>${data.taskTitle}</h3>
+          <p><strong>Project:</strong> ${data.projectName}</p>
+          <p><strong>Description:</strong> ${data.taskDescription}</p>
+          <p><strong>Created by:</strong> ${data.creatorName}</p>
+          <p><strong>${dueDateText}</strong></p>
+        </div>
+        
+        <p>Please log in to your dashboard to view more details and track the task progress.</p>
+        <p>Best regards,<br>Task Management Team</p>
+      `,
+      text: `
+        New Task Created
+        
+        Hello ${data.recipientName},
+        
+        A new task has been created in your project by ${data.creatorName}.
+        
+        Task: ${data.taskTitle}
+        Project: ${data.projectName}
+        Description: ${data.taskDescription}
+        Created by: ${data.creatorName}
+        ${dueDateText}
+        
+        Please log in to your dashboard to view more details and track the task progress.
+        
+        Best regards,
+        Task Management Team
+      `,
+    };
+  }
+
   private getTaskCompletionTemplate(data: {
     recipientName: string;
     taskTitle: string;
@@ -969,6 +1126,143 @@ export class EmailService {
         - Organize your workspace
         
         If you have any questions, feel free to reach out to our support team.
+        
+        Best regards,
+        Task Management Team
+      `,
+    };
+  }
+
+  private getProjectMemberWelcomeTemplate(data: {
+    memberName: string;
+    projectName: string;
+    projectDescription: string;
+    inviterName: string;
+    role: string;
+  }): EmailTemplate {
+    return {
+      subject: `Welcome to ${data.projectName}`,
+      html: `
+        <h2>Welcome to Project: ${data.projectName}</h2>
+        <p>Hello ${data.memberName},</p>
+        <p>You have been added as a ${data.role} to the project "${data.projectName}" by ${data.inviterName}.</p>
+        
+        <div style="background: #f0f8ff; padding: 15px; margin: 20px 0; border-radius: 5px;">
+          <p><strong>Project:</strong> ${data.projectName}</p>
+          <p><strong>Description:</strong> ${data.projectDescription}</p>
+          <p><strong>Your Role:</strong> ${data.role}</p>
+          <p><strong>Added by:</strong> ${data.inviterName}</p>
+        </div>
+        
+        <p>You can now start collaborating on this project and access all project resources.</p>
+        
+        <p>Best regards,<br>Task Management Team</p>
+      `,
+      text: `
+        Welcome to Project: ${data.projectName}
+        
+        Hello ${data.memberName},
+        
+        You have been added as a ${data.role} to the project "${data.projectName}" by ${data.inviterName}.
+        
+        Project: ${data.projectName}
+        Description: ${data.projectDescription}
+        Your Role: ${data.role}
+        Added by: ${data.inviterName}
+        
+        You can now start collaborating on this project and access all project resources.
+        
+        Best regards,
+        Task Management Team
+      `,
+    };
+  }
+
+  private getTaskStartTemplate(data: {
+    recipientName: string;
+    taskTitle: string;
+    projectName: string;
+    startedByName: string;
+    startedAt: Date;
+  }): EmailTemplate {
+    return {
+      subject: `Task Started: ${data.taskTitle}`,
+      html: `
+        <h2>Task Started</h2>
+        <p>Hello ${data.recipientName},</p>
+        <p>A task has been started by ${data.startedByName}.</p>
+        
+        <div style="background: #fff3cd; padding: 15px; margin: 20px 0; border-radius: 5px;">
+          <h3>${data.taskTitle}</h3>
+          <p><strong>Project:</strong> ${data.projectName}</p>
+          <p><strong>Started by:</strong> ${data.startedByName}</p>
+          <p><strong>Started at:</strong> ${data.startedAt.toLocaleString()}</p>
+        </div>
+        
+        <p>You can view the task progress in your dashboard.</p>
+        <p>Best regards,<br>Task Management Team</p>
+      `,
+      text: `
+        Task Started
+        
+        Hello ${data.recipientName},
+        
+        A task has been started by ${data.startedByName}.
+        
+        Task: ${data.taskTitle}
+        Project: ${data.projectName}
+        Started by: ${data.startedByName}
+        Started at: ${data.startedAt.toLocaleString()}
+        
+        You can view the task progress in your dashboard.
+        
+        Best regards,
+        Task Management Team
+      `,
+    };
+  }
+
+  private getUserActivationTemplate(data: {
+    userName: string;
+  }): EmailTemplate {
+    return {
+      subject: 'Account Activated Successfully',
+      html: `
+        <h2>Account Activated</h2>
+        <p>Hello ${data.userName},</p>
+        <p>Your account has been successfully activated! You now have full access to the task management system.</p>
+        
+        <div style="background: #d4edda; padding: 15px; margin: 20px 0; border-radius: 5px;">
+          <p><strong>✓ Account Status:</strong> Active</p>
+          <p><strong>✓ Full Access:</strong> Enabled</p>
+        </div>
+        
+        <p>You can now:</p>
+        <ul>
+          <li>Create and manage tasks</li>
+          <li>Join projects and collaborate with team members</li>
+          <li>Access all features of the platform</li>
+        </ul>
+        
+        <p>Welcome aboard!</p>
+        <p>Best regards,<br>Task Management Team</p>
+      `,
+      text: `
+        Account Activated
+        
+        Hello ${data.userName},
+        
+        Your account has been successfully activated! You now have full access to the task management system.
+        
+        Account Status: Active
+        Full Access: Enabled
+        
+        You can now:
+        - Create and manage tasks
+        - Join projects and collaborate with team members
+        - Access all features of the platform
+        
+        Welcome aboard!
         
         Best regards,
         Task Management Team

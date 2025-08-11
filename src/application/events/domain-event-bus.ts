@@ -33,6 +33,7 @@ export interface IDomainEventBus {
   getSubscriptionStats(): Promise<SubscriptionStats>;
   healthCheck(): Promise<void>;
   clearSubscriptions(): Promise<void>;
+  getPerformanceMetrics(): Record<string, any>;
 }
 
 export interface SubscriptionStats {
@@ -71,7 +72,7 @@ export class DomainEventBus implements IDomainEventBus {
   }
 
   async publish(event: DomainEvent): Promise<void> {
-    const eventName = event.eventName;
+    const eventName = event.getEventName();
     const eventHandlers = this.handlers.get(eventName) || [];
 
     if (eventHandlers.length === 0) {
@@ -304,7 +305,7 @@ export class DomainEventBus implements IDomainEventBus {
     if (!handler.canHandle(event)) {
       this.logger.debug(`Handler cannot handle event`, {
         handlerName: handler.constructor.name,
-        eventName: event.eventName,
+        eventName: event.getEventName(),
         eventId: event.eventId,
       });
       return;
@@ -326,7 +327,7 @@ export class DomainEventBus implements IDomainEventBus {
 
         this.logger.debug(`Event handler completed`, {
           handlerName,
-          eventName: event.eventName,
+          eventName: event.getEventName(),
           eventId: event.eventId,
           attempt: attempt + 1,
           duration,
@@ -350,7 +351,7 @@ export class DomainEventBus implements IDomainEventBus {
 
         this.logger.error(`Event handler failed`, lastError, {
           handlerName,
-          eventName: event.eventName,
+          eventName: event.getEventName(),
           eventId: event.eventId,
           attempt,
           maxRetries: this.options.maxRetries,
@@ -376,7 +377,7 @@ export class DomainEventBus implements IDomainEventBus {
     // If we get here, all retries failed
     this.logger.error(`Event handler failed after all retries`, lastError!, {
       handlerName,
-      eventName: event.eventName,
+      eventName: event.getEventName(),
       eventId: event.eventId,
       totalAttempts: attempt,
     });
