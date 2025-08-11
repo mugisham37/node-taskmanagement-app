@@ -3,15 +3,20 @@ import { NotificationRepository } from '../repositories/notification-repository'
 import {
   Notification,
   NotificationType,
-  NotificationPriority,
+  NotificationChannel,
 } from '../../../domain/entities/notification';
+import {
+  NotificationId,
+  UserId,
+  WorkspaceId,
+  ProjectId,
+  TaskId,
+} from '../../../domain/value-objects';
 
 export class NotificationSeeder {
-  private connection: DatabaseConnection;
   private notificationRepository: NotificationRepository;
 
-  constructor(connection: DatabaseConnection) {
-    this.connection = connection;
+  constructor(_connection: DatabaseConnection) {
     this.notificationRepository = new NotificationRepository();
   }
 
@@ -25,7 +30,7 @@ export class NotificationSeeder {
     const notifications: Notification[] = [];
 
     const notificationTypes = Object.values(NotificationType);
-    const priorities = Object.values(NotificationPriority);
+    const channels = Object.values(NotificationChannel);
 
     const sampleTitles = [
       'Task assigned to you',
@@ -54,57 +59,59 @@ export class NotificationSeeder {
     ];
 
     for (let i = 0; i < count; i++) {
-      const userId = userIds[Math.floor(Math.random() * userIds.length)];
+      const userId = userIds[Math.floor(Math.random() * userIds.length)]!;
       const workspaceId =
-        workspaceIds[Math.floor(Math.random() * workspaceIds.length)];
+        workspaceIds[Math.floor(Math.random() * workspaceIds.length)]!;
       const type =
-        notificationTypes[Math.floor(Math.random() * notificationTypes.length)];
-      const priority =
-        priorities[Math.floor(Math.random() * priorities.length)];
+        notificationTypes[Math.floor(Math.random() * notificationTypes.length)]!;
       const title =
-        sampleTitles[Math.floor(Math.random() * sampleTitles.length)];
+        sampleTitles[Math.floor(Math.random() * sampleTitles.length)]!;
       const message =
-        sampleMessages[Math.floor(Math.random() * sampleMessages.length)];
+        sampleMessages[Math.floor(Math.random() * sampleMessages.length)]!;
+
+      // Randomly select notification channels
+      const shuffledChannels = [...channels].sort(() => 0.5 - Math.random());
+      const notificationChannels = shuffledChannels.slice(0, Math.floor(Math.random() * 3) + 1);
 
       // Randomly assign related entities based on notification type
-      let relatedEntityId: string | undefined;
-      let relatedEntityType: string | undefined;
+      let projectId: string | undefined;
+      let taskId: string | undefined;
 
       switch (type) {
         case NotificationType.TASK_ASSIGNED:
         case NotificationType.TASK_COMPLETED:
+        case NotificationType.TASK_DUE_SOON:
         case NotificationType.TASK_OVERDUE:
-          relatedEntityId = taskIds[Math.floor(Math.random() * taskIds.length)];
-          relatedEntityType = 'task';
+          taskId = taskIds[Math.floor(Math.random() * taskIds.length)];
+          projectId = projectIds[Math.floor(Math.random() * projectIds.length)];
           break;
         case NotificationType.PROJECT_CREATED:
         case NotificationType.PROJECT_UPDATED:
-          relatedEntityId =
-            projectIds[Math.floor(Math.random() * projectIds.length)];
-          relatedEntityType = 'project';
+          projectId = projectIds[Math.floor(Math.random() * projectIds.length)];
           break;
-        case NotificationType.WORKSPACE_INVITATION:
-          relatedEntityId = workspaceId;
-          relatedEntityType = 'workspace';
+        case NotificationType.COMMENT_ADDED:
+        case NotificationType.MENTION:
+          taskId = taskIds[Math.floor(Math.random() * taskIds.length)];
+          projectId = projectIds[Math.floor(Math.random() * projectIds.length)];
           break;
       }
 
-      const notification = Notification.create({
+      const notification = Notification.create(
+        NotificationId.create(crypto.randomUUID()),
+        UserId.create(userId),
+        type,
         title,
         message,
-        type,
-        priority,
-        userId,
-        workspaceId,
-        relatedEntityId,
-        relatedEntityType,
-        isRead: Math.random() > 0.7, // 30% chance of being read
-        metadata: {
+        notificationChannels,
+        workspaceId ? WorkspaceId.create(workspaceId) : undefined,
+        projectId ? ProjectId.create(projectId) : undefined,
+        taskId ? TaskId.create(taskId) : undefined,
+        {
           source: 'seeder',
           category: type,
           timestamp: new Date().toISOString(),
-        },
-      });
+        }
+      );
 
       notifications.push(notification);
     }

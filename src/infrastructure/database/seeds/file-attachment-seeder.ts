@@ -7,11 +7,9 @@ import {
 } from '../../../domain/entities/file-attachment';
 
 export class FileAttachmentSeeder {
-  private connection: DatabaseConnection;
   private fileAttachmentRepository: FileAttachmentRepository;
 
-  constructor(connection: DatabaseConnection) {
-    this.connection = connection;
+  constructor(_connection: DatabaseConnection) {
     this.fileAttachmentRepository = new FileAttachmentRepository();
   }
 
@@ -129,15 +127,15 @@ export class FileAttachmentSeeder {
     };
 
     for (let i = 0; i < count; i++) {
-      const userId = userIds[Math.floor(Math.random() * userIds.length)];
+      const userId = userIds[Math.floor(Math.random() * userIds.length)]!;
       const workspaceId =
-        workspaceIds[Math.floor(Math.random() * workspaceIds.length)];
-      const type = fileTypes[Math.floor(Math.random() * fileTypes.length)];
+        workspaceIds[Math.floor(Math.random() * workspaceIds.length)]!;
+      const type = fileTypes[Math.floor(Math.random() * fileTypes.length)]!;
       const status =
-        fileStatuses[Math.floor(Math.random() * fileStatuses.length)];
+        fileStatuses[Math.floor(Math.random() * fileStatuses.length)]!;
 
       const sampleFile =
-        sampleFiles[type][Math.floor(Math.random() * sampleFiles[type].length)];
+        sampleFiles[type]![Math.floor(Math.random() * sampleFiles[type]!.length)]!;
 
       // Generate unique filename
       const timestamp = Date.now();
@@ -184,23 +182,23 @@ export class FileAttachmentSeeder {
       };
 
       if (type === FileType.IMAGE) {
-        metadata.dimensions = {
+        metadata['dimensions'] = {
           width: Math.floor(Math.random() * 2000) + 500,
           height: Math.floor(Math.random() * 2000) + 500,
         };
-        metadata.colorSpace = Math.random() > 0.5 ? 'sRGB' : 'Adobe RGB';
+        metadata['colorSpace'] = Math.random() > 0.5 ? 'sRGB' : 'Adobe RGB';
       } else if (type === FileType.VIDEO) {
-        metadata.duration = Math.floor(Math.random() * 3600) + 60; // 1 minute to 1 hour
-        metadata.resolution = ['720p', '1080p', '4K'][
+        metadata['duration'] = Math.floor(Math.random() * 3600) + 60; // 1 minute to 1 hour
+        metadata['resolution'] = ['720p', '1080p', '4K'][
           Math.floor(Math.random() * 3)
         ];
-        metadata.codec = ['H.264', 'H.265', 'VP9'][
+        metadata['codec'] = ['H.264', 'H.265', 'VP9'][
           Math.floor(Math.random() * 3)
         ];
       } else if (type === FileType.AUDIO) {
-        metadata.duration = Math.floor(Math.random() * 1800) + 30; // 30 seconds to 30 minutes
-        metadata.bitrate = [128, 192, 256, 320][Math.floor(Math.random() * 4)];
-        metadata.sampleRate = [44100, 48000, 96000][
+        metadata['duration'] = Math.floor(Math.random() * 1800) + 30; // 30 seconds to 30 minutes
+        metadata['bitrate'] = [128, 192, 256, 320][Math.floor(Math.random() * 4)];
+        metadata['sampleRate'] = [44100, 48000, 96000][
           Math.floor(Math.random() * 3)
         ];
       }
@@ -221,6 +219,7 @@ export class FileAttachmentSeeder {
         taskId,
         commentId,
         metadata,
+        deletedAt: undefined,
       });
 
       // For deleted files, set deletedAt

@@ -1,19 +1,21 @@
 import { Entity } from '../base/entity';
 
-export type AuditAction =
-  | 'CREATE'
-  | 'UPDATE'
-  | 'DELETE'
-  | 'LOGIN'
-  | 'LOGOUT'
-  | 'PASSWORD_CHANGE'
-  | 'EMAIL_VERIFICATION'
-  | 'PERMISSION_CHANGE'
-  | 'EXPORT'
-  | 'IMPORT'
-  | 'SHARE'
-  | 'ARCHIVE'
-  | 'RESTORE';
+export enum AuditAction {
+  CREATE = 'CREATE',
+  UPDATE = 'UPDATE',
+  DELETE = 'DELETE',
+  LOGIN = 'LOGIN',
+  LOGOUT = 'LOGOUT',
+  PASSWORD_CHANGE = 'PASSWORD_CHANGE',
+  EMAIL_VERIFICATION = 'EMAIL_VERIFICATION',
+  PERMISSION_CHANGE = 'PERMISSION_CHANGE',
+  EXPORT = 'EXPORT',
+  IMPORT = 'IMPORT',
+  SHARE = 'SHARE',
+  ARCHIVE = 'ARCHIVE',
+  RESTORE = 'RESTORE',
+  ACCESS = 'ACCESS',
+}
 
 export interface AuditLogProps {
   id: string;
@@ -150,11 +152,11 @@ export class AuditLog implements Entity<string> {
 
   isSecurityEvent(): boolean {
     const securityActions: AuditAction[] = [
-      'LOGIN',
-      'LOGOUT',
-      'PASSWORD_CHANGE',
-      'EMAIL_VERIFICATION',
-      'PERMISSION_CHANGE',
+      AuditAction.LOGIN,
+      AuditAction.LOGOUT,
+      AuditAction.PASSWORD_CHANGE,
+      AuditAction.EMAIL_VERIFICATION,
+      AuditAction.PERMISSION_CHANGE,
     ];
     return securityActions.includes(this.props.action);
   }

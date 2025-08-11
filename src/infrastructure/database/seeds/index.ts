@@ -250,8 +250,8 @@ if (require.main === module) {
     | 'development'
     | 'test'
     | 'staging';
-  const userCount = parseInt(process.argv[3]) || 50;
-  const workspaceCount = parseInt(process.argv[4]) || 10;
+  const userCount = parseInt(process.argv[3] || '50') || 50;
+  const workspaceCount = parseInt(process.argv[4] || '10') || 10;
   const clearExisting = process.argv.includes('--clear');
 
   async function runSeeding() {

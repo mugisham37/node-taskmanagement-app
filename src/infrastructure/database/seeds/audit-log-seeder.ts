@@ -3,11 +3,9 @@ import { AuditLogRepository } from '../repositories/audit-log-repository';
 import { AuditLog, AuditAction } from '../../../domain/entities/audit-log';
 
 export class AuditLogSeeder {
-  private connection: DatabaseConnection;
   private auditLogRepository: AuditLogRepository;
 
-  constructor(connection: DatabaseConnection) {
-    this.connection = connection;
+  constructor(_connection: DatabaseConnection) {
     this.auditLogRepository = new AuditLogRepository();
   }
 
@@ -23,84 +21,37 @@ export class AuditLogSeeder {
     const actions = Object.values(AuditAction);
     const entityTypes = [
       'user',
-      'workspace',
+      'workspace', 
       'project',
       'task',
       'notification',
     ];
 
-    const sampleDescriptions = {
-      [AuditAction.CREATE]: [
-        'Created new user account',
-        'Created new workspace',
-        'Created new project',
-        'Created new task',
-        'Created new notification',
-      ],
-      [AuditAction.UPDATE]: [
-        'Updated user profile',
-        'Updated workspace settings',
-        'Updated project details',
-        'Updated task status',
-        'Updated notification preferences',
-      ],
-      [AuditAction.DELETE]: [
-        'Deleted user account',
-        'Deleted workspace',
-        'Deleted project',
-        'Deleted task',
-        'Deleted notification',
-      ],
-      [AuditAction.LOGIN]: [
-        'User logged in successfully',
-        'User logged in from new device',
-        'User logged in with 2FA',
-      ],
-      [AuditAction.LOGOUT]: [
-        'User logged out',
-        'User session expired',
-        'User logged out from all devices',
-      ],
-      [AuditAction.ACCESS]: [
-        'Accessed user profile',
-        'Accessed workspace dashboard',
-        'Accessed project details',
-        'Accessed task list',
-        'Accessed notification center',
-      ],
-    };
-
     for (let i = 0; i < count; i++) {
-      const userId = userIds[Math.floor(Math.random() * userIds.length)];
-      const workspaceId =
-        workspaceIds[Math.floor(Math.random() * workspaceIds.length)];
-      const action = actions[Math.floor(Math.random() * actions.length)];
+      const userId = userIds[Math.floor(Math.random() * userIds.length)]!;
+      const action = actions[Math.floor(Math.random() * actions.length)]!;
       const entityType =
-        entityTypes[Math.floor(Math.random() * entityTypes.length)];
+        entityTypes[Math.floor(Math.random() * entityTypes.length)]!;
 
       // Get appropriate entity ID based on type
       let entityId: string;
       switch (entityType) {
         case 'user':
-          entityId = userIds[Math.floor(Math.random() * userIds.length)];
+          entityId = userIds[Math.floor(Math.random() * userIds.length)]!;
           break;
         case 'workspace':
           entityId =
-            workspaceIds[Math.floor(Math.random() * workspaceIds.length)];
+            workspaceIds[Math.floor(Math.random() * workspaceIds.length)]!;
           break;
         case 'project':
-          entityId = projectIds[Math.floor(Math.random() * projectIds.length)];
+          entityId = projectIds[Math.floor(Math.random() * projectIds.length)]!;
           break;
         case 'task':
-          entityId = taskIds[Math.floor(Math.random() * taskIds.length)];
+          entityId = taskIds[Math.floor(Math.random() * taskIds.length)]!;
           break;
         default:
           entityId = `${entityType}-${Math.random().toString(36).substr(2, 9)}`;
       }
-
-      const descriptions = sampleDescriptions[action];
-      const description =
-        descriptions[Math.floor(Math.random() * descriptions.length)];
 
       // Generate sample changes based on action
       let changes: Record<string, any> = {};
@@ -130,8 +81,6 @@ export class AuditLogSeeder {
         entityType,
         entityId,
         userId,
-        workspaceId,
-        description,
         changes,
         metadata,
         ipAddress: metadata.ipAddress,

@@ -11,7 +11,7 @@ export interface SeededProject {
   description: string;
   workspaceId: string;
   managerId: string;
-  status: string;
+  status: 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED' | 'ARCHIVED';
 }
 
 export class ProjectSeeder {
@@ -48,10 +48,12 @@ export class ProjectSeeder {
           workspaceId: workspace.id,
           managerId: manager.id,
           status: faker.helpers.arrayElement([
+            'PLANNING',
             'ACTIVE',
-            'COMPLETED',
-            'ARCHIVED',
+            'COMPLETED', 
             'ON_HOLD',
+            'CANCELLED',
+            'ARCHIVED',
           ]),
         };
 
@@ -85,16 +87,18 @@ export class ProjectSeeder {
       id: nanoid(),
       projectId: project.id,
       userId: user.id,
-      role: faker.helpers.arrayElement(['OWNER', 'ADMIN', 'MEMBER', 'VIEWER']),
+      role: faker.helpers.arrayElement(['OWNER', 'MANAGER', 'MEMBER', 'VIEWER']),
       joinedAt: faker.date.past(),
     }));
 
     // Ensure project manager is a member
     if (!members.find(m => m.userId === project.managerId)) {
       members[0] = {
-        ...members[0],
+        id: nanoid(),
+        projectId: project.id,
         userId: project.managerId,
         role: 'OWNER',
+        joinedAt: faker.date.past(),
       };
     }
 

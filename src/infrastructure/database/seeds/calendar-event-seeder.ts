@@ -4,14 +4,14 @@ import {
   CalendarEvent,
   EventType,
   AttendeeStatus,
+  CalendarEventAttendee,
+  CalendarEventReminder,
 } from '../../../domain/entities/calendar-event';
 
 export class CalendarEventSeeder {
-  private connection: DatabaseConnection;
   private calendarEventRepository: CalendarEventRepository;
 
-  constructor(connection: DatabaseConnection) {
-    this.connection = connection;
+  constructor(_connection: DatabaseConnection) {
     this.calendarEventRepository = new CalendarEventRepository();
   }
 
@@ -78,21 +78,21 @@ export class CalendarEventSeeder {
     ];
 
     for (let i = 0; i < count; i++) {
-      const userId = userIds[Math.floor(Math.random() * userIds.length)];
+      const userId = userIds[Math.floor(Math.random() * userIds.length)]!;
       const workspaceId =
-        workspaceIds[Math.floor(Math.random() * workspaceIds.length)];
-      const type = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+        workspaceIds[Math.floor(Math.random() * workspaceIds.length)]!;
+      const type = eventTypes[Math.floor(Math.random() * eventTypes.length)]!;
       const title =
-        sampleTitles[Math.floor(Math.random() * sampleTitles.length)];
+        sampleTitles[Math.floor(Math.random() * sampleTitles.length)]!;
       const description =
         sampleDescriptions[
           Math.floor(Math.random() * sampleDescriptions.length)
-        ];
+        ]!;
       const location =
         Math.random() > 0.3
-          ? sampleLocations[Math.floor(Math.random() * sampleLocations.length)]
+          ? sampleLocations[Math.floor(Math.random() * sampleLocations.length)]!
           : undefined;
-      const color = colors[Math.floor(Math.random() * colors.length)];
+      const color = colors[Math.floor(Math.random() * colors.length)]!;
 
       // Generate random start date (within next 30 days)
       const startDate = new Date();
@@ -104,7 +104,7 @@ export class CalendarEventSeeder {
       const endDate = new Date(startDate);
       const durationMinutes = [30, 60, 90, 120, 180, 240][
         Math.floor(Math.random() * 6)
-      ];
+      ]!;
       endDate.setMinutes(endDate.getMinutes() + durationMinutes);
 
       const allDay = Math.random() > 0.9; // 10% chance of all-day events
@@ -112,7 +112,7 @@ export class CalendarEventSeeder {
 
       // Generate attendees (1-5 attendees)
       const attendeeCount = Math.floor(Math.random() * 5) + 1;
-      const attendees = [];
+      const attendees: CalendarEventAttendee[] = [];
       const selectedUserIds = new Set([userId]); // Include event creator
 
       for (
@@ -122,7 +122,7 @@ export class CalendarEventSeeder {
       ) {
         let attendeeUserId;
         do {
-          attendeeUserId = userIds[Math.floor(Math.random() * userIds.length)];
+          attendeeUserId = userIds[Math.floor(Math.random() * userIds.length)]!;
         } while (selectedUserIds.has(attendeeUserId));
 
         selectedUserIds.add(attendeeUserId);
@@ -131,14 +131,14 @@ export class CalendarEventSeeder {
           status:
             attendeeStatuses[
               Math.floor(Math.random() * attendeeStatuses.length)
-            ],
+            ]!,
           responseAt: Math.random() > 0.5 ? new Date() : undefined,
         });
       }
 
       // Generate reminders (0-3 reminders)
       const reminderCount = Math.floor(Math.random() * 4);
-      const reminders = [];
+      const reminders: CalendarEventReminder[] = [];
       const reminderTimes = [5, 15, 30, 60, 120]; // minutes before
       const reminderMethods = ['notification', 'email', 'sms'] as const;
 
@@ -146,9 +146,9 @@ export class CalendarEventSeeder {
         reminders.push({
           id: `reminder-${i}-${j}`,
           minutesBefore:
-            reminderTimes[Math.floor(Math.random() * reminderTimes.length)],
+            reminderTimes[Math.floor(Math.random() * reminderTimes.length)]!,
           method:
-            reminderMethods[Math.floor(Math.random() * reminderMethods.length)],
+            reminderMethods[Math.floor(Math.random() * reminderMethods.length)]!,
           sent: Math.random() > 0.7, // 30% chance already sent
           sentAt: Math.random() > 0.7 ? new Date() : undefined,
         });
@@ -159,9 +159,9 @@ export class CalendarEventSeeder {
       let taskId: string | undefined;
 
       if (type === EventType.TASK && Math.random() > 0.5) {
-        taskId = taskIds[Math.floor(Math.random() * taskIds.length)];
+        taskId = taskIds[Math.floor(Math.random() * taskIds.length)]!;
       } else if (Math.random() > 0.6) {
-        projectId = projectIds[Math.floor(Math.random() * projectIds.length)];
+        projectId = projectIds[Math.floor(Math.random() * projectIds.length)]!;
       }
 
       // Generate recurrence rule for recurring events
@@ -178,7 +178,7 @@ export class CalendarEventSeeder {
         recurrenceRule =
           recurrencePatterns[
             Math.floor(Math.random() * recurrencePatterns.length)
-          ];
+          ]!;
       }
 
       const calendarEvent = CalendarEvent.create({

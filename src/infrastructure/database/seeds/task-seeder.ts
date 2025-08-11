@@ -9,8 +9,8 @@ export interface SeededTask {
   id: string;
   title: string;
   description: string;
-  status: string;
-  priority: string;
+  status: 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED' | 'CANCELLED' | 'ON_HOLD';
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' | 'CRITICAL';
   assigneeId: string | null;
   projectId: string;
   createdById: string;
@@ -53,12 +53,14 @@ export class TaskSeeder {
             'IN_REVIEW',
             'COMPLETED',
             'CANCELLED',
+            'ON_HOLD',
           ]),
           priority: faker.helpers.arrayElement([
             'LOW',
             'MEDIUM',
             'HIGH',
             'URGENT',
+            'CRITICAL',
           ]),
           assigneeId: assignee?.id || null,
           projectId: project.id,
@@ -93,7 +95,7 @@ export class TaskSeeder {
         if (!acc[task.projectId]) {
           acc[task.projectId] = [];
         }
-        acc[task.projectId].push(task);
+        acc[task.projectId]!.push(task);
         return acc;
       },
       {} as Record<string, SeededTask[]>
