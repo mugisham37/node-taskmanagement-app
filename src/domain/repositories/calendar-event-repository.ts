@@ -82,4 +82,6 @@ export interface ICalendarEventRepository {
   deleteByUserId(userId: string): Promise<void>;
   deleteByProjectId(projectId: string): Promise<void>;
   deleteByTaskId(taskId: string): Promise<void>;
+  deleteRecurringEvent(eventId: string, deleteAll: boolean): Promise<void>;
+  updateAttendeeResponse(eventId: string, userId: string, response: AttendeeStatus): Promise<void>;
 }

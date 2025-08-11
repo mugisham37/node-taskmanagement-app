@@ -957,6 +957,76 @@ This is an automated message, please do not reply to this email.
   }
 
   /**
+   * Send calendar invitation email
+   */
+  async sendCalendarInvitation(
+    recipientEmail: string,
+    recipientName: string,
+    eventTitle: string,
+    eventDescription: string,
+    startTime: Date,
+    endTime: Date,
+    location?: string
+  ): Promise<boolean> {
+    try {
+      const subject = `Calendar Invitation: ${eventTitle}`;
+      const locationText = location ? `<li><strong>Location:</strong> ${location}</li>` : '';
+      
+      const html = `
+        <h2>Calendar Invitation</h2>
+        <p>Hello ${recipientName},</p>
+        <p>You have been invited to the following calendar event:</p>
+        <ul>
+          <li><strong>Title:</strong> ${eventTitle}</li>
+          <li><strong>Description:</strong> ${eventDescription}</li>
+          <li><strong>Start Time:</strong> ${startTime.toLocaleString()}</li>
+          <li><strong>End Time:</strong> ${endTime.toLocaleString()}</li>
+          ${locationText}
+        </ul>
+        <p>Please mark your calendar and join us for this event.</p>
+        <p>Best regards,<br>Task Management Team</p>
+      `;
+
+      const text = `
+Calendar Invitation: ${eventTitle}
+
+Hello ${recipientName},
+
+You have been invited to the following calendar event:
+
+Title: ${eventTitle}
+Description: ${eventDescription}
+Start Time: ${startTime.toLocaleString()}
+End Time: ${endTime.toLocaleString()}
+${location ? `Location: ${location}` : ''}
+
+Please mark your calendar and join us for this event.
+
+Best regards,
+Task Management Team
+      `.trim();
+
+      return this.sendEmail({
+        to: recipientEmail,
+        subject,
+        html,
+        text,
+        priority: 'normal',
+        tags: ['calendar', 'invitation'],
+        metadata: {
+          type: 'calendar_invitation',
+          eventTitle,
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString()
+        }
+      });
+    } catch (error) {
+      this.logger.error('Failed to send calendar invitation', error as Error);
+      throw error;
+    }
+  }
+
+  /**
    * Send user activation confirmation
    */
   async sendUserActivationConfirmation(

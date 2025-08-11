@@ -13,9 +13,14 @@ export interface IDomainEventHandler<T extends DomainEvent> {
 export class DomainEventPublisher {
   private static instance: DomainEventPublisher;
   private handlers: Map<string, IDomainEventHandler<any>[]> = new Map();
+  private pendingEvents: DomainEvent[] = [];
   private isPublishing = false;
 
-  private constructor() {}
+  constructor(events?: DomainEvent[]) {
+    if (events) {
+      this.pendingEvents = [...events];
+    }
+  }
 
   static getInstance(): DomainEventPublisher {
     if (!DomainEventPublisher.instance) {
@@ -58,19 +63,35 @@ export class DomainEventPublisher {
   /**
    * Publish multiple domain events
    */
-  async publishAll(events: DomainEvent[]): Promise<void> {
+  async publishAll(events?: DomainEvent[]): Promise<void> {
     if (this.isPublishing) {
       return; // Prevent recursive publishing
     }
 
+    const eventsToPublish = events || this.pendingEvents;
+    if (eventsToPublish.length === 0) {
+      return;
+    }
+
     this.isPublishing = true;
     try {
-      for (const event of events) {
+      for (const event of eventsToPublish) {
         await this.publish(event);
+      }
+      // Clear pending events after publishing
+      if (!events) {
+        this.pendingEvents = [];
       }
     } finally {
       this.isPublishing = false;
     }
+  }
+
+  /**
+   * Add event to pending events queue
+   */
+  addEvent(event: DomainEvent): void {
+    this.pendingEvents.push(event);
   }
 
   /**

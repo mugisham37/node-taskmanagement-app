@@ -11,6 +11,8 @@ import { USER_VALIDATION } from '../../shared/constants/user-constants';
 export class User extends BaseEntity<UserId> {
   private _email: Email;
   private _name: string;
+  private _firstName: string;
+  private _lastName: string;
   private _hashedPassword: string;
   private _status: UserStatusVO;
   private _lastLoginAt: Date | null;
@@ -23,11 +25,15 @@ export class User extends BaseEntity<UserId> {
     status: UserStatusVO = UserStatusVO.create(UserStatus.PENDING_VERIFICATION),
     lastLoginAt: Date | null = null,
     createdAt?: Date,
-    updatedAt?: Date
+    updatedAt?: Date,
+    firstName?: string,
+    lastName?: string
   ) {
     super(id, createdAt, updatedAt);
     this._email = email;
     this._name = name;
+    this._firstName = firstName || name.split(' ')[0] || '';
+    this._lastName = lastName || name.split(' ').slice(1).join(' ') || '';
     this._hashedPassword = hashedPassword;
     this._status = status;
     this._lastLoginAt = lastLoginAt;
@@ -46,6 +52,20 @@ export class User extends BaseEntity<UserId> {
    */
   get name(): string {
     return this._name;
+  }
+
+  /**
+   * Get the user's first name
+   */
+  get firstName(): string {
+    return this._firstName;
+  }
+
+  /**
+   * Get the user's last name
+   */
+  get lastName(): string {
+    return this._lastName;
   }
 
   /**

@@ -137,6 +137,14 @@ export interface IProjectRepository {
   ): Promise<ProjectMember | null>;
 
   /**
+   * Find a member in a project (alias for getProjectMember)
+   */
+  findMember(
+    projectId: ProjectId,
+    userId: UserId
+  ): Promise<ProjectMember | null>;
+
+  /**
    * Add project member
    */
   addProjectMember(projectId: ProjectId, member: ProjectMember): Promise<void>;

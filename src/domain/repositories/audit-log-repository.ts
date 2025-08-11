@@ -61,4 +61,5 @@ export interface IAuditLogRepository {
   delete(id: string): Promise<void>;
   deleteOlderThan(date: Date): Promise<number>;
   deleteByEntityId(entityId: string): Promise<number>;
+  archiveLogs(fromDate: Date, toDate: Date, archiveLocation: string): Promise<number>;
 }

@@ -114,7 +114,6 @@ export class CreateCalendarEventCommandHandler
     private readonly projectRepository: IProjectRepository,
     private readonly userRepository: IUserRepository,
     private readonly transactionManager: TransactionManager,
-    private readonly cacheService: CacheService,
     private readonly emailService: EmailService
   ) {
     super(eventPublisher, logger);
@@ -178,9 +177,6 @@ export class CreateCalendarEventCommandHandler
             attendeeIds.push(attendee.id);
           }
         }
-
-        // Create recurrence rule if provided
-        // The recurrence rule will be stored as JSON string in the entity
 
         // Create calendar event
         const calendarEvent = CalendarEvent.create({
@@ -294,7 +290,7 @@ export class CreateCalendarEventCommandHandler
       patterns.push(`calendar-stats:${userId.value}:${projectId.value}`);
     }
 
-    this.logDebug('Event caches cleared', {
+    this.logInfo('Event caches cleared', {
       userId: userId.value,
       projectId: projectId?.value,
     });
@@ -312,9 +308,8 @@ export class UpdateCalendarEventCommandHandler
     eventPublisher: DomainEventPublisher,
     logger: LoggingService,
     private readonly calendarEventRepository: ICalendarEventRepository,
-    private readonly transactionManager: TransactionManager,
-    private readonly cacheService: CacheService,
-    private readonly emailService: EmailService
+    private readonly projectRepository: IProjectRepository,
+    private readonly transactionManager: TransactionManager
   ) {
     super(eventPublisher, logger);
   }
@@ -332,7 +327,7 @@ export class UpdateCalendarEventCommandHandler
         );
         if (!calendarEvent) {
           throw new NotFoundError(
-            `Calendar event with ID ${command.eventId.value} not found`
+            `Calendar event with ID ${command.eventId} not found`
           );
         }
 
@@ -366,7 +361,7 @@ export class UpdateCalendarEventCommandHandler
           const newStartTime = command.startTime || calendarEvent.startTime;
           const newEndTime = command.endTime || calendarEvent.endTime;
 
-          if (newStartTime >= newEndTime) {
+          if (newEndTime && newStartTime >= newEndTime) {
             throw new Error('Start time must be before end time');
           }
 
@@ -383,13 +378,20 @@ export class UpdateCalendarEventCommandHandler
         }
         if (command.recurrenceRule !== undefined) {
           const recurrenceRule = command.recurrenceRule
-            ? new RecurrenceRule(command.recurrenceRule)
+            ? JSON.stringify(command.recurrenceRule)
             : undefined;
           calendarEvent.updateRecurrenceRule(recurrenceRule);
           changes.push('recurrence');
         }
         if (command.reminders !== undefined) {
-          calendarEvent.updateReminders(command.reminders);
+          // Convert ReminderDto[] to CalendarEventReminder[]
+          const reminders: CalendarEventReminder[] = command.reminders.map((reminder, index) => ({
+            id: `reminder-${index}`,
+            minutesBefore: reminder.minutesBefore,
+            method: reminder.type === 'popup' ? 'notification' : reminder.type as 'notification' | 'email' | 'sms',
+            sent: false
+          }));
+          calendarEvent.updateReminders(reminders);
           changes.push('reminders');
         }
         if (command.visibility !== undefined) {
@@ -412,15 +414,16 @@ export class UpdateCalendarEventCommandHandler
         }
 
         // Clear cache
-        await this.clearEventCaches(command.updatedBy, calendarEvent.projectId);
+        const projectId = calendarEvent.projectId ? ProjectId.fromString(calendarEvent.projectId) : undefined;
+        await this.clearEventCaches(command.updatedBy, projectId);
 
         this.logInfo('Calendar event updated successfully', {
-          eventId: command.eventId.value,
+          eventId: command.eventId,
           changes,
         });
       } catch (error) {
         this.logError('Failed to update calendar event', error as Error, {
-          eventId: command.eventId.value,
+          eventId: command.eventId,
         });
         throw error;
       }
@@ -435,12 +438,12 @@ export class UpdateCalendarEventCommandHandler
     if (!event) return false;
 
     // Creator can always update
-    if (event.createdBy.equals(userId)) return true;
+    if (event.createdBy === userId.value) return true;
 
     // Project members can update project events
     if (event.projectId) {
       const member = await this.projectRepository.findMember(
-        event.projectId,
+        ProjectId.fromString(event.projectId),
         userId
       );
       return member && (member.role.isAdmin() || member.role.isManager());
@@ -480,7 +483,7 @@ export class UpdateCalendarEventCommandHandler
       patterns.push(`calendar-stats:${userId.value}:${projectId.value}`);
     }
 
-    this.logDebug('Event caches cleared', {
+    this.logInfo('Event caches cleared', {
       userId: userId.value,
       projectId: projectId?.value,
     });
@@ -498,16 +501,14 @@ export class DeleteCalendarEventCommandHandler
     eventPublisher: DomainEventPublisher,
     logger: LoggingService,
     private readonly calendarEventRepository: ICalendarEventRepository,
-    private readonly transactionManager: TransactionManager,
-    private readonly cacheService: CacheService,
-    private readonly emailService: EmailService
+    private readonly transactionManager: TransactionManager
   ) {
     super(eventPublisher, logger);
   }
 
   async handle(command: DeleteCalendarEventCommand): Promise<void> {
     this.logInfo('Deleting calendar event', {
-      eventId: command.eventId.value,
+      eventId: command.eventId,
       deletedBy: command.deletedBy.value,
       deleteRecurring: command.deleteRecurring,
     });
@@ -519,7 +520,7 @@ export class DeleteCalendarEventCommandHandler
         );
         if (!calendarEvent) {
           throw new NotFoundError(
-            `Calendar event with ID ${command.eventId.value} not found`
+            `Calendar event with ID ${command.eventId} not found`
           );
         }
 
@@ -544,7 +545,8 @@ export class DeleteCalendarEventCommandHandler
         if (command.deleteRecurring && calendarEvent.recurrenceRule) {
           // Delete all instances of recurring event
           await this.calendarEventRepository.deleteRecurringEvent(
-            command.eventId
+            command.eventId,
+            true
           );
         } else {
           // Soft delete the event
@@ -553,15 +555,16 @@ export class DeleteCalendarEventCommandHandler
         }
 
         // Clear cache
-        await this.clearEventCaches(command.deletedBy, calendarEvent.projectId);
+        const projectId = calendarEvent.projectId ? ProjectId.fromString(calendarEvent.projectId) : undefined;
+        await this.clearEventCaches(command.deletedBy, projectId);
 
         this.logInfo('Calendar event deleted successfully', {
-          eventId: command.eventId.value,
+          eventId: command.eventId,
           deleteRecurring: command.deleteRecurring,
         });
       } catch (error) {
         this.logError('Failed to delete calendar event', error as Error, {
-          eventId: command.eventId.value,
+          eventId: command.eventId,
         });
         throw error;
       }
@@ -576,21 +579,21 @@ export class DeleteCalendarEventCommandHandler
     if (!event) return false;
 
     // Only creator can delete
-    return event.createdBy.equals(userId);
+    return event.createdBy === userId.value;
   }
 
   private async sendEventCancellationNotifications(
     event: CalendarEvent
   ): Promise<void> {
     this.logInfo('Event cancellation notifications sent', {
-      eventId: event.id.value,
+      eventId: event.id,
       attendeeCount: event.attendees.length,
     });
   }
 
   private async cancelEventReminders(event: CalendarEvent): Promise<void> {
     this.logInfo('Event reminders cancelled', {
-      eventId: event.id.value,
+      eventId: event.id,
     });
   }
 
@@ -607,7 +610,7 @@ export class DeleteCalendarEventCommandHandler
       patterns.push(`calendar-stats:${userId.value}:${projectId.value}`);
     }
 
-    this.logDebug('Event caches cleared', {
+    this.logInfo('Event caches cleared', {
       userId: userId.value,
       projectId: projectId?.value,
     });
@@ -634,7 +637,7 @@ export class AddAttendeeCommandHandler
 
   async handle(command: AddAttendeeCommand): Promise<void> {
     this.logInfo('Adding attendee to calendar event', {
-      eventId: command.eventId.value,
+      eventId: command.eventId,
       attendeeId: command.attendeeId.value,
       addedBy: command.addedBy.value,
     });
@@ -646,7 +649,7 @@ export class AddAttendeeCommandHandler
         );
         if (!calendarEvent) {
           throw new NotFoundError(
-            `Calendar event with ID ${command.eventId.value} not found`
+            `Calendar event with ID ${command.eventId} not found`
           );
         }
 
@@ -670,28 +673,27 @@ export class AddAttendeeCommandHandler
         }
 
         // Check if already an attendee
-        if (calendarEvent.attendees.some(id => id.equals(command.attendeeId))) {
+        if (calendarEvent.attendees.some(att => att.userId === command.attendeeId.value)) {
           throw new Error('User is already an attendee');
         }
 
         // Add attendee
-        calendarEvent.addAttendee(command.attendeeId);
+        calendarEvent.addAttendee(command.attendeeId.value);
         await this.calendarEventRepository.save(calendarEvent);
 
         // Send invitation
-        await this.emailService.sendCalendarInvitation({
-          recipientEmail: attendee.email.value,
-          recipientName: `${attendee.firstName} ${attendee.lastName}`,
-          eventTitle: calendarEvent.title,
-          eventDescription: calendarEvent.description,
-          startTime: calendarEvent.startTime,
-          endTime: calendarEvent.endTime,
-          location: calendarEvent.location,
-          organizerName: 'Event Organizer',
-        });
+        await this.emailService.sendCalendarInvitation(
+          attendee.email.value,
+          `${attendee.firstName} ${attendee.lastName}`,
+          calendarEvent.title,
+          calendarEvent.description || '',
+          calendarEvent.startTime,
+          calendarEvent.endTime || calendarEvent.startTime,
+          calendarEvent.location
+        );
 
         this.logInfo('Attendee added to calendar event successfully', {
-          eventId: command.eventId.value,
+          eventId: command.eventId,
           attendeeId: command.attendeeId.value,
         });
       } catch (error) {
@@ -699,7 +701,7 @@ export class AddAttendeeCommandHandler
           'Failed to add attendee to calendar event',
           error as Error,
           {
-            eventId: command.eventId.value,
+            eventId: command.eventId,
             attendeeId: command.attendeeId.value,
           }
         );
@@ -715,7 +717,7 @@ export class AddAttendeeCommandHandler
     const event = await this.calendarEventRepository.findById(eventId);
     if (!event) return false;
 
-    return event.createdBy.equals(userId);
+    return event.createdBy === userId.value;
   }
 }
 
@@ -737,7 +739,7 @@ export class RespondToEventCommandHandler
 
   async handle(command: RespondToEventCommand): Promise<void> {
     this.logInfo('Responding to calendar event', {
-      eventId: command.eventId.value,
+      eventId: command.eventId,
       userId: command.userId.value,
       response: command.response,
     });
@@ -749,30 +751,30 @@ export class RespondToEventCommandHandler
         );
         if (!calendarEvent) {
           throw new NotFoundError(
-            `Calendar event with ID ${command.eventId.value} not found`
+            `Calendar event with ID ${command.eventId} not found`
           );
         }
 
         // Check if user is an attendee
-        if (!calendarEvent.attendees.some(id => id.equals(command.userId))) {
+        if (!calendarEvent.attendees.some(att => att.userId === command.userId.value)) {
           throw new AuthorizationError('User is not an attendee of this event');
         }
 
         // Update attendee response (would be stored in a separate attendee responses table)
         await this.calendarEventRepository.updateAttendeeResponse(
           command.eventId,
-          command.userId,
-          command.response
+          command.userId.value,
+          command.response as any
         );
 
         this.logInfo('Event response recorded successfully', {
-          eventId: command.eventId.value,
+          eventId: command.eventId,
           userId: command.userId.value,
           response: command.response,
         });
       } catch (error) {
         this.logError('Failed to respond to calendar event', error as Error, {
-          eventId: command.eventId.value,
+          eventId: command.eventId,
           userId: command.userId.value,
         });
         throw error;

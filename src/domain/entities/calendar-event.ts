@@ -20,6 +20,21 @@ export interface CalendarEventAttendee {
   responseAt?: Date | undefined;
 }
 
+// Helper function for CalendarEventAttendee
+export const createCalendarEventAttendee = (
+  userId: string,
+  status: AttendeeStatus = AttendeeStatus.PENDING
+): CalendarEventAttendee & { equals: (other: CalendarEventAttendee) => boolean } => {
+  return {
+    userId,
+    status,
+    responseAt: undefined,
+    equals: function(other: CalendarEventAttendee): boolean {
+      return this.userId === other.userId;
+    }
+  };
+};
+
 export interface CalendarEventReminder {
   id: string;
   minutesBefore: number;
@@ -237,6 +252,72 @@ export class CalendarEvent implements Entity<string> {
     const durationMs =
       this.props.endDate.getTime() - this.props.startDate.getTime();
     return Math.floor(durationMs / (1000 * 60)); // Convert to minutes
+  }
+
+  // Update methods
+  public updateTitle(newTitle: string): void {
+    if (!newTitle || newTitle.trim().length === 0) {
+      throw new Error('Event title cannot be empty');
+    }
+    this.props.title = newTitle.trim();
+    this.props.updatedAt = new Date();
+  }
+
+  public updateDescription(newDescription?: string): void {
+    this.props.description = newDescription;
+    this.props.updatedAt = new Date();
+  }
+
+  public updateTimeRange(startTime: Date, endTime?: Date): void {
+    CalendarEvent.validateEventDates(startTime, endTime);
+    this.props.startDate = startTime;
+    this.props.endDate = endTime;
+    this.props.updatedAt = new Date();
+  }
+
+  public updateLocation(newLocation?: string): void {
+    this.props.location = newLocation;
+    this.props.updatedAt = new Date();
+  }
+
+  public updateAllDay(isAllDay: boolean): void {
+    this.props.allDay = isAllDay;
+    this.props.updatedAt = new Date();
+  }
+
+  public updateRecurrenceRule(recurrenceRule?: string): void {
+    this.props.recurrenceRule = recurrenceRule;
+    this.props.isRecurring = !!recurrenceRule;
+    this.props.updatedAt = new Date();
+  }
+
+  public updateReminders(reminders: CalendarEventReminder[]): void {
+    this.props.reminders = [...reminders];
+    this.props.updatedAt = new Date();
+  }
+
+  public updateVisibility(visibility: string): void {
+    // Store visibility in metadata for now
+    this.props.metadata = { ...this.props.metadata, visibility };
+    this.props.updatedAt = new Date();
+  }
+
+  public cancel(): void {
+    this.props.metadata = { ...this.props.metadata, status: 'cancelled' };
+    this.props.updatedAt = new Date();
+  }
+
+  // Additional getters for compatibility
+  get startTime(): Date {
+    return this.props.startDate;
+  }
+
+  get endTime(): Date | undefined {
+    return this.props.endDate;
+  }
+
+  get createdBy(): string {
+    return this.props.userId;
   }
 
   // Getters

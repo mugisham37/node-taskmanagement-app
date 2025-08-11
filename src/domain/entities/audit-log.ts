@@ -22,14 +22,14 @@ export interface AuditLogProps {
   entityType: string;
   entityId: string;
   action: AuditAction;
-  userId?: string;
-  userEmail?: string;
-  ipAddress?: string;
-  userAgent?: string;
-  oldValues?: Record<string, any>;
-  newValues?: Record<string, any>;
-  changes?: Record<string, any>;
-  metadata?: Record<string, any>;
+  userId?: string | undefined;
+  userEmail?: string | undefined;
+  ipAddress?: string | undefined;
+  userAgent?: string | undefined;
+  oldValues?: Record<string, any> | undefined;
+  newValues?: Record<string, any> | undefined;
+  changes?: Record<string, any> | undefined;
+  metadata?: Record<string, any> | undefined;
   createdAt: Date;
 }
 

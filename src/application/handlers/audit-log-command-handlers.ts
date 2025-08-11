@@ -88,10 +88,10 @@ export class LogAuditEventCommandHandler
 
         // Create audit log entry
         const auditLog = AuditLog.create({
-          userId: command.userId,
+          userId: command.userId?.value,
           entityType: command.entityType,
           entityId: command.entityId,
-          action: command.action,
+          action: command.action as any, // Will be converted to AuditAction enum
           oldValues: command.oldValues,
           newValues: command.newValues,
           ipAddress: command.ipAddress,
@@ -150,10 +150,10 @@ export class BulkLogAuditEventsCommandHandler
         for (const event of command.events) {
           // Create audit log entry
           const auditLog = AuditLog.create({
-            userId: event.userId,
+            userId: event.userId?.value,
             entityType: event.entityType,
             entityId: event.entityId,
-            action: event.action,
+            action: event.action as any, // Will be converted to AuditAction enum
             oldValues: event.oldValues,
             newValues: event.newValues,
             ipAddress: event.ipAddress,
