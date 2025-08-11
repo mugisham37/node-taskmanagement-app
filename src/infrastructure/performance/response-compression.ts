@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import * as zlib from 'zlib';
-import { InfrastructureError } from '../../shared/errors/infrastructure-error';
 
 export interface CompressionConfig {
   enabled: boolean;
@@ -52,7 +51,6 @@ export class ResponseCompressionService {
 
       // Override res.end to compress response
       const originalEnd = res.end;
-      const originalWrite = res.write;
       const chunks: Buffer[] = [];
       let hasEnded = false;
 
@@ -67,7 +65,8 @@ export class ResponseCompressionService {
         return true;
       };
 
-      res.end = async function (chunk?: any, encoding?: any) {
+      const self = this;
+      res.end = function (chunk?: any, encoding?: any, cb?: () => void) {
         if (hasEnded) return res;
         hasEnded = true;
 
@@ -78,95 +77,74 @@ export class ResponseCompressionService {
         }
 
         const responseBody = Buffer.concat(chunks);
-        const shouldCompress = await this.shouldCompress(res, responseBody);
+
+        // Process compression synchronously to avoid Promise issues
+        const shouldCompress = self.shouldCompressSync(res, responseBody);
 
         if (shouldCompress) {
           try {
             const startTime = Date.now();
-            const compressed = await this.compressData(
-              responseBody,
-              supportedAlgorithm
-            );
+            
+            // Use synchronous compression
+            let compressed: Buffer;
+            switch (supportedAlgorithm) {
+              case 'gzip':
+                compressed = zlib.gzipSync(responseBody, {
+                  level: self.config.level,
+                  chunkSize: self.config.chunkSize,
+                });
+                break;
+              case 'deflate':
+                compressed = zlib.deflateSync(responseBody, {
+                  level: self.config.level,
+                  chunkSize: self.config.chunkSize,
+                });
+                break;
+              case 'br':
+                compressed = zlib.brotliCompressSync(responseBody, {
+                  params: {
+                    [zlib.constants.BROTLI_PARAM_QUALITY]: self.config.level,
+                  },
+                });
+                break;
+              default:
+                compressed = responseBody;
+            }
+            
             const compressionTime = Date.now() - startTime;
 
             // Update stats
-            this.stats.compressedRequests++;
-            this.stats.totalBytesSaved +=
-              responseBody.length - compressed.length;
-            this.stats.averageCompressionTime =
-              (this.stats.averageCompressionTime *
-                (this.stats.compressedRequests - 1) +
-                compressionTime) /
-              this.stats.compressedRequests;
-            this.stats.compressionRatio =
-              this.stats.totalBytesSaved / (this.stats.totalRequests * 1000); // KB saved per request
+            self.stats.compressedRequests++;
+            self.stats.totalBytesSaved += responseBody.length - compressed.length;
+            self.stats.averageCompressionTime =
+              (self.stats.averageCompressionTime * (self.stats.compressedRequests - 1) +
+                compressionTime) / self.stats.compressedRequests;
+            self.stats.compressionRatio =
+              self.stats.totalBytesSaved / (self.stats.totalRequests * 1000);
 
             // Set compression headers
             res.setHeader('Content-Encoding', supportedAlgorithm);
             res.setHeader('Content-Length', compressed.length);
             res.setHeader('Vary', 'Accept-Encoding');
 
-            return originalEnd.call(res, compressed);
+            return originalEnd.call(res, compressed, encoding, cb);
           } catch (error) {
             console.error('Compression error:', error);
-            return originalEnd.call(res, responseBody);
+            return originalEnd.call(res, responseBody, encoding, cb);
           }
         } else {
-          return originalEnd.call(res, responseBody);
+          return originalEnd.call(res, responseBody, encoding, cb);
         }
-      }.bind(this);
+      };
 
       next();
     };
   }
 
   /**
-   * Compress data using specified algorithm
+   * Determine if response should be compressed (synchronous version)
    */
-  private async compressData(data: Buffer, algorithm: string): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-      const options = {
-        level: this.config.level,
-        chunkSize: this.config.chunkSize,
-      };
-
-      switch (algorithm) {
-        case 'gzip':
-          zlib.gzip(data, options, (err, result) => {
-            if (err) reject(err);
-            else resolve(result);
-          });
-          break;
-        case 'deflate':
-          zlib.deflate(data, options, (err, result) => {
-            if (err) reject(err);
-            else resolve(result);
-          });
-          break;
-        case 'br':
-          zlib.brotliCompress(
-            data,
-            {
-              params: {
-                [zlib.constants.BROTLI_PARAM_QUALITY]: this.config.level,
-              },
-            },
-            (err, result) => {
-              if (err) reject(err);
-              else resolve(result);
-            }
-          );
-          break;
-        default:
-          reject(new Error(`Unsupported compression algorithm: ${algorithm}`));
-      }
-    });
-  }
-
-  /**
-   * Determine if response should be compressed
-   */
-  private async shouldCompress(res: Response, data: Buffer): Promise<boolean> {
+  private shouldCompressSync(res: Response, data: Buffer): boolean {
     // Check minimum size threshold
     if (data.length < this.config.threshold) {
       return false;

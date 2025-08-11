@@ -1,11 +1,8 @@
-import { CacheService } from './caching/cache-service';
 import { PerformanceCacheStrategies } from './caching/performance-cache-strategies';
 import { DatabasePerformanceOptimizer } from './database/performance-optimizer';
 import { APIPerformanceMonitor } from './monitoring/api-performance-monitor';
 import { ComprehensiveMonitoring } from './monitoring/comprehensive-monitoring';
-import { DatabaseConnection } from './database/connection';
 import { MetricsService } from './monitoring/metrics-service';
-import { HealthService } from './monitoring/health-service';
 import { LoggingService } from './monitoring/logging-service';
 import { InfrastructureError } from '../shared/errors/infrastructure-error';
 
@@ -74,7 +71,6 @@ export class PerformanceOptimizationService {
 
   constructor(
     private readonly config: PerformanceOptimizationConfig,
-    private readonly cacheService: CacheService,
     private readonly cachingStrategies: PerformanceCacheStrategies,
     private readonly dbOptimizer: DatabasePerformanceOptimizer,
     private readonly apiMonitor: APIPerformanceMonitor,
@@ -116,7 +112,7 @@ export class PerformanceOptimizationService {
       try {
         await this.runOptimizationCycle();
       } catch (error) {
-        this.loggingService.error('Automated optimization cycle failed', error);
+        this.loggingService.error('Automated optimization cycle failed', error instanceof Error ? error : new Error(String(error)));
       }
     }, this.config.caching.optimizationInterval);
 
@@ -135,7 +131,7 @@ export class PerformanceOptimizationService {
       try {
         await this.runDatabaseMaintenance();
       } catch (error) {
-        this.loggingService.error('Database maintenance failed', error);
+        this.loggingService.error('Database maintenance failed', error instanceof Error ? error : new Error(String(error)));
       }
     }, this.config.database.maintenanceInterval);
 
@@ -185,7 +181,7 @@ export class PerformanceOptimizationService {
         report.api.averageResponseTime
       );
     } catch (error) {
-      this.loggingService.error('Performance optimization cycle failed', error);
+      this.loggingService.error('Performance optimization cycle failed', error instanceof Error ? error : new Error(String(error)));
       throw new InfrastructureError(
         `Optimization cycle failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -213,7 +209,7 @@ export class PerformanceOptimizationService {
 
       this.loggingService.debug('Caching optimization completed');
     } catch (error) {
-      this.loggingService.error('Caching optimization failed', error);
+      this.loggingService.error('Caching optimization failed', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -240,7 +236,7 @@ export class PerformanceOptimizationService {
 
       this.loggingService.debug('Database optimization completed');
     } catch (error) {
-      this.loggingService.error('Database optimization failed', error);
+      this.loggingService.error('Database optimization failed', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -279,7 +275,7 @@ export class PerformanceOptimizationService {
 
       this.loggingService.debug('API optimization completed');
     } catch (error) {
-      this.loggingService.error('API optimization failed', error);
+      this.loggingService.error('API optimization failed', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -294,7 +290,7 @@ export class PerformanceOptimizationService {
       await this.dbOptimizer.runPerformanceMaintenance();
       this.loggingService.info('Database maintenance completed successfully');
     } catch (error) {
-      this.loggingService.error('Database maintenance failed', error);
+      this.loggingService.error('Database maintenance failed', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -315,7 +311,7 @@ export class PerformanceOptimizationService {
     const apiMetrics = this.apiMonitor.getSystemMetrics();
 
     // Get system health
-    const systemHealth = this.monitoring.getSystemHealthStatus();
+    const systemHealth = await this.monitoring.getSystemHealth();
 
     // Calculate overall performance score (0-100)
     const overallScore = this.calculateOverallScore({
@@ -355,8 +351,8 @@ export class PerformanceOptimizationService {
         throughput: apiMetrics.throughput,
       },
       system: {
-        cpuUsage: systemHealth.metrics.cpu.usage,
-        memoryUsage: systemHealth.metrics.memory.percentage,
+        cpuUsage: systemHealth.metadata.cpu.user || 0,
+        memoryUsage: (systemHealth.metadata.memory.heapUsed / systemHealth.metadata.memory.heapTotal) * 100,
         healthStatus: systemHealth.status,
       },
       recommendations,
@@ -549,7 +545,6 @@ export class PerformanceOptimizationService {
 export function createPerformanceOptimizationService(
   config: PerformanceOptimizationConfig,
   dependencies: {
-    cacheService: CacheService;
     cachingStrategies: PerformanceCacheStrategies;
     dbOptimizer: DatabasePerformanceOptimizer;
     apiMonitor: APIPerformanceMonitor;
@@ -560,7 +555,6 @@ export function createPerformanceOptimizationService(
 ): PerformanceOptimizationService {
   return new PerformanceOptimizationService(
     config,
-    dependencies.cacheService,
     dependencies.cachingStrategies,
     dependencies.dbOptimizer,
     dependencies.apiMonitor,

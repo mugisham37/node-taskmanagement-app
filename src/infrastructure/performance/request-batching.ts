@@ -36,16 +36,6 @@ export interface BatchStats {
 }
 
 export class RequestBatchingService {
-  private pendingBatches: Map<
-    string,
-    {
-      requests: BatchRequest[];
-      timeout: NodeJS.Timeout;
-      resolve: (responses: BatchResponse[]) => void;
-      reject: (error: Error) => void;
-    }
-  > = new Map();
-
   private stats: BatchStats = {
     totalBatches: 0,
     totalRequests: 0,

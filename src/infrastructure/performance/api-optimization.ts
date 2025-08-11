@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import { CacheService } from '../caching/cache-service';
 import { ResponseCompressionService } from './response-compression';
 import { RequestBatchingService } from './request-batching';
-import { InfrastructureError } from '../../shared/errors/infrastructure-error';
 
 export interface APIOptimizationConfig {
   caching: {
@@ -84,7 +83,7 @@ export class APIOptimizationService {
    * Create request tracking middleware
    */
   private createRequestTrackingMiddleware() {
-    return (req: Request, res: Response, next: NextFunction) => {
+    return (_req: Request, res: Response, next: NextFunction) => {
       const startTime = Date.now();
       this.stats.totalRequests++;
 
@@ -139,18 +138,20 @@ export class APIOptimizationService {
 
         // Cache miss - intercept response to cache it
         const originalJson = res.json;
-        res.json = function (body: any) {
+        const self = this;
+        
+        res.json = function (this: Response, body: any) {
           // Only cache successful responses
           if (
             this.statusCode &&
-            this.config.caching.cacheableStatusCodes.includes(this.statusCode)
+            self.config.caching.cacheableStatusCodes.includes(this.statusCode)
           ) {
-            this.cacheService
+            self.cacheService
               .set(cacheKey, body, {
-                ttl: this.config.caching.defaultTTL,
-                tags: this.generateCacheTags(req),
+                ttl: self.config.caching.defaultTTL,
+                tags: self.generateCacheTags(req),
               })
-              .catch(error => {
+              .catch((error: any) => {
                 console.error('Failed to cache response:', error);
               });
           }
@@ -159,11 +160,7 @@ export class APIOptimizationService {
           this.setHeader('X-Cache-Key', cacheKey);
 
           return originalJson.call(this, body);
-        }.bind({
-          ...res,
-          config: this.config,
-          cacheService: this.cacheService,
-        });
+        };
       } catch (error) {
         console.error('Caching middleware error:', error);
       }
@@ -181,7 +178,7 @@ export class APIOptimizationService {
         return next();
       }
 
-      const fields = req.query.fields as string;
+      const fields = req.query['fields'] as string;
       if (!fields) {
         return next();
       }
@@ -193,10 +190,12 @@ export class APIOptimizationService {
 
       // Intercept response to filter fields
       const originalJson = res.json;
-      res.json = function (body: any) {
-        const filteredBody = this.filterResponseFields(body, selectedFields);
+      const self = this;
+      
+      res.json = function (this: Response, body: any) {
+        const filteredBody = self.filterResponseFields(body, selectedFields);
         return originalJson.call(this, filteredBody);
-      }.bind({ ...res, filterResponseFields: this.filterResponseFields });
+      };
 
       next();
     };
@@ -212,9 +211,9 @@ export class APIOptimizationService {
       }
 
       // Parse pagination parameters
-      const page = parseInt(req.query.page as string) || 1;
+      const page = parseInt(req.query['page'] as string) || 1;
       const limit = Math.min(
-        parseInt(req.query.limit as string) ||
+        parseInt(req.query['limit'] as string) ||
           this.config.pagination.defaultLimit,
         this.config.pagination.maxLimit
       );
@@ -262,7 +261,7 @@ export class APIOptimizationService {
 
     // Add path-based tags
     const pathSegments = req.path.split('/').filter(Boolean);
-    if (pathSegments.length > 1) {
+    if (pathSegments.length > 1 && pathSegments[1]) {
       tags.push(pathSegments[1]); // e.g., 'tasks', 'projects'
     }
 
@@ -326,7 +325,7 @@ export class APIOptimizationService {
       if (field.includes('.')) {
         // Handle nested fields
         const [parent, ...nested] = field.split('.');
-        if (obj[parent]) {
+        if (parent && obj[parent]) {
           if (!filtered[parent]) {
             filtered[parent] = {};
           }

@@ -35,6 +35,11 @@ export type {
   PerformanceReport,
 } from '../performance-optimization-service';
 
+// Import for factory function
+import { createCompressionService, CompressionConfig } from './response-compression';
+import { createBatchingService, BatchConfig } from './request-batching';
+import { APIOptimizationConfig } from './api-optimization';
+
 // Factory function to create complete performance optimization stack
 export function createPerformanceStack(config?: {
   compression?: Partial<CompressionConfig>;
