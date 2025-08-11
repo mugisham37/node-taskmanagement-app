@@ -43,9 +43,12 @@ export type {
 
 export type {
   ICommandValidator,
-  IQueryValidator,
   ValidationResult,
   ValidationRule,
 } from './validation/command-validator';
+
+export type {
+  IQueryValidator,
+} from './validation/query-validator';
 
 export type { CQRSConfiguration, CQRSComponents } from './cqrs-factory';

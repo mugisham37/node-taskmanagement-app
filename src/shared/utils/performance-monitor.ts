@@ -69,7 +69,6 @@ export const performanceMonitor = (
   // Record start time and CPU usage
   const startTime = process.hrtime.bigint();
   const startCpuUsage = process.cpuUsage();
-  const startMemory = process.memoryUsage();
 
   // Add request ID if not present
   const requestId =
@@ -99,8 +98,8 @@ export const performanceMonitor = (
         duration,
         timestamp: new Date(),
         userId: (req as any).user?.id,
-        userAgent: req.headers['user-agent'],
-        ip: req.ip || req.connection.remoteAddress,
+        userAgent: req.headers['user-agent'] || undefined,
+        ip: req.ip || req.connection.remoteAddress || undefined,
         memoryUsage: endMemory,
         cpuUsage: endCpuUsage,
       };
@@ -138,7 +137,7 @@ export const performanceMonitor = (
       res.setHeader('X-Request-ID', requestId);
 
       // Add CPU and memory headers in development
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env['NODE_ENV'] === 'development') {
         res.setHeader('X-CPU-User', `${endCpuUsage.user}μs`);
         res.setHeader('X-CPU-System', `${endCpuUsage.system}μs`);
         res.setHeader(
@@ -402,6 +401,81 @@ export const createTimer = (label: string) => {
   };
 };
 
+/**
+ * PerformanceMonitor class for tracking operations
+ */
+export class PerformanceMonitor {
+  private timers = new Map<string, bigint>();
+  private metrics = new Map<string, number[]>();
+
+  /**
+   * Start a timer for an operation
+   */
+  startTimer(label: string) {
+    const startTime = process.hrtime.bigint();
+    this.timers.set(label, startTime);
+
+    return {
+      end: () => {
+        const endTime = process.hrtime.bigint();
+        const startTime = this.timers.get(label);
+        if (startTime) {
+          const duration = Number(endTime - startTime) / 1000000; // Convert to ms
+          this.recordMetric(label, duration);
+          this.timers.delete(label);
+          return duration;
+        }
+        return 0;
+      }
+    };
+  }
+
+  /**
+   * Record a metric value
+   */
+  recordMetric(name: string, value: number): void {
+    if (!this.metrics.has(name)) {
+      this.metrics.set(name, []);
+    }
+    const values = this.metrics.get(name)!;
+    values.push(value);
+    
+    // Keep only last 1000 values to prevent memory leaks
+    if (values.length > 1000) {
+      values.shift();
+    }
+  }
+
+  /**
+   * Get all metrics
+   */
+  getMetrics(): Record<string, any> {
+    const result: Record<string, any> = {};
+    
+    for (const [name, values] of this.metrics) {
+      if (values.length > 0) {
+        result[name] = {
+          count: values.length,
+          avg: values.reduce((a, b) => a + b, 0) / values.length,
+          min: Math.min(...values),
+          max: Math.max(...values),
+          latest: values[values.length - 1]
+        };
+      }
+    }
+    
+    return result;
+  }
+
+  /**
+   * Clear all metrics
+   */
+  clear(): void {
+    this.timers.clear();
+    this.metrics.clear();
+  }
+}
+
 export default {
   performanceMonitor,
   getPerformanceStats,
@@ -415,4 +489,5 @@ export default {
   profileFunction,
   trackMemoryUsage,
   createTimer,
+  PerformanceMonitor,
 };

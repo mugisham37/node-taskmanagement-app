@@ -16,13 +16,6 @@ import { ICommandBus } from './command';
 import { IQueryBus } from './query';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 
-// Import current handlers
-import { CreateTaskCommandHandler } from '../handlers/task-command-handlers';
-import { UpdateTaskCommandHandler } from '../handlers/task-command-handlers';
-import { DeleteTaskCommandHandler } from '../handlers/task-command-handlers';
-import { GetTaskByIdQueryHandler } from '../handlers/task-query-handlers';
-import { GetTasksQueryHandler } from '../handlers/task-query-handlers';
-
 export interface CQRSConfiguration {
   enableValidation?: boolean;
   enableMetrics?: boolean;
@@ -94,8 +87,8 @@ export class CQRSFactory {
   }
 
   private static setupValidationRules(
-    commandValidator: ICommandValidator,
-    queryValidator: IQueryValidator
+    _commandValidator: ICommandValidator,
+    _queryValidator: IQueryValidator
   ): void {
     // Add common validation rules here
     // This would include specific validation rules for each command and query type

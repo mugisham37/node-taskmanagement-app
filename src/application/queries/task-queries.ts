@@ -101,3 +101,13 @@ export class SearchTasksQuery extends BaseQuery {
     super(userId);
   }
 }
+
+export class GetTasksQuery extends BaseQuery {
+  constructor(
+    userId: UserId,
+    public readonly filters?: TaskFilters,
+    public readonly pagination?: PaginationOptions
+  ) {
+    super(userId);
+  }
+}

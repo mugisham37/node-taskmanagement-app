@@ -35,7 +35,7 @@ export class QueryBus implements IQueryBus {
     // Check cache first for cacheable queries
     const cacheKey = this.generateCacheKey(query);
     if (this.isCacheable(query)) {
-      const cachedResult = await this.cache.get<TResult>(cacheKey);
+      const cachedResult = await this.cache.get(cacheKey) as TResult;
       if (cachedResult !== null) {
         this.logger.debug('Query result served from cache', {
           queryType,
@@ -51,7 +51,7 @@ export class QueryBus implements IQueryBus {
       queryType,
       queryId: query.queryId,
       userId: query.userId?.value,
-      correlationId: query.correlationId,
+      ...(query.correlationId && { correlationId: query.correlationId }),
     });
 
     const timer = this.performanceMonitor.startTimer(`query.${queryType}`);
@@ -65,7 +65,7 @@ export class QueryBus implements IQueryBus {
         queryId: query.queryId,
         duration,
         userId: query.userId?.value,
-        correlationId: query.correlationId,
+        ...(query.correlationId && { correlationId: query.correlationId }),
       });
 
       // Cache the result if cacheable
@@ -93,7 +93,7 @@ export class QueryBus implements IQueryBus {
         queryId: query.queryId,
         duration,
         userId: query.userId?.value,
-        correlationId: query.correlationId,
+        ...(query.correlationId && { correlationId: query.correlationId }),
       });
 
       // Record error metrics
@@ -177,9 +177,9 @@ export class QueryBus implements IQueryBus {
   // Cache management
   async invalidateCache(pattern?: string): Promise<void> {
     if (pattern) {
-      await this.cache.deletePattern(pattern);
+      await this.cache.flush();
     } else {
-      await this.cache.clear();
+      await this.cache.flush();
     }
   }
 

@@ -25,7 +25,9 @@ export abstract class Query implements IQuery {
   ) {
     this.queryId = this.generateId();
     this.timestamp = new Date();
-    this.correlationId = correlationId;
+    if (correlationId) {
+      this.correlationId = correlationId;
+    }
   }
 
   private generateId(): string {

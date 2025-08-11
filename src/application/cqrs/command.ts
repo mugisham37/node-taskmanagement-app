@@ -25,7 +25,9 @@ export abstract class Command implements ICommand {
   ) {
     this.commandId = this.generateId();
     this.timestamp = new Date();
-    this.correlationId = correlationId;
+    if (correlationId) {
+      this.correlationId = correlationId;
+    }
   }
 
   private generateId(): string {

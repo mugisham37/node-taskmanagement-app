@@ -4,7 +4,7 @@
  * This module provides comprehensive validation capabilities for queries before they are processed.
  */
 
-import { IQuery, QueryValidationError } from '../query';
+import { IQuery } from '../query';
 import { injectable } from '../../../shared/decorators/injectable.decorator';
 import { LoggingService } from '../../../infrastructure/monitoring/logging-service';
 
@@ -86,11 +86,16 @@ export class QueryValidator implements IQueryValidator {
       warningCount: Object.keys(warnings).length,
     });
 
-    return {
+    const result: ValidationResult = {
       isValid,
       errors,
-      warnings: Object.keys(warnings).length > 0 ? warnings : undefined,
     };
+    
+    if (Object.keys(warnings).length > 0) {
+      result.warnings = warnings;
+    }
+
+    return result;
   }
 
   addRule<T extends IQuery>(queryType: string, rule: ValidationRule<T>): void {
@@ -147,7 +152,7 @@ export class QueryValidator implements IQueryValidator {
 }
 
 // Base validation rule class with enhanced validation methods
-export abstract class BaseValidationRule<T extends IQuery>
+export abstract class BaseQueryValidationRule<T extends IQuery>
   implements ValidationRule<T>
 {
   public priority: number = 0;

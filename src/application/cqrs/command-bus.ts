@@ -34,7 +34,7 @@ export class CommandBus implements ICommandBus {
       commandType,
       commandId: command.commandId,
       userId: command.userId?.value,
-      correlationId: command.correlationId,
+      ...(command.correlationId && { correlationId: command.correlationId }),
     });
 
     const timer = this.performanceMonitor.startTimer(`command.${commandType}`);
@@ -48,7 +48,7 @@ export class CommandBus implements ICommandBus {
         commandId: command.commandId,
         duration,
         userId: command.userId?.value,
-        correlationId: command.correlationId,
+        ...(command.correlationId && { correlationId: command.correlationId }),
       });
 
       // Record performance metrics
@@ -67,7 +67,7 @@ export class CommandBus implements ICommandBus {
         commandId: command.commandId,
         duration,
         userId: command.userId?.value,
-        correlationId: command.correlationId,
+        ...(command.correlationId && { correlationId: command.correlationId }),
       });
 
       // Record error metrics

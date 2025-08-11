@@ -4,7 +4,7 @@
  * This module provides comprehensive validation capabilities for commands before they are processed.
  */
 
-import { ICommand, CommandValidationError } from '../command';
+import { ICommand } from '../command';
 import { injectable } from '../../../shared/decorators/injectable.decorator';
 import { LoggingService } from '../../../infrastructure/monitoring/logging-service';
 
@@ -89,11 +89,16 @@ export class CommandValidator implements ICommandValidator {
       warningCount: Object.keys(warnings).length,
     });
 
-    return {
+    const result: ValidationResult = {
       isValid,
       errors,
-      warnings: Object.keys(warnings).length > 0 ? warnings : undefined,
     };
+    
+    if (Object.keys(warnings).length > 0) {
+      result.warnings = warnings;
+    }
+
+    return result;
   }
 
   addRule<T extends ICommand>(
@@ -153,7 +158,7 @@ export class CommandValidator implements ICommandValidator {
 }
 
 // Base validation rule class with enhanced validation methods
-export abstract class BaseValidationRule<T extends ICommand>
+export abstract class BaseCommandValidationRule<T extends ICommand>
   implements ValidationRule<T>
 {
   public priority: number = 0;

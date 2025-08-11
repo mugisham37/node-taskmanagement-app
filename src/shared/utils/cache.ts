@@ -1,4 +1,4 @@
-import * as NodeCache from 'node-cache';
+import NodeCache from 'node-cache';
 import { createClient, RedisClientType } from 'redis';
 
 // Cache TTL in seconds
@@ -32,7 +32,7 @@ const logger = {
  * Initialize Redis connection
  */
 const initializeRedis = async (): Promise<void> => {
-  const redisUrl = process.env.REDIS_URL;
+  const redisUrl = process.env['REDIS_URL'];
   if (!redisUrl) {
     logger.info('Redis URL not provided, using node-cache only');
     return;
@@ -74,7 +74,7 @@ const initializeRedis = async (): Promise<void> => {
  */
 const isCacheDisabled = (): boolean => {
   return (
-    process.env.NODE_ENV === 'test' || process.env.DISABLE_CACHE === 'true'
+    process.env['NODE_ENV'] === 'test' || process.env['DISABLE_CACHE'] === 'true'
   );
 };
 
@@ -238,11 +238,11 @@ export const getStats = async (): Promise<{
  */
 export const getOrSet = async <T>(
   key: string,
-  fn: () => Promise<T>,
+  fn: () => Promise<T> | T,
   ttl?: number
 ): Promise<T> => {
   if (isCacheDisabled()) {
-    return await fn();
+    return await Promise.resolve(fn());
   }
 
   try {
@@ -251,13 +251,13 @@ export const getOrSet = async <T>(
       return cachedValue;
     }
 
-    const value = await fn();
+    const value = await Promise.resolve(fn());
     await set(key, value, ttl);
     return value;
   } catch (error) {
     logger.error(`Error in getOrSet for cache key ${key}:`, error);
     // If cache fails, still execute the function
-    return await fn();
+    return await Promise.resolve(fn());
   }
 };
 
@@ -270,11 +270,12 @@ export const getOrSet = async <T>(
  */
 export const memoize = <TArgs extends any[], TReturn>(
   fn: (...args: TArgs) => Promise<TReturn>,
-  keyGenerator: (...args: TArgs) => string,
+  keyGenerator?: (...args: TArgs) => string,
   ttl?: number
 ) => {
+  const keyFn = keyGenerator || ((...args: TArgs) => JSON.stringify(args));
   return async (...args: TArgs): Promise<TReturn> => {
-    const key = keyGenerator(...args);
+    const key = keyFn(...args);
     return getOrSet(key, () => fn(...args), ttl);
   };
 };
@@ -389,6 +390,83 @@ export const closeCache = async (): Promise<void> => {
   }
 };
 
+/**
+ * Cache class for object-oriented usage
+ */
+export class Cache {
+  /**
+   * Get value from cache
+   */
+  async get(key: string): Promise<any | undefined> {
+    return get(key);
+  }
+
+  /**
+   * Set value in cache
+   */
+  async set(key: string, value: any, ttl?: number): Promise<void> {
+    return set(key, value, ttl);
+  }
+
+  /**
+   * Delete value from cache
+   */
+  async del(key: string): Promise<void> {
+    await del(key);
+  }
+
+  /**
+   * Clear all cache
+   */
+  async flush(): Promise<void> {
+    await flush();
+  }
+
+  /**
+   * Get cache statistics
+   */
+  getStats(): any {
+    return getStats();
+  }
+
+  /**
+   * Get or set pattern
+   */
+  async getOrSet<T>(
+    key: string,
+    fn: () => Promise<T> | T,
+    ttl?: number
+  ): Promise<T> {
+    return getOrSet(key, fn, ttl);
+  }
+
+  /**
+   * Create memoized function
+   */
+  memoize<T extends (...args: any[]) => Promise<any>>(
+    fn: T,
+    keyFn?: (...args: Parameters<T>) => string,
+    ttl?: number
+  ): T {
+    const memoized = memoize(fn, keyFn, ttl);
+    return memoized as T;
+  }
+
+  /**
+   * Initialize cache
+   */
+  async initialize(): Promise<void> {
+    return initializeCache();
+  }
+
+  /**
+   * Close cache connections
+   */
+  async close(): Promise<void> {
+    return closeCache();
+  }
+}
+
 // Default export with all cache functions
 export default {
   get,
@@ -403,4 +481,5 @@ export default {
   warmCache,
   initializeCache,
   closeCache,
+  Cache,
 };
