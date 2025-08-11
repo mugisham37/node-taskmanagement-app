@@ -773,3 +773,8 @@ export class GetProjectStatisticsQueryHandler
     }
   }
 }
+
+// Export aliases for backward compatibility
+export const GetProjectHandler = GetProjectByIdQueryHandler;
+export const ListProjectsHandler = GetProjectsByWorkspaceQueryHandler;
+export const GetProjectMembersHandler = GetProjectMembersQueryHandler;

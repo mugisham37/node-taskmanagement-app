@@ -463,3 +463,9 @@ export class UpdateProjectStatusCommandHandler
     });
   }
 }
+
+// Export aliases for backward compatibility
+export const CreateProjectHandler = CreateProjectCommandHandler;
+export const UpdateProjectHandler = UpdateProjectCommandHandler;
+export const AddProjectMemberHandler = AddProjectMemberCommandHandler;
+export const RemoveProjectMemberHandler = RemoveProjectMemberCommandHandler;

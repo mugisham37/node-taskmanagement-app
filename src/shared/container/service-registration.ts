@@ -110,7 +110,7 @@ import { UnitOfWorkFactory } from '../../infrastructure/database/unit-of-work';
 import { EventHandlerLifecycleManager } from '../../application/events/event-handler-lifecycle-manager';
 import { CacheService } from '../../infrastructure/caching/cache-service';
 import { EmailService } from '../../infrastructure/external-services/email-service';
-import { JwtService } from '../../infrastructure/security/jwt-service';
+import { JWTService } from '../../infrastructure/security/jwt-service';
 import { PasswordService } from '../../infrastructure/security/password-service';
 import { RateLimitService } from '../../infrastructure/security/rate-limit-service';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
@@ -224,10 +224,13 @@ function registerConfiguration(container: Container): void {
 
 function registerInfrastructure(container: Container): void {
   // Database
-  container.registerSingleton(
+  container.registerFactory(
     SERVICE_TOKENS.DATABASE_CONNECTION,
-    DatabaseConnection,
-    [SERVICE_TOKENS.DATABASE_CONFIG]
+    (container) => {
+      const config = container.resolve<any>(SERVICE_TOKENS.DATABASE_CONFIG);
+      return DatabaseConnection.getInstance(config);
+    },
+    ServiceLifetime.Singleton
   );
 
   container.registerScoped(
@@ -273,7 +276,7 @@ function registerInfrastructure(container: Container): void {
   );
 
   // Security Services
-  container.registerSingleton(SERVICE_TOKENS.JWT_SERVICE, JwtService, [
+  container.registerSingleton(SERVICE_TOKENS.JWT_SERVICE, JWTService, [
     SERVICE_TOKENS.JWT_CONFIG,
   ]);
 
@@ -825,10 +828,10 @@ function registerEventHandling(container: Container): void {
     SERVICE_TOKENS.LOGGING_SERVICE,
   ]);
 
-  container.registerSingleton(
+  container.registerFactory(
     SERVICE_TOKENS.DOMAIN_EVENT_PUBLISHER,
-    DomainEventPublisher,
-    [SERVICE_TOKENS.EVENT_BUS]
+    () => DomainEventPublisher.getInstance(),
+    ServiceLifetime.Singleton
   );
 
   container.registerSingleton(

@@ -442,3 +442,7 @@ export class GetNotificationStatisticsQueryHandler
     }
   }
 }
+
+// Export aliases for backward compatibility
+export const GetNotificationsHandler = GetNotificationsQueryHandler;
+export const GetNotificationPreferencesHandler = GetNotificationPreferencesQueryHandler;

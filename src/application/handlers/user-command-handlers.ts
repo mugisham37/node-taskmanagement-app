@@ -296,3 +296,7 @@ export class DeactivateUserCommandHandler
     });
   }
 }
+
+// Export aliases for backward compatibility
+export const RegisterUserHandler = RegisterUserCommandHandler;
+export const UpdateUserProfileHandler = UpdateUserProfileCommandHandler;

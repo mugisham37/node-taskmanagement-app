@@ -32,7 +32,7 @@ export class ContainerHealthChecker {
         return result.value;
       } else {
         return {
-          token,
+          token: token || 'unknown',
           status: 'unhealthy' as const,
           message: result.reason?.message || 'Unknown error',
           lastChecked: new Date(),
@@ -50,7 +50,7 @@ export class ContainerHealthChecker {
       const descriptor = this.container.getDescriptor(token);
       if (!descriptor) {
         return {
-          token,
+          token: token || 'unknown',
           status: 'unhealthy',
           message: 'Service not registered',
           lastChecked: new Date(),
@@ -59,7 +59,7 @@ export class ContainerHealthChecker {
       }
 
       // Try to resolve the service
-      const service = this.container.resolve(token);
+      const service = this.container.resolve(token || 'unknown');
 
       // Check if service has health check method
       if (service && typeof (service as any).healthCheck === 'function') {
@@ -76,7 +76,7 @@ export class ContainerHealthChecker {
       }
 
       return {
-        token,
+        token: token || 'unknown',
         status: 'healthy',
         message: 'Service resolved successfully',
         lastChecked: new Date(),
@@ -84,7 +84,7 @@ export class ContainerHealthChecker {
       };
     } catch (error) {
       return {
-        token,
+        token: token || 'unknown',
         status: 'unhealthy',
         message: error instanceof Error ? error.message : 'Unknown error',
         lastChecked: new Date(),
@@ -131,7 +131,8 @@ export class ContainerHealthChecker {
     };
   }
 
-  private getServiceDependencies(token: string): string[] {
+  private getServiceDependencies(token: string | undefined): string[] {
+    if (!token) return [];
     const descriptor = this.container.getDescriptor(token);
     return descriptor?.dependencies || [];
   }

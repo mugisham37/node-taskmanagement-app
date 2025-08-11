@@ -586,3 +586,7 @@ export class GetTasksQueryHandler
     };
   }
 }
+
+// Export aliases for backward compatibility
+export const GetTaskHandler = GetTaskByIdQueryHandler;
+export const ListTasksHandler = GetTasksQueryHandler;

@@ -726,3 +726,7 @@ export class GetWebhookDeliveryByIdQueryHandler
     };
   }
 }
+
+// Export aliases for backward compatibility
+export const GetWebhooksHandler = GetWebhooksByWorkspaceQueryHandler;
+export const GetWebhookDeliveriesHandler = GetWebhookDeliveriesQueryHandler;

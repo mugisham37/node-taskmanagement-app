@@ -793,3 +793,8 @@ export class GetUserStatisticsQueryHandler
     }
   }
 }
+
+// Export aliases for backward compatibility
+export const GetUserHandler = GetUserByIdQueryHandler;
+export const ListUsersHandler = GetUsersQueryHandler;
+export const GetUserPreferencesHandler = GetUserPreferencesQueryHandler;

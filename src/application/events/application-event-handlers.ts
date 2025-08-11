@@ -482,3 +482,28 @@ export class UserActivatedEventHandler
     }
   }
 }
+
+/**
+ * Application Event Handlers orchestrator service
+ * This service registers and manages all application event handlers
+ */
+export class ApplicationEventHandlers {
+  constructor(
+    private readonly domainEventBus: any,
+    private readonly notificationApplicationService: any,
+    private readonly auditLogRepository: any
+  ) {
+    this.registerHandlers();
+  }
+
+  private registerHandlers(): void {
+    // Register all event handlers with the domain event bus
+    // This is where you would register the actual handlers
+    // For now, this is a placeholder implementation
+  }
+
+  public initialize(): void {
+    // Initialize event handlers
+    this.registerHandlers();
+  }
+}

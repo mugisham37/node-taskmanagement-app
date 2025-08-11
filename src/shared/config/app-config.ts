@@ -126,26 +126,26 @@ export class ConfigLoader {
    */
   static loadAppConfig(): AppConfig {
     const config = {
-      port: parseInt(process.env.PORT || '3000'),
-      host: process.env.HOST || '0.0.0.0',
-      nodeEnv: process.env.NODE_ENV || 'development',
-      logLevel: process.env.LOG_LEVEL || 'info',
-      logFormat: process.env.LOG_FORMAT || 'json',
-      corsOrigins: process.env.CORS_ORIGINS?.split(',') || [
+      port: parseInt(process.env['PORT'] || '3000'),
+      host: process.env['HOST'] || '0.0.0.0',
+      nodeEnv: process.env['NODE_ENV'] || 'development',
+      logLevel: process.env['LOG_LEVEL'] || 'info',
+      logFormat: process.env['LOG_FORMAT'] || 'json',
+      corsOrigins: process.env['CORS_ORIGINS']?.split(',') || [
         'http://localhost:3000',
       ],
-      rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX || '100'),
-      rateLimitWindow: parseInt(process.env.RATE_LIMIT_WINDOW || '900000'),
-      enableSwagger: process.env.ENABLE_SWAGGER !== 'false',
-      enableMetrics: process.env.ENABLE_METRICS !== 'false',
-      enableWebSocket: process.env.ENABLE_WEBSOCKET !== 'false',
-      requestTimeout: parseInt(process.env.REQUEST_TIMEOUT || '30000'),
-      bodyLimit: parseInt(process.env.BODY_LIMIT || '1048576'),
+      rateLimitMax: parseInt(process.env['RATE_LIMIT_MAX'] || '100'),
+      rateLimitWindow: parseInt(process.env['RATE_LIMIT_WINDOW'] || '900000'),
+      enableSwagger: process.env['ENABLE_SWAGGER'] !== 'false',
+      enableMetrics: process.env['ENABLE_METRICS'] !== 'false',
+      enableWebSocket: process.env['ENABLE_WEBSOCKET'] !== 'false',
+      requestTimeout: parseInt(process.env['REQUEST_TIMEOUT'] || '30000'),
+      bodyLimit: parseInt(process.env['BODY_LIMIT'] || '1048576'),
       healthCheckInterval: parseInt(
-        process.env.HEALTH_CHECK_INTERVAL || '30000'
+        process.env['HEALTH_CHECK_INTERVAL'] || '30000'
       ),
       gracefulShutdownTimeout: parseInt(
-        process.env.GRACEFUL_SHUTDOWN_TIMEOUT || '10000'
+        process.env['GRACEFUL_SHUTDOWN_TIMEOUT'] || '10000'
       ),
     };
 
@@ -157,21 +157,21 @@ export class ConfigLoader {
    */
   static loadDatabaseConfig(): DatabaseConfig {
     const config = {
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '5432'),
-      database: process.env.DB_NAME || 'taskmanagement',
-      username: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASSWORD || 'password',
-      ssl: process.env.DB_SSL === 'true',
-      maxConnections: parseInt(process.env.DB_MAX_CONNECTIONS || '20'),
-      minConnections: parseInt(process.env.DB_MIN_CONNECTIONS || '5'),
-      connectionTimeout: parseInt(process.env.DB_CONNECTION_TIMEOUT || '5000'),
-      idleTimeout: parseInt(process.env.DB_IDLE_TIMEOUT || '30000'),
+      host: process.env['DB_HOST'] || 'localhost',
+      port: parseInt(process.env['DB_PORT'] || '5432'),
+      database: process.env['DB_NAME'] || 'taskmanagement',
+      username: process.env['DB_USER'] || 'postgres',
+      password: process.env['DB_PASSWORD'] || 'password',
+      ssl: process.env['DB_SSL'] === 'true',
+      maxConnections: parseInt(process.env['DB_MAX_CONNECTIONS'] || '20'),
+      minConnections: parseInt(process.env['DB_MIN_CONNECTIONS'] || '5'),
+      connectionTimeout: parseInt(process.env['DB_CONNECTION_TIMEOUT'] || '5000'),
+      idleTimeout: parseInt(process.env['DB_IDLE_TIMEOUT'] || '30000'),
       migrationsPath:
-        process.env.DB_MIGRATIONS_PATH ||
+        process.env['DB_MIGRATIONS_PATH'] ||
         './src/infrastructure/database/migrations',
       seedsPath:
-        process.env.DB_SEEDS_PATH || './src/infrastructure/database/seeds',
+        process.env['DB_SEEDS_PATH'] || './src/infrastructure/database/seeds',
     };
 
     return DatabaseConfigSchema.parse(config);
@@ -182,16 +182,16 @@ export class ConfigLoader {
    */
   static loadRedisConfig(): RedisConfig {
     const config = {
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-      password: process.env.REDIS_PASSWORD,
-      db: parseInt(process.env.REDIS_DB || '0'),
-      maxRetriesPerRequest: parseInt(process.env.REDIS_MAX_RETRIES || '3'),
-      retryDelayOnFailover: parseInt(process.env.REDIS_RETRY_DELAY || '100'),
-      connectTimeout: parseInt(process.env.REDIS_CONNECT_TIMEOUT || '10000'),
-      commandTimeout: parseInt(process.env.REDIS_COMMAND_TIMEOUT || '5000'),
-      defaultTTL: parseInt(process.env.REDIS_DEFAULT_TTL || '3600'),
-      keyPrefix: process.env.REDIS_KEY_PREFIX || 'taskmanagement:',
+      host: process.env['REDIS_HOST'] || 'localhost',
+      port: parseInt(process.env['REDIS_PORT'] || '6379'),
+      password: process.env['REDIS_PASSWORD'],
+      db: parseInt(process.env['REDIS_DB'] || '0'),
+      maxRetriesPerRequest: parseInt(process.env['REDIS_MAX_RETRIES'] || '3'),
+      retryDelayOnFailover: parseInt(process.env['REDIS_RETRY_DELAY'] || '100'),
+      connectTimeout: parseInt(process.env['REDIS_CONNECT_TIMEOUT'] || '10000'),
+      commandTimeout: parseInt(process.env['REDIS_COMMAND_TIMEOUT'] || '5000'),
+      defaultTTL: parseInt(process.env['REDIS_DEFAULT_TTL'] || '3600'),
+      keyPrefix: process.env['REDIS_KEY_PREFIX'] || 'taskmanagement:',
     };
 
     return RedisConfigSchema.parse(config);
@@ -202,11 +202,11 @@ export class ConfigLoader {
    */
   static loadJwtConfig(): JwtConfig {
     const config = {
-      secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
-      expiresIn: process.env.JWT_EXPIRES_IN || '24h',
-      refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
-      issuer: process.env.JWT_ISSUER || 'task-management-system',
-      audience: process.env.JWT_AUDIENCE || 'task-management-users',
+      secret: process.env['JWT_SECRET'] || 'your-secret-key-change-in-production',
+      expiresIn: process.env['JWT_EXPIRES_IN'] || '24h',
+      refreshExpiresIn: process.env['JWT_REFRESH_EXPIRES_IN'] || '7d',
+      issuer: process.env['JWT_ISSUER'] || 'task-management-system',
+      audience: process.env['JWT_AUDIENCE'] || 'task-management-users',
     };
 
     return JwtConfigSchema.parse(config);
@@ -217,18 +217,18 @@ export class ConfigLoader {
    */
   static loadEmailConfig(): EmailConfig {
     const config = {
-      host: process.env.EMAIL_HOST || 'localhost',
-      port: parseInt(process.env.EMAIL_PORT || '587'),
-      secure: process.env.EMAIL_SECURE === 'true',
-      user: process.env.EMAIL_USER,
-      password: process.env.EMAIL_PASSWORD,
-      from: process.env.EMAIL_FROM || 'noreply@taskmanagement.com',
+      host: process.env['EMAIL_HOST'] || 'localhost',
+      port: parseInt(process.env['EMAIL_PORT'] || '587'),
+      secure: process.env['EMAIL_SECURE'] === 'true',
+      user: process.env['EMAIL_USER'],
+      password: process.env['EMAIL_PASSWORD'],
+      from: process.env['EMAIL_FROM'] || 'noreply@taskmanagement.com',
       templatesPath:
-        process.env.EMAIL_TEMPLATES_PATH ||
+        process.env['EMAIL_TEMPLATES_PATH'] ||
         './src/infrastructure/external-services/templates',
-      enableQueue: process.env.EMAIL_ENABLE_QUEUE !== 'false',
-      maxRetries: parseInt(process.env.EMAIL_MAX_RETRIES || '3'),
-      retryDelay: parseInt(process.env.EMAIL_RETRY_DELAY || '5000'),
+      enableQueue: process.env['EMAIL_ENABLE_QUEUE'] !== 'false',
+      maxRetries: parseInt(process.env['EMAIL_MAX_RETRIES'] || '3'),
+      retryDelay: parseInt(process.env['EMAIL_RETRY_DELAY'] || '5000'),
     };
 
     return EmailConfigSchema.parse(config);

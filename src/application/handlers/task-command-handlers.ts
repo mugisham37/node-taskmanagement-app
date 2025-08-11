@@ -437,3 +437,9 @@ export class RemoveTaskDependencyCommandHandler
     });
   }
 }
+
+// Export aliases for backward compatibility
+export const CreateTaskHandler = CreateTaskCommandHandler;
+export const UpdateTaskHandler = UpdateTaskCommandHandler;
+export const AssignTaskHandler = AssignTaskCommandHandler;
+export const CompleteTaskHandler = CompleteTaskCommandHandler;

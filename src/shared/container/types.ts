@@ -36,6 +36,7 @@ export interface Container {
   isRegistered(token: string): boolean;
   validateDependencies(): void;
   createScope(): Container;
+  clear(): void;
 
   // Additional methods used by health-checker and service-factory
   getRegisteredServices(): string[];

@@ -766,3 +766,8 @@ export class RespondToEventCommandHandler
     });
   }
 }
+
+// Export aliases for backward compatibility
+export const CreateCalendarEventHandler = CreateCalendarEventCommandHandler;
+export const UpdateCalendarEventHandler = UpdateCalendarEventCommandHandler;
+export const ScheduleCalendarEventHandler = CreateCalendarEventCommandHandler; // alias for create

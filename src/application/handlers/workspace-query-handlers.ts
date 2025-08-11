@@ -890,3 +890,8 @@ export class GetWorkspaceUsageQueryHandler
     return member !== null;
   }
 }
+
+// Export aliases for backward compatibility
+export const GetWorkspaceHandler = GetWorkspaceByIdQueryHandler;
+export const ListWorkspacesHandler = GetUserWorkspacesQueryHandler;
+export const GetWorkspaceStatsHandler = GetWorkspaceStatisticsQueryHandler;

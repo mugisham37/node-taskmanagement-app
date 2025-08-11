@@ -349,3 +349,7 @@ export class ArchiveWorkspaceCommandHandler
     });
   }
 }
+
+// Export aliases for backward compatibility
+export const CreateWorkspaceHandler = CreateWorkspaceCommandHandler;
+export const InviteUserHandler = InviteUserToWorkspaceCommandHandler;

@@ -3,7 +3,6 @@ import { DIContainer } from './container';
 import { registerServices } from './service-registration';
 import { DependencyValidationService } from './dependency-validation-service';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { MetricsService } from '../../infrastructure/monitoring/metrics-service';
 import { EventIntegrationService } from '../../infrastructure/events/event-integration-service';
 import { TransactionIntegrationService } from '../../infrastructure/database/transaction-integration-service';
 import { EventHandlerLifecycleManager } from '../../application/events/event-handler-lifecycle-manager';
@@ -91,7 +90,7 @@ export class ContainerInitializationService {
   getInitializationStatus(): {
     isInitialized: boolean;
     hasError: boolean;
-    error?: string;
+    error?: string | undefined;
     registeredServices: string[];
   } {
     return {
@@ -178,7 +177,8 @@ export class ContainerInitializationService {
       {
         name: 'Database Connection',
         check: async () => {
-          const dbConnection = this.container!.resolve('DatabaseConnection');
+          // Test database connection
+          this.container!.resolve('DatabaseConnection');
           // Assume database connection has a health check method
           return { isHealthy: true };
         },
@@ -186,7 +186,8 @@ export class ContainerInitializationService {
       {
         name: 'Cache Service',
         check: async () => {
-          const cacheService = this.container!.resolve('CacheService');
+          // Test cache connection
+          this.container!.resolve('CacheService');
           // Assume cache service has a health check method
           return { isHealthy: true };
         },
@@ -224,17 +225,17 @@ export class ContainerInitializationService {
     );
 
     const failedChecks = results
-      .filter((result, index) => {
+      .filter((result) => {
         if (result.status === 'rejected') {
           return true;
         }
         return !result.value.isHealthy;
       })
-      .map((result, index) => {
+      .map((result) => {
         if (result.status === 'rejected') {
-          return `${healthChecks[index].name}: ${result.reason}`;
+          return `Health check failed: ${result.reason}`;
         }
-        return `${result.value.name}: ${result.value.error || 'Health check failed'}`;
+        return `${result.value?.name || 'Unknown'}: ${result.value?.error || 'Health check failed'}`;
       });
 
     if (failedChecks.length > 0) {
@@ -274,7 +275,9 @@ export class ContainerInitializationService {
       }
 
       // Clear container
-      this.container.clear();
+      if (this.container) {
+        this.container.clear();
+      }
       this.container = null;
       this.isInitialized = false;
       this.initializationError = null;

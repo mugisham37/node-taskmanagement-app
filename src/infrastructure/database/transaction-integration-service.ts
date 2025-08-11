@@ -421,4 +421,50 @@ export class TransactionIntegrationService {
 
     throw lastError!;
   }
+
+  /**
+   * Perform health check on transaction service
+   */
+  async healthCheck(): Promise<{ isHealthy: boolean; details?: string; metrics?: any }> {
+    try {
+      // Check if transaction manager is available
+      if (!this.transactionManager) {
+        return {
+          isHealthy: false,
+          details: 'Transaction manager not available',
+        };
+      }
+
+      // Test transaction capability with a simple operation
+      const testResult = await this.executeUseCase(
+        'HealthCheck:TransactionTest',
+        async () => {
+          // Simple operation that should succeed
+          return true;
+        },
+        { timeout: 5000 }
+      );
+
+      const activeTransactionCount = this.activeTransactions.size;
+
+      return {
+        isHealthy: testResult === true,
+        details: 'Transaction service operational',
+        metrics: {
+          activeTransactions: activeTransactionCount,
+          serviceStatus: 'healthy',
+        },
+      };
+    } catch (error) {
+      this.logger.error('Transaction service health check failed', error as Error);
+      return {
+        isHealthy: false,
+        details: `Health check failed: ${(error as Error).message}`,
+        metrics: {
+          activeTransactions: this.activeTransactions.size,
+          serviceStatus: 'unhealthy',
+        },
+      };
+    }
+  }
 }

@@ -377,3 +377,7 @@ export class DeleteAuditLogCommandHandler
     });
   }
 }
+
+// Export aliases for backward compatibility
+export const CreateAuditLogHandler = LogAuditEventCommandHandler;
+export const CleanupAuditLogsHandler = CleanupOldAuditLogsCommandHandler;

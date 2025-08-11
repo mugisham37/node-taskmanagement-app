@@ -737,3 +737,8 @@ export class TestWebhookCommandHandler
     });
   }
 }
+
+// Export aliases for backward compatibility
+export const CreateWebhookHandler = CreateWebhookCommandHandler;
+export const UpdateWebhookHandler = UpdateWebhookCommandHandler;
+export const TriggerWebhookHandler = TriggerWebhookCommandHandler;

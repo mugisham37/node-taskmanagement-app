@@ -65,9 +65,10 @@ export class DIContainer implements Container {
    */
   registerInstance<T>(token: string, instance: T): void {
     this.instances.set(token, instance);
+    const constructor = (instance as any).constructor as new (...args: any[]) => T;
     const descriptor = new ServiceDescriptor(
       token,
-      instance.constructor as new (...args: any[]) => T,
+      constructor,
       ServiceLifetime.Singleton,
       []
     );

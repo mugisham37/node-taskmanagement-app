@@ -480,3 +480,8 @@ export class BulkDeleteNotificationsCommandHandler
     this.logDebug('Notification caches cleared', { userId: userId.value });
   }
 }
+
+// Export aliases for backward compatibility
+export const CreateNotificationHandler = CreateNotificationCommandHandler;
+export const UpdateNotificationHandler = UpdateNotificationPreferencesCommandHandler;
+export const MarkNotificationReadHandler = MarkNotificationAsReadCommandHandler;

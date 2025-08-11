@@ -1,4 +1,4 @@
-import { Container, ServiceLifetime } from './types';
+import { Container} from './types';
 import { ServiceDescriptor } from './service-descriptor';
 
 /**
