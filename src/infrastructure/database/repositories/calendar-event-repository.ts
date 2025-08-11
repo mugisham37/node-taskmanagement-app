@@ -6,9 +6,7 @@ import {
   lte,
   desc,
   asc,
-  isNull,
   sql,
-  inArray,
 } from 'drizzle-orm';
 import {
   CalendarEvent,
@@ -92,14 +90,14 @@ export class CalendarEventRepository
       attendees: drizzleModel.attendees.map(a => ({
         userId: a.userId,
         status: a.status as AttendeeStatus,
-        responseAt: a.responseAt ? new Date(a.responseAt) : undefined,
+        ...(a.responseAt && { responseAt: new Date(a.responseAt) }),
       })),
       reminders: drizzleModel.reminders.map(r => ({
         id: r.id,
         minutesBefore: r.minutesBefore,
         method: r.method as 'notification' | 'email' | 'sms',
         sent: r.sent,
-        sentAt: r.sentAt ? new Date(r.sentAt) : undefined,
+        ...(r.sentAt && { sentAt: new Date(r.sentAt) }),
       })),
       externalCalendarId: drizzleModel.externalCalendarId || undefined,
       externalEventId: drizzleModel.externalEventId || undefined,
@@ -133,14 +131,14 @@ export class CalendarEventRepository
       attendees: entity.attendees.map(a => ({
         userId: a.userId,
         status: a.status,
-        responseAt: a.responseAt?.toISOString(),
+        ...(a.responseAt && { responseAt: a.responseAt.toISOString() }),
       })),
       reminders: entity.reminders.map(r => ({
         id: r.id,
         minutesBefore: r.minutesBefore,
         method: r.method,
         sent: r.sent,
-        sentAt: r.sentAt?.toISOString(),
+        ...(r.sentAt && { sentAt: r.sentAt.toISOString() }),
       })),
       externalCalendarId: entity.externalCalendarId || null,
       externalEventId: entity.externalEventId || null,
@@ -150,15 +148,12 @@ export class CalendarEventRepository
     };
   }
 
-  protected buildWhereClause(specification: any): any {
+  protected buildWhereClause(_specification: any): any {
     // Implementation for specifications if needed
     return undefined;
   }
 
-  // Override save method to match interface
-  async save(entity: CalendarEvent): Promise<void> {
-    await super.save(entity);
-  }
+  // Base class save method is inherited - returns Promise<CalendarEvent>
 
   async findByUserId(
     userId: string,
@@ -178,9 +173,8 @@ export class CalendarEventRepository
         this.toDomain(result as CalendarEventDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding calendar events by user ID', {
+      logger.error('Error finding calendar events by user ID', error as Error, {
         userId,
-        error,
       });
       throw error;
     }
@@ -204,9 +198,8 @@ export class CalendarEventRepository
         this.toDomain(result as CalendarEventDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding calendar events by workspace ID', {
+      logger.error('Error finding calendar events by workspace ID', error as Error, {
         workspaceId,
-        error,
       });
       throw error;
     }
@@ -230,9 +223,8 @@ export class CalendarEventRepository
         this.toDomain(result as CalendarEventDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding calendar events by project ID', {
+      logger.error('Error finding calendar events by project ID', error as Error, {
         projectId,
-        error,
       });
       throw error;
     }
@@ -256,9 +248,8 @@ export class CalendarEventRepository
         this.toDomain(result as CalendarEventDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding calendar events by task ID', {
+      logger.error('Error finding calendar events by task ID', error as Error, {
         taskId,
-        error,
       });
       throw error;
     }
@@ -282,7 +273,7 @@ export class CalendarEventRepository
         this.toDomain(result as CalendarEventDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding calendar events by type', { type, error });
+      logger.error('Error finding calendar events by type', error as Error, { type });
       throw error;
     }
   }
@@ -312,11 +303,10 @@ export class CalendarEventRepository
         this.toDomain(result as CalendarEventDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding calendar events by date range', {
-        startDate,
-        endDate,
-        userId,
-        error,
+      logger.error('Error finding calendar events by date range', error as Error, {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        ...(userId && { userId }),
       });
       throw error;
     }
@@ -344,7 +334,7 @@ export class CalendarEventRepository
         this.toDomain(result as CalendarEventDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding upcoming calendar events', { userId, error });
+      logger.error('Error finding upcoming calendar events', error as Error, { userId });
       throw error;
     }
   }
@@ -373,7 +363,7 @@ export class CalendarEventRepository
         this.toDomain(result as CalendarEventDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding past calendar events', { userId, error });
+      logger.error('Error finding past calendar events', error as Error, { userId });
       throw error;
     }
   }
@@ -395,9 +385,8 @@ export class CalendarEventRepository
         this.toDomain(result as CalendarEventDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding recurring calendar events', {
+      logger.error('Error finding recurring calendar events', error as Error, {
         userId,
-        error,
       });
       throw error;
     }
@@ -445,11 +434,10 @@ export class CalendarEventRepository
         this.toDomain(result as CalendarEventDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding calendar event conflicts', {
+      logger.error('Error finding calendar event conflicts', error as Error, {
         userId,
-        startDate,
-        endDate,
-        error,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
       });
       throw error;
     }
@@ -477,10 +465,9 @@ export class CalendarEventRepository
         this.toDomain(result as CalendarEventDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding calendar events by attendee', {
+      logger.error('Error finding calendar events by attendee', error as Error, {
         userId,
         status,
-        error,
       });
       throw error;
     }
@@ -503,9 +490,8 @@ export class CalendarEventRepository
         this.toDomain(result as CalendarEventDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding calendar events with reminders', {
-        beforeDate,
-        error,
+      logger.error('Error finding calendar events with reminders', error as Error, {
+        beforeDate: beforeDate.toISOString(),
       });
       throw error;
     }
@@ -525,9 +511,8 @@ export class CalendarEventRepository
         this.toDomain(result as CalendarEventDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error finding calendar events by external calendar', {
+      logger.error('Error finding calendar events by external calendar', error as Error, {
         externalCalendarId,
-        error,
       });
       throw error;
     }
@@ -552,7 +537,7 @@ export class CalendarEventRepository
           whereClause,
           gte(calendarEvents.startDate, startDate),
           lte(calendarEvents.startDate, endDate)
-        );
+        )!;
       }
 
       const results = await this.database
@@ -590,7 +575,7 @@ export class CalendarEventRepository
 
       return stats;
     } catch (error) {
-      logger.error('Error getting calendar event stats', { userId, error });
+      logger.error('Error getting calendar event stats', error as Error, { userId });
       throw error;
     }
   }
@@ -648,7 +633,9 @@ export class CalendarEventRepository
         this.toDomain(result as CalendarEventDrizzleModel)
       );
     } catch (error) {
-      logger.error('Error searching calendar events', { query, error });
+      logger.error('Error searching calendar events', error as Error, { 
+        queryParams: JSON.stringify(query) 
+      });
       throw error;
     }
   }
@@ -659,9 +646,8 @@ export class CalendarEventRepository
         .delete(calendarEvents)
         .where(eq(calendarEvents.userId, userId));
     } catch (error) {
-      logger.error('Error deleting calendar events by user ID', {
+      logger.error('Error deleting calendar events by user ID', error as Error, {
         userId,
-        error,
       });
       throw error;
     }
@@ -673,9 +659,8 @@ export class CalendarEventRepository
         .delete(calendarEvents)
         .where(eq(calendarEvents.projectId, projectId));
     } catch (error) {
-      logger.error('Error deleting calendar events by project ID', {
+      logger.error('Error deleting calendar events by project ID', error as Error, {
         projectId,
-        error,
       });
       throw error;
     }
@@ -687,9 +672,8 @@ export class CalendarEventRepository
         .delete(calendarEvents)
         .where(eq(calendarEvents.taskId, taskId));
     } catch (error) {
-      logger.error('Error deleting calendar events by task ID', {
+      logger.error('Error deleting calendar events by task ID', error as Error, {
         taskId,
-        error,
       });
       throw error;
     }

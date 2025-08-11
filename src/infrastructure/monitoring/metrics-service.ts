@@ -43,7 +43,6 @@ export class MetricsService {
     // Enable default metrics if configured
     if (this.config.enableDefaultMetrics) {
       collectDefaultMetrics({
-        timeout: this.config.defaultMetricsInterval,
         prefix: this.config.prefix,
         labels: this.config.labels,
       });
@@ -194,12 +193,17 @@ export class MetricsService {
       return this.histograms.get(fullName)!;
     }
 
-    const histogram = new Histogram({
+    const config: any = {
       name: fullName,
       help,
       labelNames: [...labels, ...Object.keys(this.config.labels)],
-      buckets,
-    });
+    };
+
+    if (buckets !== undefined) {
+      config.buckets = buckets;
+    }
+
+    const histogram = new Histogram(config);
 
     this.histograms.set(fullName, histogram);
     return histogram;
@@ -240,12 +244,17 @@ export class MetricsService {
       return this.summaries.get(fullName)!;
     }
 
-    const summary = new Summary({
+    const config: any = {
       name: fullName,
       help,
       labelNames: [...labels, ...Object.keys(this.config.labels)],
-      percentiles,
-    });
+    };
+
+    if (percentiles !== undefined) {
+      config.percentiles = percentiles;
+    }
+
+    const summary = new Summary(config);
 
     this.summaries.set(fullName, summary);
     return summary;
@@ -480,6 +489,17 @@ export class MetricsService {
     this.observeHistogram('operation_duration_seconds', duration / 1000, {
       operation,
     });
+  }
+
+  /**
+   * Record histogram value (alias for observeHistogram for backward compatibility)
+   */
+  recordHistogram(
+    name: string,
+    value: number,
+    labels: Record<string, string> = {}
+  ): void {
+    this.observeHistogram(name, value, labels);
   }
 
   /**

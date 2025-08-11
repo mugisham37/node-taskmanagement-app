@@ -5,7 +5,7 @@ import {
 } from '../entities/file-attachment';
 
 export interface IFileAttachmentRepository {
-  save(file: FileAttachment): Promise<void>;
+  save(file: FileAttachment): Promise<FileAttachment>;
   findById(id: string): Promise<FileAttachment | null>;
   findByFilename(filename: string): Promise<FileAttachment | null>;
   findByChecksum(checksum: string): Promise<FileAttachment[]>;

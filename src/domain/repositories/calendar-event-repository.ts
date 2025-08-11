@@ -5,7 +5,7 @@ import {
 } from '../entities/calendar-event';
 
 export interface ICalendarEventRepository {
-  save(event: CalendarEvent): Promise<void>;
+  save(event: CalendarEvent): Promise<CalendarEvent>;
   findById(id: string): Promise<CalendarEvent | null>;
   findByUserId(
     userId: string,

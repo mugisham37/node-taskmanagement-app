@@ -1,4 +1,4 @@
-import { BaseEntity } from './base-entity';
+import { Entity } from '../base/entity';
 
 export enum EventType {
   TASK = 'task',
@@ -17,7 +17,7 @@ export enum AttendeeStatus {
 export interface CalendarEventAttendee {
   userId: string;
   status: AttendeeStatus;
-  responseAt?: Date;
+  responseAt?: Date | undefined;
 }
 
 export interface CalendarEventReminder {
@@ -25,39 +25,46 @@ export interface CalendarEventReminder {
   minutesBefore: number;
   method: 'notification' | 'email' | 'sms';
   sent: boolean;
-  sentAt?: Date;
+  sentAt?: Date | undefined;
 }
 
 export interface CalendarEventProps {
   id: string;
   title: string;
-  description?: string;
+  description?: string | undefined;
   type: EventType;
   startDate: Date;
-  endDate?: Date;
+  endDate?: Date | undefined;
   allDay: boolean;
-  location?: string;
-  url?: string;
+  location?: string | undefined;
+  url?: string | undefined;
   color: string;
   userId: string;
-  workspaceId?: string;
-  teamId?: string;
-  projectId?: string;
-  taskId?: string;
+  workspaceId?: string | undefined;
+  teamId?: string | undefined;
+  projectId?: string | undefined;
+  taskId?: string | undefined;
   isRecurring: boolean;
-  recurrenceRule?: string;
+  recurrenceRule?: string | undefined;
   attendees: CalendarEventAttendee[];
   reminders: CalendarEventReminder[];
-  externalCalendarId?: string;
-  externalEventId?: string;
+  externalCalendarId?: string | undefined;
+  externalEventId?: string | undefined;
   metadata: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export class CalendarEvent extends BaseEntity<CalendarEventProps> {
+export class CalendarEvent implements Entity<string> {
+  public readonly id: string;
+  public readonly createdAt: Date;
+  public readonly updatedAt: Date;
+  private props: CalendarEventProps;
+
   private constructor(props: CalendarEventProps) {
-    super(props.id, props.createdAt, props.updatedAt);
+    this.id = props.id;
+    this.createdAt = props.createdAt;
+    this.updatedAt = props.updatedAt;
     this.props = props;
   }
 
@@ -95,10 +102,10 @@ export class CalendarEvent extends BaseEntity<CalendarEventProps> {
     // Validate updated dates if both are provided
     const newStartDate = updates.startDate || this.props.startDate;
     const newEndDate = updates.endDate || this.props.endDate;
-    this.validateEventDates(newStartDate, newEndDate);
+    CalendarEvent.validateEventDates(newStartDate, newEndDate);
 
     if (updates.type) {
-      this.validateEventType(updates.type);
+      CalendarEvent.validateEventType(updates.type);
     }
 
     // Apply updates
@@ -120,7 +127,6 @@ export class CalendarEvent extends BaseEntity<CalendarEventProps> {
     this.props.attendees.push({
       userId,
       status,
-      responseAt: undefined,
     });
 
     this.props.updatedAt = new Date();
@@ -163,7 +169,6 @@ export class CalendarEvent extends BaseEntity<CalendarEventProps> {
       minutesBefore,
       method,
       sent: false,
-      sentAt: undefined,
     });
 
     this.props.updatedAt = new Date();

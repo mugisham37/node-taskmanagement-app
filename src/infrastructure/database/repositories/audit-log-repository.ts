@@ -1,7 +1,6 @@
 import {
   eq,
   and,
-  or,
   desc,
   asc,
   count,
@@ -11,45 +10,53 @@ import {
   lte,
   lt,
 } from 'drizzle-orm';
-import { BaseDrizzleRepository } from './base-drizzle-repository';
 import { AuditLog, AuditAction } from '../../../domain/entities/audit-log';
 import { IAuditLogRepository } from '../../../domain/repositories/audit-log-repository';
-import { ISpecification } from '../../../domain/base/repository.interface';
-import { auditLogs, auditActionEnum } from '../schema/audit-logs';
+import { auditLogs } from '../schema/audit-logs';
 import { logger } from '../../monitoring/logging-service';
+import { db } from '../connection';
 
 // Drizzle model type
 type DrizzleAuditLog = typeof auditLogs.$inferSelect;
 
-export class AuditLogRepository
-  extends BaseDrizzleRepository<
-    AuditLog,
-    string,
-    DrizzleAuditLog,
-    typeof auditLogs
-  >
-  implements IAuditLogRepository
-{
-  constructor() {
-    super(auditLogs, 'AuditLog');
-  }
+export class AuditLogRepository implements IAuditLogRepository {
+  private readonly database = db;
+
+  constructor() {}
 
   protected toDomain(drizzleModel: DrizzleAuditLog): AuditLog {
-    return AuditLog.fromPersistence({
+    const props: any = {
       id: drizzleModel.id,
       entityType: drizzleModel.entityType,
       entityId: drizzleModel.entityId,
       action: drizzleModel.action as AuditAction,
-      userId: drizzleModel.userId || undefined,
-      userEmail: drizzleModel.userEmail || undefined,
-      ipAddress: drizzleModel.ipAddress || undefined,
-      userAgent: drizzleModel.userAgent || undefined,
-      oldValues: (drizzleModel.oldValues as Record<string, any>) || undefined,
-      newValues: (drizzleModel.newValues as Record<string, any>) || undefined,
-      changes: (drizzleModel.changes as Record<string, any>) || undefined,
       metadata: (drizzleModel.metadata as Record<string, any>) || {},
       createdAt: drizzleModel.createdAt,
-    });
+    };
+
+    if (drizzleModel.userId) {
+      props.userId = drizzleModel.userId;
+    }
+    if (drizzleModel.userEmail) {
+      props.userEmail = drizzleModel.userEmail;
+    }
+    if (drizzleModel.ipAddress) {
+      props.ipAddress = drizzleModel.ipAddress;
+    }
+    if (drizzleModel.userAgent) {
+      props.userAgent = drizzleModel.userAgent;
+    }
+    if (drizzleModel.oldValues) {
+      props.oldValues = drizzleModel.oldValues as Record<string, any>;
+    }
+    if (drizzleModel.newValues) {
+      props.newValues = drizzleModel.newValues as Record<string, any>;
+    }
+    if (drizzleModel.changes) {
+      props.changes = drizzleModel.changes as Record<string, any>;
+    }
+
+    return AuditLog.fromPersistence(props);
   }
 
   protected toDrizzle(entity: AuditLog): Partial<DrizzleAuditLog> {
@@ -58,20 +65,15 @@ export class AuditLogRepository
       entityType: entity.entityType,
       entityId: entity.entityId,
       action: entity.action,
-      userId: entity.userId,
-      userEmail: entity.userEmail,
-      ipAddress: entity.ipAddress,
-      userAgent: entity.userAgent,
-      oldValues: entity.oldValues,
-      newValues: entity.newValues,
-      changes: entity.changes,
-      metadata: entity.metadata,
+      userId: entity.userId || null,
+      userEmail: entity.userEmail || null,
+      ipAddress: entity.ipAddress || null,
+      userAgent: entity.userAgent || null,
+      oldValues: entity.oldValues || null,
+      newValues: entity.newValues || null,
+      changes: entity.changes || null,
+      metadata: entity.metadata || {},
     };
-  }
-
-  protected buildWhereClause(specification: ISpecification<AuditLog>): any {
-    // This would be implemented based on your specification pattern
-    return undefined;
   }
 
   async save(auditLog: AuditLog): Promise<void> {
@@ -79,9 +81,33 @@ export class AuditLogRepository
       const data = this.toDrizzle(auditLog);
       await this.database.insert(auditLogs).values(data as any);
     } catch (error) {
-      logger.error('Error saving audit log', {
-        auditLogId: auditLog.id,
-        error,
+      logger.error('Error saving audit log', error as Error, {
+        entityId: auditLog.id,
+        userId: '',
+        timestamp: new Date(),
+      });
+      throw error;
+    }
+  }
+
+  async findById(id: string): Promise<AuditLog | null> {
+    try {
+      const results = await this.database
+        .select()
+        .from(auditLogs)
+        .where(eq(auditLogs.id, id))
+        .limit(1);
+
+      if (results.length === 0) {
+        return null;
+      }
+
+      return this.toDomain(results[0] as DrizzleAuditLog);
+    } catch (error) {
+      logger.error('Error finding audit log by id', error as Error, {
+        entityId: id,
+        userId: '',
+        timestamp: new Date(),
       });
       throw error;
     }
@@ -103,9 +129,8 @@ export class AuditLogRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding audit logs by entity ID', {
+      logger.error('Error finding audit logs by entity ID', error as Error, {
         entityId,
-        error,
       });
       throw error;
     }
@@ -127,9 +152,8 @@ export class AuditLogRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding audit logs by entity type', {
+      logger.error('Error finding audit logs by entity type', error as Error, {
         entityType,
-        error,
       });
       throw error;
     }
@@ -151,7 +175,7 @@ export class AuditLogRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding audit logs by user ID', { userId, error });
+      logger.error('Error finding audit logs by user ID', error as Error, { userId });
       throw error;
     }
   }
@@ -172,7 +196,7 @@ export class AuditLogRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding audit logs by action', { action, error });
+      logger.error('Error finding audit logs by action', error as Error, { action });
       throw error;
     }
   }
@@ -199,10 +223,9 @@ export class AuditLogRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding audit logs by date range', {
+      logger.error('Error finding audit logs by date range', error as Error, {
         startDate,
         endDate,
-        error,
       });
       throw error;
     }
@@ -231,7 +254,7 @@ export class AuditLogRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding security events', { error });
+      logger.error('Error finding security events', error as Error);
       throw error;
     }
   }
@@ -256,11 +279,10 @@ export class AuditLogRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding audit logs by entity and action', {
+      logger.error('Error finding audit logs by entity and action', error as Error, {
         entityType,
         entityId,
         action,
-        error,
       });
       throw error;
     }
@@ -285,7 +307,8 @@ export class AuditLogRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding recent activity', { userId, error });
+      logger.error('Error finding recent activity', error as Error, 
+        userId ? { userId, entityId: '', timestamp: new Date() } : undefined);
       throw error;
     }
   }
@@ -308,10 +331,10 @@ export class AuditLogRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error getting audit trail', {
-        entityType,
-        entityId,
-        error,
+      logger.error('Error getting audit trail', error as Error, {
+        entityId: entityType,
+        userId: entityId, 
+        timestamp: new Date(),
       });
       throw error;
     }
@@ -418,11 +441,12 @@ export class AuditLogRepository
         suspiciousActivity: suspiciousActivityResult[0]?.count || 0,
       };
     } catch (error) {
-      logger.error('Error getting security summary', {
-        startDate,
-        endDate,
-        error,
-      });
+      logger.error('Error getting security summary', error as Error, 
+        startDate ? { 
+          entityId: startDate.toISOString(), 
+          userId: endDate?.toISOString() || '',
+          timestamp: new Date(),
+        } : undefined);
       throw error;
     }
   }
@@ -476,7 +500,7 @@ export class AuditLogRepository
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error searching audit logs', { query, error });
+      logger.error('Error searching audit logs', error as Error);
       throw error;
     }
   }
@@ -485,7 +509,11 @@ export class AuditLogRepository
     try {
       await this.database.delete(auditLogs).where(eq(auditLogs.id, id));
     } catch (error) {
-      logger.error('Error deleting audit log', { id, error });
+      logger.error('Error deleting audit log', error as Error, { 
+        entityId: id,
+        userId: '',
+        timestamp: new Date(),
+      });
       throw error;
     }
   }
@@ -499,9 +527,10 @@ export class AuditLogRepository
 
       return results.length;
     } catch (error) {
-      logger.error('Error deleting audit logs older than date', {
-        date,
-        error,
+      logger.error('Error deleting audit logs older than date', error as Error, {
+        entityId: date.toISOString(),
+        userId: '',
+        timestamp: new Date(),
       });
       throw error;
     }
@@ -516,9 +545,10 @@ export class AuditLogRepository
 
       return results.length;
     } catch (error) {
-      logger.error('Error deleting audit logs by entity ID', {
+      logger.error('Error deleting audit logs by entity ID', error as Error, {
         entityId,
-        error,
+        userId: '',
+        timestamp: new Date(),
       });
       throw error;
     }

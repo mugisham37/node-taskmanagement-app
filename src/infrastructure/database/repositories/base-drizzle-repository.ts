@@ -3,15 +3,16 @@
  * Comprehensive repository base class with advanced features migrated from older version
  */
 
-import { eq, and, or, desc, asc, count, sql, inArray } from 'drizzle-orm';
-import { PgDatabase } from 'drizzle-orm/pg-core';
+import { eq, desc, asc, count, sql, inArray } from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Entity } from '../../../domain/base/entity';
 import {
   IRepository,
   ISpecification,
   IPaginationOptions,
   IPaginatedResult,
-} from '../../../domain/base/repository.interface';
+  PaginatedResult,
+} from '../../../domain/base/repository.interface.js';
 import { db } from '../connection';
 import { logger } from '../../monitoring/logging-service';
 import { TransactionContext } from '../transaction-manager';
@@ -23,14 +24,14 @@ export abstract class BaseDrizzleRepository<
   TDrizzleTable,
 > implements IRepository<TEntity, TId>
 {
-  protected readonly database: PgDatabase<any>;
+  protected readonly database: NodePgDatabase<any>;
   protected readonly table: TDrizzleTable;
   protected readonly modelName: string;
 
   constructor(
     table: TDrizzleTable,
     modelName: string,
-    database: PgDatabase<any> = db
+    database: NodePgDatabase<any> = db as NodePgDatabase<any>
   ) {
     this.database = database;
     this.table = table;
@@ -59,7 +60,7 @@ export abstract class BaseDrizzleRepository<
 
       return this.toDomain(results[0] as TDrizzleModel);
     } catch (error) {
-      logger.error(`Error finding ${this.modelName} by id`, { id, error });
+      logger.error(`Error finding ${this.modelName} by id`, { id, error } as any);
       throw error;
     }
   }
@@ -71,23 +72,42 @@ export abstract class BaseDrizzleRepository<
         .from(this.table as any)
         .where(inArray((this.table as any).id, ids));
 
-      return results.map((result: TDrizzleModel) => this.toDomain(result));
+      return results.map((result: any) => this.toDomain(result as TDrizzleModel));
     } catch (error) {
-      logger.error(`Error finding ${this.modelName} by ids`, { ids, error });
+      logger.error(`Error finding ${this.modelName} by ids`, { 
+        ids: ids,
+        error: error 
+      } as any);
       throw error;
     }
   }
 
-  public async findAll(): Promise<TEntity[]> {
+  public async findAll(options?: IPaginationOptions): Promise<PaginatedResult<TEntity>> {
     try {
+      if (options) {
+        return this.findPaginated(undefined, options);
+      }
+
       const results = await this.database
         .select()
         .from(this.table as any)
         .orderBy(this.getDefaultOrderBy());
 
-      return results.map((result: TDrizzleModel) => this.toDomain(result));
+      const items = results.map((result: any) => this.toDomain(result as TDrizzleModel));
+      
+      return {
+        items,
+        totalCount: items.length,
+        page: 1,
+        limit: items.length,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      };
     } catch (error) {
-      logger.error(`Error finding all ${this.modelName}`, { error });
+      logger.error(`Error finding all ${this.modelName}`, { 
+        error: error 
+      } as any);
       throw error;
     }
   }
@@ -104,11 +124,11 @@ export abstract class BaseDrizzleRepository<
         .where(whereClause)
         .orderBy(this.getDefaultOrderBy());
 
-      return results.map((result: TDrizzleModel) => this.toDomain(result));
+      return results.map((result: any) => this.toDomain(result as TDrizzleModel));
     } catch (error) {
       logger.error(`Error finding ${this.modelName} with specification`, {
-        error,
-      });
+        error: error,
+      } as any);
       throw error;
     }
   }
@@ -132,8 +152,8 @@ export abstract class BaseDrizzleRepository<
       return this.toDomain(results[0] as TDrizzleModel);
     } catch (error) {
       logger.error(`Error finding one ${this.modelName} with specification`, {
-        error,
-      });
+        error: error,
+      } as any);
       throw error;
     }
   }
@@ -168,8 +188,8 @@ export abstract class BaseDrizzleRepository<
       ]);
 
       const totalCount = totalCountResult[0]?.count || 0;
-      const items = results.map((result: TDrizzleModel) =>
-        this.toDomain(result)
+      const items = results.map((result: any) =>
+        this.toDomain(result as TDrizzleModel)
       );
       const totalPages = Math.ceil(totalCount / limit);
 
@@ -184,9 +204,9 @@ export abstract class BaseDrizzleRepository<
       };
     } catch (error) {
       logger.error(`Error finding paginated ${this.modelName}`, {
-        pagination,
-        error,
-      });
+        pagination: pagination,
+        error: error,
+      } as any);
       throw error;
     }
   }
@@ -198,14 +218,14 @@ export abstract class BaseDrizzleRepository<
       const results = await this.database
         .insert(this.table as any)
         .values(data)
-        .returning();
+        .returning() as any[];
 
       return this.toDomain(results[0] as TDrizzleModel);
     } catch (error) {
       logger.error(`Error saving ${this.modelName}`, {
         entityId: entity.id,
-        error,
-      });
+        error: error,
+      } as any);
       throw error;
     }
   }
@@ -217,14 +237,14 @@ export abstract class BaseDrizzleRepository<
       const results = await this.database
         .insert(this.table as any)
         .values(data)
-        .returning();
+        .returning() as any[];
 
-      return results.map((result: TDrizzleModel) => this.toDomain(result));
+      return results.map((result: any) => this.toDomain(result as TDrizzleModel));
     } catch (error) {
       logger.error(`Error saving many ${this.modelName}`, {
         count: entities.length,
-        error,
-      });
+        error: error,
+      } as any);
       throw error;
     }
   }
@@ -237,7 +257,7 @@ export abstract class BaseDrizzleRepository<
         .update(this.table as any)
         .set(data)
         .where(eq((this.table as any).id, entity.id))
-        .returning();
+        .returning() as any[];
 
       if (results.length === 0) {
         throw new Error(`${this.modelName} with id ${entity.id} not found`);
@@ -247,8 +267,8 @@ export abstract class BaseDrizzleRepository<
     } catch (error) {
       logger.error(`Error updating ${this.modelName}`, {
         entityId: entity.id,
-        error,
-      });
+        error: error,
+      } as any);
       throw error;
     }
   }
@@ -265,7 +285,7 @@ export abstract class BaseDrizzleRepository<
             .update(this.table as any)
             .set(data)
             .where(eq((this.table as any).id, entity.id))
-            .returning();
+            .returning() as any[];
 
           if (updateResults.length > 0) {
             results.push(this.toDomain(updateResults[0] as TDrizzleModel));
@@ -277,8 +297,8 @@ export abstract class BaseDrizzleRepository<
     } catch (error) {
       logger.error(`Error updating many ${this.modelName}`, {
         count: entities.length,
-        error,
-      });
+        error: error,
+      } as any);
       throw error;
     }
   }
@@ -289,7 +309,10 @@ export abstract class BaseDrizzleRepository<
         .delete(this.table as any)
         .where(eq((this.table as any).id, id));
     } catch (error) {
-      logger.error(`Error deleting ${this.modelName}`, { id, error });
+      logger.error(`Error deleting ${this.modelName}`, { 
+        id: id, 
+        error: error 
+      } as any);
       throw error;
     }
   }
@@ -300,7 +323,10 @@ export abstract class BaseDrizzleRepository<
         .delete(this.table as any)
         .where(inArray((this.table as any).id, ids));
     } catch (error) {
-      logger.error(`Error deleting many ${this.modelName}`, { ids, error });
+      logger.error(`Error deleting many ${this.modelName}`, { 
+        ids: ids, 
+        error: error 
+      } as any);
       throw error;
     }
   }
@@ -318,7 +344,9 @@ export abstract class BaseDrizzleRepository<
 
       return results[0]?.count || 0;
     } catch (error) {
-      logger.error(`Error counting ${this.modelName}`, { error });
+      logger.error(`Error counting ${this.modelName}`, { 
+        error: error 
+      } as any);
       throw error;
     }
   }
@@ -334,9 +362,9 @@ export abstract class BaseDrizzleRepository<
       return results.length > 0;
     } catch (error) {
       logger.error(`Error checking existence of ${this.modelName}`, {
-        id,
-        error,
-      });
+        id: id,
+        error: error,
+      } as any);
       throw error;
     }
   }
@@ -357,7 +385,7 @@ export abstract class BaseDrizzleRepository<
     } catch (error) {
       logger.error(
         `Error checking existence of ${this.modelName} with specification`,
-        { error }
+        { error: error } as any
       );
       throw error;
     }
@@ -371,8 +399,8 @@ export abstract class BaseDrizzleRepository<
     } catch (error) {
       logger.error(`Error bulk inserting ${this.modelName}`, {
         count: entities.length,
-        error,
-      });
+        error: error,
+      } as any);
       throw error;
     }
   }
@@ -389,11 +417,13 @@ export abstract class BaseDrizzleRepository<
         .update(this.table as any)
         .set(data)
         .where(whereClause)
-        .returning({ id: (this.table as any).id });
+        .returning({ id: (this.table as any).id }) as any[];
 
       return results.length;
     } catch (error) {
-      logger.error(`Error bulk updating ${this.modelName}`, { error });
+      logger.error(`Error bulk updating ${this.modelName}`, { 
+        error: error 
+      } as any);
       throw error;
     }
   }
@@ -407,11 +437,13 @@ export abstract class BaseDrizzleRepository<
       const results = await this.database
         .delete(this.table as any)
         .where(whereClause)
-        .returning({ id: (this.table as any).id });
+        .returning({ id: (this.table as any).id }) as any[];
 
       return results.length;
     } catch (error) {
-      logger.error(`Error bulk deleting ${this.modelName}`, { error });
+      logger.error(`Error bulk deleting ${this.modelName}`, { 
+        error: error 
+      } as any);
       throw error;
     }
   }
@@ -440,41 +472,41 @@ export abstract class BaseDrizzleRepository<
   // Transaction context support
   protected getDatabaseFromContext(
     context?: TransactionContext
-  ): PgDatabase<any> {
-    return context?.database || this.database;
+  ): NodePgDatabase<any> {
+    return (context as any)?.database || this.database;
   }
 
   // Advanced query methods
   public async findWithRawQuery(
-    query: string,
-    params: any[] = []
+    query: string
   ): Promise<TEntity[]> {
     try {
-      const results = await this.database.execute(sql.raw(query, params));
-      return results.map((result: any) =>
+      const results = await this.database.execute(sql`${sql.raw(query)}`);
+      const rows = Array.isArray(results) ? results : (results as any).rows || [];
+      return rows.map((result: any) =>
         this.toDomain(result as TDrizzleModel)
       );
     } catch (error) {
       logger.error(`Error executing raw query for ${this.modelName}`, {
-        query,
-        error,
-      });
+        query: query,
+        error: error,
+      } as any);
       throw error;
     }
   }
 
   public async countWithRawQuery(
-    query: string,
-    params: any[] = []
+    query: string
   ): Promise<number> {
     try {
-      const results = await this.database.execute(sql.raw(query, params));
-      return results[0]?.count || 0;
+      const results = await this.database.execute(sql`${sql.raw(query)}`);
+      const rows = Array.isArray(results) ? results : (results as any).rows || [];
+      return rows[0]?.count || 0;
     } catch (error) {
       logger.error(`Error executing raw count query for ${this.modelName}`, {
-        query,
-        error,
-      });
+        query: query,
+        error: error,
+      } as any);
       throw error;
     }
   }
@@ -487,9 +519,12 @@ export abstract class BaseDrizzleRepository<
         .set({ deletedAt: new Date() } as any)
         .where(eq((this.table as any).id, id));
 
-      logger.info(`${this.modelName} soft deleted`, { id });
+      logger.info(`${this.modelName} soft deleted`, { id } as any);
     } catch (error) {
-      logger.error(`Error soft deleting ${this.modelName}`, { id, error });
+      logger.error(`Error soft deleting ${this.modelName}`, { 
+        id: id, 
+        error: error 
+      } as any);
       throw error;
     }
   }
@@ -501,9 +536,12 @@ export abstract class BaseDrizzleRepository<
         .set({ deletedAt: null } as any)
         .where(eq((this.table as any).id, id));
 
-      logger.info(`${this.modelName} restored`, { id });
+      logger.info(`${this.modelName} restored`, { id } as any);
     } catch (error) {
-      logger.error(`Error restoring ${this.modelName}`, { id, error });
+      logger.error(`Error restoring ${this.modelName}`, { 
+        id: id, 
+        error: error 
+      } as any);
       throw error;
     }
   }
@@ -520,11 +558,15 @@ export abstract class BaseDrizzleRepository<
       logger.info(`${this.modelName} ${action}`, {
         entityId,
         changes,
-        userId,
+        userId: userId || undefined,
         timestamp: new Date(),
-      });
+      } as any);
     } catch (error) {
-      logger.error('Error recording audit log', { action, entityId, error });
+      logger.error('Error recording audit log', { 
+        action: action, 
+        entityId: entityId, 
+        error: error 
+      } as any);
       // Don't throw - audit logging shouldn't break business operations
     }
   }

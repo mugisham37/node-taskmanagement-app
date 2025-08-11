@@ -3,7 +3,6 @@
  * Comprehensive query optimization and performance monitoring for Drizzle ORM
  */
 
-import { PgDatabase } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { db } from './connection';
 import { logger } from '../monitoring/logging-service';
@@ -43,14 +42,14 @@ export class DrizzleQueryOptimizer {
   private queryMetrics: Map<string, QueryMetrics[]> = new Map();
   private slowQueryThreshold: number = 1000; // 1 second
 
-  constructor(private database: PgDatabase<any> = db) {}
+  constructor(private database: any = db) {}
 
   /**
    * Analyze query execution plan
    */
   async analyzeQueryPlan(
     query: string,
-    parameters: any[] = []
+    _parameters: any[] = []
   ): Promise<QueryPlan> {
     const startTime = Date.now();
 
@@ -58,7 +57,7 @@ export class DrizzleQueryOptimizer {
       // Get query execution plan
       const explainQuery = `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${query}`;
       const explainResult = await this.database.execute(
-        sql.raw(explainQuery, parameters)
+        sql.raw(explainQuery)
       );
 
       const executionTime = Date.now() - startTime;
@@ -73,7 +72,7 @@ export class DrizzleQueryOptimizer {
         buffers: plan.Plan?.['Buffers'],
       };
     } catch (error) {
-      logger.error('Query plan analysis failed', { query, error });
+      logger.error('Query plan analysis failed', error as Error, { query });
       throw error;
     }
   }
@@ -114,7 +113,8 @@ export class DrizzleQueryOptimizer {
     });
 
     // Check for N+1 query patterns
-    if (query.includes('IN (') && query.match(/IN \([^)]+\)/g)?.length > 1) {
+    const inMatches = query.match(/IN \([^)]+\)/g);
+    if (query.includes('IN (') && inMatches && inMatches.length > 1) {
       recommendations.push(
         'Consider using JOINs instead of multiple IN clauses'
       );
@@ -184,7 +184,7 @@ export class DrizzleQueryOptimizer {
         tableStats: tableStats as any,
       };
     } catch (error) {
-      logger.error('Table index analysis failed', { tableName, error });
+      logger.error('Table index analysis failed', error as Error, { tableName });
       throw error;
     }
   }
@@ -226,11 +226,10 @@ export class DrizzleQueryOptimizer {
     } catch (error) {
       const executionTime = Date.now() - startTime;
 
-      logger.error('Query execution failed', {
+      logger.error('Query execution failed', error as Error, {
         queryId,
         executionTime,
         query: query?.substring(0, 200),
-        error,
       });
 
       throw error;
@@ -428,7 +427,7 @@ export class DrizzleQueryOptimizer {
         cacheHitRatio,
       };
     } catch (error) {
-      logger.error('Failed to get database metrics', { error });
+      logger.error('Failed to get database metrics', error as Error);
       throw error;
     }
   }
@@ -445,7 +444,7 @@ export class DrizzleQueryOptimizer {
         await this.database.execute(sql.raw(indexQuery));
         logger.info(`Successfully created index for ${tableName}`);
       } catch (error) {
-        logger.error(`Failed to create index: ${indexQuery}`, { error });
+        logger.error(`Failed to create index: ${indexQuery}`, error as Error);
       }
     }
   }
@@ -463,7 +462,7 @@ export class DrizzleQueryOptimizer {
         logger.info('Optimized all tables');
       }
     } catch (error) {
-      logger.error('Table optimization failed', { tableName, error });
+      logger.error('Table optimization failed', error as Error, { tableName });
       throw error;
     }
   }

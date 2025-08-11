@@ -1,6 +1,9 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool, PoolClient } from 'pg';
+import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
 import * as schema from './schema';
+
+export type DatabaseSchema = typeof schema;
+export type Database = NodePgDatabase<DatabaseSchema>;
 
 export interface DatabaseConfig {
   connectionString: string;
@@ -12,7 +15,7 @@ export interface DatabaseConfig {
 
 export class DatabaseConnection {
   private static instance: DatabaseConnection;
-  private _db: ReturnType<typeof drizzle> | null = null;
+  private _db: Database | null = null;
   private _pool: Pool | null = null;
   private config: DatabaseConfig;
 
@@ -143,3 +146,6 @@ export function createDatabaseConnection(
 export function getDatabase() {
   return DatabaseConnection.getInstance().db;
 }
+
+// Export db instance for direct usage (compatibility)
+export const db = getDatabase();

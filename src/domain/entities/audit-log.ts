@@ -1,4 +1,4 @@
-import { BaseEntity } from './base-entity';
+import { Entity } from '../base/entity';
 
 export type AuditAction =
   | 'CREATE'
@@ -31,10 +31,24 @@ export interface AuditLogProps {
   createdAt: Date;
 }
 
-export class AuditLog extends BaseEntity<AuditLogProps> {
+export class AuditLog implements Entity<string> {
+  private props: AuditLogProps;
+
   private constructor(props: AuditLogProps) {
-    super(props.id, props.createdAt, props.createdAt);
     this.props = props;
+  }
+
+  // Entity interface implementation
+  get id(): string {
+    return this.props.id;
+  }
+
+  get createdAt(): Date {
+    return this.props.createdAt;
+  }
+
+  get updatedAt(): Date {
+    return this.props.createdAt; // AuditLog is immutable, so updatedAt = createdAt
   }
 
   static create(props: Omit<AuditLogProps, 'id' | 'createdAt'>): AuditLog {
@@ -127,7 +141,7 @@ export class AuditLog extends BaseEntity<AuditLogProps> {
 
   // Business methods
   hasChanges(): boolean {
-    return this.props.changes && Object.keys(this.props.changes).length > 0;
+    return !!(this.props.changes && Object.keys(this.props.changes).length > 0);
   }
 
   isUserAction(): boolean {

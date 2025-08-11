@@ -1,7 +1,3 @@
-import { DatabaseConnection } from './connection';
-import { BackupRecoveryManager } from './backup-recovery';
-import { AutomatedBackupService } from './automated-backup-service';
-import { PointInTimeRecoveryService } from './point-in-time-recovery';
 import { LoggingService } from '../monitoring/logging-service';
 import { MetricsService } from '../monitoring/metrics-service';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
@@ -110,8 +106,8 @@ export interface DRStatus {
     avgLag: number;
     lastSync: Date;
   };
-  lastFailoverTest?: Date;
-  nextFailoverTest?: Date;
+  lastFailoverTest?: Date | undefined;
+  nextFailoverTest?: Date | undefined;
   issues: string[];
   recommendations: string[];
 }
@@ -120,14 +116,12 @@ export class DisasterRecoveryService {
   private sites: Map<string, SiteConfig> = new Map();
   private failoverPlans: Map<string, FailoverPlan> = new Map();
   private eventHistory: DisasterEvent[] = [];
-  private healthCheckInterval?: NodeJS.Timeout;
-  private currentEvent?: DisasterEvent;
+  private currentEvent?: DisasterEvent | undefined;
+  private _healthCheckInterval?: NodeJS.Timeout | undefined;
 
   constructor(
     private readonly config: DisasterRecoveryConfig,
-    private readonly primaryConnection: DatabaseConnection,
-    private readonly backupService: AutomatedBackupService,
-    private readonly pitrService: PointInTimeRecoveryService,
+
     private readonly loggingService: LoggingService,
     private readonly metricsService: MetricsService
   ) {
@@ -509,6 +503,16 @@ export class DisasterRecoveryService {
     return Array.from(this.failoverPlans.values());
   }
 
+  /**
+   * Cleanup resources and stop monitoring
+   */
+  cleanup(): void {
+    if (this._healthCheckInterval) {
+      clearInterval(this._healthCheckInterval);
+      this._healthCheckInterval = undefined;
+    }
+  }
+
   // Private helper methods
 
   private async createDefaultFailoverPlans(): Promise<void> {
@@ -587,7 +591,7 @@ export class DisasterRecoveryService {
   }
 
   private startHealthMonitoring(): void {
-    this.healthCheckInterval = setInterval(async () => {
+    this._healthCheckInterval = setInterval(async () => {
       try {
         await this.performHealthChecks();
       } catch (error) {
@@ -624,8 +628,9 @@ export class DisasterRecoveryService {
     }
   }
 
-  private async checkSiteHealth(site: SiteConfig): Promise<boolean> {
+  private async checkSiteHealth(_site: SiteConfig): Promise<boolean> {
     // Mock implementation - would actually check database connectivity
+    // In a real implementation, this would use the site parameter to check connectivity
     return Math.random() > 0.1; // 90% healthy
   }
 
@@ -651,11 +656,13 @@ export class DisasterRecoveryService {
 
     if (secondarySites.length > 0) {
       const targetSite = secondarySites[0];
-      await this.executeFailover(
-        targetSite.id,
-        undefined,
-        'Automatic failover due to primary failure'
-      );
+      if (targetSite) {
+        await this.executeFailover(
+          targetSite.id,
+          undefined,
+          'Automatic failover due to primary failure'
+        );
+      }
     }
   }
 
@@ -750,9 +757,6 @@ export class DisasterRecoveryService {
  * Create disaster recovery service
  */
 export function createDisasterRecoveryService(
-  primaryConnection: DatabaseConnection,
-  backupService: AutomatedBackupService,
-  pitrService: PointInTimeRecoveryService,
   loggingService: LoggingService,
   metricsService: MetricsService,
   config?: Partial<DisasterRecoveryConfig>
@@ -795,9 +799,6 @@ export function createDisasterRecoveryService(
 
   return new DisasterRecoveryService(
     defaultConfig,
-    primaryConnection,
-    backupService,
-    pitrService,
     loggingService,
     metricsService
   );

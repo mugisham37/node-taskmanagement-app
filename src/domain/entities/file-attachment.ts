@@ -1,4 +1,4 @@
-import { BaseEntity } from './base-entity';
+import { BaseEntity } from '../base/entity';
 
 export enum FileType {
   IMAGE = 'image',
@@ -27,21 +27,23 @@ export interface FileAttachmentProps {
   size: number;
   type: FileType;
   status: FileStatus;
-  url?: string;
-  thumbnailUrl?: string;
+  url: string | undefined;
+  thumbnailUrl: string | undefined;
   checksum: string;
   uploadedBy: string;
-  workspaceId?: string;
-  projectId?: string;
-  taskId?: string;
-  commentId?: string;
+  workspaceId: string | undefined;
+  projectId: string | undefined;
+  taskId: string | undefined;
+  commentId: string | undefined;
   metadata: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
-  deletedAt?: Date;
+  deletedAt: Date | undefined;
 }
 
-export class FileAttachment extends BaseEntity<FileAttachmentProps> {
+export class FileAttachment extends BaseEntity<string> {
+  private props: FileAttachmentProps;
+
   constructor(props: FileAttachmentProps) {
     super(props.id, props.createdAt, props.updatedAt);
     this.props = props;
@@ -161,7 +163,7 @@ export class FileAttachment extends BaseEntity<FileAttachmentProps> {
 
   public getFileExtension(): string {
     const parts = this.props.originalName.split('.');
-    return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : '';
+    return parts.length > 1 ? (parts[parts.length - 1]?.toLowerCase() || '') : '';
   }
 
   public updateMetadata(metadata: Record<string, any>): void {
@@ -181,7 +183,7 @@ export class FileAttachment extends BaseEntity<FileAttachmentProps> {
     }
 
     this.props.status = FileStatus.READY;
-    this.props.deletedAt = undefined;
+    delete (this.props as any).deletedAt;
     this.props.updatedAt = new Date();
   }
 

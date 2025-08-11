@@ -1,15 +1,11 @@
 import {
   eq,
   and,
-  or,
   gte,
   lte,
   desc,
-  asc,
   isNull,
   sql,
-  inArray,
-  count,
 } from 'drizzle-orm';
 import {
   FileAttachment,
@@ -106,14 +102,14 @@ export class FileAttachmentRepository
     };
   }
 
-  protected buildWhereClause(specification: any): any {
+  protected buildWhereClause(_specification: any): any {
     // Implementation for specifications if needed
     return undefined;
   }
 
   // Override save method to match interface
-  async save(entity: FileAttachment): Promise<void> {
-    await super.save(entity);
+  override async save(entity: FileAttachment): Promise<FileAttachment> {
+    return await super.save(entity);
   }
 
   async findByFilename(filename: string): Promise<FileAttachment | null> {
@@ -130,9 +126,8 @@ export class FileAttachmentRepository
 
       return this.toDomain(results[0] as FileAttachmentDrizzleModel);
     } catch (error) {
-      logger.error('Error finding file attachment by filename', {
+      logger.error('Error finding file attachment by filename', error as Error, {
         filename,
-        error,
       });
       throw error;
     }

@@ -2,7 +2,7 @@ import { DatabaseConnection } from './connection';
 
 export interface DatabaseHealthStatus {
   status: 'healthy' | 'unhealthy' | 'degraded';
-  latency?: number;
+  latency?: number | undefined;
   connections?: {
     total: number;
     active: number;
@@ -83,7 +83,7 @@ export class DatabaseHealthChecker {
       const db = this.connection.db;
 
       // Check if we can perform basic operations on each table
-      const tableChecks = await Promise.all([
+      await Promise.all([
         db.select().from(schema.users).limit(1),
         db.select().from(schema.workspaces).limit(1),
         db.select().from(schema.projects).limit(1),

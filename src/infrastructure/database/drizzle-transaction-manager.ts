@@ -3,14 +3,13 @@
  * Comprehensive transaction management with advanced features migrated from older version
  */
 
-import { PgDatabase } from 'drizzle-orm/pg-core';
 import { db } from './connection';
 import { logger } from '../monitoring/logging-service';
-import { DomainEvent } from '../../domain/base/domain-event';
+import { DomainEvent } from '../../domain/events/domain-event';
 
 export interface TransactionContext {
   id: string;
-  database: PgDatabase<any>;
+  database: any; // Using any for transaction compatibility
   startTime: Date;
   operations: TransactionOperation[];
   events: DomainEvent[];
@@ -54,7 +53,7 @@ export class DrizzleTransactionManager {
     isolationLevel: 'read committed',
   };
 
-  constructor(private readonly database: PgDatabase<any> = db) {}
+  constructor(private readonly database: any = db) {}
 
   /**
    * Execute operation within a transaction with comprehensive error handling
@@ -75,7 +74,7 @@ export class DrizzleTransactionManager {
     for (let attempt = 1; attempt <= finalOptions.retryAttempts; attempt++) {
       try {
         const result = await this.database.transaction(
-          async tx => {
+          async (tx: any) => {
             const context: TransactionContext = {
               id: transactionId,
               database: tx,
@@ -185,9 +184,12 @@ export class DrizzleTransactionManager {
       const results: T[] = [];
 
       for (let i = 0; i < operations.length; i++) {
+        const operation = operations[i];
+        if (!operation) continue;
+        
         try {
           const operationStart = Date.now();
-          const result = await operations[i](context);
+          const result = await operation(context);
           const operationDuration = Date.now() - operationStart;
 
           results.push(result);
@@ -201,10 +203,9 @@ export class DrizzleTransactionManager {
             duration: operationDuration,
           });
         } catch (error) {
-          logger.error('Batch operation failed', {
+          logger.error('Batch operation failed', error as Error, {
             transactionId: context.id,
             operationIndex: i,
-            error: error instanceof Error ? error.message : String(error),
           });
           throw error;
         }
@@ -233,6 +234,7 @@ export class DrizzleTransactionManager {
         // Execute all operations
         for (let i = 0; i < operations.length; i++) {
           const operation = operations[i];
+          if (!operation) continue;
 
           try {
             const operationStart = Date.now();
@@ -251,10 +253,9 @@ export class DrizzleTransactionManager {
               duration: operationDuration,
             });
           } catch (error) {
-            logger.error('Saga operation failed, starting compensation', {
+            logger.error('Saga operation failed, starting compensation', error as Error, {
               transactionId: context.id,
               failedOperationIndex: i,
-              error: error instanceof Error ? error.message : String(error),
             });
 
             // Compensate in reverse order
@@ -269,9 +270,7 @@ export class DrizzleTransactionManager {
         return results;
       }, options);
     } catch (error) {
-      logger.error('Saga transaction failed', {
-        error: error instanceof Error ? error.message : String(error),
-      });
+      logger.error('Saga transaction failed', error as Error);
       throw error;
     }
   }
@@ -402,13 +401,9 @@ export class DrizzleTransactionManager {
           operation: operation.constructor.name,
         });
       } catch (compensationError) {
-        logger.error('Compensation failed', {
+        logger.error('Compensation failed', compensationError as Error, {
           transactionId: context.id,
           operation: operation.constructor.name,
-          error:
-            compensationError instanceof Error
-              ? compensationError.message
-              : String(compensationError),
         });
         // Continue with other compensations even if one fails
       }
@@ -457,7 +452,9 @@ export class DrizzleTransactionManager {
       const enhancedError = new Error(
         `Transaction failed: ${error.message} (Transaction ID: ${transactionId}, Attempt: ${attempt})`
       );
-      enhancedError.stack = error.stack;
+      if (error.stack !== undefined) {
+        enhancedError.stack = error.stack;
+      }
       enhancedError.cause = error;
       return enhancedError;
     }
@@ -483,8 +480,8 @@ export class DrizzleTransactionManager {
  */
 export function Transactional(options: TransactionOptions = {}) {
   return function (
-    target: any,
-    propertyKey: string,
+    _target: any,
+    _propertyKey: string,
     descriptor: PropertyDescriptor
   ) {
     const originalMethod = descriptor.value;
