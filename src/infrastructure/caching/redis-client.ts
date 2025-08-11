@@ -9,7 +9,6 @@ export interface RedisConfig {
   maxRetriesPerRequest?: number;
   retryDelayOnFailover?: number;
   enableReadyCheck?: boolean;
-  maxRetriesPerRequest?: number;
   lazyConnect?: boolean;
   keepAlive?: number;
   family?: number;
@@ -18,23 +17,20 @@ export interface RedisConfig {
 
 export class RedisClient {
   private client: Redis;
-  private isConnected: boolean = false;
+  private connected: boolean = false;
 
   constructor(config: RedisConfig) {
     const redisOptions: RedisOptions = {
       host: config.host,
       port: config.port,
-      password: config.password,
+      ...(config.password && { password: config.password }),
       db: config.db || 0,
       maxRetriesPerRequest: config.maxRetriesPerRequest || 3,
-      retryDelayOnFailover: config.retryDelayOnFailover || 100,
       enableReadyCheck: config.enableReadyCheck ?? true,
       lazyConnect: config.lazyConnect ?? true,
       keepAlive: config.keepAlive || 30000,
       family: config.family || 4,
       keyPrefix: config.keyPrefix || 'task-mgmt:',
-      // Connection pool settings
-      maxLoadingTimeout: 5000,
       // Retry strategy
       retryStrategy: (times: number) => {
         const delay = Math.min(times * 50, 2000);
@@ -54,7 +50,7 @@ export class RedisClient {
   private setupEventHandlers(): void {
     this.client.on('connect', () => {
       console.log('Redis client connected');
-      this.isConnected = true;
+      this.connected = true;
     });
 
     this.client.on('ready', () => {
@@ -63,12 +59,12 @@ export class RedisClient {
 
     this.client.on('error', (error: Error) => {
       console.error('Redis client error:', error);
-      this.isConnected = false;
+      this.connected = false;
     });
 
     this.client.on('close', () => {
       console.log('Redis client connection closed');
-      this.isConnected = false;
+      this.connected = false;
     });
 
     this.client.on('reconnecting', () => {
@@ -77,14 +73,14 @@ export class RedisClient {
 
     this.client.on('end', () => {
       console.log('Redis client connection ended');
-      this.isConnected = false;
+      this.connected = false;
     });
   }
 
   async connect(): Promise<void> {
     try {
       await this.client.connect();
-      this.isConnected = true;
+      this.connected = true;
     } catch (error) {
       throw new InfrastructureError(
         `Failed to connect to Redis: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -95,7 +91,7 @@ export class RedisClient {
   async disconnect(): Promise<void> {
     try {
       await this.client.quit();
-      this.isConnected = false;
+      this.connected = false;
     } catch (error) {
       throw new InfrastructureError(
         `Failed to disconnect from Redis: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -104,14 +100,18 @@ export class RedisClient {
   }
 
   getClient(): Redis {
-    if (!this.isConnected) {
+    if (!this.connected) {
       throw new InfrastructureError('Redis client is not connected');
     }
     return this.client;
   }
 
+  isConnected(): boolean {
+    return this.connected;
+  }
+
   isHealthy(): boolean {
-    return this.isConnected && this.client.status === 'ready';
+    return this.connected && this.client.status === 'ready';
   }
 
   async ping(): Promise<string> {

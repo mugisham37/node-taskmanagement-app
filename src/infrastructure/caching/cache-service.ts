@@ -183,6 +183,26 @@ export class CacheService {
     this.startCleanupInterval();
   }
 
+  private logError(message: string, context: Record<string, any>, error?: any): void {
+    const logContext = {
+      ...context,
+      ...(error && {
+        errorName: error.name,
+        errorMessage: error.message,
+        errorStack: error.stack,
+      }),
+    };
+    logger.error(message, undefined, logContext);
+  }
+
+  private logInfo(message: string, context: Record<string, any>): void {
+    logger.info(message, context);
+  }
+
+  private logDebug(message: string, context: Record<string, any>): void {
+    logger.debug(message, context);
+  }
+
   /**
    * Get value from cache (L1 memory first, then L2 Redis)
    */
@@ -193,7 +213,7 @@ export class CacheService {
       // Try L1 cache first (memory)
       const memoryValue = await this.memoryCache.get<T>(fullKey);
       if (memoryValue !== null) {
-        logger.debug('Cache hit (L1)', { key: fullKey });
+        this.logDebug('Cache hit (L1)', { key: fullKey });
         return memoryValue;
       }
 
@@ -202,11 +222,11 @@ export class CacheService {
       const value = await client.get(fullKey);
 
       if (value === null) {
-        logger.debug('Cache miss', { key: fullKey });
+        this.logDebug('Cache miss', { key: fullKey });
         return null;
       }
 
-      logger.debug('Cache hit (L2)', { key: fullKey });
+      this.logDebug('Cache hit (L2)', { key: fullKey });
       const parsedValue = JSON.parse(value) as T;
 
       // Populate L1 cache with L2 value
@@ -218,7 +238,7 @@ export class CacheService {
 
       return parsedValue;
     } catch (error) {
-      logger.error('Cache get error', { key: fullKey, error });
+      this.logError('Cache get error', { key: fullKey }, error);
       return null;
     }
   }
@@ -246,7 +266,9 @@ export class CacheService {
       // Set in L2 cache (Redis)
       const client = this.redisClient.getClient();
       const serializedValue = JSON.stringify(value);
-      promises.push(client.setex(fullKey, ttl, serializedValue));
+      promises.push(
+        client.setex(fullKey, ttl, serializedValue).then(() => {})
+      );
 
       await Promise.all(promises);
 
@@ -255,9 +277,9 @@ export class CacheService {
         await this.addKeyToTags(key, options.tags, ttl);
       }
 
-      logger.debug('Cache set', { key: fullKey, ttl });
+      this.logDebug('Cache set', { key: fullKey, ttl });
     } catch (error) {
-      logger.error('Cache set error', { key: fullKey, ttl, error });
+      this.logError('Cache set error', { key: fullKey, ttl }, error);
       // Still try to set in memory cache
       await this.memoryCache.set(fullKey, value, memoryTTL);
     }
@@ -275,12 +297,12 @@ export class CacheService {
       promises.push(this.memoryCache.delete(fullKey));
 
       const client = this.redisClient.getClient();
-      promises.push(client.del(fullKey));
+      promises.push(client.del(fullKey).then(() => {}));
 
       await Promise.all(promises);
-      logger.debug('Cache delete', { key: fullKey });
+      this.logDebug('Cache delete', { key: fullKey });
     } catch (error) {
-      logger.error('Cache delete error', { key: fullKey, error });
+      this.logError('Cache delete error', { key: fullKey }, error);
     }
   }
 
@@ -523,11 +545,11 @@ export class CacheService {
 
           // Parse memory usage
           const memoryMatch = info.match(/used_memory_human:(.+)/);
-          const memoryUsage = memoryMatch ? memoryMatch[1].trim() : 'Unknown';
+          const memoryUsage = memoryMatch?.[1]?.trim() || 'Unknown';
 
           // Parse total keys
           const keysMatch = keyspace.match(/keys=(\d+)/);
-          const totalKeys = keysMatch ? parseInt(keysMatch[1], 10) : 0;
+          const totalKeys = keysMatch?.[1] ? parseInt(keysMatch[1], 10) : 0;
 
           stats.redis = {
             connected: true,
@@ -537,13 +559,13 @@ export class CacheService {
             totalCommands: 0,
           };
         } catch (error) {
-          logger.error('Error getting Redis stats', { error });
+          this.logError('Error getting Redis stats', {}, error);
         }
       }
 
       return stats;
     } catch (error) {
-      logger.error('Error getting cache stats', { error });
+      this.logError('Error getting cache stats', {}, error);
       return {
         redisConnected: false,
         memoryCache: {
@@ -583,17 +605,16 @@ export class CacheService {
       const results = await Promise.all(deletePromises);
       const totalDeleted = results.reduce((sum, count) => sum + count, 0);
 
-      logger.info('Cache invalidated for entity', {
+      this.logInfo('Cache invalidated for entity', {
         entityType,
         entityId,
         totalDeleted,
       });
     } catch (error) {
-      logger.error('Cache invalidation error for entity', {
+      this.logError('Cache invalidation error for entity', {
         entityType,
         entityId,
-        error,
-      });
+      }, error);
     }
   }
 
@@ -620,9 +641,9 @@ export class CacheService {
       const results = await Promise.all(deletePromises);
       const totalDeleted = results.reduce((sum, count) => sum + count, 0);
 
-      logger.info('Cache invalidated for user', { userId, totalDeleted });
+      this.logInfo('Cache invalidated for user', { userId, totalDeleted });
     } catch (error) {
-      logger.error('Cache invalidation error for user', { userId, error });
+      this.logError('Cache invalidation error for user', { userId }, error);
     }
   }
 
@@ -648,15 +669,14 @@ export class CacheService {
       const results = await Promise.all(deletePromises);
       const totalDeleted = results.reduce((sum, count) => sum + count, 0);
 
-      logger.info('Cache invalidated for workspace', {
+      this.logInfo('Cache invalidated for workspace', {
         workspaceId,
         totalDeleted,
       });
     } catch (error) {
-      logger.error('Cache invalidation error for workspace', {
+      this.logError('Cache invalidation error for workspace', {
         workspaceId,
-        error,
-      });
+      }, error);
     }
   }
 
@@ -679,7 +699,7 @@ export class CacheService {
       l1Healthy = value === 'test';
       await this.memoryCache.delete(testKey);
     } catch (error) {
-      logger.error('L1 cache health check failed', { error });
+      this.logError('L1 cache health check failed', {}, error);
       l1Healthy = false;
     }
 
@@ -691,7 +711,7 @@ export class CacheService {
         l2Healthy = result === 'PONG';
       }
     } catch (error) {
-      logger.error('L2 cache health check failed', { error });
+      this.logError('L2 cache health check failed', {}, error);
       l2Healthy = false;
     }
 
@@ -711,12 +731,12 @@ export class CacheService {
     options: CacheOptions = {}
   ): Promise<void> {
     try {
-      logger.debug('Warming cache', { key });
+      this.logDebug('Warming cache', { key });
       const value = await factory();
       await this.set(key, value, options);
-      logger.debug('Cache warmed successfully', { key });
+      this.logDebug('Cache warmed successfully', { key });
     } catch (error) {
-      logger.error('Cache warming error', { key, error });
+      this.logError('Cache warming error', { key }, error);
     }
   }
 
@@ -727,7 +747,7 @@ export class CacheService {
         try {
           this.memoryCache.cleanup();
         } catch (error) {
-          logger.error('Memory cache cleanup error', { error });
+          this.logError('Memory cache cleanup error', {}, error);
         }
       },
       5 * 60 * 1000
@@ -744,9 +764,9 @@ export class CacheService {
       }
 
       await this.memoryCache.clear();
-      logger.info('Cache service shutdown complete');
+      this.logInfo('Cache service shutdown complete', {});
     } catch (error) {
-      logger.error('Error during cache service shutdown', { error });
+      this.logError('Error during cache service shutdown', {}, error);
     }
   }
 

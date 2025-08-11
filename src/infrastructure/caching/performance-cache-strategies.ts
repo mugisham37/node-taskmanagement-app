@@ -20,7 +20,6 @@ export interface CachePerformanceMetrics {
 
 export class PerformanceCacheStrategies {
   private strategies: Map<string, CacheStrategy> = new Map();
-  private metrics: Map<string, number> = new Map();
 
   constructor(private readonly cacheService: CacheService) {
     this.initializeStrategies();
@@ -283,7 +282,7 @@ export class PerformanceCacheStrategies {
 
     const aggregatedData = [
       {
-        key: CacheKeys.dailyStats(today),
+        key: today ? CacheKeys.dailyStats(today) : '',
         data: {
           date: today,
           tasksCreated: 45,
@@ -337,7 +336,8 @@ export class PerformanceCacheStrategies {
       missRate: 0.15, // 15% miss rate
       totalRequests: 10000,
       averageResponseTime: 2.5, // milliseconds
-      memoryUsage: parseInt(stats.memoryUsage.replace(/[^\d]/g, '')) || 0,
+      memoryUsage: stats.redis?.memoryUsage ? 
+        parseInt(stats.redis.memoryUsage.replace(/[^\d]/g, ''), 10) || 0 : 0,
       evictionCount: 150,
     };
   }

@@ -1,6 +1,5 @@
 import { CacheService } from './cache-service';
 import { CacheKeys, CacheTags, CacheTTL } from './cache-keys';
-import { InfrastructureError } from '../../shared/errors/infrastructure-error';
 
 export interface WarmupStrategy {
   name: string;
@@ -177,11 +176,13 @@ export class CacheWarmer {
           const thisMonth = new Date().toISOString().substring(0, 7);
 
           // Warm up daily stats
-          await this.cacheService.set(
-            CacheKeys.dailyStats(today),
-            await this.getDailyStats(today),
-            { ttl: CacheTTL.STATS, tags: [CacheTags.STATS] }
-          );
+          if (today) {
+            await this.cacheService.set(
+              CacheKeys.dailyStats(today),
+              await this.getDailyStats(today),
+              { ttl: CacheTTL.STATS, tags: [CacheTags.STATS] }
+            );
+          }
 
           // Warm up weekly stats
           await this.cacheService.set(
@@ -285,37 +286,37 @@ export class CacheWarmer {
     return [];
   }
 
-  private async getUserProfile(userId: string): Promise<any> {
+  private async getUserProfile(_userId: string): Promise<any> {
     // This would fetch user profile from database
     return null;
   }
 
-  private async getUserProjects(userId: string): Promise<any[]> {
+  private async getUserProjects(_userId: string): Promise<any[]> {
     // This would fetch user's projects from database
     return [];
   }
 
-  private async getUserTasks(userId: string): Promise<any[]> {
+  private async getUserTasks(_userId: string): Promise<any[]> {
     // This would fetch user's tasks from database
     return [];
   }
 
-  private async getProjectDetails(projectId: string): Promise<any> {
+  private async getProjectDetails(_projectId: string): Promise<any> {
     // This would fetch project details from database
     return null;
   }
 
-  private async getProjectMembers(projectId: string): Promise<any[]> {
+  private async getProjectMembers(_projectId: string): Promise<any[]> {
     // This would fetch project members from database
     return [];
   }
 
-  private async getProjectTasks(projectId: string): Promise<any[]> {
+  private async getProjectTasks(_projectId: string): Promise<any[]> {
     // This would fetch project tasks from database
     return [];
   }
 
-  private async getProjectStats(projectId: string): Promise<any> {
+  private async getProjectStats(_projectId: string): Promise<any> {
     // This would calculate project statistics
     return null;
   }
@@ -330,17 +331,17 @@ export class CacheWarmer {
     return {};
   }
 
-  private async getDailyStats(date: string): Promise<any> {
+  private async getDailyStats(_date: string): Promise<any> {
     // This would calculate daily statistics
     return {};
   }
 
-  private async getWeeklyStats(week: string): Promise<any> {
+  private async getWeeklyStats(_week: string): Promise<any> {
     // This would calculate weekly statistics
     return {};
   }
 
-  private async getMonthlyStats(month: string): Promise<any> {
+  private async getMonthlyStats(_month: string): Promise<any> {
     // This would calculate monthly statistics
     return {};
   }
