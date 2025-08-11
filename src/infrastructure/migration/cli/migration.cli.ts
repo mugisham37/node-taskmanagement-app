@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-import { NestFactory } from '@nestjs/core';
-import { MigrationModule } from '../migration.module';
 import { MigrationTrackerService } from '../services/migration-tracker.service';
 import { FileAnalysisService } from '../services/file-analysis.service';
 import { CurrentSystemMapperService } from '../services/current-system-mapper.service';
@@ -9,7 +7,6 @@ import { BackupService } from '../services/backup.service';
 import * as readline from 'readline';
 
 class MigrationCLI {
-  private app: any;
   private migrationTracker: MigrationTrackerService;
   private fileAnalysis: FileAnalysisService;
   private systemMapper: CurrentSystemMapperService;
@@ -21,21 +18,24 @@ class MigrationCLI {
       input: process.stdin,
       output: process.stdout,
     });
+
+    // Initialize services
+    this.migrationTracker = new MigrationTrackerService();
+    this.fileAnalysis = new FileAnalysisService();
+    this.systemMapper = new CurrentSystemMapperService();
+    this.backupService = new BackupService();
   }
 
-  async initialize() {
+  async initialize(): Promise<void> {
     console.log('🚀 Initializing Migration CLI...');
 
-    this.app = await NestFactory.createApplicationContext(MigrationModule, {
-      logger: false,
-    });
-
-    this.migrationTracker = this.app.get(MigrationTrackerService);
-    this.fileAnalysis = this.app.get(FileAnalysisService);
-    this.systemMapper = this.app.get(CurrentSystemMapperService);
-    this.backupService = this.app.get(BackupService);
-
-    console.log('✅ Migration CLI initialized successfully');
+    try {
+      // Services are already initialized in constructor
+      console.log('✅ Migration CLI initialized successfully');
+    } catch (error: unknown) {
+      console.error('❌ Failed to initialize Migration CLI:', (error as Error).message);
+      throw error;
+    }
   }
 
   async run() {
@@ -99,8 +99,8 @@ class MigrationCLI {
       console.log(`📊 Session ID: ${session.sessionId}`);
       console.log(`📁 Total files to process: ${session.totalFiles}`);
       console.log(`⏰ Started at: ${session.startTime.toLocaleString()}`);
-    } catch (error) {
-      console.log('❌ Failed to initialize migration session:', error.message);
+    } catch (error: unknown) {
+      console.log('❌ Failed to initialize migration session:', (error as Error).message);
     }
   }
 
@@ -130,8 +130,8 @@ class MigrationCLI {
       if (session.currentFile) {
         console.log(`🔄 Currently processing: ${session.currentFile}`);
       }
-    } catch (error) {
-      console.log('❌ Failed to check status:', error.message);
+    } catch (error: unknown) {
+      console.log('❌ Failed to check status:', (error as Error).message);
     }
   }
 
@@ -172,8 +172,8 @@ class MigrationCLI {
           console.log(`  ${index + 1}. ${dep}`);
         });
       }
-    } catch (error) {
-      console.log('❌ Failed to analyze file:', error.message);
+    } catch (error: unknown) {
+      console.log('❌ Failed to analyze file:', (error as Error).message);
     }
   }
 
@@ -191,7 +191,7 @@ class MigrationCLI {
       const layerGroups = structure.directories.reduce(
         (acc, dir) => {
           if (!acc[dir.layer]) acc[dir.layer] = [];
-          acc[dir.layer].push(dir);
+          acc[dir.layer]!.push(dir);
           return acc;
         },
         {} as Record<string, any[]>
@@ -203,8 +203,8 @@ class MigrationCLI {
           console.log(`    📁 ${dir.path} (${dir.fileCount} files)`);
         });
       });
-    } catch (error) {
-      console.log('❌ Failed to map system structure:', error.message);
+    } catch (error: unknown) {
+      console.log('❌ Failed to map system structure:', (error as Error).message);
     }
   }
 
@@ -226,8 +226,8 @@ class MigrationCLI {
         console.log(`     Created: ${backup.timestamp.toLocaleString()}`);
         console.log(`     Checksum: ${backup.checksum.substring(0, 16)}...`);
       });
-    } catch (error) {
-      console.log('❌ Failed to list backups:', error.message);
+    } catch (error: unknown) {
+      console.log('❌ Failed to list backups:', (error as Error).message);
     }
   }
 
@@ -252,8 +252,8 @@ class MigrationCLI {
       console.log(`Files Deleted: ${report.filesDeleted}`);
       console.log(`Errors: ${report.errors}`);
       console.log(`Status: ${report.status}`);
-    } catch (error) {
-      console.log('❌ Failed to generate report:', error.message);
+    } catch (error: unknown) {
+      console.log('❌ Failed to generate report:', (error as Error).message);
     }
   }
 
@@ -268,8 +268,8 @@ class MigrationCLI {
     try {
       await this.backupService.cleanupOldBackups(days);
       console.log('✅ Backup cleanup completed successfully');
-    } catch (error) {
-      console.log('❌ Failed to cleanup backups:', error.message);
+    } catch (error: unknown) {
+      console.log('❌ Failed to cleanup backups:', (error as Error).message);
     }
   }
 
@@ -279,11 +279,8 @@ class MigrationCLI {
     });
   }
 
-  async close() {
+  async close(): Promise<void> {
     this.rl.close();
-    if (this.app) {
-      await this.app.close();
-    }
   }
 }
 

@@ -45,8 +45,8 @@ export class FileAnalysisService {
       }
 
       return functionalities;
-    } catch (error) {
-      console.warn(`Failed to analyze file ${filePath}:`, error.message);
+    } catch (error: unknown) {
+      console.warn(`Failed to analyze file ${filePath}:`, (error as Error).message);
       return [];
     }
   }
@@ -65,10 +65,10 @@ export class FileAnalysisService {
       }
 
       return [...new Set(dependencies)]; // Remove duplicates
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn(
         `Failed to extract dependencies from ${filePath}:`,
-        error.message
+        (error as Error).message
       );
       return [];
     }
@@ -243,13 +243,13 @@ export class FileAnalysisService {
       };
 
       visit(sourceFile);
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn(
         `Failed to parse TypeScript file ${filePath}:`,
-        error.message
+        (error as Error).message
       );
       // Fallback to simple text analysis
-      functionalities.push(...this.analyzeGenericFile(filePath, content));
+      functionalities.push(...(await this.analyzeGenericFile(filePath, content)));
     }
 
     return functionalities;
@@ -260,11 +260,15 @@ export class FileAnalysisService {
     filePath: string
   ): ExtractedFunctionality {
     const name = node.name?.text || 'UnnamedClass';
-    const decorators = node.decorators?.map(d => d.getText()) || [];
+    
+    // Use getDecorators() for newer TypeScript versions
+    const decorators = ts.getDecorators?.(node)?.map((d: any) => d.getText()) || 
+                      (node as any).decorators?.map((d: any) => d.getText()) || [];
+    
     const isService = decorators.some(
-      d => d.includes('Injectable') || d.includes('Service')
+      (d: string) => d.includes('Injectable') || d.includes('Service')
     );
-    const isController = decorators.some(d => d.includes('Controller'));
+    const isController = decorators.some((d: string) => d.includes('Controller'));
 
     return {
       name,
@@ -389,13 +393,17 @@ export class FileAnalysisService {
     let match;
 
     while ((match = importRegex.exec(content)) !== null) {
-      dependencies.push(match[1]);
+      if (match[1]) {
+        dependencies.push(match[1]);
+      }
     }
 
     // Extract require statements
     const requireRegex = /require\(['"]([^'"]+)['"]\)/g;
     while ((match = requireRegex.exec(content)) !== null) {
-      dependencies.push(match[1]);
+      if (match[1]) {
+        dependencies.push(match[1]);
+      }
     }
 
     return dependencies;
@@ -449,7 +457,7 @@ export class FileAnalysisService {
 
   private async analyzeYamlFile(
     filePath: string,
-    content: string
+    _content: string
   ): Promise<ExtractedFunctionality[]> {
     const fileName = path.basename(filePath);
 
@@ -468,7 +476,7 @@ export class FileAnalysisService {
 
   private async analyzeMarkdownFile(
     filePath: string,
-    content: string
+    _content: string
   ): Promise<ExtractedFunctionality[]> {
     const fileName = path.basename(filePath);
 
@@ -487,7 +495,7 @@ export class FileAnalysisService {
 
   private async analyzeGenericFile(
     filePath: string,
-    content: string
+    _content: string
   ): Promise<ExtractedFunctionality[]> {
     const fileName = path.basename(filePath);
     const extension = path.extname(filePath);

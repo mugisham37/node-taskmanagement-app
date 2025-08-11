@@ -56,9 +56,17 @@ export class JobQueue extends EventEmitter {
     const executionId = this.generateExecutionId();
 
     const execution: JobExecution = {
-      ...job,
       id: executionId,
       jobId: job.id,
+      name: job.name,
+      type: job.type,
+      payload: job.payload,
+      priority: job.priority,
+      maxRetries: job.maxRetries,
+      delay: job.delay,
+      cronExpression: job.cronExpression,
+      timeout: job.timeout,
+      tags: job.tags,
       status: JobStatus.PENDING,
       startedAt: new Date(),
       retryCount: 0,

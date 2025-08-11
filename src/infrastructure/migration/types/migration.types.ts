@@ -37,7 +37,7 @@ export interface ExtractedFunctionality {
   description: string;
   dependencies: string[];
   currentStatus: 'exists' | 'missing' | 'partial' | 'superior_exists';
-  migrationAction: 'skip' | 'migrate' | 'enhance' | 'replace';
+  migrationAction: 'skip' | 'migrate' | 'enhance' | 'replace' | 'merge_logic';
   sourceLocation: string;
   targetLocation?: string;
 }

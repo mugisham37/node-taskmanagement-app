@@ -87,8 +87,8 @@ export class CurrentSystemMapperService {
       };
 
       return this.systemStructure;
-    } catch (error) {
-      console.warn('Failed to map current structure:', error.message);
+    } catch (error: unknown) {
+      console.warn('Failed to map current structure:', (error as Error).message);
       return {
         directories: [],
         files: [],
@@ -107,7 +107,7 @@ export class CurrentSystemMapperService {
     const cacheKey = `${functionality.name}_${functionality.type}`;
     const cached = this.functionalityCache.get(cacheKey);
     if (cached && cached.length > 0) {
-      return cached[0];
+      return cached[0] || null;
     }
 
     // Search for equivalent functionality
@@ -300,8 +300,8 @@ export class CurrentSystemMapperService {
           });
         }
       }
-    } catch (error) {
-      console.warn(`Failed to scan directory ${dirPath}:`, error.message);
+    } catch (error: unknown) {
+      console.warn(`Failed to scan directory ${dirPath}:`, (error as Error).message);
     }
   }
 
@@ -496,6 +496,10 @@ export class CurrentSystemMapperService {
     functionality: ExtractedFunctionality,
     candidates: ExistingFunctionality[]
   ): ExistingFunctionality {
+    if (candidates.length === 0) {
+      throw new Error('No candidates provided for matching');
+    }
+    
     // Score each candidate
     const scored = candidates.map(candidate => ({
       candidate,
@@ -504,7 +508,7 @@ export class CurrentSystemMapperService {
 
     // Return highest scoring candidate
     scored.sort((a, b) => b.score - a.score);
-    return scored[0].candidate;
+    return scored[0]!.candidate;
   }
 
   private calculateMatchScore(
@@ -550,27 +554,27 @@ export class CurrentSystemMapperService {
       .fill(null)
       .map(() => Array(str1.length + 1).fill(null));
 
-    for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
-    for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+    for (let i = 0; i <= str1.length; i++) matrix[0]![i] = i;
+    for (let j = 0; j <= str2.length; j++) matrix[j]![0] = j;
 
     for (let j = 1; j <= str2.length; j++) {
       for (let i = 1; i <= str1.length; i++) {
         const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
-        matrix[j][i] = Math.min(
-          matrix[j][i - 1] + 1,
-          matrix[j - 1][i] + 1,
-          matrix[j - 1][i - 1] + indicator
+        matrix[j]![i] = Math.min(
+          matrix[j]![i - 1]! + 1,
+          matrix[j - 1]![i]! + 1,
+          matrix[j - 1]![i - 1]! + indicator
         );
       }
     }
 
-    return matrix[str2.length][str1.length];
+    return matrix[str2.length]![str1.length]!;
   }
 
   // Integration point identification methods
   private async identifyClassIntegrations(
     functionality: ExtractedFunctionality,
-    structure: SystemStructure
+    _structure: SystemStructure
   ): Promise<IntegrationPoint[]> {
     const points: IntegrationPoint[] = [];
 
@@ -598,8 +602,8 @@ export class CurrentSystemMapperService {
   }
 
   private async identifyFunctionIntegrations(
-    functionality: ExtractedFunctionality,
-    structure: SystemStructure
+    _functionality: ExtractedFunctionality,
+    _structure: SystemStructure
   ): Promise<IntegrationPoint[]> {
     const points: IntegrationPoint[] = [];
 
@@ -615,8 +619,8 @@ export class CurrentSystemMapperService {
   }
 
   private async identifyInterfaceIntegrations(
-    functionality: ExtractedFunctionality,
-    structure: SystemStructure
+    _functionality: ExtractedFunctionality,
+    _structure: SystemStructure
   ): Promise<IntegrationPoint[]> {
     const points: IntegrationPoint[] = [];
 
@@ -632,8 +636,8 @@ export class CurrentSystemMapperService {
   }
 
   private async identifyConfigIntegrations(
-    functionality: ExtractedFunctionality,
-    structure: SystemStructure
+    _functionality: ExtractedFunctionality,
+    _structure: SystemStructure
   ): Promise<IntegrationPoint[]> {
     const points: IntegrationPoint[] = [];
 

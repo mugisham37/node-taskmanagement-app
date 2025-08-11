@@ -1,5 +1,4 @@
 import {
-  VerificationStatus,
   IntegrationPoint,
   ExtractedFunctionality,
   MigrationAction,
@@ -78,10 +77,10 @@ export class VerificationService {
         warnings,
         details,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         success: false,
-        errors: [`Verification failed: ${error.message}`],
+        errors: [`Verification failed: ${(error as Error).message}`],
         warnings,
         details,
       };
@@ -92,6 +91,7 @@ export class VerificationService {
     functionality: ExtractedFunctionality
   ): Promise<ValidationResult> {
     const errors: string[] = [];
+    const warnings: string[] = [];
     const suggestions: string[] = [];
 
     try {
@@ -138,10 +138,10 @@ export class VerificationService {
         errors,
         suggestions,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         isValid: false,
-        errors: [`Validation failed: ${error.message}`],
+        errors: [`Validation failed: ${(error as Error).message}`],
         suggestions,
       };
     }
@@ -218,12 +218,12 @@ export class VerificationService {
         cpuUsage: estimatedCpuUsage,
         recommendations,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         responseTime: 0,
         memoryUsage: 0,
         cpuUsage: 0,
-        recommendations: [`Performance check failed: ${error.message}`],
+        recommendations: [`Performance check failed: ${(error as Error).message}`],
       };
     }
   }
@@ -266,13 +266,13 @@ export class VerificationService {
         cleanArchitecture: cleanArchitecture.valid,
         violations,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       return {
         layerSeparation: false,
         dependencyDirection: false,
         drizzleUsage: false,
         cleanArchitecture: false,
-        violations: [`Architecture validation failed: ${error.message}`],
+        violations: [`Architecture validation failed: ${(error as Error).message}`],
       };
     }
   }
@@ -293,8 +293,8 @@ export class VerificationService {
         default:
           return { success: false, error: 'Unknown connection type' };
       }
-    } catch (error) {
-      return { success: false, error: error.message };
+    } catch (error: unknown) {
+      return { success: false, error: (error as Error).message };
     }
   }
 
@@ -410,7 +410,7 @@ export class VerificationService {
   }
 
   private async checkDependencyDirection(
-    targetPath: string
+    _targetPath: string
   ): Promise<{ valid: boolean; violations: string[] }> {
     // Placeholder - would need actual dependency analysis
     return { valid: true, violations: [] };
@@ -439,35 +439,35 @@ export class VerificationService {
   }
 
   private async checkCleanArchitecture(
-    targetPath: string
+    _targetPath: string
   ): Promise<{ valid: boolean; violations: string[] }> {
     // Placeholder - would need comprehensive architecture analysis
     return { valid: true, violations: [] };
   }
 
   private async checkDependencyInjection(
-    component: string
+    _component: string
   ): Promise<{ success: boolean; error?: string }> {
     // Placeholder - would check if component is properly registered in DI container
     return { success: true };
   }
 
   private async checkImportStatement(
-    component: string
+    _component: string
   ): Promise<{ success: boolean; error?: string }> {
     // Placeholder - would check if import path is valid
     return { success: true };
   }
 
   private async checkEventHandler(
-    component: string
+    _component: string
   ): Promise<{ success: boolean; error?: string }> {
     // Placeholder - would check if event handler is properly registered
     return { success: true };
   }
 
   private async checkApiEndpoint(
-    component: string
+    _component: string
   ): Promise<{ success: boolean; error?: string }> {
     // Placeholder - would check if API endpoint is accessible
     return { success: true };

@@ -115,9 +115,9 @@ export class ErrorRecoveryService {
       console.log(
         `Successfully rolled back changes for ${backupInfo.originalPath}`
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`Failed to rollback ${backupInfo.originalPath}:`, error);
-      throw new Error(`Rollback failed: ${error.message}`);
+      throw new Error(`Rollback failed: ${(error as Error).message}`);
     }
   }
 
@@ -248,7 +248,7 @@ Resolution format:
         if (!acc[strategy.errorType]) {
           acc[strategy.errorType] = [];
         }
-        acc[strategy.errorType].push(error);
+        acc[strategy.errorType]!.push(error);
         return acc;
       },
       {} as Record<string, MigrationError[]>

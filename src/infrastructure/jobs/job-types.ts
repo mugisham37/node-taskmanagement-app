@@ -5,12 +5,12 @@ export interface JobDefinition {
   name: string;
   type: JobType;
   payload: Record<string, any>;
-  priority?: number;
-  maxRetries?: number;
+  priority?: number | undefined;
+  maxRetries?: number | undefined;
   delay?: number | undefined;
-  cronExpression?: string;
-  timeout?: number;
-  tags?: string[];
+  cronExpression?: string | undefined;
+  timeout?: number | undefined;
+  tags?: string[] | undefined;
 }
 
 export interface JobResult {
@@ -30,12 +30,12 @@ export interface JobExecution {
   name: string;
   type: JobType;
   payload: Record<string, any>;
-  priority?: number;
-  maxRetries?: number;
-  delay?: number;
-  cronExpression?: string;
-  timeout?: number;
-  tags?: string[];
+  priority?: number | undefined;
+  maxRetries?: number | undefined;
+  delay?: number | undefined;
+  cronExpression?: string | undefined;
+  timeout?: number | undefined;
+  tags?: string[] | undefined;
   status: JobStatus;
   startedAt: Date;
   completedAt?: Date;

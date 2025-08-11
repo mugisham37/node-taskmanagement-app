@@ -44,7 +44,7 @@ export class JobManager extends EventEmitter {
 
     this.registry = new JobRegistry(this.jobLogger);
     this.queue = new JobQueue(this.jobLogger, this.config);
-    this.scheduler = new JobScheduler(this.jobLogger, this.config);
+    this.scheduler = new JobScheduler(this.jobLogger);
     this.processor = new JobProcessor(this.jobLogger, this.config, this.registry);
     this.monitoring = new JobMonitoring(this.jobLogger, this.config);
 
