@@ -55,6 +55,86 @@ export interface IWorkspaceRepository {
   findById(id: WorkspaceId): Promise<Workspace | null>;
 
   /**
+   * Find a workspace by its slug
+   */
+  findBySlug(slug: string): Promise<Workspace | null>;
+
+  /**
+   * Find workspaces by user ID (where user is a member)
+   */
+  findByUserId(userId: UserId): Promise<Workspace[]>;
+
+  /**
+   * Get member count for a workspace
+   */
+  getMemberCount(workspaceId: WorkspaceId): Promise<number>;
+
+  /**
+   * Get project count for a workspace
+   */
+  getProjectCount(workspaceId: WorkspaceId): Promise<number>;
+
+  /**
+   * Get storage used by a workspace (in GB)
+   */
+  getStorageUsed(workspaceId: WorkspaceId): Promise<number>;
+
+  /**
+   * Get workspace statistics with date range
+   */
+  getWorkspaceStatistics(
+    workspaceId: WorkspaceId,
+    dateFrom?: Date,
+    dateTo?: Date
+  ): Promise<{
+    totalMembers: number;
+    activeMembers: number;
+    totalProjects: number;
+    activeProjects: number;
+    completedProjects: number;
+    totalTasks: number;
+    completedTasks: number;
+    overdueTasks: number;
+    storageUsed: number;
+    storageLimit: number;
+    membersByRole: Record<string, number>;
+    projectsByStatus: Record<string, number>;
+    activityTrend: { date: string; count: number }[];
+    topContributors: {
+      userId: string;
+      firstName: string;
+      lastName: string;
+      contributionScore: number;
+    }[];
+  }>;
+
+  /**
+   * Get workspace usage statistics
+   */
+  getUsageStatistics(workspaceId: WorkspaceId): Promise<{
+    projects: {
+      current: number;
+      limit: number;
+      percentage: number;
+    };
+    members: {
+      current: number;
+      limit: number;
+      percentage: number;
+    };
+    storage: {
+      currentGB: number;
+      limitGB: number;
+      percentage: number;
+    };
+    apiCalls: {
+      currentMonth: number;
+      limit: number;
+      percentage: number;
+    };
+  }>;
+
+  /**
    * Find multiple workspaces by their IDs
    */
   findByIds(ids: WorkspaceId[]): Promise<Workspace[]>;
@@ -375,4 +455,9 @@ export interface IWorkspaceRepository {
     memberInteractionScore: number; // 0-100
     crossProjectCollaboration: number; // percentage
   }>;
+
+  /**
+   * Find a workspace member
+   */
+  findMember(workspaceId: WorkspaceId, userId: UserId): Promise<WorkspaceMember | null>;
 }

@@ -1,21 +1,6 @@
 import { BaseEntity } from '../base/entity';
-
-/**
- * Webhook Event Types - Events that can trigger webhooks
- */
-export enum WebhookEvent {
-  TASK_CREATED = 'task.created',
-  TASK_UPDATED = 'task.updated',
-  TASK_COMPLETED = 'task.completed',
-  TASK_DELETED = 'task.deleted',
-  PROJECT_CREATED = 'project.created',
-  PROJECT_UPDATED = 'project.updated',
-  PROJECT_DELETED = 'project.deleted',
-  USER_JOINED = 'user.joined',
-  USER_LEFT = 'user.left',
-  COMMENT_ADDED = 'comment.added',
-  FILE_UPLOADED = 'file.uploaded',
-}
+import { nanoid } from 'nanoid';
+import { WebhookEvent } from '../enums/webhook-event';
 
 /**
  * Webhook Status - Current status of a webhook
@@ -36,6 +21,9 @@ export enum WebhookDeliveryStatus {
   FAILED = 'failed',
   RETRYING = 'retrying',
 }
+
+// Re-export WebhookEvent for backward compatibility
+export { WebhookEvent };
 
 /**
  * Webhook Entity Properties
@@ -253,6 +241,96 @@ export class Webhook extends BaseEntity<string> {
     }
 
     return result;
+  }
+
+  /**
+   * Static method to create a new webhook
+   */
+  static create(props: Omit<WebhookProps, 'id' | 'createdAt' | 'updatedAt'>): Webhook {
+    return new Webhook({
+      ...props,
+      id: nanoid(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
+
+  /**
+   * Update webhook name
+   */
+  updateName(newName: string): void {
+    if (!newName.trim()) {
+      throw new Error('Webhook name cannot be empty');
+    }
+    (this as any).name = newName.trim();
+    this.markAsUpdated();
+  }
+
+  /**
+   * Update webhook URL
+   */
+  updateUrl(newUrl: string): void {
+    if (!this.isValidUrl(newUrl)) {
+      throw new Error('Invalid webhook URL');
+    }
+    (this as any).url = newUrl;
+    this.markAsUpdated();
+  }
+
+  /**
+   * Update webhook events
+   */
+  updateEvents(newEvents: WebhookEvent[]): void {
+    if (!newEvents || newEvents.length === 0) {
+      throw new Error('At least one event must be specified');
+    }
+    (this as any).events = [...newEvents];
+    this.markAsUpdated();
+  }
+
+  /**
+   * Update webhook secret
+   */
+  updateSecret(newSecret?: string): void {
+    (this as any).secret = newSecret;
+    this.markAsUpdated();
+  }
+
+  /**
+   * Update webhook headers
+   */
+  updateHeaders(newHeaders: Record<string, string>): void {
+    (this as any).headers = { ...newHeaders };
+    this.markAsUpdated();
+  }
+
+  /**
+   * Activate webhook
+   */
+  activate(): void {
+    (this as any).status = WebhookStatus.ACTIVE;
+    this.markAsUpdated();
+  }
+
+  /**
+   * Deactivate webhook
+   */
+  deactivate(): void {
+    (this as any).status = WebhookStatus.INACTIVE;
+    this.markAsUpdated();
+  }
+
+  private isValidUrl(url: string): boolean {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private markAsUpdated(): void {
+    (this as any).updatedAt = new Date();
   }
 }
 

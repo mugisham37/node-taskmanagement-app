@@ -132,7 +132,6 @@ export class InviteUserToWorkspaceCommandHandler
     eventPublisher: DomainEventPublisher,
     logger: LoggingService,
     private readonly workspaceRepository: IWorkspaceRepository,
-    private readonly userRepository: IUserRepository,
     private readonly workspaceDomainService: WorkspaceDomainService,
     private readonly emailService: EmailService,
     private readonly transactionManager: TransactionManager
@@ -166,7 +165,7 @@ export class InviteUserToWorkspaceCommandHandler
           recipientEmail: command.inviteeEmail,
           workspaceName: workspace.name,
           inviterName: 'User', // This would be fetched from user repository in real implementation
-          invitationLink: `${process.env.APP_URL}/workspaces/${workspace.id.value}/join`,
+          invitationLink: `${process.env['APP_URL'] || 'http://localhost:3000'}/workspaces/${workspace.id.value}/join`,
         });
 
         await this.workspaceRepository.save(workspace);

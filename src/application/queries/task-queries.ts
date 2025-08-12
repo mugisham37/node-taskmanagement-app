@@ -2,20 +2,9 @@ import { BaseQuery, PaginationOptions } from './base-query';
 import { TaskId } from '../../domain/value-objects/task-id';
 import { ProjectId } from '../../domain/value-objects/project-id';
 import { UserId } from '../../domain/value-objects/user-id';
-import { TaskStatus } from '../../domain/value-objects/task-status';
-import { Priority } from '../../domain/value-objects/priority';
+import { UnifiedTaskFilters } from '../../shared/types/task-filters';
 
-export interface TaskFilters {
-  status?: TaskStatus[];
-  priority?: Priority[];
-  assigneeId?: UserId;
-  createdById?: UserId;
-  dueDateFrom?: Date;
-  dueDateTo?: Date;
-  isOverdue?: boolean;
-  hasAssignee?: boolean;
-  search?: string;
-}
+export type TaskFilters = UnifiedTaskFilters;
 
 export class GetTaskByIdQuery extends BaseQuery {
   constructor(

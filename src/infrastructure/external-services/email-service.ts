@@ -252,6 +252,69 @@ export class EmailService {
   }
 
   /**
+   * Send workspace invitation email
+   */
+  async sendWorkspaceInvitation(data: {
+    recipientEmail: string;
+    workspaceName: string;
+    inviterName: string;
+    invitationLink: string;
+  }): Promise<boolean> {
+    const template = await this.getTemplate('workspace-invitation');
+    if (!template) {
+      // Fallback to basic template if not found
+      const html = `
+        <h2>You've been invited to join ${data.workspaceName}</h2>
+        <p>Hello,</p>
+        <p>${data.inviterName} has invited you to join the "${data.workspaceName}" workspace.</p>
+        <p><a href="${data.invitationLink}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">Accept Invitation</a></p>
+        <p>If you can't click the button, copy and paste this link into your browser:</p>
+        <p>${data.invitationLink}</p>
+        <p>Best regards,<br>The Task Management Team</p>
+      `;
+
+      const text = `
+        You've been invited to join ${data.workspaceName}
+        
+        ${data.inviterName} has invited you to join the "${data.workspaceName}" workspace.
+        
+        To accept the invitation, visit: ${data.invitationLink}
+        
+        Best regards,
+        The Task Management Team
+      `;
+
+      return this.sendEmail({
+        to: data.recipientEmail,
+        subject: `Invitation to join ${data.workspaceName}`,
+        html: html.trim(),
+        text: text.trim(),
+        priority: 'normal',
+      });
+    }
+
+    const templateData = {
+      recipientEmail: data.recipientEmail,
+      workspaceName: data.workspaceName,
+      inviterName: data.inviterName,
+      invitationLink: data.invitationLink,
+    };
+
+    const html = this.renderTemplate(template.htmlContent, templateData);
+    const text = template.textContent
+      ? this.renderTemplate(template.textContent, templateData)
+      : '';
+
+    return this.sendEmail({
+      to: data.recipientEmail,
+      subject: this.renderTemplate(template.subject, templateData),
+      html,
+      text,
+      priority: 'normal',
+    });
+  }
+
+  /**
    * Add email to queue
    */
   async queueEmail(data: SendEmailData, scheduledAt?: Date): Promise<string> {

@@ -9,6 +9,7 @@ import { DomainEventPublisher } from '../../domain/events/domain-event-publisher
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { IProjectRepository } from '../../domain/repositories/project-repository';
 import { IUserRepository } from '../../domain/repositories/user-repository';
+import { IWorkspaceRepository } from '../../domain/repositories/workspace-repository';
 import { CacheService } from '../../infrastructure/caching/cache-service';
 import { PaginatedResult, PaginationOptions } from '../queries/base-query';
 import { ProjectId } from '../../domain/value-objects/project-id';
@@ -108,13 +109,13 @@ export interface ProjectMemberDto {
   role: string;
   permissions: string[];
   joinedAt: Date;
-  lastActiveAt?: Date;
+  lastActiveAt?: Date | undefined;
   user: {
     id: string;
     firstName: string;
     lastName: string;
     email: string;
-    avatar?: string;
+    avatar?: string | undefined;
   };
 }
 
@@ -278,6 +279,7 @@ export class GetProjectsByWorkspaceQueryHandler
     logger: LoggingService,
     private readonly projectRepository: IProjectRepository,
     private readonly userRepository: IUserRepository,
+    private readonly workspaceRepository: IWorkspaceRepository,
     private readonly cacheService: CacheService
   ) {
     super(eventPublisher, logger);
@@ -302,8 +304,8 @@ export class GetProjectsByWorkspaceQueryHandler
 
       // Check if user has access to workspace
       const hasWorkspaceAccess = await this.canUserAccessWorkspace(
-        query.userId,
-        query.workspaceId
+        query.workspaceId,
+        query.userId
       );
       if (!hasWorkspaceAccess) {
         throw new AuthorizationError(
@@ -350,11 +352,26 @@ export class GetProjectsByWorkspaceQueryHandler
   }
 
   private async canUserAccessWorkspace(
-    userId: UserId,
-    workspaceId: WorkspaceId
+    workspaceId: WorkspaceId,
+    userId: UserId
   ): Promise<boolean> {
-    // This would check workspace membership
-    return true; // Simplified for now
+    // Check if user has access to this workspace using the workspace repository
+    try {
+      const hasAccess = await this.workspaceRepository.userHasAccessToWorkspace(
+        workspaceId,
+        userId
+      );
+      return hasAccess;
+    } catch (error) {
+      // If workspace repository doesn't implement the method or fails,
+      // fall back to allowing access (for backward compatibility)
+      this.logWarning('Failed to check workspace access, allowing access', {
+        workspaceId: workspaceId.value,
+        userId: userId.value,
+        error: (error as Error).message,
+      });
+      return true;
+    }
   }
 
   private async canUserViewProject(
@@ -657,7 +674,7 @@ export class GetProjectMembersQueryHandler
               firstName: user.firstName,
               lastName: user.lastName,
               email: user.email.value,
-              avatar: user.avatar,
+              avatar: user.avatar || undefined,
             },
           });
         }

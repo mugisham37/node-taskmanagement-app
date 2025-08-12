@@ -6,103 +6,8 @@ import {
   TaskStatusVO,
   Priority,
 } from '../value-objects';
-import { TaskStatus } from '../../shared/constants/task-constants';
+import { TaskStatus, TASK_VALIDATION } from '../../shared/constants/task-constants';
 import { DomainError, ValidationError } from '../../shared/errors';
-impor  /**
-   * Update the task's priority
-   */
-  updatePriority(priority: Priority, updatedBy: UserId): void {
-    if (this._priority.equals(priority)) {
-      return; // No change needed
-    }
-
-    this._priority = priority;
-    this.markAsUpdated();
-
-    // TODO: Add domain event for priority change
-  }
-
-  /**
-   * Update the task's title
-   */
-  updateTitle(title: string, updatedBy: UserId): void {
-    this.validateTitle(title);
-    if (this._title === title) {
-      return; // No change needed
-    }
-
-    this._title = title;
-    this.markAsUpdated();
-
-    // TODO: Add domain event for title change
-  }
-
-  /**
-   * Update the task's description
-   */
-  updateDescription(description: string, updatedBy: UserId): void {
-    this.validateDescription(description);
-    if (this._description === description) {
-      return; // No change needed
-    }
-
-    this._description = description;
-    this.markAsUpdated();
-
-    // TODO: Add domain event for description change
-  }
-
-  /**
-   * Update the task's due date
-   */
-  updateDueDate(dueDate: Date | null, updatedBy: UserId): void {
-    if (this._dueDate === dueDate) {
-      return; // No change needed
-    }
-
-    this._dueDate = dueDate;
-    this.markAsUpdated();
-
-    // TODO: Add domain event for due date change
-  }
-
-  /**
-   * Update the task's estimated hours
-   */
-  updateEstimatedHours(estimatedHours: number | null, updatedBy: UserId): void {
-    if (estimatedHours !== null) {
-      this.validateEstimatedHours(estimatedHours);
-    }
-    
-    if (this._estimatedHours === estimatedHours) {
-      return; // No change needed
-    }
-
-    this._estimatedHours = estimatedHours;
-    this.markAsUpdated();
-
-    // TODO: Add domain event for estimated hours change
-  }
-
-  /**
-   * Update task status
-   */
-  updateStatus(status: TaskStatusVO, updatedBy: UserId): void {
-    if (!this._status.canTransitionTo(status.value)) {
-      throw new DomainError(
-        `Cannot transition from ${this._status.value} to ${status.value}`
-      );
-    }
-
-    this._status = status;
-    this.markAsUpdated();
-
-    // TODO: Add domain event for status change
-  }
-
-  /**
-   * Check if the task is assigned
-   */ON } from '../../shared/constants/task-constants';
 
 /**
  * Task domain entity
@@ -150,6 +55,98 @@ export class Task extends BaseEntity<TaskId> {
     this._actualHours = actualHours;
     this._completedAt = completedAt;
     this.validate();
+  }
+
+  /**
+   * Update the task's title
+   */
+  updateTitle(title: string, _updatedBy: UserId): void {
+    this.validateTitle(title);
+    if (this._title === title) {
+      return; // No change needed
+    }
+
+    this._title = title;
+    this.markAsUpdated();
+
+    // TODO: Add domain event for title change
+  }
+
+  /**
+   * Update the task's description
+   */
+  updateDescription(description: string, _updatedBy: UserId): void {
+    this.validateDescription(description);
+    if (this._description === description) {
+      return; // No change needed
+    }
+
+    this._description = description;
+    this.markAsUpdated();
+
+    // TODO: Add domain event for description change
+  }
+
+  /**
+   * Update the task's due date
+   */
+  updateDueDate(dueDate: Date | null, _updatedBy: UserId): void {
+    if (this._dueDate === dueDate) {
+      return; // No change needed
+    }
+
+    this._dueDate = dueDate;
+    this.markAsUpdated();
+
+    // TODO: Add domain event for due date change
+  }
+
+  /**
+   * Update the task's estimated hours
+   */
+  updateEstimatedHours(estimatedHours: number | null, _updatedBy: UserId): void {
+    if (estimatedHours !== null) {
+      this.validateEstimatedHours(estimatedHours);
+    }
+    
+    if (this._estimatedHours === estimatedHours) {
+      return; // No change needed
+    }
+
+    this._estimatedHours = estimatedHours;
+    this.markAsUpdated();
+
+    // TODO: Add domain event for estimated hours change
+  }
+
+  /**
+   * Update task status
+   */
+  updateStatus(status: TaskStatusVO, _updatedBy: UserId): void {
+    if (!this._status.canTransitionTo(status.value)) {
+      throw new DomainError(
+        `Cannot transition from ${this._status.value} to ${status.value}`
+      );
+    }
+
+    this._status = status;
+    this.markAsUpdated();
+
+    // TODO: Add domain event for status change
+  }
+
+  /**
+   * Update the task's priority
+   */
+  updatePriority(priority: Priority, _updatedBy: UserId): void {
+    if (this._priority.equals(priority)) {
+      return; // No change needed
+    }
+
+    this._priority = priority;
+    this.markAsUpdated();
+
+    // TODO: Add domain event for priority change
   }
 
   /**
@@ -241,7 +238,7 @@ export class Task extends BaseEntity<TaskId> {
     this.validateTitle(title);
     this.validateDescription(description);
 
-    if (estimatedHours !== undefined) {
+    if (estimatedHours !== undefined && estimatedHours !== null) {
       this.validateEstimatedHours(estimatedHours);
     }
 
@@ -256,7 +253,7 @@ export class Task extends BaseEntity<TaskId> {
   /**
    * Assign the task to a user
    */
-  assign(assigneeId: UserId, assignedBy: UserId): void {
+  assign(assigneeId: UserId, _assignedBy: UserId): void {
     if (!this._status.canBeAssigned()) {
       throw new DomainError(
         `Cannot assign task with status ${this._status.value}`
@@ -272,7 +269,7 @@ export class Task extends BaseEntity<TaskId> {
   /**
    * Unassign the task
    */
-  unassign(unassignedBy: UserId): void {
+  unassign(_unassignedBy: UserId): void {
     if (!this._assigneeId) {
       throw new DomainError('Task is not assigned to anyone');
     }
@@ -332,7 +329,7 @@ export class Task extends BaseEntity<TaskId> {
   /**
    * Complete the task
    */
-  complete(completedBy: UserId, actualHours?: number): void {
+  complete(_completedBy: UserId, actualHours?: number): void {
     if (!this._status.canTransitionTo(TaskStatus.COMPLETED)) {
       throw new DomainError(
         `Cannot complete task from ${this._status.value} status`
@@ -354,7 +351,7 @@ export class Task extends BaseEntity<TaskId> {
   /**
    * Cancel the task
    */
-  cancel(cancelledBy: UserId, reason?: string): void {
+  cancel(_cancelledBy: UserId, _reason?: string): void {
     if (!this._status.canTransitionTo(TaskStatus.CANCELLED)) {
       throw new DomainError(
         `Cannot cancel task from ${this._status.value} status`
@@ -370,7 +367,7 @@ export class Task extends BaseEntity<TaskId> {
   /**
    * Reopen the task (from cancelled status)
    */
-  reopen(reopenedBy: UserId): void {
+  reopen(_reopenedBy: UserId): void {
     if (!this._status.canTransitionTo(TaskStatus.TODO)) {
       throw new DomainError(
         `Cannot reopen task from ${this._status.value} status`
@@ -382,20 +379,6 @@ export class Task extends BaseEntity<TaskId> {
     this.markAsUpdated();
 
     // TODO: Add domain event for task reopened
-  }
-
-  /**
-   * Update the task's priority
-   */
-  updatePriority(priority: Priority, updatedBy: UserId): void {
-    if (this._priority.equals(priority)) {
-      return; // No change needed
-    }
-
-    this._priority = priority;
-    this.markAsUpdated();
-
-    // TODO: Add domain event for priority change
   }
 
   /**

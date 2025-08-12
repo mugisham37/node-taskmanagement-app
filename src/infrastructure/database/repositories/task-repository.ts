@@ -16,11 +16,11 @@ import { getDatabase } from '../connection';
 import { tasks, taskDependencies } from '../schema';
 import {
   ITaskRepository,
-  TaskFilters,
   TaskSortOptions,
   PaginationOptions,
   PaginatedResult,
 } from '../../../domain/repositories/task-repository';
+import { UnifiedTaskFilters } from '../../../shared/types/task-filters';
 import { Task } from '../../../domain/entities/task';
 import {
   TaskAggregate,
@@ -54,9 +54,61 @@ export class TaskRepository implements ITaskRepository {
     return result.map(row => this.mapToEntity(row));
   }
 
+  async findAll(
+    filters?: UnifiedTaskFilters,
+    sort?: TaskSortOptions,
+    pagination?: PaginationOptions
+  ): Promise<PaginatedResult<Task>> {
+    const whereConditions: any[] = [];
+
+    // Apply filters
+    if (filters) {
+      const filterConditions = this.buildFilterConditions(filters);
+      whereConditions.push(...filterConditions);
+    }
+
+    // Build base query components
+    const selectClause = this.db.select().from(tasks);
+    const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+    const orderByClause = sort 
+      ? (sort.direction === 'DESC' ? desc(tasks[sort.field]) : asc(tasks[sort.field]))
+      : desc(tasks.createdAt);
+
+    // Execute the main query
+    let result;
+    if (pagination) {
+      const offset = (pagination.page - 1) * pagination.limit;
+      result = await selectClause
+        .where(whereClause)
+        .orderBy(orderByClause)
+        .limit(pagination.limit)
+        .offset(offset);
+    } else {
+      result = await selectClause
+        .where(whereClause)
+        .orderBy(orderByClause);
+    }
+
+    // Count total
+    const totalResult = await this.db
+      .select({ count: count() })
+      .from(tasks)
+      .where(whereClause);
+    
+    const total = totalResult[0]?.count || 0;
+
+    return {
+      items: result.map(row => this.mapToEntity(row)),
+      total,
+      page: pagination?.page || 1,
+      limit: pagination?.limit || result.length,
+      totalPages: pagination ? Math.ceil(total / pagination.limit) : 1,
+    };
+  }
+
   async findByProjectId(
     projectId: ProjectId,
-    filters?: TaskFilters,
+    filters?: UnifiedTaskFilters,
     sort?: TaskSortOptions,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Task>> {
@@ -103,7 +155,7 @@ export class TaskRepository implements ITaskRepository {
 
   async findByAssigneeId(
     assigneeId: UserId,
-    filters?: TaskFilters,
+    filters?: UnifiedTaskFilters,
     sort?: TaskSortOptions,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Task>> {
@@ -156,7 +208,7 @@ export class TaskRepository implements ITaskRepository {
 
   async findByCreatedById(
     createdById: UserId,
-    filters?: TaskFilters,
+    filters?: UnifiedTaskFilters,
     sort?: TaskSortOptions,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Task>> {
@@ -319,7 +371,7 @@ export class TaskRepository implements ITaskRepository {
   async searchTasks(
     searchTerm: string,
     projectId?: ProjectId,
-    filters?: TaskFilters,
+    filters?: UnifiedTaskFilters,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Task>> {
     const searchCondition = or(
@@ -548,7 +600,7 @@ export class TaskRepository implements ITaskRepository {
     return result.length > 0;
   }
 
-  async count(projectId?: ProjectId, filters?: TaskFilters): Promise<number> {
+  async count(projectId?: ProjectId, filters?: UnifiedTaskFilters): Promise<number> {
     const conditions: any[] = [];
 
     if (projectId) {
@@ -645,11 +697,11 @@ export class TaskRepository implements ITaskRepository {
     return [];
   }
 
-  private buildFilterConditions(filters: TaskFilters): any[] {
+  private buildFilterConditions(filters: UnifiedTaskFilters): any[] {
     const conditions: any[] = [];
 
     if (filters.status && filters.status.length > 0) {
-      const statusValues = filters.status.map(s => s as string);
+      const statusValues = filters.status.map((s: any) => s as string);
       conditions.push(inArray(tasks.status, statusValues as any));
     }
 

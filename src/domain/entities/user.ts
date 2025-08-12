@@ -196,6 +196,13 @@ export class User extends BaseEntity<UserId> {
   }
 
   /**
+   * Change the user's password (alias for updatePassword for backward compatibility)
+   */
+  changePassword(newHashedPassword: string): void {
+    this.updatePassword(newHashedPassword);
+  }
+
+  /**
    * Check if the user can create projects
    */
   canCreateProject(): boolean {

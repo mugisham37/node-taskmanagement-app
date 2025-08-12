@@ -1,5 +1,6 @@
 import { ValueObject } from './value-object';
 import { ValidationError } from '../../shared/errors';
+import { nanoid } from 'nanoid';
 
 /**
  * Workspace ID value object
@@ -39,6 +40,13 @@ export class WorkspaceId extends ValueObject<string> {
    */
   static create(id: string): WorkspaceId {
     return new WorkspaceId(id);
+  }
+
+  /**
+   * Generate a new unique WorkspaceId
+   */
+  static generate(): WorkspaceId {
+    return new WorkspaceId(nanoid());
   }
 
   /**

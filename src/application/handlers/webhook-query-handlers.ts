@@ -16,6 +16,7 @@ import { WorkspaceId } from '../../domain/value-objects/workspace-id';
 import { UserId } from '../../domain/value-objects/user-id';
 import { NotFoundError } from '../../shared/errors/not-found-error';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { Webhook, WebhookDelivery } from '../../domain/entities/webhook';
 
 // Query interfaces
 export interface GetWebhookByIdQuery {
@@ -73,8 +74,8 @@ export interface WebhookDto {
   url: string;
   events: string[];
   isActive: boolean;
-  lastDeliveryAt?: Date;
-  lastDeliveryStatus?: string;
+  lastDeliveryAt?: Date | undefined;
+  lastDeliveryStatus?: string | undefined;
   totalDeliveries: number;
   successfulDeliveries: number;
   failedDeliveries: number;
@@ -92,15 +93,15 @@ export interface WebhookDeliveryDto {
   httpMethod: string;
   headers: Record<string, string>;
   status: string;
-  statusCode?: number;
-  responseBody?: string;
-  responseHeaders?: Record<string, string>;
-  deliveredAt?: Date;
-  duration?: number;
+  statusCode?: number | undefined;
+  responseBody?: string | undefined;
+  responseHeaders?: Record<string, string> | undefined;
+  deliveredAt?: Date | undefined;
+  duration?: number | undefined;
   attempts: number;
   maxAttempts: number;
-  nextRetryAt?: Date;
-  errorMessage?: string;
+  nextRetryAt?: Date | undefined;
+  errorMessage?: string | undefined;
   createdAt: Date;
 }
 
@@ -160,7 +161,7 @@ export class GetWebhookByIdQueryHandler
         }
       }
 
-      const webhook = await this.webhookRepository.findById(query.webhookId);
+      const webhook = await this.webhookRepository.findById(query.webhookId.value);
       if (!webhook) {
         throw new NotFoundError(
           `Webhook with ID ${query.webhookId.value} not found`
@@ -177,7 +178,7 @@ export class GetWebhookByIdQueryHandler
       const webhookDto = await this.mapWebhookToDto(webhook);
 
       // Cache the result
-      await this.cacheService.set(cacheKey, webhookDto, 600); // 10 minutes
+      await this.cacheService.set(cacheKey, webhookDto, { ttl: 600 }); // 10 minutes
 
       this.logInfo('Webhook retrieved successfully', {
         webhookId: query.webhookId.value,
@@ -196,28 +197,28 @@ export class GetWebhookByIdQueryHandler
     userId: UserId,
     webhookId: WebhookId
   ): Promise<boolean> {
-    const webhook = await this.webhookRepository.findById(webhookId);
+    const webhook = await this.webhookRepository.findById(webhookId.value);
     if (!webhook) return false;
 
     const member = await this.workspaceRepository.findMember(
-      webhook.workspaceId,
+      WorkspaceId.create(webhook.workspaceId),
       userId
     );
     return member !== null;
   }
 
-  private async mapWebhookToDto(webhook: any): Promise<WebhookDto> {
+  private async mapWebhookToDto(webhook: Webhook): Promise<WebhookDto> {
     const stats = await this.webhookRepository.getWebhookStatistics(webhook.id);
 
     return {
-      id: webhook.id.value,
-      workspaceId: webhook.workspaceId.value,
+      id: webhook.id,
+      workspaceId: webhook.workspaceId,
       name: webhook.name,
       url: webhook.url,
-      events: webhook.events,
-      isActive: webhook.isActive,
-      lastDeliveryAt: stats.lastDeliveryAt,
-      lastDeliveryStatus: stats.lastDeliveryStatus,
+      events: webhook.events.map(e => e.toString()),
+      isActive: webhook.status === 'active',
+      lastDeliveryAt: stats.lastDeliveryAt || undefined,
+      lastDeliveryStatus: stats.lastDeliveryStatus || undefined,
       totalDeliveries: stats.totalDeliveries,
       successfulDeliveries: stats.successfulDeliveries,
       failedDeliveries: stats.failedDeliveries,
@@ -278,7 +279,7 @@ export class GetWebhooksByWorkspaceQueryHandler
       }
 
       const webhooks = await this.webhookRepository.findByWorkspaceId(
-        query.workspaceId,
+        query.workspaceId.value,
         query.filters
       );
 
@@ -295,7 +296,7 @@ export class GetWebhooksByWorkspaceQueryHandler
       );
 
       // Cache the result
-      await this.cacheService.set(cacheKey, paginatedResult, 300); // 5 minutes
+      await this.cacheService.set(cacheKey, paginatedResult, { ttl: 300 }); // 5 minutes
 
       this.logInfo('Webhooks by workspace retrieved successfully', {
         workspaceId: query.workspaceId.value,
@@ -322,18 +323,18 @@ export class GetWebhooksByWorkspaceQueryHandler
     return member !== null;
   }
 
-  private async mapWebhookToDto(webhook: any): Promise<WebhookDto> {
+  private async mapWebhookToDto(webhook: Webhook): Promise<WebhookDto> {
     const stats = await this.webhookRepository.getWebhookStatistics(webhook.id);
 
     return {
-      id: webhook.id.value,
-      workspaceId: webhook.workspaceId.value,
+      id: webhook.id,
+      workspaceId: webhook.workspaceId,
       name: webhook.name,
       url: webhook.url,
-      events: webhook.events,
-      isActive: webhook.isActive,
-      lastDeliveryAt: stats.lastDeliveryAt,
-      lastDeliveryStatus: stats.lastDeliveryStatus,
+      events: webhook.events.map(e => e.toString()),
+      isActive: webhook.status === 'active',
+      lastDeliveryAt: stats.lastDeliveryAt || undefined,
+      lastDeliveryStatus: stats.lastDeliveryStatus || undefined,
       totalDeliveries: stats.totalDeliveries,
       successfulDeliveries: stats.successfulDeliveries,
       failedDeliveries: stats.failedDeliveries,
@@ -427,12 +428,12 @@ export class GetWebhookDeliveriesQueryHandler
       }
 
       const deliveries = await this.webhookRepository.getDeliveries(
-        query.webhookId,
+        query.webhookId.value,
         query.filters,
         query.pagination?.limit || 50
       );
 
-      const deliveryDtos = deliveries.map(delivery =>
+      const deliveryDtos = deliveries.map((delivery: WebhookDelivery) =>
         this.mapDeliveryToDto(delivery)
       );
 
@@ -443,7 +444,7 @@ export class GetWebhookDeliveriesQueryHandler
       );
 
       // Cache the result for 2 minutes (deliveries change frequently)
-      await this.cacheService.set(cacheKey, paginatedResult, 120);
+      await this.cacheService.set(cacheKey, paginatedResult, { ttl: 120 });
 
       this.logInfo('Webhook deliveries retrieved successfully', {
         webhookId: query.webhookId.value,
@@ -463,35 +464,35 @@ export class GetWebhookDeliveriesQueryHandler
     userId: UserId,
     webhookId: WebhookId
   ): Promise<boolean> {
-    const webhook = await this.webhookRepository.findById(webhookId);
+    const webhook = await this.webhookRepository.findById(webhookId.value);
     if (!webhook) return false;
 
     const member = await this.workspaceRepository.findMember(
-      webhook.workspaceId,
+      WorkspaceId.create(webhook.workspaceId),
       userId
     );
     return member !== null;
   }
 
-  private mapDeliveryToDto(delivery: any): WebhookDeliveryDto {
+  private mapDeliveryToDto(delivery: WebhookDelivery): WebhookDeliveryDto {
     return {
-      id: delivery.id.value,
-      webhookId: delivery.webhookId.value,
-      eventType: delivery.eventType,
+      id: delivery.id,
+      webhookId: delivery.webhookId,
+      eventType: delivery.event,
       payload: delivery.payload,
-      url: delivery.url,
-      httpMethod: delivery.httpMethod,
-      headers: delivery.headers,
-      status: delivery.status.value,
-      statusCode: delivery.statusCode,
-      responseBody: delivery.responseBody,
-      responseHeaders: delivery.responseHeaders,
-      deliveredAt: delivery.deliveredAt,
-      duration: delivery.duration,
-      attempts: delivery.attempts,
+      url: '', // URL will be fetched from webhook
+      httpMethod: 'POST', // Default HTTP method
+      headers: delivery.headers || {},
+      status: delivery.status,
+      statusCode: delivery.httpStatus || undefined,
+      responseBody: delivery.responseBody || undefined,
+      responseHeaders: delivery.responseHeaders || undefined,
+      deliveredAt: delivery.deliveredAt || undefined,
+      duration: delivery.duration || undefined,
+      attempts: delivery.attempt,
       maxAttempts: delivery.maxAttempts,
-      nextRetryAt: delivery.nextRetryAt,
-      errorMessage: delivery.errorMessage,
+      nextRetryAt: delivery.nextRetryAt || undefined,
+      errorMessage: delivery.errorMessage || undefined,
       createdAt: delivery.createdAt,
     };
   }
@@ -584,14 +585,14 @@ export class GetWebhookStatisticsQueryHandler
       }
 
       const statistics = await this.webhookRepository.getStatistics(
-        query.webhookId,
-        query.workspaceId,
+        query.webhookId?.value,
+        query.workspaceId?.value,
         query.dateFrom,
         query.dateTo
       );
 
       // Cache the result for 5 minutes
-      await this.cacheService.set(cacheKey, statistics, 300);
+      await this.cacheService.set(cacheKey, statistics, { ttl: 300 });
 
       this.logInfo('Webhook statistics retrieved successfully');
 
@@ -606,11 +607,11 @@ export class GetWebhookStatisticsQueryHandler
     userId: UserId,
     webhookId: WebhookId
   ): Promise<boolean> {
-    const webhook = await this.webhookRepository.findById(webhookId);
+    const webhook = await this.webhookRepository.findById(webhookId.value);
     if (!webhook) return false;
 
     const member = await this.workspaceRepository.findMember(
-      webhook.workspaceId,
+      WorkspaceId.create(webhook.workspaceId),
       userId
     );
     return member !== null;
@@ -639,8 +640,7 @@ export class GetWebhookDeliveryByIdQueryHandler
     eventPublisher: DomainEventPublisher,
     logger: LoggingService,
     private readonly webhookRepository: IWebhookRepository,
-    private readonly workspaceRepository: IWorkspaceRepository,
-    private readonly cacheService: CacheService
+    private readonly workspaceRepository: IWorkspaceRepository
   ) {
     super(eventPublisher, logger);
   }
@@ -666,7 +666,7 @@ export class GetWebhookDeliveryByIdQueryHandler
       // Check if user can view this delivery
       const canView = await this.canUserViewWebhook(
         query.userId,
-        delivery.webhookId
+        WebhookId.create(delivery.webhookId)
       );
       if (!canView) {
         throw new AuthorizationError(
@@ -693,35 +693,35 @@ export class GetWebhookDeliveryByIdQueryHandler
     userId: UserId,
     webhookId: WebhookId
   ): Promise<boolean> {
-    const webhook = await this.webhookRepository.findById(webhookId);
+    const webhook = await this.webhookRepository.findById(webhookId.value);
     if (!webhook) return false;
 
     const member = await this.workspaceRepository.findMember(
-      webhook.workspaceId,
+      WorkspaceId.create(webhook.workspaceId),
       userId
     );
     return member !== null;
   }
 
-  private mapDeliveryToDto(delivery: any): WebhookDeliveryDto {
+  private mapDeliveryToDto(delivery: WebhookDelivery): WebhookDeliveryDto {
     return {
-      id: delivery.id.value,
-      webhookId: delivery.webhookId.value,
-      eventType: delivery.eventType,
+      id: delivery.id,
+      webhookId: delivery.webhookId,
+      eventType: delivery.event,
       payload: delivery.payload,
-      url: delivery.url,
-      httpMethod: delivery.httpMethod,
-      headers: delivery.headers,
-      status: delivery.status.value,
-      statusCode: delivery.statusCode,
-      responseBody: delivery.responseBody,
-      responseHeaders: delivery.responseHeaders,
-      deliveredAt: delivery.deliveredAt,
-      duration: delivery.duration,
-      attempts: delivery.attempts,
+      url: '', // URL will be fetched from webhook
+      httpMethod: 'POST', // Default HTTP method
+      headers: delivery.headers || {},
+      status: delivery.status,
+      statusCode: delivery.httpStatus || undefined,
+      responseBody: delivery.responseBody || undefined,
+      responseHeaders: delivery.responseHeaders || undefined,
+      deliveredAt: delivery.deliveredAt || undefined,
+      duration: delivery.duration || undefined,
+      attempts: delivery.attempt,
       maxAttempts: delivery.maxAttempts,
-      nextRetryAt: delivery.nextRetryAt,
-      errorMessage: delivery.errorMessage,
+      nextRetryAt: delivery.nextRetryAt || undefined,
+      errorMessage: delivery.errorMessage || undefined,
       createdAt: delivery.createdAt,
     };
   }

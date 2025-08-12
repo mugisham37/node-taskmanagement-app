@@ -3,9 +3,11 @@ import { TaskAggregate, TaskDependency } from '../aggregates/task-aggregate';
 import { TaskId, UserId, ProjectId } from '../value-objects';
 import { TaskStatus } from '../../shared/constants/task-constants';
 import { Priority } from '../../shared/enums/common.enums';
+import { UnifiedTaskFilters } from '../../shared/types/task-filters';
 
 /**
  * Task filter options
+ * @deprecated Use UnifiedTaskFilters instead
  */
 export interface TaskFilters {
   status?: TaskStatus[];
@@ -62,11 +64,20 @@ export interface ITaskRepository {
   findByIds(ids: TaskId[]): Promise<Task[]>;
 
   /**
+   * Find all tasks with optional filters, sorting, and pagination
+   */
+  findAll(
+    filters?: UnifiedTaskFilters,
+    sort?: TaskSortOptions,
+    pagination?: PaginationOptions
+  ): Promise<PaginatedResult<Task>>;
+
+  /**
    * Find tasks by project ID with optional filters, sorting, and pagination
    */
   findByProjectId(
     projectId: ProjectId,
-    filters?: TaskFilters,
+    filters?: UnifiedTaskFilters,
     sort?: TaskSortOptions,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Task>>;
@@ -76,7 +87,7 @@ export interface ITaskRepository {
    */
   findByAssigneeId(
     assigneeId: UserId,
-    filters?: TaskFilters,
+    filters?: UnifiedTaskFilters,
     sort?: TaskSortOptions,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Task>>;
@@ -86,7 +97,7 @@ export interface ITaskRepository {
    */
   findByCreatedById(
     createdById: UserId,
-    filters?: TaskFilters,
+    filters?: UnifiedTaskFilters,
     sort?: TaskSortOptions,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Task>>;
@@ -116,7 +127,7 @@ export interface ITaskRepository {
   searchTasks(
     searchTerm: string,
     projectId?: ProjectId,
-    filters?: TaskFilters,
+    filters?: UnifiedTaskFilters,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Task>>;
 
@@ -170,7 +181,7 @@ export interface ITaskRepository {
   /**
    * Count tasks matching filters
    */
-  count(projectId?: ProjectId, filters?: TaskFilters): Promise<number>;
+  count(projectId?: ProjectId, filters?: UnifiedTaskFilters): Promise<number>;
 
   /**
    * Get task aggregate for a project

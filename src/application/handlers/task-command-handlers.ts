@@ -15,10 +15,8 @@ import {
   AddTaskDependencyCommand,
   RemoveTaskDependencyCommand,
 } from '../commands/task-commands';
-import { Task } from '../../domain/entities/task';
-import { TaskId } from '../../domain/value-objects/task-id';
+import { TaskId, Priority, ProjectId, UserId, TaskStatusVO } from '../../domain/value-objects';
 import { NotFoundError } from '../../shared/errors/not-found-error';
-import { DomainError } from '../../shared/errors/domain-error';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
 
 export class CreateTaskCommandHandler
@@ -58,16 +56,35 @@ export class CreateTaskCommandHandler
         }
 
         // Create task through domain service
-        const task = await this.taskDomainService.createTask({
+        const createParams: {
+          title: string;
+          description: string;
+          priority: Priority;
+          projectId: ProjectId;
+          createdById: UserId;
+          dueDate?: Date;
+          assigneeId?: UserId;
+          estimatedHours?: number;
+        } = {
           title: command.title,
           description: command.description,
           priority: command.priority,
           projectId: command.projectId,
           createdById: command.createdById,
-          dueDate: command.dueDate,
-          assigneeId: command.assigneeId,
-          estimatedHours: command.estimatedHours,
-        });
+        };
+
+        // Only add optional properties if they are defined
+        if (command.dueDate !== undefined) {
+          createParams.dueDate = command.dueDate;
+        }
+        if (command.assigneeId !== undefined) {
+          createParams.assigneeId = command.assigneeId;
+        }
+        if (command.estimatedHours !== undefined) {
+          createParams.estimatedHours = command.estimatedHours;
+        }
+
+        const task = await this.taskDomainService.createTask(createParams);
 
         // Save task
         await this.taskRepository.save(task);
@@ -269,7 +286,7 @@ export class UpdateTaskStatusCommandHandler
         // Update status through domain service
         await this.taskDomainService.updateTaskStatus(
           task,
-          command.status,
+          TaskStatusVO.create(command.status),
           command.updatedBy
         );
 
@@ -278,7 +295,7 @@ export class UpdateTaskStatusCommandHandler
 
         this.logInfo('Task status updated successfully', {
           taskId: task.id.value,
-          newStatus: command.status.value,
+          newStatus: command.status,
         });
       } catch (error) {
         this.logError('Failed to update task status', error as Error, {
@@ -404,7 +421,6 @@ export class RemoveTaskDependencyCommandHandler
   constructor(
     eventPublisher: DomainEventPublisher,
     logger: LoggingService,
-    private readonly taskRepository: ITaskRepository,
     private readonly taskDomainService: TaskDomainService,
     private readonly transactionManager: TransactionManager
   ) {

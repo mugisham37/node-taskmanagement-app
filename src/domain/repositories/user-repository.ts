@@ -1,12 +1,12 @@
 import { User } from '../entities/user';
 import { UserId, Email } from '../value-objects';
-import { UserStatus } from '../../shared/constants/user-constants';
+import { Status } from '../../shared/enums/common.enums';
 
 /**
  * User filter options
  */
 export interface UserFilters {
-  status?: UserStatus[];
+  status?: Status[];
   search?: string;
   createdAfter?: Date;
   createdBefore?: Date;
@@ -98,7 +98,7 @@ export interface IUserRepository {
    * Get users by status
    */
   getUsersByStatus(
-    status: UserStatus,
+    status: Status,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<User>>;
 
@@ -112,7 +112,7 @@ export interface IUserRepository {
    */
   getUserStatistics(): Promise<{
     total: number;
-    byStatus: Record<UserStatus, number>;
+    byStatus: Record<Status, number>;
     registeredThisMonth: number;
     activeThisWeek: number;
     averageLoginFrequency?: number; // days between logins
@@ -225,12 +225,12 @@ export interface IUserRepository {
   /**
    * Update user status
    */
-  updateStatus(userId: UserId, status: UserStatus): Promise<void>;
+  updateStatus(userId: UserId, status: Status): Promise<void>;
 
   /**
    * Bulk update user status
    */
-  bulkUpdateStatus(userIds: UserId[], status: UserStatus): Promise<void>;
+  bulkUpdateStatus(userIds: UserId[], status: Status): Promise<void>;
 
   /**
    * Get users with upcoming password expiry
@@ -304,4 +304,9 @@ export interface IUserRepository {
     userId: UserId,
     preferences: Record<string, boolean>
   ): Promise<void>;
+
+  /**
+   * Get user preferences
+   */
+  getUserPreferences(userId: UserId): Promise<any>;
 }

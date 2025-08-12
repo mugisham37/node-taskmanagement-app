@@ -16,6 +16,7 @@ import { UserId } from '../../domain/value-objects/user-id';
 import { NotFoundError } from '../../shared/errors/not-found-error';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
 import { ValidationError } from '../../shared/errors/validation-error';
+import { nanoid } from 'nanoid';
 
 export class RegisterUserCommandHandler
   extends BaseHandler
@@ -41,8 +42,10 @@ export class RegisterUserCommandHandler
           command.email
         );
         if (existingUser) {
-          throw new ValidationError(
-            `User with email ${command.email.value} already exists`
+          throw ValidationError.forField(
+            'email',
+            `User with email ${command.email.value} already exists`,
+            command.email.value
           );
         }
 
@@ -52,11 +55,12 @@ export class RegisterUserCommandHandler
         );
 
         // Create user
-        const user = User.create({
-          email: command.email,
-          name: command.name,
-          hashedPassword,
-        });
+        const user = User.create(
+          UserId.create(nanoid()),
+          command.email,
+          command.name,
+          hashedPassword
+        );
 
         await this.userRepository.save(user);
         await this.publishEvents();
@@ -112,8 +116,10 @@ export class UpdateUserProfileCommandHandler
             command.email
           );
           if (existingUser && !existingUser.id.equals(command.targetUserId)) {
-            throw new ValidationError(
-              `Email ${command.email.value} is already taken`
+            throw ValidationError.forField(
+              'email',
+              `Email ${command.email.value} is already taken`,
+              command.email.value
             );
           }
         }
@@ -184,7 +190,10 @@ export class ChangePasswordCommandHandler
             user.hashedPassword
           );
         if (!isCurrentPasswordValid) {
-          throw new ValidationError('Current password is incorrect');
+          throw ValidationError.forField(
+            'currentPassword',
+            'Current password is incorrect'
+          );
         }
 
         // Hash new password

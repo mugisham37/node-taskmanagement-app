@@ -1,15 +1,7 @@
 import { BaseEntity } from './base-entity';
 import { WorkspaceId, UserId, ProjectId } from '../value-objects';
 import { DomainError, ValidationError } from '../../shared/errors';
-
-/**
- * Workspace Member interface
- */
-export interface WorkspaceMember {
-  userId: UserId;
-  role: 'OWNER' | 'ADMIN' | 'MEMBER';
-  joinedAt: Date;
-}
+import { WorkspaceMember } from './workspace-member';
 
 /**
  * Workspace domain entity
@@ -106,6 +98,52 @@ export class Workspace extends BaseEntity<WorkspaceId> {
   }
 
   /**
+   * Update the workspace name
+   */
+  updateName(name: string, updatedBy: UserId): void {
+    if (!this._isActive) {
+      throw new DomainError('Cannot update inactive workspace');
+    }
+
+    if (!this.canUserUpdateWorkspace(updatedBy)) {
+      throw new DomainError('Insufficient permissions to update workspace name');
+    }
+
+    this.validateName(name);
+    this._name = name;
+    this.markAsUpdated();
+  }
+
+  /**
+   * Update the workspace description
+   */
+  updateDescription(description: string, updatedBy: UserId): void {
+    if (!this._isActive) {
+      throw new DomainError('Cannot update inactive workspace');
+    }
+
+    if (!this.canUserUpdateWorkspace(updatedBy)) {
+      throw new DomainError('Insufficient permissions to update workspace description');
+    }
+
+    this.validateDescription(description);
+    this._description = description;
+    this.markAsUpdated();
+  }
+
+  /**
+   * Archive the workspace
+   */
+  archive(): void {
+    if (!this._isActive) {
+      throw new DomainError('Workspace is already archived');
+    }
+
+    this._isActive = false;
+    this.markAsUpdated();
+  }
+
+  /**
    * Add a member to the workspace
    */
   addMember(userId: UserId, role: 'OWNER' | 'ADMIN' | 'MEMBER'): void {
@@ -124,12 +162,7 @@ export class Workspace extends BaseEntity<WorkspaceId> {
       throw new DomainError('Workspace can only have one owner');
     }
 
-    const member: WorkspaceMember = {
-      userId,
-      role,
-      joinedAt: new Date(),
-    };
-
+    const member = new WorkspaceMember(userId, this.id, role);
     this._members.set(userIdStr, member);
     this.markAsUpdated();
 
@@ -488,3 +521,5 @@ export class Workspace extends BaseEntity<WorkspaceId> {
     return workspace;
   }
 }
+
+export { WorkspaceMember } from './workspace-member';

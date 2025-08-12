@@ -7,16 +7,12 @@ import {
   GetTaskByIdQuery,
   GetTasksByProjectQuery,
   GetTasksByAssigneeQuery,
-  GetTasksByCreatorQuery,
   GetOverdueTasksQuery,
-  GetTaskDependenciesQuery,
   GetTaskStatisticsQuery,
-  SearchTasksQuery,
   GetTasksQuery,
 } from '../queries/task-queries';
 import { PaginatedResult } from '../queries/base-query';
 import { Task } from '../../domain/entities/task';
-import { TaskId } from '../../domain/value-objects/task-id';
 import { NotFoundError } from '../../shared/errors/not-found-error';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
 
@@ -208,31 +204,6 @@ export class GetTasksByProjectQueryHandler
       updatedAt: task.updatedAt,
     };
   }
-
-  private applyPagination<T>(data: T[], pagination?: any): PaginatedResult<T> {
-    if (!pagination) {
-      return {
-        data,
-        total: data.length,
-        page: 1,
-        limit: data.length,
-        totalPages: 1,
-      };
-    }
-
-    const { page = 1, limit = 10 } = pagination;
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedData = data.slice(startIndex, endIndex);
-
-    return {
-      data: paginatedData,
-      total: data.length,
-      page,
-      limit,
-      totalPages: Math.ceil(data.length / limit),
-    };
-  }
 }
 
 export class GetTasksByAssigneeQueryHandler
@@ -309,31 +280,6 @@ export class GetTasksByAssigneeQueryHandler
       updatedAt: task.updatedAt,
     };
   }
-
-  private applyPagination<T>(data: T[], pagination?: any): PaginatedResult<T> {
-    if (!pagination) {
-      return {
-        data,
-        total: data.length,
-        page: 1,
-        limit: data.length,
-        totalPages: 1,
-      };
-    }
-
-    const { page = 1, limit = 10 } = pagination;
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedData = data.slice(startIndex, endIndex);
-
-    return {
-      data: paginatedData,
-      total: data.length,
-      page,
-      limit,
-      totalPages: Math.ceil(data.length / limit),
-    };
-  }
 }
 
 export class GetOverdueTasksQueryHandler
@@ -402,31 +348,6 @@ export class GetOverdueTasksQueryHandler
       ...(task.completedAt && { completedAt: task.completedAt }),
       createdAt: task.createdAt,
       updatedAt: task.updatedAt,
-    };
-  }
-
-  private applyPagination<T>(data: T[], pagination?: any): PaginatedResult<T> {
-    if (!pagination) {
-      return {
-        data,
-        total: data.length,
-        page: 1,
-        limit: data.length,
-        totalPages: 1,
-      };
-    }
-
-    const { page = 1, limit = 10 } = pagination;
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedData = data.slice(startIndex, endIndex);
-
-    return {
-      data: paginatedData,
-      total: data.length,
-      page,
-      limit,
-      totalPages: Math.ceil(data.length / limit),
     };
   }
 }
@@ -510,29 +431,22 @@ export class GetTasksQueryHandler
         return cachedResult;
       }
 
-      // Since there's no findAll method, we'll need to use a different approach
-      // For now, let's create a dummy implementation that returns empty results
-      // In a real implementation, you'd add findAll to the repository interface
-      const tasks = {
-        items: [] as Task[],
-        total: 0,
-        page: 1,
-        limit: 10,
-        totalPages: 0,
-      };
+      // Use the new findAll method
+      const tasks = await this.taskRepository.findAll(
+        query.filters,
+        undefined, // No specific sorting
+        query.pagination
+      );
       
       const taskDtos = tasks.items.map((task: Task) => this.mapTaskToDto(task));
 
-      // Apply pagination if not already applied by repository
-      const paginatedResult = query.pagination
-        ? this.applyPagination(taskDtos, query.pagination)
-        : {
-            data: taskDtos,
-            total: tasks.total,
-            page: 1,
-            limit: taskDtos.length,
-            totalPages: 1,
-          };
+      const paginatedResult: PaginatedResult<TaskDto> = {
+        data: taskDtos,
+        total: tasks.total,
+        page: tasks.page,
+        limit: tasks.limit,
+        totalPages: tasks.totalPages,
+      };
 
       // Cache the result
       await this.cacheService.set(cacheKey, paginatedResult, { ttl: 180 }); // 3 minutes
@@ -565,24 +479,6 @@ export class GetTasksQueryHandler
       ...(task.completedAt && { completedAt: task.completedAt }),
       createdAt: task.createdAt,
       updatedAt: task.updatedAt,
-    };
-  }
-
-  private applyPagination<T>(
-    data: T[],
-    pagination: { page: number; limit: number }
-  ): PaginatedResult<T> {
-    const { page, limit } = pagination;
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedData = data.slice(startIndex, endIndex);
-
-    return {
-      data: paginatedData,
-      total: data.length,
-      page,
-      limit,
-      totalPages: Math.ceil(data.length / limit),
     };
   }
 }

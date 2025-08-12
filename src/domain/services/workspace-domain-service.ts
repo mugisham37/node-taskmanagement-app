@@ -1,6 +1,6 @@
 import { Workspace, WorkspaceMember } from '../entities/workspace';
 import { Project } from '../entities/project';
-import { WorkspaceId, UserId, ProjectId } from '../value-objects';
+import { WorkspaceId, UserId } from '../value-objects';
 import { DomainError } from '../../shared/errors';
 
 /**
@@ -34,7 +34,7 @@ export interface WorkspaceHealthAssessment {
 export interface MemberInvitationValidation {
   isValid: boolean;
   reason?: string;
-  warnings?: string[];
+  warnings?: string[] | undefined;
 }
 
 /**
@@ -52,6 +52,98 @@ export interface WorkspaceCapacityAnalysis {
  * Handles workspace-level operations and access control
  */
 export class WorkspaceDomainService {
+  /**
+   * Create a new workspace
+   */
+  async createWorkspace(data: {
+    name: string;
+    description: string;
+    ownerId: UserId;
+  }): Promise<Workspace> {
+    const workspaceId = WorkspaceId.generate();
+    
+    return new Workspace(
+      workspaceId,
+      data.name,
+      data.description,
+      data.ownerId,
+      true
+    );
+  }
+
+  /**
+   * Check if user can update workspace
+   */
+  canUserUpdateWorkspace(workspace: Workspace, userId: UserId): boolean {
+    return workspace.canUserUpdateWorkspace(userId);
+  }
+
+  /**
+   * Invite user to workspace
+   */
+  async inviteUserToWorkspace(
+    workspace: Workspace,
+    inviteeEmail: string,
+    invitedBy: UserId
+  ): Promise<void> {
+    if (!workspace.canUserManageMembers(invitedBy)) {
+      throw new DomainError('User does not have permission to invite members');
+    }
+
+    // In a real implementation, this would create an invitation record
+    // and the user would accept it to become a member
+    console.log(`Invitation sent to ${inviteeEmail} for workspace ${workspace.name}`);
+  }
+
+  /**
+   * Remove user from workspace
+   */
+  async removeUserFromWorkspace(
+    workspace: Workspace,
+    userIdToRemove: UserId,
+    removedBy: UserId
+  ): Promise<void> {
+    if (!workspace.canUserManageMembers(removedBy)) {
+      throw new DomainError('User does not have permission to remove members');
+    }
+
+    if (workspace.ownerId.equals(userIdToRemove)) {
+      throw new DomainError('Cannot remove workspace owner');
+    }
+
+    workspace.removeMember(userIdToRemove);
+  }
+
+  /**
+   * Transfer workspace ownership
+   */
+  async transferOwnership(
+    workspace: Workspace,
+    newOwnerId: UserId,
+    currentOwnerId: UserId
+  ): Promise<void> {
+    if (!workspace.ownerId.equals(currentOwnerId)) {
+      throw new DomainError('Only the workspace owner can transfer ownership');
+    }
+
+    if (!workspace.isMember(newOwnerId)) {
+      throw new DomainError('New owner must be a member of the workspace');
+    }
+
+    workspace.transferOwnership(newOwnerId, currentOwnerId);
+  }
+
+  /**
+   * Archive workspace
+   */
+  async archiveWorkspace(workspace: Workspace, userId: UserId): Promise<void> {
+    if (!workspace.ownerId.equals(userId)) {
+      throw new DomainError('Only the workspace owner can archive the workspace');
+    }
+
+    workspace.archive();
+  }
+
   /**
    * Validate user access to perform an action on a workspace
    */
@@ -521,7 +613,7 @@ export class WorkspaceDomainService {
     workspace: Workspace,
     projects: Project[],
     userId: UserId
-  ): { canDelete: boolean; reason?: string; warnings?: string[] } {
+  ): { canDelete: boolean; reason?: string; warnings?: string[] | undefined } {
     const warnings: string[] = [];
 
     // Check if user is the owner

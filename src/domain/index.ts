@@ -6,3 +6,5 @@ export * from './events';
 export * from './services';
 export * from './specifications';
 export * from './repositories';
+export * from './enums/webhook-event';
+export * from './enums/workspace-role';

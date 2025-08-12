@@ -77,8 +77,8 @@ export interface WorkspaceDto {
     lastName: string;
     email: string;
   };
-  userRole?: string;
-  userPermissions?: string[];
+  userRole?: string | undefined;
+  userPermissions?: string[] | undefined;
 }
 
 export interface WorkspaceSettingsDto {
@@ -109,13 +109,13 @@ export interface WorkspaceMemberDto {
   role: string;
   permissions: string[];
   joinedAt: Date;
-  lastActiveAt?: Date;
+  lastActiveAt?: Date | undefined;
   user: {
     id: string;
     firstName: string;
     lastName: string;
     email: string;
-    avatar?: string;
+    avatar?: string | undefined;
   };
 }
 
@@ -230,7 +230,7 @@ export class GetWorkspaceByIdQueryHandler
       const workspaceDto = await this.mapWorkspaceToDto(workspace);
 
       // Cache the result
-      await this.cacheService.set(cacheKey, workspaceDto, 600); // 10 minutes
+      await this.cacheService.set(cacheKey, workspaceDto, { ttl: 600 }); // 10 minutes
 
       this.logInfo('Workspace retrieved successfully', {
         workspaceId: query.workspaceId.value,
@@ -270,8 +270,8 @@ export class GetWorkspaceByIdQueryHandler
 
     return {
       ...workspaceDto,
-      userRole: member?.role.value,
-      userPermissions: member?.getPermissions(),
+      userRole: member?.role || undefined,
+      userPermissions: member?.getPermissions() || undefined,
     };
   }
 
@@ -329,8 +329,7 @@ export class GetWorkspaceBySlugQueryHandler
     eventPublisher: DomainEventPublisher,
     logger: LoggingService,
     private readonly workspaceRepository: IWorkspaceRepository,
-    private readonly userRepository: IUserRepository,
-    private readonly cacheService: CacheService
+    private readonly userRepository: IUserRepository
   ) {
     super(eventPublisher, logger);
   }
@@ -395,8 +394,8 @@ export class GetWorkspaceBySlugQueryHandler
 
     return {
       ...workspaceDto,
-      userRole: member?.role.value,
-      userPermissions: member?.getPermissions(),
+      userRole: member?.role || undefined,
+      userPermissions: member?.getPermissions() || undefined,
     };
   }
 
@@ -498,7 +497,7 @@ export class GetUserWorkspacesQueryHandler
       );
 
       // Cache the result
-      await this.cacheService.set(cacheKey, paginatedResult, 300); // 5 minutes
+      await this.cacheService.set(cacheKey, paginatedResult, { ttl: 300 }); // 5 minutes
 
       this.logInfo('User workspaces retrieved successfully', {
         userId: query.userId.value,
@@ -525,8 +524,8 @@ export class GetUserWorkspacesQueryHandler
 
     return {
       ...workspaceDto,
-      userRole: member?.role.value,
-      userPermissions: member?.getPermissions(),
+      userRole: member?.role || undefined,
+      userPermissions: member?.getPermissions() || undefined,
     };
   }
 
@@ -658,19 +657,19 @@ export class GetWorkspaceMembersQueryHandler
         const user = await this.userRepository.findById(member.userId);
         if (user) {
           memberDtos.push({
-            id: member.id.value,
+            id: member.id,
             workspaceId: member.workspaceId.value,
             userId: member.userId.value,
-            role: member.role.value,
+            role: member.role,
             permissions: member.getPermissions(),
             joinedAt: member.joinedAt,
-            lastActiveAt: member.lastActiveAt,
+            lastActiveAt: member.lastActiveAt || undefined,
             user: {
               id: user.id.value,
               firstName: user.firstName,
               lastName: user.lastName,
               email: user.email.value,
-              avatar: user.avatar,
+              avatar: user.avatar || undefined,
             },
           });
         }
@@ -683,7 +682,7 @@ export class GetWorkspaceMembersQueryHandler
       );
 
       // Cache the result
-      await this.cacheService.set(cacheKey, paginatedResult, 600); // 10 minutes
+      await this.cacheService.set(cacheKey, paginatedResult, { ttl: 600 }); // 10 minutes
 
       this.logInfo('Workspace members retrieved successfully', {
         workspaceId: query.workspaceId.value,
@@ -790,7 +789,7 @@ export class GetWorkspaceStatisticsQueryHandler
       );
 
       // Cache the result for 5 minutes
-      await this.cacheService.set(cacheKey, statistics, 300);
+      await this.cacheService.set(cacheKey, statistics, { ttl: 300 });
 
       this.logInfo('Workspace statistics retrieved successfully', {
         workspaceId: query.workspaceId.value,
@@ -864,7 +863,7 @@ export class GetWorkspaceUsageQueryHandler
       );
 
       // Cache the result for 5 minutes
-      await this.cacheService.set(cacheKey, usage, 300);
+      await this.cacheService.set(cacheKey, usage, { ttl: 300 });
 
       this.logInfo('Workspace usage retrieved successfully', {
         workspaceId: query.workspaceId.value,

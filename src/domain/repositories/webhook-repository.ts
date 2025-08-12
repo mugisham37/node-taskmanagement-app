@@ -1,16 +1,17 @@
 import {
   Webhook,
   WebhookDelivery,
-  WebhookEvent,
   WebhookStatus,
   WebhookDeliveryStatus,
 } from '../entities/webhook';
+import { WebhookEvent } from '../enums/webhook-event';
 
 export interface IWebhookRepository {
   save(webhook: Webhook): Promise<Webhook>;
   findById(id: string): Promise<Webhook | null>;
   findByWorkspaceId(
     workspaceId: string,
+    filters?: any,
     limit?: number,
     offset?: number
   ): Promise<Webhook[]>;
@@ -32,6 +33,38 @@ export interface IWebhookRepository {
     totalDeliveries: number;
     successRate: number;
   }>;
+  getWebhookStatistics(webhookId: string): Promise<{
+    lastDeliveryAt?: Date;
+    lastDeliveryStatus?: string;
+    totalDeliveries: number;
+    successfulDeliveries: number;
+    failedDeliveries: number;
+  }>;
+  getDeliveries(
+    webhookId: string,
+    filters?: any,
+    limit?: number
+  ): Promise<WebhookDelivery[]>;
+  getStatistics(
+    webhookId?: string,
+    workspaceId?: string,
+    dateFrom?: Date,
+    dateTo?: Date
+  ): Promise<{
+    totalWebhooks: number;
+    activeWebhooks: number;
+    totalDeliveries: number;
+    successfulDeliveries: number;
+    failedDeliveries: number;
+    pendingDeliveries: number;
+    averageResponseTime: number;
+    deliverySuccessRate: number;
+    deliveriesByStatus: Record<string, number>;
+    deliveriesByEventType: Record<string, number>;
+    deliveryTrend: { date: string; successful: number; failed: number }[];
+    recentDeliveries: any[];
+  }>;
+  getDeliveryById(deliveryId: string): Promise<WebhookDelivery | null>;
   delete(id: string): Promise<void>;
   deleteByWorkspaceId(workspaceId: string): Promise<void>;
 }

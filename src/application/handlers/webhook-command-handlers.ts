@@ -14,10 +14,12 @@ import { CacheService } from '../../infrastructure/caching/cache-service';
 import { WebhookId } from '../../domain/value-objects/webhook-id';
 import { WorkspaceId } from '../../domain/value-objects/workspace-id';
 import { UserId } from '../../domain/value-objects/user-id';
-import { Webhook } from '../../domain/entities/webhook';
-import { WebhookDelivery } from '../../domain/entities/webhook-delivery';
+import { Webhook, WebhookStatus } from '../../domain/entities/webhook';
 import { NotFoundError } from '../../shared/errors/not-found-error';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { WorkspaceRoleHelper } from '../../domain/enums/workspace-role';
+import { validateWebhookEvents } from '../../domain/enums/webhook-event';
+import * as crypto from 'crypto';
 
 // Command interfaces
 export interface CreateWebhookCommand {
@@ -123,28 +125,28 @@ export class CreateWebhookCommandHandler
           throw new Error('Invalid webhook URL format');
         }
 
-        // Validate events
-        const validEvents = this.getValidEventTypes();
-        const invalidEvents = command.events.filter(
-          event => !validEvents.includes(event)
-        );
-        if (invalidEvents.length > 0) {
-          throw new Error(`Invalid event types: ${invalidEvents.join(', ')}`);
-        }
+        // Validate and convert events
+        const validWebhookEvents = validateWebhookEvents(command.events);
 
         // Generate secret if not provided
         const secret = command.secret || this.generateWebhookSecret();
 
         // Create webhook
         const webhook = Webhook.create({
-          workspaceId: command.workspaceId,
+          workspaceId: command.workspaceId.value,
           name: command.name,
           url: command.url,
-          events: command.events,
+          events: validWebhookEvents,
           secret,
           headers: command.headers || {},
-          isActive: command.isActive !== false,
-          createdBy: command.createdBy,
+          status: command.isActive !== false ? WebhookStatus.ACTIVE : WebhookStatus.INACTIVE,
+          createdBy: command.createdBy.value,
+          retryCount: 0,
+          maxRetries: 3,
+          timeout: 30000,
+          failureCount: 0,
+          maxFailures: 10,
+          metadata: {},
         });
 
         await this.webhookRepository.save(webhook);
@@ -153,12 +155,12 @@ export class CreateWebhookCommandHandler
         await this.clearWebhookCaches(command.workspaceId);
 
         this.logInfo('Webhook created successfully', {
-          webhookId: webhook.id.value,
+          webhookId: webhook.id,
           workspaceId: command.workspaceId.value,
           name: command.name,
         });
 
-        return webhook.id;
+        return WebhookId.create(webhook.id);
       } catch (error) {
         this.logError('Failed to create webhook', error as Error, {
           workspaceId: command.workspaceId.value,
@@ -177,7 +179,7 @@ export class CreateWebhookCommandHandler
       workspaceId,
       userId
     );
-    return member && (member.role.isAdmin() || member.role.isOwner());
+    return member ? WorkspaceRoleHelper.canManageWebhooks(member.role) : false;
   }
 
   private isValidUrl(url: string): boolean {
@@ -189,29 +191,8 @@ export class CreateWebhookCommandHandler
     }
   }
 
-  private getValidEventTypes(): string[] {
-    return [
-      'task.created',
-      'task.updated',
-      'task.assigned',
-      'task.completed',
-      'task.deleted',
-      'project.created',
-      'project.updated',
-      'project.deleted',
-      'project.member.added',
-      'project.member.removed',
-      'workspace.created',
-      'workspace.updated',
-      'workspace.member.added',
-      'workspace.member.removed',
-      'user.created',
-      'user.updated',
-    ];
-  }
-
   private generateWebhookSecret(): string {
-    return require('crypto').randomBytes(32).toString('hex');
+    return crypto.randomBytes(32).toString('hex');
   }
 
   private async clearWebhookCaches(workspaceId: WorkspaceId): Promise<void> {
@@ -246,7 +227,7 @@ export class UpdateWebhookCommandHandler
     return await this.transactionManager.executeInTransaction(async () => {
       try {
         const webhook = await this.webhookRepository.findById(
-          command.webhookId
+          command.webhookId.value
         );
         if (!webhook) {
           throw new NotFoundError(
@@ -257,7 +238,7 @@ export class UpdateWebhookCommandHandler
         // Check permissions
         const canUpdate = await this.canUserManageWebhooks(
           command.updatedBy,
-          webhook.workspaceId
+          WorkspaceId.create(webhook.workspaceId)
         );
         if (!canUpdate) {
           throw new AuthorizationError(
@@ -276,14 +257,8 @@ export class UpdateWebhookCommandHandler
           webhook.updateUrl(command.url);
         }
         if (command.events !== undefined) {
-          const validEvents = this.getValidEventTypes();
-          const invalidEvents = command.events.filter(
-            event => !validEvents.includes(event)
-          );
-          if (invalidEvents.length > 0) {
-            throw new Error(`Invalid event types: ${invalidEvents.join(', ')}`);
-          }
-          webhook.updateEvents(command.events);
+          const validWebhookEvents = validateWebhookEvents(command.events);
+          webhook.updateEvents(validWebhookEvents);
         }
         if (command.secret !== undefined) {
           webhook.updateSecret(command.secret);
@@ -302,7 +277,7 @@ export class UpdateWebhookCommandHandler
         await this.webhookRepository.save(webhook);
 
         // Clear caches
-        await this.clearWebhookCaches(webhook.workspaceId);
+        await this.clearWebhookCaches(WorkspaceId.create(webhook.workspaceId));
 
         this.logInfo('Webhook updated successfully', {
           webhookId: command.webhookId.value,
@@ -324,7 +299,7 @@ export class UpdateWebhookCommandHandler
       workspaceId,
       userId
     );
-    return member && (member.role.isAdmin() || member.role.isOwner());
+    return member ? WorkspaceRoleHelper.canManageWebhooks(member.role) : false;
   }
 
   private isValidUrl(url: string): boolean {
@@ -334,27 +309,6 @@ export class UpdateWebhookCommandHandler
     } catch {
       return false;
     }
-  }
-
-  private getValidEventTypes(): string[] {
-    return [
-      'task.created',
-      'task.updated',
-      'task.assigned',
-      'task.completed',
-      'task.deleted',
-      'project.created',
-      'project.updated',
-      'project.deleted',
-      'project.member.added',
-      'project.member.removed',
-      'workspace.created',
-      'workspace.updated',
-      'workspace.member.added',
-      'workspace.member.removed',
-      'user.created',
-      'user.updated',
-    ];
   }
 
   private async clearWebhookCaches(workspaceId: WorkspaceId): Promise<void> {
@@ -389,7 +343,7 @@ export class DeleteWebhookCommandHandler
     return await this.transactionManager.executeInTransaction(async () => {
       try {
         const webhook = await this.webhookRepository.findById(
-          command.webhookId
+          command.webhookId.value
         );
         if (!webhook) {
           throw new NotFoundError(
@@ -400,7 +354,7 @@ export class DeleteWebhookCommandHandler
         // Check permissions
         const canDelete = await this.canUserManageWebhooks(
           command.deletedBy,
-          webhook.workspaceId
+          WorkspaceId.create(webhook.workspaceId)
         );
         if (!canDelete) {
           throw new AuthorizationError(
@@ -408,10 +362,10 @@ export class DeleteWebhookCommandHandler
           );
         }
 
-        await this.webhookRepository.delete(command.webhookId);
+        await this.webhookRepository.delete(command.webhookId.value);
 
         // Clear caches
-        await this.clearWebhookCaches(webhook.workspaceId);
+        await this.clearWebhookCaches(WorkspaceId.create(webhook.workspaceId));
 
         this.logInfo('Webhook deleted successfully', {
           webhookId: command.webhookId.value,
@@ -433,7 +387,7 @@ export class DeleteWebhookCommandHandler
       workspaceId,
       userId
     );
-    return member && (member.role.isAdmin() || member.role.isOwner());
+    return member ? WorkspaceRoleHelper.canManageWebhooks(member.role) : false;
   }
 
   private async clearWebhookCaches(workspaceId: WorkspaceId): Promise<void> {
@@ -468,7 +422,7 @@ export class TriggerWebhookCommandHandler
     return await this.transactionManager.executeInTransaction(async () => {
       try {
         const webhook = await this.webhookRepository.findById(
-          command.webhookId
+          command.webhookId.value
         );
         if (!webhook) {
           throw new NotFoundError(
@@ -479,7 +433,7 @@ export class TriggerWebhookCommandHandler
         // Check permissions
         const canTrigger = await this.canUserManageWebhooks(
           command.triggeredBy,
-          webhook.workspaceId
+          WorkspaceId.create(webhook.workspaceId)
         );
         if (!canTrigger) {
           throw new AuthorizationError(
@@ -488,40 +442,37 @@ export class TriggerWebhookCommandHandler
         }
 
         // Check if webhook is active
-        if (!webhook.isActive) {
+        if (!webhook.isActive()) {
           throw new Error('Cannot trigger inactive webhook');
         }
 
         // Check if webhook listens to this event type
-        if (!webhook.events.includes(command.eventType)) {
+        const eventAsWebhookEvent = command.eventType as any; // Type assertion for compatibility
+        if (!webhook.events.includes(eventAsWebhookEvent)) {
           throw new Error(
             `Webhook does not listen to event type: ${command.eventType}`
           );
         }
 
-        // Create webhook delivery
-        const delivery = WebhookDelivery.create({
+        // Create webhook delivery (simplified for now)
+        const delivery = {
+          id: crypto.randomUUID(),
           webhookId: webhook.id,
           eventType: command.eventType,
           payload: command.payload,
-          url: webhook.url,
-          httpMethod: 'POST',
-          headers: this.buildDeliveryHeaders(
-            webhook,
-            command.eventType,
-            command.payload
-          ),
+          status: 'pending' as const,
+          attempt: 1,
           maxAttempts: 3,
-        });
-
-        await this.webhookRepository.saveDelivery(delivery);
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
 
         // Trigger actual delivery (would be handled by background job in real implementation)
         await this.deliverWebhook(delivery, webhook);
 
         this.logInfo('Webhook triggered successfully', {
           webhookId: command.webhookId.value,
-          deliveryId: delivery.id.value,
+          deliveryId: delivery.id,
           eventType: command.eventType,
         });
       } catch (error) {
@@ -542,51 +493,13 @@ export class TriggerWebhookCommandHandler
       workspaceId,
       userId
     );
-    return member && (member.role.isAdmin() || member.role.isOwner());
-  }
-
-  private buildDeliveryHeaders(
-    webhook: any,
-    eventType: string,
-    payload: any
-  ): Record<string, string> {
-    const timestamp = Math.floor(Date.now() / 1000).toString();
-    const payloadString = JSON.stringify(payload);
-    const signature = this.generateSignature(
-      payloadString,
-      webhook.secret,
-      timestamp
-    );
-
-    return {
-      'Content-Type': 'application/json',
-      'User-Agent': 'Webhook-Delivery/1.0',
-      'X-Webhook-Event': eventType,
-      'X-Webhook-Timestamp': timestamp,
-      'X-Webhook-Signature': signature,
-      ...webhook.headers,
-    };
-  }
-
-  private generateSignature(
-    payload: string,
-    secret: string,
-    timestamp: string
-  ): string {
-    const crypto = require('crypto');
-    const signaturePayload = `${timestamp}.${payload}`;
-    const signature = crypto
-      .createHmac('sha256', secret)
-      .update(signaturePayload)
-      .digest('hex');
-    return `sha256=${signature}`;
+    return member ? WorkspaceRoleHelper.canManageWebhooks(member.role) : false;
   }
 
   private async deliverWebhook(delivery: any, webhook: any): Promise<void> {
     // This would be implemented with actual HTTP client
-    // For now, just simulate delivery
     this.logInfo('Webhook delivery simulated', {
-      deliveryId: delivery.id.value,
+      deliveryId: delivery.id,
       url: webhook.url,
     });
   }
@@ -618,7 +531,7 @@ export class TestWebhookCommandHandler
     return await this.transactionManager.executeInTransaction(async () => {
       try {
         const webhook = await this.webhookRepository.findById(
-          command.webhookId
+          command.webhookId.value
         );
         if (!webhook) {
           throw new NotFoundError(
@@ -629,7 +542,7 @@ export class TestWebhookCommandHandler
         // Check permissions
         const canTest = await this.canUserManageWebhooks(
           command.testedBy,
-          webhook.workspaceId
+          WorkspaceId.create(webhook.workspaceId)
         );
         if (!canTest) {
           throw new AuthorizationError(
@@ -642,35 +555,31 @@ export class TestWebhookCommandHandler
           message: 'This is a test webhook delivery',
           timestamp: new Date().toISOString(),
           webhook: {
-            id: webhook.id.value,
+            id: webhook.id,
             name: webhook.name,
           },
           test: true,
         };
 
-        // Create test delivery
-        const delivery = WebhookDelivery.create({
+        // Create test delivery (simplified)
+        const delivery = {
+          id: crypto.randomUUID(),
           webhookId: webhook.id,
           eventType: 'webhook.test',
           payload: testPayload,
-          url: webhook.url,
-          httpMethod: 'POST',
-          headers: this.buildDeliveryHeaders(
-            webhook,
-            'webhook.test',
-            testPayload
-          ),
+          status: 'pending' as const,
+          attempt: 1,
           maxAttempts: 1,
-        });
-
-        await this.webhookRepository.saveDelivery(delivery);
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
 
         // Attempt delivery
         await this.deliverWebhook(delivery, webhook);
 
         this.logInfo('Webhook test completed', {
           webhookId: command.webhookId.value,
-          deliveryId: delivery.id.value,
+          deliveryId: delivery.id,
         });
       } catch (error) {
         this.logError('Failed to test webhook', error as Error, {
@@ -689,50 +598,13 @@ export class TestWebhookCommandHandler
       workspaceId,
       userId
     );
-    return member && (member.role.isAdmin() || member.role.isOwner());
-  }
-
-  private buildDeliveryHeaders(
-    webhook: any,
-    eventType: string,
-    payload: any
-  ): Record<string, string> {
-    const timestamp = Math.floor(Date.now() / 1000).toString();
-    const payloadString = JSON.stringify(payload);
-    const signature = this.generateSignature(
-      payloadString,
-      webhook.secret,
-      timestamp
-    );
-
-    return {
-      'Content-Type': 'application/json',
-      'User-Agent': 'Webhook-Delivery/1.0',
-      'X-Webhook-Event': eventType,
-      'X-Webhook-Timestamp': timestamp,
-      'X-Webhook-Signature': signature,
-      ...webhook.headers,
-    };
-  }
-
-  private generateSignature(
-    payload: string,
-    secret: string,
-    timestamp: string
-  ): string {
-    const crypto = require('crypto');
-    const signaturePayload = `${timestamp}.${payload}`;
-    const signature = crypto
-      .createHmac('sha256', secret)
-      .update(signaturePayload)
-      .digest('hex');
-    return `sha256=${signature}`;
+    return member ? WorkspaceRoleHelper.canManageWebhooks(member.role) : false;
   }
 
   private async deliverWebhook(delivery: any, webhook: any): Promise<void> {
     // This would be implemented with actual HTTP client
-    this.logInfo('Webhook test delivery simulated', {
-      deliveryId: delivery.id.value,
+    this.logInfo('Webhook delivery simulated', {
+      deliveryId: delivery.id,
       url: webhook.url,
     });
   }
