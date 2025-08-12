@@ -3,11 +3,11 @@ import { ValueObject } from './value-object';
 export interface RecurrenceRuleOptions {
   frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
   interval: number;
-  count?: number;
-  until?: Date;
-  byWeekDay?: number[];
-  byMonthDay?: number[];
-  byMonth?: number[];
+  count?: number | undefined;
+  until?: Date | undefined;
+  byWeekDay?: number[] | undefined;
+  byMonthDay?: number[] | undefined;
+  byMonth?: number[] | undefined;
 }
 
 export class RecurrenceRule extends ValueObject<RecurrenceRuleOptions> {

@@ -56,11 +56,11 @@ export interface UpdateCalendarEventRequest {
 export interface RecurrenceRuleDto {
   frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
   interval: number;
-  count?: number;
-  until?: Date;
-  byWeekDay?: number[];
-  byMonthDay?: number[];
-  byMonth?: number[];
+  count?: number | undefined;
+  until?: Date | undefined;
+  byWeekDay?: number[] | undefined;
+  byMonthDay?: number[] | undefined;
+  byMonth?: number[] | undefined;
 }
 
 export interface ReminderDto {
@@ -72,15 +72,15 @@ export interface ReminderDto {
 export interface CalendarEventDto {
   id: string;
   title: string;
-  description?: string;
+  description?: string | undefined;
   startTime: Date;
   endTime: Date;
-  projectId?: string;
+  projectId?: string | undefined;
   createdBy: string;
   attendees: AttendeeDto[];
-  location?: string;
+  location?: string | undefined;
   isAllDay: boolean;
-  recurrenceRule?: RecurrenceRuleDto;
+  recurrenceRule?: RecurrenceRuleDto | undefined;
   reminders: ReminderDto[];
   visibility: string;
   status: string;
@@ -89,7 +89,7 @@ export interface CalendarEventDto {
   project?: {
     id: string;
     name: string;
-  };
+  } | undefined;
   creator: {
     id: string;
     firstName: string;
@@ -136,7 +136,6 @@ export interface CalendarStatistics {
 @injectable()
 export class CalendarApplicationService extends BaseApplicationService {
   private readonly EVENT_CACHE_TTL = 1800; // 30 minutes
-  private readonly REMINDER_ADVANCE_TIME = 24 * 60 * 60 * 1000; // 24 hours
 
   constructor(
     logger: LoggingService,
@@ -234,16 +233,23 @@ export class CalendarApplicationService extends BaseApplicationService {
       // Create calendar event
       const calendarEvent = CalendarEvent.create({
         title: request.title,
-        description: request.description,
+        description: request.description || undefined,
         startTime: request.startTime,
         endTime: request.endTime,
-        projectId,
-        createdBy,
-        attendees: attendeeIds,
-        location: request.location,
+        projectId: projectId?.value,
+        createdBy: createdBy.value,
+        attendees: attendeeIds.map(id => ({ userId: id.value, status: 'pending' as const })),
+        location: request.location || undefined,
         isAllDay: request.isAllDay || false,
-        recurrenceRule,
-        reminders: request.reminders || [],
+        recurrenceRule: recurrenceRule?.toString(),
+        reminders: request.reminders?.filter(r => r.isEnabled).map(r => ({
+          id: crypto.randomUUID(),
+          minutesBefore: r.minutesBefore,
+          method: r.type === 'email' ? 'email' as const : 
+                  r.type === 'notification' ? 'notification' as const : 
+                  r.type === 'popup' ? 'notification' as const : 'notification' as const,
+          sent: false
+        })) || [],
         visibility: request.visibility || 'public',
       });
 
@@ -342,7 +348,13 @@ export class CalendarApplicationService extends BaseApplicationService {
         changes.push('recurrence');
       }
       if (request.reminders !== undefined) {
-        calendarEvent.updateReminders(request.reminders);
+        const mappedReminders = request.reminders.map(r => ({
+          id: crypto.randomUUID(),
+          minutesBefore: r.minutesBefore,
+          method: r.type === 'email' ? 'email' as const : r.type === 'notification' ? 'notification' as const : 'sms' as const,
+          sent: false
+        }));
+        calendarEvent.updateReminders(mappedReminders);
         changes.push('reminders');
       }
       if (request.visibility !== undefined) {
@@ -544,7 +556,7 @@ export class CalendarApplicationService extends BaseApplicationService {
       }
 
       // Check if already an attendee
-      if (calendarEvent.attendees.some(id => id.equals(attendeeIdVO))) {
+      if (calendarEvent.attendees.some(attendee => attendee.userId === attendeeIdVO.value)) {
         throw new Error('User is already an attendee');
       }
 
@@ -711,7 +723,7 @@ export class CalendarApplicationService extends BaseApplicationService {
         event.projectId,
         userId
       );
-      return member && (member.role.isAdmin() || member.role.isManager());
+      return member !== null && (member.role.isAdmin() || member.role.isManager());
     }
 
     return false;
@@ -739,7 +751,7 @@ export class CalendarApplicationService extends BaseApplicationService {
     if (event.createdBy.equals(userId)) return true;
 
     // Attendees can view
-    if (event.attendees.some(id => id.equals(userId))) return true;
+    if (event.attendees.some(attendee => attendee.userId === userId.value)) return true;
 
     // Project members can view project events
     if (event.projectId) {
@@ -770,15 +782,15 @@ export class CalendarApplicationService extends BaseApplicationService {
 
     // Get attendee details
     const attendees: AttendeeDto[] = [];
-    for (const attendeeId of event.attendees) {
-      const attendee = await this.userRepository.findById(attendeeId);
-      if (attendee) {
+    for (const attendee of event.attendees) {
+      const user = await this.userRepository.findById(new UserId(attendee.userId));
+      if (user) {
         attendees.push({
-          userId: attendee.id.value,
-          email: attendee.email.value,
-          firstName: attendee.firstName,
-          lastName: attendee.lastName,
-          status: 'pending', // Would be stored in a separate attendee status table
+          userId: user.id.value,
+          email: user.email.value,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          status: attendee.status,
           isOptional: false,
         });
       }
@@ -797,7 +809,7 @@ export class CalendarApplicationService extends BaseApplicationService {
       isAllDay: event.isAllDay,
       recurrenceRule: event.recurrenceRule
         ? {
-            frequency: event.recurrenceRule.frequency,
+            frequency: event.recurrenceRule.frequency as 'daily' | 'weekly' | 'monthly' | 'yearly',
             interval: event.recurrenceRule.interval,
             count: event.recurrenceRule.count,
             until: event.recurrenceRule.until,
@@ -806,9 +818,13 @@ export class CalendarApplicationService extends BaseApplicationService {
             byMonth: event.recurrenceRule.byMonth,
           }
         : undefined,
-      reminders: event.reminders,
+      reminders: event.reminders.map(r => ({
+        type: r.method === 'email' ? 'email' as const : r.method === 'notification' ? 'notification' as const : 'popup' as const,
+        minutesBefore: r.minutesBefore,
+        isEnabled: !r.sent
+      })),
       visibility: event.visibility,
-      status: event.status.value,
+      status: event.status,
       createdAt: event.createdAt,
       updatedAt: event.updatedAt,
       project: project
@@ -854,9 +870,9 @@ export class CalendarApplicationService extends BaseApplicationService {
   }
 
   private async generateRecurringEventInstances(
-    recurringEvents: CalendarEvent[],
-    startDate: Date,
-    endDate: Date
+    _recurringEvents: CalendarEvent[],
+    _startDate: Date,
+    _endDate: Date
   ): Promise<CalendarEvent[]> {
     // This would generate instances of recurring events within the date range
     // For now, return empty array as this is complex logic
@@ -870,16 +886,24 @@ export class CalendarApplicationService extends BaseApplicationService {
     for (const attendeeId of attendeeIds) {
       const attendee = await this.userRepository.findById(attendeeId);
       if (attendee) {
-        await this.emailService.sendCalendarInvitation({
+        const emailData: any = {
           recipientEmail: attendee.email.value,
           recipientName: `${attendee.firstName} ${attendee.lastName}`,
           eventTitle: event.title,
-          eventDescription: event.description,
           startTime: event.startTime,
           endTime: event.endTime,
-          location: event.location,
           organizerName: 'Event Organizer', // Would get from creator
-        });
+        };
+        
+        if (event.description) {
+          emailData.eventDescription = event.description;
+        }
+        
+        if (event.location) {
+          emailData.location = event.location;
+        }
+        
+        await this.emailService.sendCalendarInvitation(emailData);
       }
     }
   }

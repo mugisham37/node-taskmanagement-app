@@ -106,7 +106,7 @@ export class PasswordService {
   /**
    * Verify a password against its hash
    */
-  async verifyPassword(password: string, hash: string): Promise<boolean> {
+  async verify(password: string, hash: string): Promise<boolean> {
     try {
       return await argon2.verify(hash, password);
     } catch (error) {
@@ -114,6 +114,13 @@ export class PasswordService {
         `Failed to verify password: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     }
+  }
+
+  /**
+   * Hash a password (alias for hashPassword)
+   */
+  async hash(password: string): Promise<string> {
+    return this.hashPassword(password);
   }
 
   /**

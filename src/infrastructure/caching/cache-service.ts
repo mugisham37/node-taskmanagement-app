@@ -248,17 +248,29 @@ export class CacheService {
   async set(
     key: string,
     value: any,
-    options: CacheOptions = {}
+    options?: CacheOptions | number
   ): Promise<void> {
     const fullKey = this.buildKey(key);
-    const ttl = options.ttl || this.defaultTTL;
+    
+    // Handle legacy number TTL or new options object
+    let ttl: number;
+    let cacheOptions: CacheOptions;
+    
+    if (typeof options === 'number') {
+      ttl = options;
+      cacheOptions = { ttl };
+    } else {
+      cacheOptions = options || {};
+      ttl = cacheOptions.ttl || this.defaultTTL;
+    }
+    
     const memoryTTL = Math.min(ttl, 300); // Max 5 minutes in memory
 
     try {
       const promises: Promise<void>[] = [];
 
       // Set in L1 cache (memory)
-      if (options.useMemoryFallback !== false) {
+      if (cacheOptions.useMemoryFallback !== false) {
         promises.push(this.memoryCache.set(fullKey, value, memoryTTL));
       }
 
@@ -272,8 +284,8 @@ export class CacheService {
       await Promise.all(promises);
 
       // Handle tags if provided
-      if (options.tags && options.tags.length > 0) {
-        await this.addKeyToTags(key, options.tags, ttl);
+      if (cacheOptions.tags && cacheOptions.tags.length > 0) {
+        await this.addKeyToTags(key, cacheOptions.tags, ttl);
       }
 
       this.logDebug('Cache set', { key: fullKey, ttl });

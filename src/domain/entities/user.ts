@@ -17,6 +17,7 @@ export class User extends BaseEntity<UserId> {
   private _status: UserStatusVO;
   private _lastLoginAt: Date | null;
   private _avatar?: string;
+  private _isEmailVerified: boolean;
 
   constructor(
     id: UserId,
@@ -28,7 +29,8 @@ export class User extends BaseEntity<UserId> {
     createdAt?: Date,
     updatedAt?: Date,
     firstName?: string,
-    lastName?: string
+    lastName?: string,
+    isEmailVerified: boolean = false
   ) {
     super(id, createdAt, updatedAt);
     this._email = email;
@@ -38,6 +40,7 @@ export class User extends BaseEntity<UserId> {
     this._hashedPassword = hashedPassword;
     this._status = status;
     this._lastLoginAt = lastLoginAt;
+    this._isEmailVerified = isEmailVerified;
     this.validate();
   }
 
@@ -74,6 +77,20 @@ export class User extends BaseEntity<UserId> {
    */
   get hashedPassword(): string {
     return this._hashedPassword;
+  }
+
+  /**
+   * Get the user's password hash (alias for compatibility)
+   */
+  get passwordHash(): string {
+    return this._hashedPassword;
+  }
+
+  /**
+   * Check if email is verified
+   */
+  get isEmailVerified(): boolean {
+    return this._isEmailVerified;
   }
 
   /**
@@ -177,6 +194,17 @@ export class User extends BaseEntity<UserId> {
     }
 
     this._lastLoginAt = new Date();
+    this.markAsUpdated();
+  }
+
+  /**
+   * Verify the user's email
+   */
+  verifyEmail(): void {
+    this._isEmailVerified = true;
+    if (this._status.value === UserStatus.PENDING_VERIFICATION) {
+      this._status = UserStatusVO.create(UserStatus.ACTIVE);
+    }
     this.markAsUpdated();
   }
 
@@ -312,9 +340,11 @@ export class User extends BaseEntity<UserId> {
     id: UserId,
     email: Email,
     name: string,
-    hashedPassword: string
+    hashedPassword: string,
+    firstName?: string,
+    lastName?: string
   ): User {
-    return new User(id, email, name, hashedPassword);
+    return new User(id, email, name, hashedPassword, undefined, null, undefined, undefined, firstName, lastName);
   }
 
   /**

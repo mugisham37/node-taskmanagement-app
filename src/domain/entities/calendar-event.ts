@@ -1,428 +1,198 @@
-import { Entity } from '../base/entity';
+import { BaseEntity } from './base-entity';
+import { CalendarEventId } from '../value-objects/calendar-event-id';
+import { ProjectId } from '../value-objects/project-id';
+import { UserId } from '../value-objects/user-id';
+import { RecurrenceRule } from '../value-objects/recurrence-rule';
+import { DomainError } from '../../shared/errors/domain-error';
 
-export enum EventType {
-  TASK = 'task',
-  MEETING = 'meeting',
-  DEADLINE = 'deadline',
-  OTHER = 'other',
-}
-
-export enum AttendeeStatus {
-  PENDING = 'pending',
-  ACCEPTED = 'accepted',
-  DECLINED = 'declined',
-  TENTATIVE = 'tentative',
+export enum CalendarEventStatus {
+  ACTIVE = 'active',
+  CANCELLED = 'cancelled',
+  DRAFT = 'draft'
 }
 
 export interface CalendarEventAttendee {
   userId: string;
-  status: AttendeeStatus;
-  responseAt?: Date | undefined;
+  status: 'pending' | 'accepted' | 'declined' | 'tentative';
 }
-
-// Helper function for CalendarEventAttendee
-export const createCalendarEventAttendee = (
-  userId: string,
-  status: AttendeeStatus = AttendeeStatus.PENDING
-): CalendarEventAttendee & { equals: (other: CalendarEventAttendee) => boolean } => {
-  return {
-    userId,
-    status,
-    responseAt: undefined,
-    equals: function(other: CalendarEventAttendee): boolean {
-      return this.userId === other.userId;
-    }
-  };
-};
 
 export interface CalendarEventReminder {
   id: string;
   minutesBefore: number;
   method: 'notification' | 'email' | 'sms';
   sent: boolean;
-  sentAt?: Date | undefined;
+  sentAt?: Date;
 }
 
 export interface CalendarEventProps {
-  id: string;
   title: string;
   description?: string | undefined;
-  type: EventType;
-  startDate: Date;
-  endDate?: Date | undefined;
-  allDay: boolean;
-  location?: string | undefined;
-  url?: string | undefined;
-  color: string;
-  userId: string;
-  workspaceId?: string | undefined;
-  teamId?: string | undefined;
+  startTime: Date;
+  endTime: Date;
   projectId?: string | undefined;
-  taskId?: string | undefined;
-  isRecurring: boolean;
-  recurrenceRule?: string | undefined;
+  createdBy: string;
   attendees: CalendarEventAttendee[];
+  location?: string | undefined;
+  isAllDay: boolean;
+  recurrenceRule?: string | undefined;
   reminders: CalendarEventReminder[];
-  externalCalendarId?: string | undefined;
-  externalEventId?: string | undefined;
-  metadata: Record<string, any>;
-  createdAt: Date;
-  updatedAt: Date;
+  visibility: string;
 }
 
-export class CalendarEvent implements Entity<string> {
-  public readonly id: string;
-  public readonly createdAt: Date;
-  public readonly updatedAt: Date;
-  private props: CalendarEventProps;
+export class CalendarEvent extends BaseEntity<CalendarEventId> {
+  private _title: string;
+  private _description?: string | undefined;
+  private _startTime: Date;
+  private _endTime: Date;
+  private _projectId?: ProjectId | undefined;
+  private _createdBy: UserId;
+  private _attendees: CalendarEventAttendee[];
+  private _location?: string | undefined;
+  private _allDay: boolean;
+  private _recurrenceRule?: RecurrenceRule | undefined;
+  private _reminders: CalendarEventReminder[];
+  private _visibility: string;
+  private _status: CalendarEventStatus;
 
-  private constructor(props: CalendarEventProps) {
-    this.id = props.id;
-    this.createdAt = props.createdAt;
-    this.updatedAt = props.updatedAt;
-    this.props = props;
-  }
-
-  public static create(
-    props: Omit<CalendarEventProps, 'id' | 'createdAt' | 'updatedAt'>
-  ): CalendarEvent {
-    // Validate business rules
-    this.validateEventDates(props.startDate, props.endDate);
-    this.validateEventType(props.type);
-
-    const now = new Date();
-    const calendarEvent = new CalendarEvent({
-      ...props,
-      id: crypto.randomUUID(),
-      color: props.color || '#4f46e5',
-      allDay: props.allDay || false,
-      isRecurring: props.isRecurring || false,
-      attendees: props.attendees || [],
-      reminders: props.reminders || [],
-      metadata: props.metadata || {},
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    return calendarEvent;
-  }
-
-  public static fromPersistence(props: CalendarEventProps): CalendarEvent {
-    return new CalendarEvent(props);
-  }
-
-  public update(
-    updates: Partial<Omit<CalendarEventProps, 'id' | 'createdAt' | 'updatedAt'>>
-  ): void {
-    // Validate updated dates if both are provided
-    const newStartDate = updates.startDate || this.props.startDate;
-    const newEndDate = updates.endDate || this.props.endDate;
-    CalendarEvent.validateEventDates(newStartDate, newEndDate);
-
-    if (updates.type) {
-      CalendarEvent.validateEventType(updates.type);
-    }
-
-    // Apply updates
-    Object.assign(this.props, updates, { updatedAt: new Date() });
-  }
-
-  public addAttendee(
-    userId: string,
-    status: AttendeeStatus = AttendeeStatus.PENDING
-  ): void {
-    // Check if attendee already exists
-    const existingAttendee = this.props.attendees.find(
-      a => a.userId === userId
-    );
-    if (existingAttendee) {
-      throw new Error('Attendee already exists for this event');
-    }
-
-    this.props.attendees.push({
-      userId,
-      status,
-    });
-
-    this.props.updatedAt = new Date();
-  }
-
-  public removeAttendee(userId: string): void {
-    const index = this.props.attendees.findIndex(a => a.userId === userId);
-
-    if (index === -1) {
-      throw new Error('Attendee not found for this event');
-    }
-
-    this.props.attendees.splice(index, 1);
-    this.props.updatedAt = new Date();
-  }
-
-  public updateAttendeeStatus(userId: string, status: AttendeeStatus): void {
-    const attendee = this.props.attendees.find(a => a.userId === userId);
-
-    if (!attendee) {
-      throw new Error('Attendee not found for this event');
-    }
-
-    attendee.status = status;
-    attendee.responseAt = new Date();
-    this.props.updatedAt = new Date();
-  }
-
-  public addReminder(
-    minutesBefore: number,
-    method: 'notification' | 'email' | 'sms' = 'notification'
-  ): void {
-    if (minutesBefore < 0) {
-      throw new Error('Reminder minutes before must be non-negative');
-    }
-
-    const reminderId = `${this.props.id}-reminder-${Date.now()}`;
-    this.props.reminders.push({
-      id: reminderId,
-      minutesBefore,
-      method,
-      sent: false,
-    });
-
-    this.props.updatedAt = new Date();
-  }
-
-  public removeReminder(reminderId: string): void {
-    const index = this.props.reminders.findIndex(r => r.id === reminderId);
-
-    if (index === -1) {
-      throw new Error('Reminder not found for this event');
-    }
-
-    this.props.reminders.splice(index, 1);
-    this.props.updatedAt = new Date();
-  }
-
-  public markReminderSent(reminderId: string): void {
-    const reminder = this.props.reminders.find(r => r.id === reminderId);
-
-    if (!reminder) {
-      throw new Error('Reminder not found for this event');
-    }
-
-    reminder.sent = true;
-    reminder.sentAt = new Date();
-    this.props.updatedAt = new Date();
-  }
-
-  public checkSchedulingConflict(otherEvent: CalendarEvent): boolean {
-    // Skip if different users
-    if (this.props.userId !== otherEvent.props.userId) {
-      return false;
-    }
-
-    // Skip if same event
-    if (this.props.id === otherEvent.props.id) {
-      return false;
-    }
-
-    const thisStart = this.props.startDate;
-    const thisEnd =
-      this.props.endDate || new Date(thisStart.getTime() + 60 * 60 * 1000); // Default 1 hour
-    const otherStart = otherEvent.props.startDate;
-    const otherEnd =
-      otherEvent.props.endDate ||
-      new Date(otherStart.getTime() + 60 * 60 * 1000);
-
-    // Check for overlap
-    return thisStart < otherEnd && thisEnd > otherStart;
-  }
-
-  public isUpcoming(): boolean {
-    return this.props.startDate > new Date();
-  }
-
-  public isPast(): boolean {
-    const endTime = this.props.endDate || this.props.startDate;
-    return endTime < new Date();
-  }
-
-  public getDuration(): number {
-    if (!this.props.endDate) {
-      return 60; // Default 1 hour in minutes
-    }
-
-    const durationMs =
-      this.props.endDate.getTime() - this.props.startDate.getTime();
-    return Math.floor(durationMs / (1000 * 60)); // Convert to minutes
-  }
-
-  // Update methods
-  public updateTitle(newTitle: string): void {
-    if (!newTitle || newTitle.trim().length === 0) {
-      throw new Error('Event title cannot be empty');
-    }
-    this.props.title = newTitle.trim();
-    this.props.updatedAt = new Date();
-  }
-
-  public updateDescription(newDescription?: string): void {
-    this.props.description = newDescription;
-    this.props.updatedAt = new Date();
-  }
-
-  public updateTimeRange(startTime: Date, endTime?: Date): void {
-    CalendarEvent.validateEventDates(startTime, endTime);
-    this.props.startDate = startTime;
-    this.props.endDate = endTime;
-    this.props.updatedAt = new Date();
-  }
-
-  public updateLocation(newLocation?: string): void {
-    this.props.location = newLocation;
-    this.props.updatedAt = new Date();
-  }
-
-  public updateAllDay(isAllDay: boolean): void {
-    this.props.allDay = isAllDay;
-    this.props.updatedAt = new Date();
-  }
-
-  public updateRecurrenceRule(recurrenceRule?: string): void {
-    this.props.recurrenceRule = recurrenceRule;
-    this.props.isRecurring = !!recurrenceRule;
-    this.props.updatedAt = new Date();
-  }
-
-  public updateReminders(reminders: CalendarEventReminder[]): void {
-    this.props.reminders = [...reminders];
-    this.props.updatedAt = new Date();
-  }
-
-  public updateVisibility(visibility: string): void {
-    // Store visibility in metadata for now
-    this.props.metadata = { ...this.props.metadata, visibility };
-    this.props.updatedAt = new Date();
-  }
-
-  public cancel(): void {
-    this.props.metadata = { ...this.props.metadata, status: 'cancelled' };
-    this.props.updatedAt = new Date();
-  }
-
-  // Additional getters for compatibility
-  get startTime(): Date {
-    return this.props.startDate;
-  }
-
-  get endTime(): Date | undefined {
-    return this.props.endDate;
-  }
-
-  get createdBy(): string {
-    return this.props.userId;
+  constructor(
+    id: CalendarEventId,
+    props: CalendarEventProps,
+    createdAt?: Date,
+    updatedAt?: Date
+  ) {
+    super(id, createdAt, updatedAt);
+    this._title = props.title;
+    this._description = props.description;
+    this._startTime = props.startTime;
+    this._endTime = props.endTime;
+    this._projectId = props.projectId ? new ProjectId(props.projectId) : undefined;
+    this._createdBy = new UserId(props.createdBy);
+    this._attendees = props.attendees || [];
+    this._location = props.location;
+    this._allDay = props.isAllDay;
+    this._recurrenceRule = props.recurrenceRule ? RecurrenceRule.create(JSON.parse(props.recurrenceRule)) : undefined;
+    this._reminders = props.reminders || [];
+    this._visibility = props.visibility;
+    this._status = CalendarEventStatus.ACTIVE;
+    this.validate();
   }
 
   // Getters
-  get title(): string {
-    return this.props.title;
-  }
-
-  get description(): string | undefined {
-    return this.props.description;
-  }
-
-  get type(): EventType {
-    return this.props.type;
-  }
-
-  get startDate(): Date {
-    return this.props.startDate;
-  }
-
-  get endDate(): Date | undefined {
-    return this.props.endDate;
-  }
-
-  get allDay(): boolean {
-    return this.props.allDay;
-  }
-
-  get location(): string | undefined {
-    return this.props.location;
-  }
-
-  get url(): string | undefined {
-    return this.props.url;
-  }
-
-  get color(): string {
-    return this.props.color;
-  }
-
-  get userId(): string {
-    return this.props.userId;
-  }
-
-  get workspaceId(): string | undefined {
-    return this.props.workspaceId;
-  }
-
-  get teamId(): string | undefined {
-    return this.props.teamId;
-  }
-
-  get projectId(): string | undefined {
-    return this.props.projectId;
-  }
-
-  get taskId(): string | undefined {
-    return this.props.taskId;
-  }
-
-  get isRecurring(): boolean {
-    return this.props.isRecurring;
-  }
-
-  get recurrenceRule(): string | undefined {
-    return this.props.recurrenceRule;
-  }
-
-  get attendees(): CalendarEventAttendee[] {
-    return [...this.props.attendees];
-  }
-
-  get reminders(): CalendarEventReminder[] {
-    return [...this.props.reminders];
-  }
-
-  get externalCalendarId(): string | undefined {
-    return this.props.externalCalendarId;
-  }
-
-  get externalEventId(): string | undefined {
-    return this.props.externalEventId;
-  }
-
-  get metadata(): Record<string, any> {
-    return { ...this.props.metadata };
-  }
-
-  private static validateEventDates(startDate: Date, endDate?: Date): void {
-    if (endDate && endDate <= startDate) {
-      throw new Error('End date must be after start date');
-    }
-  }
-
-  private static validateEventType(type: EventType): void {
-    if (!Object.values(EventType).includes(type)) {
-      throw new Error(`Invalid event type: ${type}`);
-    }
-  }
+  get title(): string { return this._title; }
+  get description(): string | undefined { return this._description; }
+  get startTime(): Date { return this._startTime; }
+  get endTime(): Date { return this._endTime; }
+  get projectId(): ProjectId | undefined { return this._projectId; }
+  get createdBy(): UserId { return this._createdBy; }
+  get attendees(): CalendarEventAttendee[] { return this._attendees; }
+  get location(): string | undefined { return this._location; }
+  get allDay(): boolean { return this._allDay; }
+  get isAllDay(): boolean { return this._allDay; }
+  get recurrenceRule(): RecurrenceRule | undefined { return this._recurrenceRule; }
+  get reminders(): CalendarEventReminder[] { return this._reminders; }
+  get visibility(): string { return this._visibility; }
+  get status(): CalendarEventStatus { return this._status; }
 
   protected validate(): void {
-    // CalendarEvent validation will be handled by the infrastructure layer
-    // This is a legacy entity that needs refactoring
+    if (!this._title || this._title.trim().length === 0) {
+      throw new DomainError('Event title is required');
+    }
+    
+    if (this._startTime >= this._endTime) {
+      throw new DomainError('Start time must be before end time');
+    }
   }
 
   getValidationErrors(): string[] {
-    return [];
+    const errors: string[] = [];
+    try {
+      this.validate();
+    } catch (error) {
+      if (error instanceof DomainError) {
+        errors.push(error.message);
+      }
+    }
+    return errors;
+  }
+
+  // Business methods
+  updateTitle(title: string): void {
+    if (!title || title.trim().length === 0) {
+      throw new DomainError('Event title cannot be empty');
+    }
+    this._title = title.trim();
+    this.markAsUpdated();
+  }
+
+  updateDescription(description?: string): void {
+    this._description = description;
+    this.markAsUpdated();
+  }
+
+  updateTimeRange(startTime: Date, endTime: Date): void {
+    if (startTime >= endTime) {
+      throw new DomainError('Start time must be before end time');
+    }
+    this._startTime = startTime;
+    this._endTime = endTime;
+    this.markAsUpdated();
+  }
+
+  updateLocation(location?: string): void {
+    this._location = location;
+    this.markAsUpdated();
+  }
+
+  updateAllDay(allDay: boolean): void {
+    this._allDay = allDay;
+    this.markAsUpdated();
+  }
+
+  updateRecurrenceRule(recurrenceRule?: RecurrenceRule): void {
+    this._recurrenceRule = recurrenceRule;
+    this.markAsUpdated();
+  }
+
+  updateReminders(reminders: CalendarEventReminder[]): void {
+    this._reminders = reminders;
+    this.markAsUpdated();
+  }
+
+  updateVisibility(visibility: string): void {
+    this._visibility = visibility;
+    this.markAsUpdated();
+  }
+
+  addAttendee(userId: UserId): void {
+    const existingAttendee = this._attendees.find(a => a.userId === userId.value);
+    if (existingAttendee) {
+      throw new DomainError('User is already an attendee');
+    }
+    
+    this._attendees.push({
+      userId: userId.value,
+      status: 'pending'
+    });
+    this.markAsUpdated();
+  }
+
+  removeAttendee(userId: UserId): void {
+    const index = this._attendees.findIndex(a => a.userId === userId.value);
+    if (index === -1) {
+      throw new DomainError('User is not an attendee');
+    }
+    
+    this._attendees.splice(index, 1);
+    this.markAsUpdated();
+  }
+
+  cancel(): void {
+    this._status = CalendarEventStatus.CANCELLED;
+    this.markAsUpdated();
+  }
+
+  static create(props: CalendarEventProps): CalendarEvent {
+    const id = CalendarEventId.create();
+    return new CalendarEvent(id, props);
   }
 }

@@ -1,12 +1,23 @@
 import {
   CalendarEvent,
-  EventType,
-  AttendeeStatus,
 } from '../entities/calendar-event';
+import { CalendarEventId } from '../value-objects/calendar-event-id';
+import { UserId } from '../value-objects/user-id';
+import { ProjectId } from '../value-objects/project-id';
+
+export interface CalendarStatistics {
+  totalEvents: number;
+  upcomingEvents: number;
+  eventsThisWeek: number;
+  eventsThisMonth: number;
+  recurringEvents: number;
+  eventsByProject: { projectId: string; projectName: string; count: number }[];
+  attendanceRate: number;
+}
 
 export interface ICalendarEventRepository {
   save(event: CalendarEvent): Promise<CalendarEvent>;
-  findById(id: string): Promise<CalendarEvent | null>;
+  findById(id: CalendarEventId): Promise<CalendarEvent | null>;
   findByUserId(
     userId: string,
     limit?: number,
@@ -27,16 +38,28 @@ export interface ICalendarEventRepository {
     limit?: number,
     offset?: number
   ): Promise<CalendarEvent[]>;
-  findByType(
-    type: EventType,
-    limit?: number,
-    offset?: number
-  ): Promise<CalendarEvent[]>;
   findByDateRange(
     startDate: Date,
     endDate: Date,
-    userId?: string
+    userId?: UserId,
+    projectId?: ProjectId
   ): Promise<CalendarEvent[]>;
+  findByTimeRange(
+    startDate: Date,
+    endDate: Date,
+    userId: UserId,
+    projectId?: ProjectId
+  ): Promise<CalendarEvent[]>;
+  findConflictingEvents(
+    userId: UserId,
+    startDate: Date,
+    endDate: Date,
+    excludeEventId?: CalendarEventId
+  ): Promise<CalendarEvent[]>;
+  getCalendarStatistics(
+    userId: UserId,
+    projectId?: ProjectId
+  ): Promise<CalendarStatistics>;
   findUpcoming(userId: string, limit?: number): Promise<CalendarEvent[]>;
   findPast(
     userId: string,
@@ -44,44 +67,5 @@ export interface ICalendarEventRepository {
     offset?: number
   ): Promise<CalendarEvent[]>;
   findRecurring(userId: string): Promise<CalendarEvent[]>;
-  findConflicts(
-    userId: string,
-    startDate: Date,
-    endDate: Date,
-    excludeEventId?: string
-  ): Promise<CalendarEvent[]>;
-  findByAttendee(
-    userId: string,
-    status?: AttendeeStatus
-  ): Promise<CalendarEvent[]>;
-  findWithReminders(beforeDate: Date): Promise<CalendarEvent[]>;
-  findByExternalCalendar(externalCalendarId: string): Promise<CalendarEvent[]>;
-  getEventStats(
-    userId: string,
-    startDate?: Date,
-    endDate?: Date
-  ): Promise<{
-    totalEvents: number;
-    upcomingEvents: number;
-    completedEvents: number;
-    byType: Record<EventType, number>;
-    averageDuration: number;
-  }>;
-  searchEvents(query: {
-    userId?: string;
-    workspaceId?: string;
-    title?: string;
-    description?: string;
-    type?: EventType;
-    startDate?: Date;
-    endDate?: Date;
-    limit?: number;
-    offset?: number;
-  }): Promise<CalendarEvent[]>;
-  delete(id: string): Promise<void>;
-  deleteByUserId(userId: string): Promise<void>;
-  deleteByProjectId(projectId: string): Promise<void>;
-  deleteByTaskId(taskId: string): Promise<void>;
-  deleteRecurringEvent(eventId: string, deleteAll: boolean): Promise<void>;
-  updateAttendeeResponse(eventId: string, userId: string, response: AttendeeStatus): Promise<void>;
+  delete(id: CalendarEventId): Promise<void>;
 }

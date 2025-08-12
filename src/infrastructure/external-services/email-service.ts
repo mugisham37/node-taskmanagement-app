@@ -1022,55 +1022,56 @@ This is an automated message, please do not reply to this email.
   /**
    * Send calendar invitation email
    */
-  async sendCalendarInvitation(
-    recipientEmail: string,
-    recipientName: string,
-    eventTitle: string,
-    eventDescription: string,
-    startTime: Date,
-    endTime: Date,
-    location?: string
-  ): Promise<boolean> {
+  async sendCalendarInvitation(data: {
+    recipientEmail: string;
+    recipientName: string;
+    eventTitle: string;
+    eventDescription?: string;
+    startTime: Date;
+    endTime: Date;
+    location?: string;
+    organizerName: string;
+  }): Promise<boolean> {
     try {
-      const subject = `Calendar Invitation: ${eventTitle}`;
-      const locationText = location ? `<li><strong>Location:</strong> ${location}</li>` : '';
+      const subject = `Calendar Invitation: ${data.eventTitle}`;
+      const locationText = data.location ? `<li><strong>Location:</strong> ${data.location}</li>` : '';
       
       const html = `
         <h2>Calendar Invitation</h2>
-        <p>Hello ${recipientName},</p>
+        <p>Hello ${data.recipientName},</p>
         <p>You have been invited to the following calendar event:</p>
         <ul>
-          <li><strong>Title:</strong> ${eventTitle}</li>
-          <li><strong>Description:</strong> ${eventDescription}</li>
-          <li><strong>Start Time:</strong> ${startTime.toLocaleString()}</li>
-          <li><strong>End Time:</strong> ${endTime.toLocaleString()}</li>
+          <li><strong>Title:</strong> ${data.eventTitle}</li>
+          <li><strong>Description:</strong> ${data.eventDescription || 'No description provided'}</li>
+          <li><strong>Start Time:</strong> ${data.startTime.toLocaleString()}</li>
+          <li><strong>End Time:</strong> ${data.endTime.toLocaleString()}</li>
           ${locationText}
         </ul>
         <p>Please mark your calendar and join us for this event.</p>
-        <p>Best regards,<br>Task Management Team</p>
+        <p>Best regards,<br>${data.organizerName}</p>
       `;
 
       const text = `
-Calendar Invitation: ${eventTitle}
+Calendar Invitation: ${data.eventTitle}
 
-Hello ${recipientName},
+Hello ${data.recipientName},
 
 You have been invited to the following calendar event:
 
-Title: ${eventTitle}
-Description: ${eventDescription}
-Start Time: ${startTime.toLocaleString()}
-End Time: ${endTime.toLocaleString()}
-${location ? `Location: ${location}` : ''}
+Title: ${data.eventTitle}
+Description: ${data.eventDescription || 'No description provided'}
+Start Time: ${data.startTime.toLocaleString()}
+End Time: ${data.endTime.toLocaleString()}
+${data.location ? `Location: ${data.location}` : ''}
 
 Please mark your calendar and join us for this event.
 
 Best regards,
-Task Management Team
+${data.organizerName}
       `.trim();
 
       return this.sendEmail({
-        to: recipientEmail,
+        to: data.recipientEmail,
         subject,
         html,
         text,
@@ -1078,13 +1079,124 @@ Task Management Team
         tags: ['calendar', 'invitation'],
         metadata: {
           type: 'calendar_invitation',
-          eventTitle,
-          startTime: startTime.toISOString(),
-          endTime: endTime.toISOString()
+          eventTitle: data.eventTitle,
+          startTime: data.startTime.toISOString(),
+          endTime: data.endTime.toISOString()
         }
       });
     } catch (error) {
       this.logger.error('Failed to send calendar invitation', error as Error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send email verification email
+   */
+  async sendEmailVerification(data: {
+    recipientEmail: string;
+    recipientName: string;
+    verificationUrl: string;
+  }): Promise<boolean> {
+    try {
+      const subject = 'Verify Your Email Address';
+      
+      const html = `
+        <h2>Email Verification</h2>
+        <p>Hello ${data.recipientName},</p>
+        <p>Please click the link below to verify your email address:</p>
+        <p><a href="${data.verificationUrl}" style="background-color: #4f46e5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Verify Email</a></p>
+        <p>If the button doesn't work, copy and paste this link into your browser:</p>
+        <p>${data.verificationUrl}</p>
+        <p>This link will expire in 24 hours.</p>
+        <p>Best regards,<br>Task Management Team</p>
+      `;
+
+      const text = `
+Email Verification
+
+Hello ${data.recipientName},
+
+Please visit the following link to verify your email address:
+${data.verificationUrl}
+
+This link will expire in 24 hours.
+
+Best regards,
+Task Management Team
+      `.trim();
+
+      return this.sendEmail({
+        to: data.recipientEmail,
+        subject,
+        html,
+        text,
+        priority: 'high',
+        tags: ['authentication', 'verification'],
+        metadata: {
+          type: 'email_verification',
+          recipientEmail: data.recipientEmail
+        }
+      });
+    } catch (error) {
+      this.logger.error('Failed to send email verification', error as Error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send password reset email
+   */
+  async sendPasswordReset(data: {
+    recipientEmail: string;
+    recipientName: string;
+    resetUrl: string;
+  }): Promise<boolean> {
+    try {
+      const subject = 'Password Reset Request';
+      
+      const html = `
+        <h2>Password Reset</h2>
+        <p>Hello ${data.recipientName},</p>
+        <p>You have requested to reset your password. Please click the link below to set a new password:</p>
+        <p><a href="${data.resetUrl}" style="background-color: #dc2626; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a></p>
+        <p>If the button doesn't work, copy and paste this link into your browser:</p>
+        <p>${data.resetUrl}</p>
+        <p>This link will expire in 1 hour.</p>
+        <p>If you didn't request this password reset, please ignore this email.</p>
+        <p>Best regards,<br>Task Management Team</p>
+      `;
+
+      const text = `
+Password Reset
+
+Hello ${data.recipientName},
+
+You have requested to reset your password. Please visit the following link to set a new password:
+${data.resetUrl}
+
+This link will expire in 1 hour.
+
+If you didn't request this password reset, please ignore this email.
+
+Best regards,
+Task Management Team
+      `.trim();
+
+      return this.sendEmail({
+        to: data.recipientEmail,
+        subject,
+        html,
+        text,
+        priority: 'high',
+        tags: ['authentication', 'password-reset'],
+        metadata: {
+          type: 'password_reset',
+          recipientEmail: data.recipientEmail
+        }
+      });
+    } catch (error) {
+      this.logger.error('Failed to send password reset email', error as Error);
       throw error;
     }
   }

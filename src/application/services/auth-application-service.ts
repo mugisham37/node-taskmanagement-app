@@ -14,17 +14,14 @@ import { LoggingService } from '../../infrastructure/monitoring/logging-service'
 import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
 import { IUserRepository } from '../../domain/repositories/user-repository';
 import {
-  JWTService,
-  TokenPair,
+  JWTService
 } from '../../infrastructure/security/jwt-service';
 import { PasswordService } from '../../infrastructure/security/password-service';
 import {
-  SessionManager,
-  SessionData,
+  SessionManager
 } from '../../infrastructure/security/session-manager';
 import {
-  OAuthService,
-  UserInfo,
+  OAuthService
 } from '../../infrastructure/security/oauth-service';
 import {
   TwoFactorAuthService,
@@ -97,7 +94,6 @@ export interface TwoFactorSetupResponse {
 @injectable()
 export class AuthApplicationService extends BaseApplicationService {
   private readonly SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
-  private readonly REFRESH_TOKEN_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days
   private readonly MAX_LOGIN_ATTEMPTS = 5;
   private readonly LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes
 
@@ -248,12 +244,14 @@ export class AuthApplicationService extends BaseApplicationService {
       const passwordHash = await this.passwordService.hash(request.password);
 
       // Create user
-      const user = User.create({
+      const user = User.create(
+        UserId.create(crypto.randomUUID()),
         email,
+        `${request.firstName} ${request.lastName}`,
         passwordHash,
-        firstName: request.firstName,
-        lastName: request.lastName,
-      });
+        request.firstName,
+        request.lastName
+      );
 
       await this.userRepository.save(user);
 
@@ -372,15 +370,15 @@ export class AuthApplicationService extends BaseApplicationService {
       'sendEmailVerification',
       async () => {
         const verificationToken =
-          await this.jwtService.generateEmailVerificationToken({
-            userId: user.id.value,
-            email: user.email.value,
-          });
+          await this.jwtService.generateEmailVerificationToken(
+            user.id.value,
+            user.email.value
+          );
 
         await this.emailService.sendEmailVerification({
           recipientEmail: user.email.value,
           recipientName: `${user.firstName} ${user.lastName}`,
-          verificationLink: `${process.env.APP_URL}/auth/verify-email?token=${verificationToken}`,
+          verificationUrl: `${process.env['APP_URL']}/auth/verify-email?token=${verificationToken}`,
         });
 
         this.logInfo('Email verification sent', {
@@ -435,15 +433,15 @@ export class AuthApplicationService extends BaseApplicationService {
         return;
       }
 
-      const resetToken = await this.jwtService.generatePasswordResetToken({
-        userId: user.id.value,
-        email: user.email.value,
-      });
+      const resetToken = await this.jwtService.generatePasswordResetToken(
+        user.id.value,
+        user.email.value
+      );
 
       await this.emailService.sendPasswordReset({
         recipientEmail: user.email.value,
         recipientName: `${user.firstName} ${user.lastName}`,
-        resetLink: `${process.env.APP_URL}/auth/reset-password?token=${resetToken}`,
+        resetUrl: `${process.env['APP_URL']}/auth/reset-password?token=${resetToken}`,
       });
 
       this.logInfo('Password reset email sent', {
@@ -519,8 +517,8 @@ export class AuthApplicationService extends BaseApplicationService {
     return await this.executeWithMonitoring('generateOAuthUrl', async () => {
       const result = await this.oauthService.generateAuthorizationUrl({
         provider,
-        redirectUri,
-        state,
+        redirectUri: redirectUri || '',
+        state: state || crypto.randomUUID(),
       });
 
       this.logInfo('OAuth authorization URL generated', {
@@ -566,17 +564,18 @@ export class AuthApplicationService extends BaseApplicationService {
 
       if (!user) {
         // Create new user from OAuth data
-        user = User.create({
-          email: new Email(userInfo.email),
-          passwordHash: '', // OAuth users don't have passwords
-          firstName: userInfo.firstName || userInfo.name.split(' ')[0] || '',
-          lastName:
-            userInfo.lastName ||
+        user = User.create(
+          UserId.create(crypto.randomUUID()),
+          new Email(userInfo.email),
+          userInfo.name,
+          '', // OAuth users don't have passwords
+          userInfo.firstName || userInfo.name.split(' ')[0] || '',
+          userInfo.lastName ||
             userInfo.name.split(' ').slice(1).join(' ') ||
-            '',
-        });
+            ''
+        );
 
-        user.verifyEmail(); // OAuth emails are typically verified
+        user.verifyEmail(); // OAuth users are automatically verified // OAuth emails are typically verified
         await this.userRepository.save(user);
       }
 
@@ -975,7 +974,7 @@ export class AuthApplicationService extends BaseApplicationService {
     token: string
   ): Promise<void> {
     const key = `2fa-login-token:${token}`;
-    await this.cacheService.set(key, userId, 300); // 5 minutes
+    await this.cacheService.set(key, userId, { ttl: 300 }); // 5 minutes
   }
 
   private async verifyTwoFactorToken(token: string): Promise<string | null> {
@@ -983,7 +982,7 @@ export class AuthApplicationService extends BaseApplicationService {
     return await this.cacheService.get<string>(key);
   }
 
-  private async removeTwoFactorToken(userId: string): Promise<void> {
+  private async removeTwoFactorToken(_userId: string): Promise<void> {
     // Find and remove all tokens for this user
     // This is a simplified implementation
     // In production, you might want to maintain a user->token mapping
@@ -996,7 +995,7 @@ export class AuthApplicationService extends BaseApplicationService {
 
   private maskEmail(email: string): string {
     const [local, domain] = email.split('@');
-    if (local.length <= 2) return email;
+    if (!local || local.length <= 2) return email;
     return local.slice(0, 2) + '*'.repeat(local.length - 2) + '@' + domain;
   }
 
