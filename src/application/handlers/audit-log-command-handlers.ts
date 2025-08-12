@@ -12,7 +12,7 @@ import { IUserRepository } from '../../domain/repositories/user-repository';
 import { TransactionManager } from '../../infrastructure/database/transaction-manager';
 import { AuditLogId } from '../../domain/value-objects/audit-log-id';
 import { UserId } from '../../domain/value-objects/user-id';
-import { AuditLog } from '../../domain/entities/audit-log';
+import { AuditLog, AuditAction } from '../../domain/entities/audit-log';
 import { NotFoundError } from '../../shared/errors/not-found-error';
 
 // Command interfaces
@@ -102,13 +102,13 @@ export class LogAuditEventCommandHandler
         await this.auditLogRepository.save(auditLog);
 
         this.logInfo('Audit event logged successfully', {
-          auditLogId: auditLog.id.value,
+          auditLogId: auditLog.auditLogId.value,
           userId: command.userId?.value,
           entityType: command.entityType,
           action: command.action,
         });
 
-        return auditLog.id;
+        return auditLog.auditLogId;
       } catch (error) {
         this.logError('Failed to log audit event', error as Error, {
           userId: command.userId?.value,
@@ -132,7 +132,6 @@ export class BulkLogAuditEventsCommandHandler
     eventPublisher: DomainEventPublisher,
     logger: LoggingService,
     private readonly auditLogRepository: IAuditLogRepository,
-    private readonly userRepository: IUserRepository,
     private readonly transactionManager: TransactionManager
   ) {
     super(eventPublisher, logger);
@@ -162,7 +161,7 @@ export class BulkLogAuditEventsCommandHandler
           });
 
           await this.auditLogRepository.save(auditLog);
-          auditLogIds.push(auditLog.id);
+          auditLogIds.push(auditLog.auditLogId);
         }
 
         this.logInfo('Bulk audit events logged successfully', {
@@ -273,7 +272,7 @@ export class ArchiveAuditLogsCommandHandler
 
         // Delete archived logs from main storage
         for (const auditLog of auditLogs) {
-          await this.auditLogRepository.delete(auditLog.id);
+          await this.auditLogRepository.delete(auditLog.auditLogId);
         }
 
         this.logInfo('Audit logs archived successfully', {
@@ -339,10 +338,10 @@ export class DeleteAuditLogCommandHandler
 
         // Log the deletion as an audit event before deleting
         const deletionAuditLog = AuditLog.create({
-          userId: command.deletedBy,
+          userId: command.deletedBy.value,
           entityType: 'AuditLog',
           entityId: command.auditLogId.value,
-          action: 'DELETE',
+          action: AuditAction.DELETE,
           oldValues: {
             originalAuditLog: {
               entityType: auditLog.entityType,

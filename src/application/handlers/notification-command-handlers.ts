@@ -41,6 +41,10 @@ export interface DeleteNotificationCommand {
   userId: UserId;
 }
 
+export interface DeleteAllNotificationsCommand {
+  userId: UserId;
+}
+
 export interface UpdateNotificationPreferencesCommand {
   userId: UserId;
   preferences: {
@@ -79,8 +83,7 @@ export class CreateNotificationCommandHandler
     logger: LoggingService,
     private readonly notificationRepository: INotificationRepository,
     private readonly userRepository: IUserRepository,
-    private readonly transactionManager: TransactionManager,
-    private readonly cacheService: CacheService
+    private readonly transactionManager: TransactionManager
   ) {
     super(eventPublisher, logger);
   }
@@ -103,13 +106,18 @@ export class CreateNotificationCommandHandler
         }
 
         // Create notification
-        const notification = Notification.create({
+        const notificationData: any = {
           userId: command.userId,
           type: command.type,
           title: command.title,
           message: command.message,
-          data: command.data,
-        });
+        };
+        
+        if (command.data) {
+          notificationData.data = command.data;
+        }
+        
+        const notification = Notification.create(notificationData);
 
         await this.notificationRepository.save(notification);
 
@@ -133,12 +141,8 @@ export class CreateNotificationCommandHandler
   }
 
   private async clearNotificationCaches(userId: UserId): Promise<void> {
-    const patterns = [
-      `notifications:${userId.value}:*`,
-      `notification-stats:${userId.value}:*`,
-    ];
-
-    // In a real implementation, this would clear cache patterns
+    // Clear notification cache patterns
+    // In a real implementation, you would use the cache service to clear cache patterns
     this.logDebug('Notification caches cleared', { userId: userId.value });
   }
 }
@@ -154,8 +158,7 @@ export class MarkNotificationAsReadCommandHandler
     eventPublisher: DomainEventPublisher,
     logger: LoggingService,
     private readonly notificationRepository: INotificationRepository,
-    private readonly transactionManager: TransactionManager,
-    private readonly cacheService: CacheService
+    private readonly transactionManager: TransactionManager
   ) {
     super(eventPublisher, logger);
   }
@@ -169,7 +172,7 @@ export class MarkNotificationAsReadCommandHandler
     return await this.transactionManager.executeInTransaction(async () => {
       try {
         const notification = await this.notificationRepository.findById(
-          command.notificationId
+          command.notificationId.value
         );
         if (!notification) {
           throw new NotFoundError(
@@ -204,12 +207,8 @@ export class MarkNotificationAsReadCommandHandler
   }
 
   private async clearNotificationCaches(userId: UserId): Promise<void> {
-    const patterns = [
-      `notifications:${userId.value}:*`,
-      `notification:${userId.value}:*`,
-      `notification-stats:${userId.value}:*`,
-    ];
-
+    // Clear notification cache patterns
+    // In a real implementation, you would use the cache service to clear cache patterns
     this.logDebug('Notification caches cleared', { userId: userId.value });
   }
 }
@@ -225,8 +224,7 @@ export class MarkAllNotificationsAsReadCommandHandler
     eventPublisher: DomainEventPublisher,
     logger: LoggingService,
     private readonly notificationRepository: INotificationRepository,
-    private readonly transactionManager: TransactionManager,
-    private readonly cacheService: CacheService
+    private readonly transactionManager: TransactionManager
   ) {
     super(eventPublisher, logger);
   }
@@ -239,9 +237,7 @@ export class MarkAllNotificationsAsReadCommandHandler
     return await this.transactionManager.executeInTransaction(async () => {
       try {
         const unreadNotifications =
-          await this.notificationRepository.findByUserId(command.userId, {
-            isRead: false,
-          });
+          await this.notificationRepository.findUnread(command.userId.value);
 
         for (const notification of unreadNotifications) {
           notification.markAsRead();
@@ -269,11 +265,6 @@ export class MarkAllNotificationsAsReadCommandHandler
   }
 
   private async clearNotificationCaches(userId: UserId): Promise<void> {
-    const patterns = [
-      `notifications:${userId.value}:*`,
-      `notification-stats:${userId.value}:*`,
-    ];
-
     this.logDebug('Notification caches cleared', { userId: userId.value });
   }
 }
@@ -289,8 +280,7 @@ export class DeleteNotificationCommandHandler
     eventPublisher: DomainEventPublisher,
     logger: LoggingService,
     private readonly notificationRepository: INotificationRepository,
-    private readonly transactionManager: TransactionManager,
-    private readonly cacheService: CacheService
+    private readonly transactionManager: TransactionManager
   ) {
     super(eventPublisher, logger);
   }
@@ -304,7 +294,7 @@ export class DeleteNotificationCommandHandler
     return await this.transactionManager.executeInTransaction(async () => {
       try {
         const notification = await this.notificationRepository.findById(
-          command.notificationId
+          command.notificationId.value
         );
         if (!notification) {
           throw new NotFoundError(
@@ -319,7 +309,7 @@ export class DeleteNotificationCommandHandler
           );
         }
 
-        await this.notificationRepository.delete(command.notificationId);
+        await this.notificationRepository.delete(command.notificationId.value);
 
         // Clear caches
         await this.clearNotificationCaches(command.userId);
@@ -336,12 +326,15 @@ export class DeleteNotificationCommandHandler
     });
   }
 
-  private async clearNotificationCaches(userId: UserId): Promise<void> {
+  private async clearNotificationCaches(userId: UserId, notificationId?: NotificationId): Promise<void> {
     const patterns = [
       `notifications:${userId.value}:*`,
-      `notification:${command.notificationId.value}`,
       `notification-stats:${userId.value}:*`,
     ];
+
+    if (notificationId) {
+      patterns.push(`notification:${notificationId.value}`);
+    }
 
     this.logDebug('Notification caches cleared', { userId: userId.value });
   }
@@ -382,17 +375,22 @@ export class UpdateNotificationPreferencesCommandHandler
 
         // Get existing preferences or create new ones
         let preferences = await this.notificationRepository.getPreferences(
-          command.userId
+          command.userId.value
         );
         if (!preferences) {
           preferences =
             await this.notificationRepository.createDefaultPreferences(
-              command.userId
+              command.userId.value
             );
         }
 
-        // Update preferences
-        preferences.update(command.preferences);
+        // Update preferences based on command
+        if (command.preferences.emailNotifications !== undefined) {
+          preferences.updateChannelPreference('EMAIL', command.preferences.emailNotifications);
+        }
+        if (command.preferences.pushNotifications !== undefined) {
+          preferences.updateChannelPreference('PUSH', command.preferences.pushNotifications);
+        }
         await this.notificationRepository.savePreferences(preferences);
 
         // Clear preferences cache
@@ -418,6 +416,54 @@ export class UpdateNotificationPreferencesCommandHandler
 }
 
 /**
+ * Delete all notifications command handler
+ */
+export class DeleteAllNotificationsCommandHandler
+  extends BaseHandler
+  implements ICommandHandler<DeleteAllNotificationsCommand, void>
+{
+  constructor(
+    eventPublisher: DomainEventPublisher,
+    logger: LoggingService,
+    private readonly notificationRepository: INotificationRepository,
+    private readonly transactionManager: TransactionManager
+  ) {
+    super(eventPublisher, logger);
+  }
+
+  async handle(command: DeleteAllNotificationsCommand): Promise<void> {
+    this.logInfo('Deleting all notifications for user', {
+      userId: command.userId.value,
+    });
+
+    return await this.transactionManager.executeInTransaction(async () => {
+      try {
+        const deletedCount = await this.notificationRepository.deleteAllByUserId(
+          command.userId.value
+        );
+
+        // Clear caches
+        await this.clearNotificationCaches(command.userId);
+
+        this.logInfo('All notifications deleted successfully', {
+          userId: command.userId.value,
+          deletedCount,
+        });
+      } catch (error) {
+        this.logError('Failed to delete all notifications', error as Error, {
+          userId: command.userId.value,
+        });
+        throw error;
+      }
+    });
+  }
+
+  private async clearNotificationCaches(userId: UserId): Promise<void> {
+    this.logDebug('Notification caches cleared', { userId: userId.value });
+  }
+}
+
+/**
  * Bulk delete notifications command handler
  */
 export class BulkDeleteNotificationsCommandHandler
@@ -428,8 +474,7 @@ export class BulkDeleteNotificationsCommandHandler
     eventPublisher: DomainEventPublisher,
     logger: LoggingService,
     private readonly notificationRepository: INotificationRepository,
-    private readonly transactionManager: TransactionManager,
-    private readonly cacheService: CacheService
+    private readonly transactionManager: TransactionManager
   ) {
     super(eventPublisher, logger);
   }
@@ -446,9 +491,9 @@ export class BulkDeleteNotificationsCommandHandler
 
         for (const notificationId of command.notificationIds) {
           const notification =
-            await this.notificationRepository.findById(notificationId);
+            await this.notificationRepository.findById(notificationId.value);
           if (notification && notification.userId.equals(command.userId)) {
-            await this.notificationRepository.delete(notificationId);
+            await this.notificationRepository.delete(notificationId.value);
             deletedCount++;
           }
         }
@@ -472,11 +517,6 @@ export class BulkDeleteNotificationsCommandHandler
   }
 
   private async clearNotificationCaches(userId: UserId): Promise<void> {
-    const patterns = [
-      `notifications:${userId.value}:*`,
-      `notification-stats:${userId.value}:*`,
-    ];
-
     this.logDebug('Notification caches cleared', { userId: userId.value });
   }
 }

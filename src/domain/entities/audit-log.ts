@@ -1,4 +1,5 @@
 import { Entity } from '../base/entity';
+import { AuditLogId } from '../value-objects/audit-log-id';
 
 export enum AuditAction {
   CREATE = 'CREATE',
@@ -43,6 +44,11 @@ export class AuditLog implements Entity<string> {
   // Entity interface implementation
   get id(): string {
     return this.props.id;
+  }
+
+  // Get AuditLogId value object
+  get auditLogId(): AuditLogId {
+    return AuditLogId.fromString(this.props.id);
   }
 
   get createdAt(): Date {

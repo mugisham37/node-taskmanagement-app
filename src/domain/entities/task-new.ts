@@ -8,101 +8,7 @@ import {
 } from '../value-objects';
 import { TaskStatus } from '../../shared/constants/task-constants';
 import { DomainError, ValidationError } from '../../shared/errors';
-impor  /**
-   * Update the task's priority
-   */
-  updatePriority(priority: Priority, updatedBy: UserId): void {
-    if (this._priority.equals(priority)) {
-      return; // No change needed
-    }
-
-    this._priority = priority;
-    this.markAsUpdated();
-
-    // TODO: Add domain event for priority change
-  }
-
-  /**
-   * Update the task's title
-   */
-  updateTitle(title: string, updatedBy: UserId): void {
-    this.validateTitle(title);
-    if (this._title === title) {
-      return; // No change needed
-    }
-
-    this._title = title;
-    this.markAsUpdated();
-
-    // TODO: Add domain event for title change
-  }
-
-  /**
-   * Update the task's description
-   */
-  updateDescription(description: string, updatedBy: UserId): void {
-    this.validateDescription(description);
-    if (this._description === description) {
-      return; // No change needed
-    }
-
-    this._description = description;
-    this.markAsUpdated();
-
-    // TODO: Add domain event for description change
-  }
-
-  /**
-   * Update the task's due date
-   */
-  updateDueDate(dueDate: Date | null, updatedBy: UserId): void {
-    if (this._dueDate === dueDate) {
-      return; // No change needed
-    }
-
-    this._dueDate = dueDate;
-    this.markAsUpdated();
-
-    // TODO: Add domain event for due date change
-  }
-
-  /**
-   * Update the task's estimated hours
-   */
-  updateEstimatedHours(estimatedHours: number | null, updatedBy: UserId): void {
-    if (estimatedHours !== null) {
-      this.validateEstimatedHours(estimatedHours);
-    }
-    
-    if (this._estimatedHours === estimatedHours) {
-      return; // No change needed
-    }
-
-    this._estimatedHours = estimatedHours;
-    this.markAsUpdated();
-
-    // TODO: Add domain event for estimated hours change
-  }
-
-  /**
-   * Update task status
-   */
-  updateStatus(status: TaskStatusVO, updatedBy: UserId): void {
-    if (!this._status.canTransitionTo(status.value)) {
-      throw new DomainError(
-        `Cannot transition from ${this._status.value} to ${status.value}`
-      );
-    }
-
-    this._status = status;
-    this.markAsUpdated();
-
-    // TODO: Add domain event for status change
-  }
-
-  /**
-   * Check if the task is assigned
-   */ON } from '../../shared/constants/task-constants';
+import { TASK_VALIDATION } from '../../shared/constants/task-constants';
 
 /**
  * Task domain entity
@@ -223,23 +129,28 @@ export class Task extends BaseEntity<TaskId> {
   }
 
   /**
-   * Get when the task was completed
+   * Get the task's completion date
    */
   get completedAt(): Date | null {
     return this._completedAt;
   }
 
   /**
-   * Update the task's basic information
+   * Update task information
    */
-  updateBasicInfo(
-    title: string,
-    description: string,
+  update(
+    title?: string,
+    description?: string,
     dueDate?: Date | null,
     estimatedHours?: number | null
   ): void {
-    this.validateTitle(title);
-    this.validateDescription(description);
+    if (title !== undefined) {
+      this.validateTitle(title);
+    }
+
+    if (description !== undefined) {
+      this.validateDescription(description);
+    }
 
     if (estimatedHours !== undefined) {
       this.validateEstimatedHours(estimatedHours);
@@ -250,6 +161,86 @@ export class Task extends BaseEntity<TaskId> {
     this._dueDate = dueDate ?? this._dueDate;
     this._estimatedHours = estimatedHours ?? this._estimatedHours;
 
+    this.markAsUpdated();
+  }
+
+  /**
+   * Update the task's title
+   */
+  updateTitle(title: string, updatedBy: UserId): void {
+    this.validateTitle(title);
+    if (this._title === title) {
+      return; // No change needed
+    }
+
+    this._title = title;
+    this.markAsUpdated();
+  }
+
+  /**
+   * Update the task's description
+   */
+  updateDescription(description: string, updatedBy: UserId): void {
+    this.validateDescription(description);
+    if (this._description === description) {
+      return; // No change needed
+    }
+
+    this._description = description;
+    this.markAsUpdated();
+  }
+
+  /**
+   * Update the task's due date
+   */
+  updateDueDate(dueDate: Date | null, updatedBy: UserId): void {
+    if (this._dueDate === dueDate) {
+      return; // No change needed
+    }
+
+    this._dueDate = dueDate;
+    this.markAsUpdated();
+  }
+
+  /**
+   * Update the task's estimated hours
+   */
+  updateEstimatedHours(estimatedHours: number | null, updatedBy: UserId): void {
+    if (estimatedHours !== null) {
+      this.validateEstimatedHours(estimatedHours);
+    }
+    
+    if (this._estimatedHours === estimatedHours) {
+      return; // No change needed
+    }
+
+    this._estimatedHours = estimatedHours;
+    this.markAsUpdated();
+  }
+
+  /**
+   * Update the task's priority
+   */
+  updatePriority(priority: Priority, updatedBy: UserId): void {
+    if (this._priority.equals(priority)) {
+      return; // No change needed
+    }
+
+    this._priority = priority;
+    this.markAsUpdated();
+  }
+
+  /**
+   * Update task status
+   */
+  updateStatus(status: TaskStatusVO, updatedBy: UserId): void {
+    if (!this._status.canTransitionTo(status.value)) {
+      throw new DomainError(
+        `Cannot transition from ${this._status.value} to ${status.value}`
+      );
+    }
+
+    this._status = status;
     this.markAsUpdated();
   }
 
@@ -265,8 +256,13 @@ export class Task extends BaseEntity<TaskId> {
 
     this._assigneeId = assigneeId;
     this.markAsUpdated();
+  }
 
-    // TODO: Add domain event for task assignment
+  /**
+   * Assign the task to a user (alias for assign)
+   */
+  assignTo(assigneeId: UserId, assignedBy: UserId): void {
+    this.assign(assigneeId, assignedBy);
   }
 
   /**
@@ -279,8 +275,6 @@ export class Task extends BaseEntity<TaskId> {
 
     this._assigneeId = null;
     this.markAsUpdated();
-
-    // TODO: Add domain event for task unassignment
   }
 
   /**
@@ -303,8 +297,6 @@ export class Task extends BaseEntity<TaskId> {
     }
 
     this.markAsUpdated();
-
-    // TODO: Add domain event for task started
   }
 
   /**
@@ -325,8 +317,6 @@ export class Task extends BaseEntity<TaskId> {
 
     this._status = TaskStatusVO.create(TaskStatus.IN_REVIEW);
     this.markAsUpdated();
-
-    // TODO: Add domain event for task moved to review
   }
 
   /**
@@ -347,8 +337,6 @@ export class Task extends BaseEntity<TaskId> {
     this._status = TaskStatusVO.create(TaskStatus.COMPLETED);
     this._completedAt = new Date();
     this.markAsUpdated();
-
-    // TODO: Add domain event for task completion
   }
 
   /**
@@ -363,8 +351,6 @@ export class Task extends BaseEntity<TaskId> {
 
     this._status = TaskStatusVO.create(TaskStatus.CANCELLED);
     this.markAsUpdated();
-
-    // TODO: Add domain event for task cancellation
   }
 
   /**
@@ -380,44 +366,6 @@ export class Task extends BaseEntity<TaskId> {
     this._status = TaskStatusVO.create(TaskStatus.TODO);
     this._completedAt = null;
     this.markAsUpdated();
-
-    // TODO: Add domain event for task reopened
-  }
-
-  /**
-   * Update the task's priority
-   */
-  updatePriority(priority: Priority, updatedBy: UserId): void {
-    if (this._priority.equals(priority)) {
-      return; // No change needed
-    }
-
-    this._priority = priority;
-    this.markAsUpdated();
-
-    // TODO: Add domain event for priority change
-  }
-
-  /**
-   * Check if the task is overdue
-   */
-  isOverdue(): boolean {
-    if (
-      !this._dueDate ||
-      this._status.isCompleted() ||
-      this._status.isCancelled()
-    ) {
-      return false;
-    }
-
-    return new Date() > this._dueDate;
-  }
-
-  /**
-   * Check if the task can be assigned
-   */
-  canBeAssigned(): boolean {
-    return this._status.canBeAssigned();
   }
 
   /**
@@ -428,17 +376,21 @@ export class Task extends BaseEntity<TaskId> {
   }
 
   /**
-   * Check if the task is assigned to a specific user
-   */
-  isAssignedTo(userId: UserId): boolean {
-    return this._assigneeId?.equals(userId) ?? false;
-  }
-
-  /**
    * Check if the task is completed
    */
   isCompleted(): boolean {
     return this._status.isCompleted();
+  }
+
+  /**
+   * Check if the task is overdue
+   */
+  isOverdue(): boolean {
+    if (!this._dueDate || this.isCompleted()) {
+      return false;
+    }
+
+    return new Date() > this._dueDate;
   }
 
   /**
@@ -473,6 +425,13 @@ export class Task extends BaseEntity<TaskId> {
   }
 
   /**
+   * Check if the task can be assigned
+   */
+  canBeAssigned(): boolean {
+    return this._status.canBeAssigned();
+  }
+
+  /**
    * Validate the task entity
    */
   protected validate(): void {
@@ -492,21 +451,23 @@ export class Task extends BaseEntity<TaskId> {
    * Validate the task's title
    */
   private validateTitle(title: string): void {
-    if (!title || title.trim().length === 0) {
-      throw ValidationError.forField('title', 'Task title cannot be empty');
+    if (!title) {
+      throw ValidationError.forField('title', 'Task title cannot be empty', title);
     }
 
     if (title.length < TASK_VALIDATION.TITLE_MIN_LENGTH) {
       throw ValidationError.forField(
         'title',
-        `Task title must be at least ${TASK_VALIDATION.TITLE_MIN_LENGTH} character(s)`
+        `Task title must be at least ${TASK_VALIDATION.TITLE_MIN_LENGTH} characters`,
+        title
       );
     }
 
     if (title.length > TASK_VALIDATION.TITLE_MAX_LENGTH) {
       throw ValidationError.forField(
         'title',
-        `Task title cannot exceed ${TASK_VALIDATION.TITLE_MAX_LENGTH} characters`
+        `Task title cannot exceed ${TASK_VALIDATION.TITLE_MAX_LENGTH} characters`,
+        title
       );
     }
   }
@@ -515,13 +476,11 @@ export class Task extends BaseEntity<TaskId> {
    * Validate the task's description
    */
   private validateDescription(description: string): void {
-    if (
-      description &&
-      description.length > TASK_VALIDATION.DESCRIPTION_MAX_LENGTH
-    ) {
+    if (description && description.length > TASK_VALIDATION.DESCRIPTION_MAX_LENGTH) {
       throw ValidationError.forField(
         'description',
-        `Task description cannot exceed ${TASK_VALIDATION.DESCRIPTION_MAX_LENGTH} characters`
+        `Task description cannot exceed ${TASK_VALIDATION.DESCRIPTION_MAX_LENGTH} characters`,
+        description
       );
     }
   }
@@ -533,14 +492,16 @@ export class Task extends BaseEntity<TaskId> {
     if (hours < TASK_VALIDATION.MIN_ESTIMATED_HOURS) {
       throw ValidationError.forField(
         'estimatedHours',
-        `Estimated hours must be at least ${TASK_VALIDATION.MIN_ESTIMATED_HOURS}`
+        `Estimated hours must be at least ${TASK_VALIDATION.MIN_ESTIMATED_HOURS}`,
+        hours
       );
     }
 
     if (hours > TASK_VALIDATION.MAX_ESTIMATED_HOURS) {
       throw ValidationError.forField(
         'estimatedHours',
-        `Estimated hours cannot exceed ${TASK_VALIDATION.MAX_ESTIMATED_HOURS}`
+        `Estimated hours cannot exceed ${TASK_VALIDATION.MAX_ESTIMATED_HOURS}`,
+        hours
       );
     }
   }
@@ -552,96 +513,24 @@ export class Task extends BaseEntity<TaskId> {
     if (hours < TASK_VALIDATION.MIN_ACTUAL_HOURS) {
       throw ValidationError.forField(
         'actualHours',
-        `Actual hours must be at least ${TASK_VALIDATION.MIN_ACTUAL_HOURS}`
+        `Actual hours must be at least ${TASK_VALIDATION.MIN_ACTUAL_HOURS}`,
+        hours
       );
     }
 
     if (hours > TASK_VALIDATION.MAX_ACTUAL_HOURS) {
       throw ValidationError.forField(
         'actualHours',
-        `Actual hours cannot exceed ${TASK_VALIDATION.MAX_ACTUAL_HOURS}`
+        `Actual hours cannot exceed ${TASK_VALIDATION.MAX_ACTUAL_HOURS}`,
+        hours
       );
     }
   }
 
   /**
-   * Get validation errors for the current state
+   * Mark the entity as updated
    */
-  getValidationErrors(): string[] {
-    const errors: string[] = [];
-
-    try {
-      this.validate();
-    } catch (error) {
-      if (error instanceof ValidationError) {
-        errors.push(error.message);
-      }
-    }
-
-    return errors;
-  }
-
-  /**
-   * Create a new Task instance
-   */
-  static create(
-    id: TaskId,
-    title: string,
-    description: string,
-    projectId: ProjectId,
-    createdById: UserId,
-    priority?: Priority,
-    dueDate?: Date,
-    estimatedHours?: number
-  ): Task {
-    return new Task(
-      id,
-      title,
-      description,
-      projectId,
-      createdById,
-      TaskStatusVO.create(TaskStatus.TODO),
-      priority,
-      null, // assigneeId
-      dueDate ?? null,
-      estimatedHours ?? null
-    );
-  }
-
-  /**
-   * Restore a Task from persistence
-   */
-  static restore(
-    id: TaskId,
-    title: string,
-    description: string,
-    status: TaskStatusVO,
-    priority: Priority,
-    assigneeId: UserId | null,
-    projectId: ProjectId,
-    createdById: UserId,
-    dueDate: Date | null,
-    estimatedHours: number | null,
-    actualHours: number | null,
-    completedAt: Date | null,
-    createdAt: Date,
-    updatedAt: Date
-  ): Task {
-    return new Task(
-      id,
-      title,
-      description,
-      projectId,
-      createdById,
-      status,
-      priority,
-      assigneeId,
-      dueDate,
-      estimatedHours,
-      actualHours,
-      completedAt,
-      createdAt,
-      updatedAt
-    );
+  private markAsUpdated(): void {
+    this._updatedAt = new Date();
   }
 }

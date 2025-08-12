@@ -62,8 +62,8 @@ export class CreateProjectCommandHandler
           description: command.description,
           workspaceId: command.workspaceId,
           managerId: command.managerId,
-          startDate: command.startDate,
-          endDate: command.endDate,
+          ...(command.startDate && { startDate: command.startDate }),
+          ...(command.endDate && { endDate: command.endDate }),
         });
 
         await this.projectRepository.save(project);
@@ -122,16 +122,16 @@ export class UpdateProjectCommandHandler
 
         // Update project properties
         if (command.name !== undefined) {
-          project.updateName(command.name, command.userId);
+          project.updateName(command.name);
         }
         if (command.description !== undefined) {
-          project.updateDescription(command.description, command.userId);
+          project.updateDescription(command.description);
         }
         if (command.startDate !== undefined) {
-          project.updateStartDate(command.startDate, command.userId);
+          project.updateStartDate(command.startDate);
         }
         if (command.endDate !== undefined) {
-          project.updateEndDate(command.endDate, command.userId);
+          project.updateEndDate(command.endDate);
         }
 
         await this.projectRepository.save(project);
@@ -187,9 +187,9 @@ export class AddProjectMemberCommandHandler
         // Add member through domain service
         await this.projectDomainService.addProjectMember(
           project,
+          command.addedBy,
           command.memberId,
-          command.role,
-          command.addedBy
+          command.role
         );
 
         await this.projectRepository.save(project);
@@ -198,7 +198,7 @@ export class AddProjectMemberCommandHandler
         this.logInfo('Project member added successfully', {
           projectId: project.id.value,
           memberId: command.memberId.value,
-          role: command.role.value,
+          role: command.role,
         });
       } catch (error) {
         this.logError('Failed to add project member', error as Error, {
@@ -241,8 +241,8 @@ export class RemoveProjectMemberCommandHandler
         // Remove member through domain service
         await this.projectDomainService.removeProjectMember(
           project,
-          command.memberId,
-          command.removedBy
+          command.removedBy,
+          command.memberId
         );
 
         await this.projectRepository.save(project);
@@ -293,9 +293,9 @@ export class UpdateProjectMemberRoleCommandHandler
         // Update member role through domain service
         await this.projectDomainService.updateProjectMemberRole(
           project,
+          command.updatedBy,
           command.memberId,
-          command.newRole,
-          command.updatedBy
+          command.newRole
         );
 
         await this.projectRepository.save(project);
@@ -304,7 +304,7 @@ export class UpdateProjectMemberRoleCommandHandler
         this.logInfo('Project member role updated successfully', {
           projectId: project.id.value,
           memberId: command.memberId.value,
-          newRole: command.newRole.value,
+          newRole: command.newRole,
         });
       } catch (error) {
         this.logError('Failed to update project member role', error as Error, {
@@ -443,8 +443,8 @@ export class UpdateProjectStatusCommandHandler
         // Update status through domain service
         await this.projectDomainService.updateProjectStatus(
           project,
-          command.status,
-          command.updatedBy
+          command.updatedBy,
+          command.status
         );
 
         await this.projectRepository.save(project);
@@ -452,7 +452,7 @@ export class UpdateProjectStatusCommandHandler
 
         this.logInfo('Project status updated successfully', {
           projectId: project.id.value,
-          newStatus: command.status.value,
+          newStatus: command.status,
         });
       } catch (error) {
         this.logError('Failed to update project status', error as Error, {

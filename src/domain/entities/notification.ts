@@ -251,7 +251,36 @@ export class Notification extends BaseEntity<NotificationId> {
     this.markAsUpdated();
   }
 
-  public static create(
+  public static create(options: {
+    userId: UserId;
+    type: string;
+    title: string;
+    message: string;
+    data?: Record<string, any>;
+    workspaceId?: WorkspaceId;
+    projectId?: ProjectId;
+    taskId?: TaskId;
+    channels?: NotificationChannel[];
+  }): Notification {
+    const id = NotificationId.generate();
+    const type = options.type as NotificationType;
+    const channels = options.channels || [NotificationChannel.IN_APP];
+    
+    return new Notification(
+      id,
+      options.userId,
+      type,
+      options.title,
+      options.message,
+      channels,
+      options.workspaceId,
+      options.projectId,
+      options.taskId,
+      options.data
+    );
+  }
+
+  public static createFull(
     id: NotificationId,
     userId: UserId,
     type: NotificationType,
@@ -445,10 +474,13 @@ export class NotificationPreferences extends BaseEntity<NotificationId> {
   }
 
   public updateChannelPreference(
-    channel: NotificationChannel,
+    channel: NotificationChannel | string,
     enabled: boolean
   ): void {
-    switch (channel) {
+    const channelEnum = typeof channel === 'string' ? 
+      NotificationChannel[channel as keyof typeof NotificationChannel] : channel;
+      
+    switch (channelEnum) {
       case NotificationChannel.EMAIL:
         this._emailEnabled = enabled;
         break;

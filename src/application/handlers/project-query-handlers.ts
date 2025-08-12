@@ -16,6 +16,7 @@ import { UserId } from '../../domain/value-objects/user-id';
 import { WorkspaceId } from '../../domain/value-objects/workspace-id';
 import { NotFoundError } from '../../shared/errors/not-found-error';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { ProjectStatus } from '../../shared/enums/common.enums';
 
 // Query interfaces
 export interface GetProjectByIdQuery {
@@ -60,7 +61,7 @@ export interface SearchProjectsQuery {
 
 // Filter interfaces
 export interface ProjectFilters {
-  status?: string[];
+  status?: ProjectStatus[];
   ownerId?: string;
   tags?: string[];
   startDateFrom?: Date;
@@ -192,7 +193,7 @@ export class GetProjectByIdQueryHandler
       const projectDto = await this.mapProjectToDto(project);
 
       // Cache the result
-      await this.cacheService.set(cacheKey, projectDto, 600); // 10 minutes
+      await this.cacheService.set(cacheKey, projectDto, { ttl: 600 }); // 10 minutes
 
       this.logInfo('Project retrieved successfully', {
         projectId: query.projectId.value,
@@ -317,7 +318,7 @@ export class GetProjectsByWorkspaceQueryHandler
 
       // Filter projects user can view and map to DTOs
       const projectDtos: ProjectDto[] = [];
-      for (const project of projects) {
+      for (const project of projects.items) {
         const canView = await this.canUserViewProject(query.userId, project.id);
         if (canView) {
           const dto = await this.mapProjectToDto(project);
@@ -332,7 +333,7 @@ export class GetProjectsByWorkspaceQueryHandler
       );
 
       // Cache the result
-      await this.cacheService.set(cacheKey, paginatedResult, 300); // 5 minutes
+      await this.cacheService.set(cacheKey, paginatedResult, { ttl: 300 }); // 5 minutes
 
       this.logInfo('Projects by workspace retrieved successfully', {
         workspaceId: query.workspaceId.value,
@@ -476,11 +477,13 @@ export class GetProjectsByUserQueryHandler
 
       const projects = await this.projectRepository.findByUserId(
         query.userId,
-        query.filters
+        query.filters,
+        undefined,
+        query.pagination
       );
       const projectDtos: ProjectDto[] = [];
 
-      for (const project of projects) {
+      for (const project of projects.items) {
         const dto = await this.mapProjectToDto(project);
         projectDtos.push(dto);
       }
@@ -492,7 +495,7 @@ export class GetProjectsByUserQueryHandler
       );
 
       // Cache the result
-      await this.cacheService.set(cacheKey, paginatedResult, 300); // 5 minutes
+      await this.cacheService.set(cacheKey, paginatedResult, { ttl: 300 }); // 5 minutes
 
       this.logInfo('Projects by user retrieved successfully', {
         userId: query.userId.value,
@@ -667,7 +670,7 @@ export class GetProjectMembersQueryHandler
       );
 
       // Cache the result
-      await this.cacheService.set(cacheKey, paginatedResult, 600); // 10 minutes
+      await this.cacheService.set(cacheKey, paginatedResult, { ttl: 600 }); // 10 minutes
 
       this.logInfo('Project members retrieved successfully', {
         projectId: query.projectId.value,
@@ -754,15 +757,33 @@ export class GetProjectStatisticsQueryHandler
         return cachedStats;
       }
 
-      const statistics = await this.projectRepository.getProjectStatistics(
-        query.projectId,
-        query.workspaceId,
-        query.dateFrom,
-        query.dateTo
+      const rawStats = await this.projectRepository.getProjectStatistics(
+        query.workspaceId!
       );
 
+      // Transform the raw statistics to match DTO structure
+      const statistics: ProjectStatisticsDto = {
+        totalProjects: rawStats.total,
+        activeProjects: rawStats.byStatus[ProjectStatus.ACTIVE] || 0,
+        completedProjects: rawStats.byStatus[ProjectStatus.COMPLETED] || 0,
+        onHoldProjects: rawStats.byStatus[ProjectStatus.ON_HOLD] || 0,
+        cancelledProjects: rawStats.byStatus[ProjectStatus.CANCELLED] || 0,
+        totalTasks: 0, // Would need additional query
+        completedTasks: 0, // Would need additional query
+        overdueTasks: 0, // Would need additional query
+        totalMembers: rawStats.totalMembers,
+        averageProjectDuration: rawStats.averageCompletionTime || 0,
+        projectCompletionRate: rawStats.total > 0 ? ((rawStats.byStatus[ProjectStatus.COMPLETED] || 0) / rawStats.total) * 100 : 0,
+        taskCompletionRate: 0, // Would need additional query
+        projectsByStatus: Object.keys(rawStats.byStatus).reduce((acc, key) => {
+          acc[key] = rawStats.byStatus[key as ProjectStatus];
+          return acc;
+        }, {} as Record<string, number>),
+        projectsByMonth: [] // Would need additional query
+      };
+
       // Cache the result for 5 minutes
-      await this.cacheService.set(cacheKey, statistics, 300);
+      await this.cacheService.set(cacheKey, statistics, { ttl: 300 });
 
       this.logInfo('Project statistics retrieved successfully');
 

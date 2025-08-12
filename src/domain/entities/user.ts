@@ -16,6 +16,7 @@ export class User extends BaseEntity<UserId> {
   private _hashedPassword: string;
   private _status: UserStatusVO;
   private _lastLoginAt: Date | null;
+  private _avatar?: string;
 
   constructor(
     id: UserId,
@@ -87,6 +88,21 @@ export class User extends BaseEntity<UserId> {
    */
   get lastLoginAt(): Date | null {
     return this._lastLoginAt;
+  }
+
+  /**
+   * Get the user's avatar
+   */
+  get avatar(): string | undefined {
+    return this._avatar;
+  }
+
+  /**
+   * Set the user's avatar
+   */
+  setAvatar(avatar: string): void {
+    this._avatar = avatar;
+    this._updatedAt = new Date();
   }
 
   /**

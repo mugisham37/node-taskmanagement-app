@@ -32,6 +32,13 @@ export class TaskStatusVO extends ValueObject<TaskStatus> {
   }
 
   /**
+   * Get the task status value
+   */
+  get value(): TaskStatus {
+    return this._value;
+  }
+
+  /**
    * Create a new TaskStatusVO from a TaskStatus enum
    */
   static create(status: TaskStatus): TaskStatusVO {

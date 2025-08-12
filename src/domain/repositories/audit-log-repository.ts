@@ -1,8 +1,9 @@
 import { AuditLog, AuditAction } from '../entities/audit-log';
+import { AuditLogId } from '../value-objects/audit-log-id';
 
 export interface IAuditLogRepository {
   save(auditLog: AuditLog): Promise<void>;
-  findById(id: string): Promise<AuditLog | null>;
+  findById(id: AuditLogId): Promise<AuditLog | null>;
   findByEntityId(
     entityId: string,
     limit?: number,
@@ -58,8 +59,8 @@ export interface IAuditLogRepository {
     limit?: number;
     offset?: number;
   }): Promise<AuditLog[]>;
-  delete(id: string): Promise<void>;
-  deleteOlderThan(date: Date): Promise<number>;
+  delete(id: AuditLogId): Promise<void>;
+  deleteOlderThan(date: Date, batchSize?: number): Promise<number>;
   deleteByEntityId(entityId: string): Promise<number>;
-  archiveLogs(fromDate: Date, toDate: Date, archiveLocation: string): Promise<number>;
+  archiveLogs(logs: AuditLog[], archiveLocation: string): Promise<number>;
 }

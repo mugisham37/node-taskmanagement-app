@@ -42,6 +42,13 @@ export class ProjectId extends ValueObject<string> {
   }
 
   /**
+   * Create a new ProjectId from a string (alias for create)
+   */
+  static fromString(id: string): ProjectId {
+    return new ProjectId(id);
+  }
+
+  /**
    * Check if a string is a valid project ID format
    */
   static isValid(id: string): boolean {

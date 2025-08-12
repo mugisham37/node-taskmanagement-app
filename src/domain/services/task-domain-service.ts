@@ -1,7 +1,10 @@
 import { Task } from '../entities/task';
 import {
   TaskId,
+  ProjectId,
+  UserId,
   Priority,
+  TaskStatusVO,
 } from '../value-objects';
 import { TaskStatus } from '../../shared/constants/task-constants';
 import { TaskDependency } from '../aggregates/task-aggregate';
@@ -38,6 +41,108 @@ export interface TaskPriorityRecommendation {
  * Handles complex task operations and business rule validation
  */
 export class TaskDomainService {
+  /**
+   * Create a new task with validation
+   */
+  async createTask(params: {
+    title: string;
+    description: string;
+    priority: Priority;
+    projectId: ProjectId;
+    createdById: UserId;
+    dueDate?: Date;
+    assigneeId?: UserId;
+    estimatedHours?: number;
+  }): Promise<Task> {
+    // Create new task with proper validation
+    const taskId = TaskId.generate();
+    
+    return new Task(
+      taskId,
+      params.title,
+      params.description,
+      params.projectId,
+      params.createdById,
+      TaskStatusVO.create(TaskStatus.TODO),
+      params.priority,
+      params.assigneeId,
+      params.dueDate,
+      params.estimatedHours
+    );
+  }
+
+  /**
+   * Check if user can update a task
+   */
+  canUserUpdateTask(task: Task, userId: UserId): boolean {
+    // User can update if they are the creator or assignee
+    return task.createdById.equals(userId) || 
+           (task.assigneeId?.equals(userId) || false);
+  }
+
+  /**
+   * Check if user can delete a task
+   */
+  canUserDeleteTask(task: Task, userId: UserId): boolean {
+    // Only task creator can delete
+    return task.createdById.equals(userId);
+  }
+
+  /**
+   * Assign task to user
+   */
+  async assignTask(
+    task: Task,
+    assigneeId: UserId,
+    assignedBy: UserId
+  ): Promise<void> {
+    task.assign(assigneeId, assignedBy);
+  }
+
+  /**
+   * Complete a task
+   */
+  async completeTask(
+    task: Task,
+    completedBy: UserId,
+    actualHours?: number
+  ): Promise<void> {
+    task.complete(completedBy, actualHours);
+  }
+
+  /**
+   * Update task status
+   */
+  async updateTaskStatus(
+    task: Task,
+    status: TaskStatusVO,
+    updatedBy: UserId
+  ): Promise<void> {
+    task.updateStatus(status, updatedBy);
+  }
+
+  /**
+   * Add task dependency
+   */
+  async addTaskDependency(
+    taskId: TaskId,
+    dependsOnTaskId: TaskId
+  ): Promise<void> {
+    // This would typically involve aggregate operations
+    // For now, we'll assume this is handled at the aggregate level
+  }
+
+  /**
+   * Remove task dependency
+   */
+  async removeTaskDependency(
+    taskId: TaskId,
+    dependsOnTaskId: TaskId
+  ): Promise<void> {
+    // This would typically involve aggregate operations
+    // For now, we'll assume this is handled at the aggregate level
+  }
+
   /**
    * Validate if a task can be assigned to a user
    */

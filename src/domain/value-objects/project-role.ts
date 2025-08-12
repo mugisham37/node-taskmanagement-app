@@ -70,6 +70,13 @@ export class ProjectRoleVO extends ValueObject<ProjectRole> {
   }
 
   /**
+   * Check if this role is admin (alias for owner)
+   */
+  isAdmin(): boolean {
+    return this.isOwner();
+  }
+
+  /**
    * Check if this role is manager
    */
   isManager(): boolean {

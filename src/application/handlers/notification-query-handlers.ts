@@ -119,12 +119,14 @@ export class GetNotificationsQueryHandler
       }
 
       // Get notifications from repository
+      const limit = query.pagination?.limit || 50;
+      const page = query.pagination?.page || 1;
+      const offset = (page - 1) * limit;
+      
       const notifications = await this.notificationRepository.findByUserId(
-        query.userId,
-        {
-          isRead: query.isRead,
-          type: query.type,
-        }
+        query.userId.value,
+        limit,
+        offset
       );
 
       // Map to DTOs
@@ -139,7 +141,7 @@ export class GetNotificationsQueryHandler
       );
 
       // Cache the result for 2 minutes (notifications change frequently)
-      await this.cacheService.set(cacheKey, paginatedResult, 120);
+      await this.cacheService.set(cacheKey, paginatedResult, { ttl: 120 });
 
       this.logInfo('Notifications retrieved successfully', {
         userId: query.userId.value,
@@ -255,7 +257,7 @@ export class GetNotificationByIdQueryHandler
       const notificationDto = this.mapNotificationToDto(notification);
 
       // Cache the result
-      await this.cacheService.set(cacheKey, notificationDto, 300); // 5 minutes
+      await this.cacheService.set(cacheKey, notificationDto, { ttl: 300 }); // 5 minutes
 
       this.logInfo('Notification retrieved successfully', {
         notificationId: query.notificationId,
@@ -319,7 +321,7 @@ export class GetNotificationPreferencesQueryHandler
       }
 
       const preferences = await this.notificationRepository.getPreferences(
-        query.userId
+        query.userId.value
       );
       if (!preferences) {
         // Return default preferences if none exist
@@ -344,7 +346,7 @@ export class GetNotificationPreferencesQueryHandler
         };
 
         // Cache default preferences
-        await this.cacheService.set(cacheKey, defaultPreferences, 3600); // 1 hour
+        await this.cacheService.set(cacheKey, defaultPreferences, { ttl: 3600 }); // 1 hour
 
         return defaultPreferences;
       }
@@ -352,7 +354,7 @@ export class GetNotificationPreferencesQueryHandler
       const preferencesDto = this.mapPreferencesToDto(preferences);
 
       // Cache the result
-      await this.cacheService.set(cacheKey, preferencesDto, 3600); // 1 hour
+      await this.cacheService.set(cacheKey, preferencesDto, { ttl: 3600 }); // 1 hour
 
       this.logInfo('Notification preferences retrieved successfully', {
         userId: query.userId.value,
@@ -421,19 +423,31 @@ export class GetNotificationStatisticsQueryHandler
       }
 
       const statistics = await this.notificationRepository.getStatistics(
-        query.userId,
-        query.dateFrom,
-        query.dateTo
+        query.userId.value
       );
 
+      // Map to DTO format
+      const statisticsDto: NotificationStatisticsDto = {
+        totalNotifications: statistics.total,
+        unreadNotifications: statistics.unread,
+        readNotifications: statistics.total - statistics.unread,
+        notificationsByType: Object.entries(statistics.byType).reduce((acc, [key, value]) => {
+          acc[key] = value;
+          return acc;
+        }, {} as Record<string, number>),
+        notificationsThisWeek: 0, // TODO: Calculate from date range
+        notificationsThisMonth: 0, // TODO: Calculate from date range
+        averageReadTime: 0, // TODO: Calculate average read time
+      };
+
       // Cache the result for 5 minutes
-      await this.cacheService.set(cacheKey, statistics, 300);
+      await this.cacheService.set(cacheKey, statisticsDto, { ttl: 300 });
 
       this.logInfo('Notification statistics retrieved successfully', {
         userId: query.userId.value,
       });
 
-      return statistics;
+      return statisticsDto;
     } catch (error) {
       this.logError('Failed to get notification statistics', error as Error, {
         userId: query.userId.value,

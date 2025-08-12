@@ -2,12 +2,27 @@ import { Project, ProjectMember } from '../entities/project';
 import { Task } from '../entities/task';
 import {
   UserId,
+  ProjectId,
+  WorkspaceId,
   ProjectRoleVO,
 } from '../value-objects';
 import {
   ProjectRole,
   ProjectStatus,
 } from '../../shared/constants/project-constants';
+import { IdGenerator } from '../../shared/utils/id-generator';
+
+/**
+ * Project creation data interface
+ */
+export interface CreateProjectData {
+  name: string;
+  description: string;
+  workspaceId: WorkspaceId;
+  managerId: UserId;
+  startDate?: Date;
+  endDate?: Date;
+}
 
 /**
  * Project Access Result interface
@@ -52,6 +67,134 @@ export interface MemberRoleChangeValidation {
  * Handles project-level business logic and permissions
  */
 export class ProjectDomainService {
+  /**
+   * Create a new project
+   */
+  createProject(data: CreateProjectData): Project {
+    const projectId = ProjectId.create(IdGenerator.generate());
+    
+    return Project.create(
+      projectId,
+      data.name,
+      data.description,
+      data.workspaceId,
+      data.managerId,
+      data.startDate,
+      data.endDate
+    );
+  }
+
+  /**
+   * Check if user can update project
+   */
+  canUserUpdateProject(project: Project, userId: UserId): boolean {
+    return project.canUserManageMembers(userId) || project.managerId.equals(userId);
+  }
+
+  /**
+   * Add a project member
+   */
+  addProjectMember(
+    project: Project,
+    userId: UserId,
+    memberId: UserId,
+    role: ProjectRole
+  ): void {
+    if (!this.canUserUpdateProject(project, userId)) {
+      throw new Error('User does not have permission to add members');
+    }
+
+    const roleVO = ProjectRoleVO.create(role);
+    project.addMember(memberId, roleVO);
+  }
+
+  /**
+   * Remove a project member
+   */
+  removeProjectMember(
+    project: Project,
+    userId: UserId,
+    memberId: UserId
+  ): void {
+    if (!this.canUserUpdateProject(project, userId)) {
+      throw new Error('User does not have permission to remove members');
+    }
+
+    project.removeMember(memberId);
+  }
+
+  /**
+   * Update project member role
+   */
+  updateProjectMemberRole(
+    project: Project,
+    userId: UserId,
+    memberId: UserId,
+    newRole: ProjectRole
+  ): void {
+    if (!this.canUserUpdateProject(project, userId)) {
+      throw new Error('User does not have permission to update member roles');
+    }
+
+    const roleVO = ProjectRoleVO.create(newRole);
+    project.updateMemberRole(memberId, roleVO, userId);
+  }
+
+  /**
+   * Archive a project
+   */
+  archiveProject(project: Project, userId: UserId): void {
+    if (!this.canUserUpdateProject(project, userId)) {
+      throw new Error('User does not have permission to archive project');
+    }
+
+    project.archive();
+  }
+
+  /**
+   * Restore a project from archive
+   */
+  restoreProject(project: Project, userId: UserId): void {
+    if (!this.canUserUpdateProject(project, userId)) {
+      throw new Error('User does not have permission to restore project');
+    }
+
+    project.activate();
+  }
+
+  /**
+   * Update project status
+   */
+  updateProjectStatus(
+    project: Project,
+    userId: UserId,
+    status: ProjectStatus
+  ): void {
+    if (!this.canUserUpdateProject(project, userId)) {
+      throw new Error('User does not have permission to update project status');
+    }
+
+    switch (status) {
+      case ProjectStatus.ACTIVE:
+        project.activate();
+        break;
+      case ProjectStatus.ON_HOLD:
+        project.putOnHold();
+        break;
+      case ProjectStatus.COMPLETED:
+        project.complete();
+        break;
+      case ProjectStatus.CANCELLED:
+        project.cancel();
+        break;
+      case ProjectStatus.ARCHIVED:
+        project.archive();
+        break;
+      default:
+        throw new Error(`Invalid project status: ${status}`);
+    }
+  }
+
   /**
    * Validate user access to perform an action on a project
    */

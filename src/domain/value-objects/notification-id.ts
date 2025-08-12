@@ -1,5 +1,6 @@
 import { ValueObject } from './value-object';
 import { ValidationError } from '../../shared/errors';
+import { IdGenerator } from '../../shared/utils/id-generator';
 
 /**
  * Notification ID value object
@@ -32,6 +33,13 @@ export class NotificationId extends ValueObject<string> {
         value
       );
     }
+  }
+
+  /**
+   * Generate a new unique NotificationId
+   */
+  static generate(): NotificationId {
+    return new NotificationId(IdGenerator.generate());
   }
 
   /**

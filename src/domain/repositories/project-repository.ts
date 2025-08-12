@@ -164,6 +164,31 @@ export interface IProjectRepository {
   ): Promise<void>;
 
   /**
+   * Get member count for a project
+   */
+  getMemberCount(projectId: ProjectId): Promise<number>;
+
+  /**
+   * Get task statistics for a project
+   */
+  getTaskStatistics(projectId: ProjectId): Promise<{
+    totalTasks: number;
+    completedTasks: number;
+    inProgressTasks: number;
+    todoTasks: number;
+  }>;
+
+  /**
+   * Find projects by user ID (projects where user is a member)
+   */
+  findByUserId(
+    userId: UserId,
+    filters?: ProjectFilters,
+    sort?: ProjectSortOptions,
+    pagination?: PaginationOptions
+  ): Promise<PaginatedResult<Project>>;
+
+  /**
    * Save a single project
    */
   save(project: Project): Promise<void>;

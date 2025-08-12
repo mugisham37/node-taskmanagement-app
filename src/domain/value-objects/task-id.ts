@@ -42,6 +42,19 @@ export class TaskId extends ValueObject<string> {
   }
 
   /**
+   * Generate a new random TaskId
+   */
+  static generate(): TaskId {
+    // Generate a nanoid-like string (21 characters)
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
+    let result = '';
+    for (let i = 0; i < 21; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return new TaskId(result);
+  }
+
+  /**
    * Check if a string is a valid task ID format
    */
   static isValid(id: string): boolean {

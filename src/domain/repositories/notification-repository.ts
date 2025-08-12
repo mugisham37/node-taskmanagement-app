@@ -48,8 +48,20 @@ export interface INotificationRepository {
     byStatus: Record<NotificationStatus, number>;
   }>;
   delete(id: string): Promise<void>;
+  deleteAllByUserId(userId: string): Promise<number>;
   deleteRead(userId: string, olderThan?: Date): Promise<number>;
   deleteExpired(): Promise<number>;
+  
+  // Preferences-related methods
+  getPreferences(userId: string): Promise<NotificationPreferences | null>;
+  savePreferences(preferences: NotificationPreferences): Promise<void>;
+  createDefaultPreferences(userId: string): Promise<NotificationPreferences>;
+  getStatistics(userId: string): Promise<{
+    total: number;
+    unread: number;
+    byType: Record<NotificationType, number>;
+    byStatus: Record<NotificationStatus, number>;
+  }>;
 }
 
 export interface INotificationPreferencesRepository {

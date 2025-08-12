@@ -2,8 +2,8 @@ import { BaseCommand } from './base-command';
 import { ProjectId } from '../../domain/value-objects/project-id';
 import { WorkspaceId } from '../../domain/value-objects/workspace-id';
 import { UserId } from '../../domain/value-objects/user-id';
-import { ProjectRole } from '../../domain/value-objects/project-role';
-import { ProjectStatus } from '../../domain/value-objects/project-status';
+import { ProjectRole } from '../../shared/enums/common.enums';
+import { ProjectStatus } from '../../shared/enums/common.enums';
 
 export class CreateProjectCommand extends BaseCommand {
   constructor(

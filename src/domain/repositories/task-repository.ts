@@ -2,6 +2,7 @@ import { Task } from '../entities/task';
 import { TaskAggregate, TaskDependency } from '../aggregates/task-aggregate';
 import { TaskId, UserId, ProjectId } from '../value-objects';
 import { TaskStatus } from '../../shared/constants/task-constants';
+import { Priority } from '../../shared/enums/common.enums';
 
 /**
  * Task filter options
@@ -10,7 +11,7 @@ export interface TaskFilters {
   status?: TaskStatus[];
   assigneeId?: UserId;
   createdById?: UserId;
-  priority?: string[];
+  priority?: Priority[];
   dueDateFrom?: Date;
   dueDateTo?: Date;
   isOverdue?: boolean;

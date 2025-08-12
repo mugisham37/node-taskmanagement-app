@@ -23,8 +23,11 @@ import {
 export interface ProjectMember {
   id: UserId;
   userId: UserId;
+  projectId: ProjectId;
   role: ProjectRoleVO;
   joinedAt: Date;
+  lastActiveAt?: Date;
+  getPermissions(): string[];
 }
 
 /**
@@ -126,6 +129,66 @@ export class Project extends BaseEntity<ProjectId> {
   }
 
   /**
+   * Update the project's name
+   */
+  updateName(name: string): void {
+    if (!this._status.canBeModified()) {
+      throw new DomainError(
+        `Cannot update project with status ${this._status.value}`
+      );
+    }
+    
+    this.validateName(name);
+    this._name = name;
+    this.markAsUpdated();
+  }
+
+  /**
+   * Update the project's description
+   */
+  updateDescription(description: string): void {
+    if (!this._status.canBeModified()) {
+      throw new DomainError(
+        `Cannot update project with status ${this._status.value}`
+      );
+    }
+    
+    this.validateDescription(description);
+    this._description = description;
+    this.markAsUpdated();
+  }
+
+  /**
+   * Update the project's start date
+   */
+  updateStartDate(startDate: Date | null): void {
+    if (!this._status.canBeModified()) {
+      throw new DomainError(
+        `Cannot update project with status ${this._status.value}`
+      );
+    }
+    
+    this.validateDateRange(startDate, this._endDate);
+    this._startDate = startDate;
+    this.markAsUpdated();
+  }
+
+  /**
+   * Update the project's end date
+   */
+  updateEndDate(endDate: Date | null): void {
+    if (!this._status.canBeModified()) {
+      throw new DomainError(
+        `Cannot update project with status ${this._status.value}`
+      );
+    }
+    
+    this.validateDateRange(this._startDate, endDate);
+    this._endDate = endDate;
+    this.markAsUpdated();
+  }
+
+  /**
    * Update the project's basic information
    */
   updateBasicInfo(
@@ -142,12 +205,16 @@ export class Project extends BaseEntity<ProjectId> {
 
     this.validateName(name);
     this.validateDescription(description);
-    this.validateDateRange(startDate, endDate);
+    
+    const newStartDate = startDate !== undefined ? startDate : this._startDate;
+    const newEndDate = endDate !== undefined ? endDate : this._endDate;
+    
+    this.validateDateRange(newStartDate, newEndDate);
 
     this._name = name;
     this._description = description;
-    this._startDate = startDate ?? this._startDate;
-    this._endDate = endDate ?? this._endDate;
+    this._startDate = newStartDate;
+    this._endDate = newEndDate;
 
     this.markAsUpdated();
   }
@@ -177,8 +244,19 @@ export class Project extends BaseEntity<ProjectId> {
     const member: ProjectMember = {
       id: userId,
       userId,
+      projectId: this.id,
       role,
       joinedAt: new Date(),
+      getPermissions: () => {
+        // Return permissions based on role
+        const rolePermissions: Record<string, string[]> = {
+          'OWNER': ['read', 'write', 'delete', 'admin'],
+          'ADMIN': ['read', 'write', 'delete'],
+          'MEMBER': ['read', 'write'],
+          'VIEWER': ['read']
+        };
+        return rolePermissions[role.value] || ['read'];
+      }
     };
 
     this._members.set(userIdStr, member);

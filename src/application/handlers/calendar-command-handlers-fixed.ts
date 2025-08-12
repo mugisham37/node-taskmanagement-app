@@ -11,7 +11,6 @@ import { ICalendarEventRepository } from '../../domain/repositories/calendar-eve
 import { IProjectRepository } from '../../domain/repositories/project-repository';
 import { IUserRepository } from '../../domain/repositories/user-repository';
 import { TransactionManager } from '../../infrastructure/database/transaction-manager';
-import { CacheService } from '../../infrastructure/caching/cache-service';
 import { EmailService } from '../../infrastructure/external-services/email-service';
 import { ProjectId } from '../../domain/value-objects/project-id';
 import { UserId } from '../../domain/value-objects/user-id';
@@ -446,7 +445,7 @@ export class UpdateCalendarEventCommandHandler
         ProjectId.fromString(event.projectId),
         userId
       );
-      return member && (member.role.isAdmin() || member.role.isManager());
+      return member ? (member.role.isAdmin() || member.role.isManager()) : false;
     }
 
     return false;
