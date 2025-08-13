@@ -7,6 +7,13 @@ import { IUserRepository } from '../../domain/repositories/user-repository';
 import { IProjectRepository } from '../../domain/repositories/project-repository';
 import { TaskDomainService } from '../../domain/services/task-domain-service';
 import { TransactionManager } from '../../infrastructure/database/transaction-manager';
+import { ICommandBus } from '../cqrs/command';
+import {
+  DeleteTaskCommand,
+  AddTaskDependencyCommand,
+  RemoveTaskDependencyCommand,
+  UpdateTaskStatusCommand
+} from '../commands/task-commands';
 import {
   CreateTaskUseCase,
   UpdateTaskUseCase,
@@ -39,6 +46,7 @@ import { TaskId } from '../../domain/value-objects/task-id';
 import { ProjectId } from '../../domain/value-objects/project-id';
 import { UserId } from '../../domain/value-objects/user-id';
 import { Priority } from '../../domain/value-objects/priority';
+import { TaskStatus } from '../../domain/value-objects/task-status';
 
 export class TaskApplicationService {
   private readonly createTaskUseCase: CreateTaskUseCase;
@@ -61,7 +69,8 @@ export class TaskApplicationService {
     private readonly eventPublisher: DomainEventPublisher,
     private readonly cacheService: CacheService,
     private readonly emailService: EmailService,
-    private readonly logger: LoggingService
+    private readonly logger: LoggingService,
+    private readonly commandBus: ICommandBus
   ) {
     // Initialize use cases
     this.createTaskUseCase = new CreateTaskUseCase(
@@ -166,6 +175,67 @@ export class TaskApplicationService {
 
     // Send completion notification
     await this.sendTaskCompletionNotification(input.taskId, input.completedBy);
+  }
+
+  // Command-based operations for status updates and dependencies
+  async updateTaskStatus(
+    taskId: TaskId,
+    status: TaskStatus,
+    updatedBy: UserId,
+    statusNotes?: string
+  ): Promise<void> {
+    const command = new UpdateTaskStatusCommand(
+      taskId,
+      status,
+      updatedBy,
+      updatedBy,
+      statusNotes
+    );
+    await this.commandBus.send(command);
+    
+    this.logger.info('Task status updated successfully', {
+      taskId: taskId.value,
+      status: status.toString(),
+      updatedBy: updatedBy.value
+    });
+  }
+
+  async addTaskDependency(
+    taskId: TaskId,
+    dependsOnTaskId: TaskId,
+    userId: UserId
+  ): Promise<void> {
+    const command = new AddTaskDependencyCommand(
+      taskId,
+      dependsOnTaskId,
+      userId
+    );
+    await this.commandBus.send(command);
+    
+    this.logger.info('Task dependency added successfully', {
+      taskId: taskId.value,
+      dependsOnTaskId: dependsOnTaskId.value,
+      userId: userId.value
+    });
+  }
+
+  async removeTaskDependency(
+    taskId: TaskId,
+    dependsOnTaskId: TaskId,
+    userId: UserId
+  ): Promise<void> {
+    const command = new RemoveTaskDependencyCommand(
+      taskId,
+      dependsOnTaskId,
+      userId
+    );
+    await this.commandBus.send(command);
+    
+    this.logger.info('Task dependency removed successfully', {
+      taskId: taskId.value,
+      dependsOnTaskId: dependsOnTaskId.value,
+      userId: userId.value
+    });
   }
 
   // Query operations
@@ -418,18 +488,17 @@ export class TaskApplicationService {
   }
 
   async deleteTask(userId: string, taskId: string): Promise<void> {
+    const userIdObj = new UserId(userId);
     const taskIdObj = new TaskId(taskId);
     
-    // Find the task first
-    const task = await this.taskRepository.findById(taskIdObj);
-    if (!task) {
-      throw new Error('Task not found');
-    }
-
-    // Delete the task
-    await this.taskRepository.delete(taskIdObj);
+    // Use command pattern for task deletion
+    const command = new DeleteTaskCommand(taskIdObj, userIdObj, userIdObj);
+    await this.commandBus.send(command);
     
-    this.logger.info('Task deleted', { taskId, userId });
+    this.logger.info('Task deleted successfully', { 
+      taskId, 
+      deletedBy: userId 
+    });
   }
 
   async unassignTask(userId: string, taskId: string): Promise<void> {

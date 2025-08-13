@@ -7,6 +7,12 @@ import { NotFoundError } from '../../shared/errors/not-found-error';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
 import { UserDto } from './auth-application-service';
 import { UserQuery } from '../../presentation/dto/user-dto';
+import { ICommandBus } from '../cqrs/command';
+import {
+  UpdateUserProfileCommand,
+  ActivateUserCommand,
+  DeactivateUserCommand
+} from '../commands/user-commands';
 
 export interface UpdateUserRequest {
   firstName?: string;
@@ -28,7 +34,8 @@ export interface PaginatedResult<T> {
 export class UserApplicationService {
   constructor(
     private readonly userRepository: IUserRepository,
-    private readonly logger: LoggingService
+    private readonly logger: LoggingService,
+    private readonly commandBus: ICommandBus
   ) {}
 
   async getUser(currentUserId: string, userId: string): Promise<UserDto> {
@@ -60,32 +67,29 @@ export class UserApplicationService {
   ): Promise<UserDto> {
     try {
       const targetUserIdObj = new UserId(userId);
+      const currentUserIdObj = new UserId(currentUserId);
 
       // Check authorization - users can only update their own profile
       if (currentUserId !== userId) {
         throw new AuthorizationError('Cannot update another user\'s profile');
       }
 
+      // Use command pattern for user profile update
+      const command = new UpdateUserProfileCommand(
+        targetUserIdObj,
+        currentUserIdObj,
+        updateData.firstName || updateData.lastName ? 
+          `${updateData.firstName || ''} ${updateData.lastName || ''}`.trim() : undefined,
+        undefined // email not updated in this method
+      );
+
+      await this.commandBus.send(command);
+
+      // Get updated user
       const user = await this.userRepository.findById(targetUserIdObj);
       if (!user) {
         throw new NotFoundError('User not found');
       }
-
-      // Update user properties
-      if (updateData.firstName !== undefined) {
-        user.updateFirstName(updateData.firstName);
-      }
-      if (updateData.lastName !== undefined) {
-        user.updateLastName(updateData.lastName);
-      }
-      if (updateData.avatar !== undefined) {
-        user.updateAvatar(updateData.avatar);
-      }
-      if (updateData.settings !== undefined) {
-        user.updateSettings(updateData.settings);
-      }
-
-      await this.userRepository.save(user);
 
       this.logger.info('User updated successfully', { userId });
 
@@ -165,20 +169,21 @@ export class UserApplicationService {
   async deactivateUser(currentUserId: string, userId: string): Promise<void> {
     try {
       const targetUserIdObj = new UserId(userId);
+      const currentUserIdObj = new UserId(currentUserId);
 
       // Check authorization - implement your business rules here
       if (currentUserId === userId) {
         throw new ValidationError([], 'Cannot deactivate your own account');
       }
 
-      const user = await this.userRepository.findById(targetUserIdObj);
-      if (!user) {
-        throw new NotFoundError('User not found');
-      }
+      // Use command pattern for user deactivation
+      const command = new DeactivateUserCommand(
+        targetUserIdObj,
+        currentUserIdObj,
+        currentUserIdObj
+      );
 
-      // Deactivate the user
-      user.deactivate();
-      await this.userRepository.save(user);
+      await this.commandBus.send(command);
 
       this.logger.info('User deactivated successfully', { userId, deactivatedBy: currentUserId });
     } catch (error) {
@@ -190,15 +195,16 @@ export class UserApplicationService {
   async activateUser(currentUserId: string, userId: string): Promise<void> {
     try {
       const targetUserIdObj = new UserId(userId);
+      const currentUserIdObj = new UserId(currentUserId);
 
-      const user = await this.userRepository.findById(targetUserIdObj);
-      if (!user) {
-        throw new NotFoundError('User not found');
-      }
+      // Use command pattern for user activation
+      const command = new ActivateUserCommand(
+        targetUserIdObj,
+        currentUserIdObj,
+        currentUserIdObj
+      );
 
-      // Activate the user
-      user.activate();
-      await this.userRepository.save(user);
+      await this.commandBus.send(command);
 
       this.logger.info('User activated successfully', { userId, activatedBy: currentUserId });
     } catch (error) {

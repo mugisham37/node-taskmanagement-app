@@ -21,10 +21,20 @@ import { ProjectId } from '../../domain/value-objects/project-id';
 import { UserId } from '../../domain/value-objects/user-id';
 import { WorkspaceId } from '../../domain/value-objects/workspace-id';
 import { Project } from '../../domain/entities/project';
-import { ProjectRole, ProjectRoleVO } from '../../domain/value-objects/project-role';
+import { ProjectRole } from '../../domain/value-objects/project-role';
 import { ProjectStatus } from '../../shared/constants/project-constants';
 import { injectable } from '../../shared/decorators/injectable.decorator';
-import { nanoid } from 'nanoid';
+import { ICommandBus } from '../cqrs/command';
+import {
+  CreateProjectCommand,
+  UpdateProjectCommand,
+  AddProjectMemberCommand,
+  RemoveProjectMemberCommand,
+  UpdateProjectMemberRoleCommand,
+  ArchiveProjectCommand,
+  RestoreProjectCommand,
+  UpdateProjectStatusCommand
+} from '../commands/project-commands';
 
 export interface CreateProjectRequest {
   name: string;
@@ -122,7 +132,8 @@ export class ProjectApplicationService extends BaseApplicationService {
     private readonly userRepository: IUserRepository,
     private readonly workspaceRepository: IWorkspaceRepository,
     private readonly cacheService: CacheService,
-    private readonly emailService: EmailService
+    private readonly emailService: EmailService,
+    private readonly commandBus: ICommandBus
   ) {
     super(logger, eventPublisher);
   }
@@ -140,59 +151,38 @@ export class ProjectApplicationService extends BaseApplicationService {
 
       const workspaceId = new WorkspaceId(request.workspaceId);
       const ownerId = new UserId(request.ownerId);
-
-      // Verify workspace exists and user has permission
-      const workspace = await this.workspaceRepository.findById(workspaceId);
-      if (!workspace) {
-        throw new Error('Workspace not found');
-      }
-
-      const owner = await this.userRepository.findById(ownerId);
-      if (!owner) {
-        throw new Error('Owner not found');
-      }
+      const managerId = new UserId(request.ownerId);
 
       // Check if user can create projects in this workspace
-      const canCreateProject = await this.canUserCreateProject(
-        ownerId,
-        workspaceId
-      );
-      if (!canCreateProject) {
-        throw new Error(
-          'Insufficient permissions to create project in this workspace'
-        );
+      const canCreate = await this.canUserCreateProject(ownerId, workspaceId);
+      if (!canCreate) {
+        throw new Error('Insufficient permissions to create project in this workspace');
       }
 
-      // Create project
-      const projectId = ProjectId.create(nanoid());
-      const project = Project.create(
-        projectId,
+      // Use command pattern for project creation
+      const command = new CreateProjectCommand(
         request.name,
         request.description || '',
         workspaceId,
+        managerId,
         ownerId,
         request.startDate,
         request.endDate
       );
 
-      await this.projectRepository.save(project);
-
-      // Add owner as project admin
-      const ownerRole = ProjectRoleVO.create(ProjectRole.MANAGER);
-      project.addMember(ownerId, ownerRole);
-      await this.projectRepository.save(project);
+      const projectId = await this.commandBus.send<ProjectId>(command);
 
       // Clear cache
-      await this.clearProjectCaches(project.id, workspaceId);
+      await this.clearProjectCaches(projectId, workspaceId);
 
       this.logInfo('Project created successfully', {
-        projectId: project.id.value,
+        projectId: projectId.value,
         name: request.name,
         workspaceId: request.workspaceId,
         ownerId: request.ownerId,
       });
 
-      return project.id;
+      return projectId;
     });
   }
 
@@ -209,73 +199,29 @@ export class ProjectApplicationService extends BaseApplicationService {
       const projectId = new ProjectId(request.projectId);
       const updatedBy = new UserId(request.updatedBy);
 
-      const project = await this.projectRepository.findById(projectId);
-      if (!project) {
-        throw new Error('Project not found');
-      }
-
-      // Check permissions
+      // Check if user can update this project
       const canUpdate = await this.canUserUpdateProject(updatedBy, projectId);
       if (!canUpdate) {
         throw new Error('Insufficient permissions to update project');
       }
 
-      // Update project fields
-      if (request.name !== undefined) {
-        project.updateName(request.name);
-      }
-      if (request.description !== undefined) {
-        project.updateDescription(request.description);
-      }
-      if (request.status !== undefined) {
-        // Use specific methods based on status
-        switch (request.status) {
-          case 'COMPLETED':
-            project.complete();
-            break;
-          case 'CANCELLED':
-            project.cancel();
-            break;
-          case 'ARCHIVED':
-            project.archive();
-            break;
-          case 'ON_HOLD':
-            project.putOnHold();
-            break;
-          case 'ACTIVE':
-            project.activate();
-            break;
-          default:
-            throw new Error(`Invalid project status: ${request.status}`);
-        }
-      }
-      if (request.startDate !== undefined) {
-        project.updateStartDate(request.startDate);
-      }
-      if (request.endDate !== undefined) {
-        project.updateEndDate(request.endDate);
-      }
-      if (request.budget !== undefined) {
-        // Budget is not currently supported in the Project entity
-        // Would need to add budget property and updateBudget method
-        this.logInfo('Budget update requested but not implemented', { 
-          projectId: project.id.value, 
-          budget: request.budget 
-        });
-      }
-      if (request.tags !== undefined) {
-        // Tags are not currently supported in the Project entity
-        // Would need to add tags property and updateTags method
-        this.logInfo('Tags update requested but not implemented', { 
-          projectId: project.id.value, 
-          tags: request.tags 
-        });
-      }
+      // Use command pattern for project update
+      const command = new UpdateProjectCommand(
+        projectId,
+        updatedBy,
+        request.name,
+        request.description,
+        request.startDate,
+        request.endDate
+      );
 
-      await this.projectRepository.save(project);
+      await this.commandBus.send(command);
 
       // Clear cache
-      await this.clearProjectCaches(projectId, project.workspaceId);
+      const project = await this.projectRepository.findById(projectId);
+      if (project) {
+        await this.clearProjectCaches(projectId, project.workspaceId);
+      }
 
       this.logInfo('Project updated successfully', {
         projectId: request.projectId,
@@ -405,49 +351,53 @@ export class ProjectApplicationService extends BaseApplicationService {
   async addMember(request: AddMemberRequest): Promise<void> {
     return await this.executeWithMonitoring('addMember', async () => {
       const projectId = new ProjectId(request.projectId);
-      const userId = new UserId(request.userId);
+      const memberId = new UserId(request.userId);
       const addedBy = new UserId(request.addedBy);
+      const role = request.role as ProjectRole;
 
-      const project = await this.projectRepository.findById(projectId);
-      if (!project) {
-        throw new Error('Project not found');
+      // Check if user can manage members
+      const canManageMembers = await this.canUserManageMembers(addedBy, projectId);
+      if (!canManageMembers) {
+        throw new Error('Insufficient permissions to manage project members');
       }
 
-      const user = await this.userRepository.findById(userId);
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      // Check permissions
-      const canAddMember = await this.canUserManageMembers(addedBy, projectId);
-      if (!canAddMember) {
-        throw new Error('Insufficient permissions to add members');
-      }
-
-      // Check if user is already a member
-      const existingMember = await this.projectRepository.findMember(
+      // Use command pattern for adding project member
+      const command = new AddProjectMemberCommand(
         projectId,
-        userId
+        memberId,
+        role,
+        addedBy,
+        addedBy
       );
-      if (existingMember) {
-        throw new Error('User is already a member of this project');
+
+      await this.commandBus.send(command);
+
+      // Send notification email to the new member
+      try {
+        const user = await this.userRepository.findById(memberId);
+        const project = await this.projectRepository.findById(projectId);
+        if (user && project) {
+          await this.emailService.sendEmail({
+            to: user.email.value,
+            subject: `Added to Project: ${project.name}`,
+            html: `
+              <h2>You've been added to project "${project.name}"</h2>
+              <p>Hello ${user.firstName},</p>
+              <p>You have been added to the project "${project.name}" with the role of ${role}.</p>
+              <p>You can now access the project and collaborate with your team.</p>
+              <p>Best regards,<br>The Task Management Team</p>
+            `,
+            text: `You've been added to project "${project.name}" with the role of ${role}.`,
+            priority: 'normal' as const,
+          });
+        }
+      } catch (emailError) {
+        // Log email error but don't fail the operation
+        this.logError('Failed to send project invitation email', emailError as Error, {
+          projectId: request.projectId,
+          userId: request.userId,
+        });
       }
-
-      // Add member using Project entity method
-      const roleVO = ProjectRoleVO.create(request.role as ProjectRole);
-      project.addMember(userId, roleVO);
-      
-      await this.projectRepository.save(project);
-
-      // Send notification email
-      await this.emailService.sendProjectMemberWelcome(
-        user.email.value,
-        `${user.firstName} ${user.lastName}`,
-        project.name,
-        project.description || '',
-        'Project Manager', // Would get from addedBy user
-        request.role
-      );
 
       // Clear member cache
       await this.clearMemberCaches(projectId);
@@ -471,39 +421,24 @@ export class ProjectApplicationService extends BaseApplicationService {
   ): Promise<void> {
     return await this.executeWithMonitoring('removeMember', async () => {
       const projectIdVO = new ProjectId(projectId);
-      const userIdVO = new UserId(userId);
+      const memberIdVO = new UserId(userId);
       const removedByVO = new UserId(removedBy);
 
-      const project = await this.projectRepository.findById(projectIdVO);
-      if (!project) {
-        throw new Error('Project not found');
+      // Check if user can manage members
+      const canManageMembers = await this.canUserManageMembers(removedByVO, projectIdVO);
+      if (!canManageMembers) {
+        throw new Error('Insufficient permissions to manage project members');
       }
 
-      // Check permissions
-      const canRemoveMember = await this.canUserManageMembers(
-        removedByVO,
-        projectIdVO
-      );
-      if (!canRemoveMember) {
-        throw new Error('Insufficient permissions to remove members');
-      }
-
-      // Cannot remove project owner
-      if (project.managerId.equals(userIdVO)) {
-        throw new Error('Cannot remove project owner');
-      }
-
-      const member = await this.projectRepository.findMember(
+      // Use command pattern for removing project member
+      const command = new RemoveProjectMemberCommand(
         projectIdVO,
-        userIdVO
+        memberIdVO,
+        removedByVO,
+        removedByVO
       );
-      if (!member) {
-        throw new Error('User is not a member of this project');
-      }
 
-      // Remove member using Project entity method
-      project.removeMember(userIdVO);
-      await this.projectRepository.save(project);
+      await this.commandBus.send(command);
 
       // Clear member cache
       await this.clearMemberCaches(projectIdVO);
@@ -522,46 +457,110 @@ export class ProjectApplicationService extends BaseApplicationService {
   async updateMemberRole(request: UpdateMemberRoleRequest): Promise<void> {
     return await this.executeWithMonitoring('updateMemberRole', async () => {
       const projectId = new ProjectId(request.projectId);
-      const userId = new UserId(request.userId);
+      const memberId = new UserId(request.userId);
       const updatedBy = new UserId(request.updatedBy);
+      const newRole = request.newRole as ProjectRole;
 
-      const project = await this.projectRepository.findById(projectId);
-      if (!project) {
-        throw new Error('Project not found');
+      // Check if user can manage members
+      const canManageMembers = await this.canUserManageMembers(updatedBy, projectId);
+      if (!canManageMembers) {
+        throw new Error('Insufficient permissions to manage project members');
       }
 
-      // Check permissions
-      const canUpdateRole = await this.canUserManageMembers(
+      // Use command pattern for updating project member role
+      const command = new UpdateProjectMemberRoleCommand(
+        projectId,
+        memberId,
+        newRole,
         updatedBy,
-        projectId
+        updatedBy
       );
-      if (!canUpdateRole) {
-        throw new Error('Insufficient permissions to update member roles');
-      }
 
-      // Cannot change owner role
-      if (project.managerId.equals(userId)) {
-        throw new Error('Cannot change project owner role');
-      }
+      await this.commandBus.send(command);
 
-      const member = await this.projectRepository.findMember(projectId, userId);
-      if (!member) {
-        throw new Error('User is not a member of this project');
-      }
-
-      // Update member role using Project entity method
-      const newRoleVO = ProjectRoleVO.create(request.newRole as ProjectRole);
-      project.updateMemberRole(userId, newRoleVO, updatedBy);
-      await this.projectRepository.save(project);
-
-      // Clear member cache
-      await this.clearMemberCaches(projectId);
-
-      this.logInfo('Member role updated', {
+      this.logInfo('Member role updated successfully', {
         projectId: request.projectId,
         userId: request.userId,
         newRole: request.newRole,
         updatedBy: request.updatedBy,
+      });
+    });
+  }
+
+  /**
+   * Archive project
+   */
+  async archiveProject(projectId: string, archivedBy: string): Promise<void> {
+    return await this.executeWithMonitoring('archiveProject', async () => {
+      const projectIdVO = new ProjectId(projectId);
+      const archivedByVO = new UserId(archivedBy);
+
+      // Use command pattern for archiving project
+      const command = new ArchiveProjectCommand(
+        projectIdVO,
+        archivedByVO,
+        archivedByVO
+      );
+
+      await this.commandBus.send(command);
+
+      this.logInfo('Project archived successfully', {
+        projectId,
+        archivedBy,
+      });
+    });
+  }
+
+  /**
+   * Restore project
+   */
+  async restoreProject(projectId: string, restoredBy: string): Promise<void> {
+    return await this.executeWithMonitoring('restoreProject', async () => {
+      const projectIdVO = new ProjectId(projectId);
+      const restoredByVO = new UserId(restoredBy);
+
+      // Use command pattern for restoring project
+      const command = new RestoreProjectCommand(
+        projectIdVO,
+        restoredByVO,
+        restoredByVO
+      );
+
+      await this.commandBus.send(command);
+
+      this.logInfo('Project restored successfully', {
+        projectId,
+        restoredBy,
+      });
+    });
+  }
+
+  /**
+   * Update project status
+   */
+  async updateProjectStatus(
+    projectId: string,
+    status: ProjectStatus,
+    updatedBy: string
+  ): Promise<void> {
+    return await this.executeWithMonitoring('updateProjectStatus', async () => {
+      const projectIdVO = new ProjectId(projectId);
+      const updatedByVO = new UserId(updatedBy);
+
+      // Use command pattern for updating project status
+      const command = new UpdateProjectStatusCommand(
+        projectIdVO,
+        status,
+        updatedByVO,
+        updatedByVO
+      );
+
+      await this.commandBus.send(command);
+
+      this.logInfo('Project status updated successfully', {
+        projectId,
+        status,
+        updatedBy,
       });
     });
   }
@@ -707,12 +706,12 @@ export class ProjectApplicationService extends BaseApplicationService {
   }
 
   private async canUserCreateProject(
-    _userId: UserId,
-    _workspaceId: WorkspaceId
+    userId: UserId,
+    workspaceId: WorkspaceId
   ): Promise<boolean> {
-    // Implementation would check workspace permissions
-    // For now, assume all workspace members can create projects
-    return true;
+    // Check if user is member of the workspace with appropriate permissions
+    const workspaceMember = await this.workspaceRepository.findMember(workspaceId, userId);
+    return workspaceMember !== null;
   }
 
   private async canUserUpdateProject(
@@ -748,11 +747,12 @@ export class ProjectApplicationService extends BaseApplicationService {
   }
 
   private async canUserAccessWorkspace(
-    _userId: UserId,
-    _workspaceId: WorkspaceId
+    userId: UserId,
+    workspaceId: WorkspaceId
   ): Promise<boolean> {
-    // Implementation would check workspace membership
-    return true;
+    // Check if user is member of the workspace
+    const workspaceMember = await this.workspaceRepository.findMember(workspaceId, userId);
+    return workspaceMember !== null;
   }
 
   private async mapProjectToDto(project: Project): Promise<ProjectDto> {
@@ -802,25 +802,23 @@ export class ProjectApplicationService extends BaseApplicationService {
 
   // Additional convenience methods for controller compatibility
   
-  async archiveProject(projectId: string, archivedBy: string): Promise<void> {
-    return await this.executeWithMonitoring('archiveProject', async () => {
-      // TODO: Implement archive functionality
-      // This could update the project status to 'ARCHIVED'
-      await this.updateProject({
-        projectId,
-        status: 'ARCHIVED',
-        updatedBy: archivedBy,
-      });
-    });
-  }
-
   async unarchiveProject(projectId: string, unarchivedBy: string): Promise<void> {
     return await this.executeWithMonitoring('unarchiveProject', async () => {
-      // TODO: Implement unarchive functionality
-      await this.updateProject({
+      // Use restore command for unarchiving
+      const projectIdVO = new ProjectId(projectId);
+      const restoredByVO = new UserId(unarchivedBy);
+
+      const command = new RestoreProjectCommand(
+        projectIdVO,
+        restoredByVO,
+        restoredByVO
+      );
+
+      await this.commandBus.send(command);
+
+      this.logInfo('Project unarchived successfully', {
         projectId,
-        status: 'ACTIVE',
-        updatedBy: unarchivedBy,
+        unarchivedBy,
       });
     });
   }
