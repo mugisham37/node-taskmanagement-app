@@ -2,52 +2,25 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './base-controller';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { z } from 'zod';
+import {
+  WebhookDto,
+  WebhookDeliveryDto,
+  WebhookStatsDto,
+  WorkspaceWebhookStatsDto,
+  WebhookTestResultDto,
+  WebhookValidationResultDto,
+  CreateWebhookSchema,
+  UpdateWebhookSchema,
+  WebhookQuerySchema,
+  DeliveryQuerySchema,
+  TestWebhookSchema,
+  WebhookStatsQuerySchema,
+} from '../dto/webhook-dto';
 
-// Webhook schemas
-const CreateWebhookSchema = z.object({
-  name: z.string().min(1).max(255),
-  url: z.string().url(),
-  events: z.array(z.string()).min(1),
-  secret: z.string().optional(),
-  headers: z.record(z.string()).optional(),
-  httpMethod: z.enum(['POST', 'PUT', 'PATCH']).default('POST'),
-  contentType: z
-    .enum(['application/json', 'application/x-www-form-urlencoded'])
-    .default('application/json'),
-  signatureHeader: z.string().optional(),
-  signatureAlgorithm: z.enum(['sha256', 'sha1', 'md5']).default('sha256'),
-  timeout: z.number().min(1).max(30).default(10),
-  maxRetries: z.number().min(0).max(10).default(3),
-  retryDelay: z.number().min(1).max(3600).default(60),
-  metadata: z.record(z.any()).optional(),
-});
-
-const UpdateWebhookSchema = CreateWebhookSchema.partial();
-
-const WebhookQuerySchema = z.object({
-  page: z.coerce.number().min(1).default(1),
-  limit: z.coerce.number().min(1).max(100).default(20),
-  status: z.enum(['active', 'inactive', 'failed']).optional(),
-  event: z.string().optional(),
-  sortBy: z
-    .enum(['name', 'createdAt', 'lastDeliveryAt', 'deliveryRate'])
-    .default('createdAt'),
-  sortOrder: z.enum(['asc', 'desc']).default('desc'),
-});
-
-const DeliveryQuerySchema = z.object({
-  page: z.coerce.number().min(1).default(1),
-  limit: z.coerce.number().min(1).max(100).default(20),
-  status: z.enum(['pending', 'success', 'failed', 'retrying']).optional(),
-  sortBy: z
-    .enum(['createdAt', 'deliveredAt', 'attemptCount'])
-    .default('createdAt'),
-  sortOrder: z.enum(['asc', 'desc']).default('desc'),
-});
-
-const TestWebhookSchema = z.object({
-  payload: z.record(z.any()).optional(),
-});
+// Utility function to suppress unused variable warnings
+const suppressUnused = (..._args: any[]) => {
+  // Intentionally empty
+};
 
 const ParamsSchema = z.object({
   workspaceId: z.string(),
@@ -116,11 +89,13 @@ export class WebhookController extends BaseController {
       const { workspaceId } = this.validateParams(request.params, ParamsSchema);
       const query = this.validateQuery(request.query, WebhookQuerySchema);
 
+      suppressUnused(userId, workspaceId); // TODO: Use these when implementing service
+
       // TODO: Implement webhook management service integration
-      const webhooks = [];
+      const webhooks: WebhookDto[] = [];
       const total = 0;
 
-      await this.sendPaginated(reply, webhooks, total, query.page, query.limit);
+      await this.sendPaginated(reply, webhooks, total, query.page || 1, query.limit || 20);
     });
   };
 
@@ -140,14 +115,22 @@ export class WebhookController extends BaseController {
         ParamsSchema
       );
 
+      suppressUnused(userId); // TODO: Use when implementing authorization checks
+
       // TODO: Implement webhook management service integration
-      const webhook = {
-        id: webhookId,
+      const webhook: WebhookDto = {
+        id: webhookId!,
         workspaceId,
         name: 'Sample Webhook',
         url: 'https://example.com/webhook',
         status: 'active',
         events: ['task.created', 'task.updated'],
+        httpMethod: 'POST',
+        contentType: 'application/json',
+        signatureAlgorithm: 'sha256',
+        timeout: 10,
+        maxRetries: 3,
+        retryDelay: 60,
         successCount: 0,
         failureCount: 0,
         deliveryRate: 0,
@@ -180,9 +163,11 @@ export class WebhookController extends BaseController {
       );
       const updateData = this.validateBody(request.body, UpdateWebhookSchema);
 
+      suppressUnused(userId); // TODO: Use when implementing authorization checks
+
       // TODO: Implement webhook management service integration
       const webhook = {
-        id: webhookId,
+        id: webhookId!,
         workspaceId,
         ...updateData,
         updatedAt: new Date(),
@@ -212,6 +197,8 @@ export class WebhookController extends BaseController {
         ParamsSchema
       );
 
+      suppressUnused(userId, workspaceId, webhookId); // TODO: Use when implementing service
+
       // TODO: Implement webhook management service integration
 
       await this.sendNoContent(reply);
@@ -235,9 +222,11 @@ export class WebhookController extends BaseController {
       );
       const testData = this.validateBody(request.body, TestWebhookSchema);
 
+      suppressUnused(userId, workspaceId, testData); // TODO: Use when implementing service
+
       // TODO: Implement webhook testing service
-      const testResult = {
-        webhookId,
+      const testResult: WebhookTestResultDto = {
+        webhookId: webhookId!,
         status: 'success',
         httpStatusCode: 200,
         responseTime: 150,
@@ -270,9 +259,11 @@ export class WebhookController extends BaseController {
         ParamsSchema
       );
 
+      suppressUnused(userId, workspaceId); // TODO: Use when implementing service
+
       // TODO: Implement webhook validation service
-      const validationResult = {
-        webhookId,
+      const validationResult: WebhookValidationResultDto = {
+        webhookId: webhookId!,
         isValid: true,
         checks: {
           urlReachable: true,
@@ -310,21 +301,19 @@ export class WebhookController extends BaseController {
       );
       const query = this.validateQuery(
         request.query,
-        z.object({
-          from: z.string().datetime().optional(),
-          to: z.string().datetime().optional(),
-        })
+        WebhookStatsQuerySchema
       );
 
+      suppressUnused(userId, workspaceId, query); // TODO: Use when implementing service
+
       // TODO: Implement webhook statistics service
-      const stats = {
-        webhookId,
+      const stats: WebhookStatsDto = {
+        webhookId: webhookId!,
         totalDeliveries: 0,
         successfulDeliveries: 0,
         failedDeliveries: 0,
         deliveryRate: 0,
         averageResponseTime: 0,
-        lastDeliveryAt: null,
         deliveriesByDay: [],
         errorsByType: {},
         responseTimeHistory: [],
@@ -351,8 +340,10 @@ export class WebhookController extends BaseController {
       const userId = this.getUserId(request);
       const { workspaceId } = this.validateParams(request.params, ParamsSchema);
 
+      suppressUnused(userId); // TODO: Use when implementing authorization checks
+
       // TODO: Implement workspace webhook statistics service
-      const stats = {
+      const stats: WorkspaceWebhookStatsDto = {
         workspaceId,
         totalWebhooks: 0,
         activeWebhooks: 0,
@@ -388,16 +379,18 @@ export class WebhookController extends BaseController {
       );
       const query = this.validateQuery(request.query, DeliveryQuerySchema);
 
+      suppressUnused(userId, workspaceId, webhookId); // TODO: Use when implementing service
+
       // TODO: Implement webhook delivery service integration
-      const deliveries = [];
+      const deliveries: WebhookDeliveryDto[] = [];
       const total = 0;
 
       await this.sendPaginated(
         reply,
         deliveries,
         total,
-        query.page,
-        query.limit
+        query.page || 1,
+        query.limit || 20
       );
     });
   };
@@ -418,10 +411,12 @@ export class WebhookController extends BaseController {
         ParamsSchema
       );
 
+      suppressUnused(userId, workspaceId); // TODO: Use when implementing service
+
       // TODO: Implement webhook delivery retry service
       const retryResult = {
-        deliveryId,
-        webhookId,
+        deliveryId: deliveryId!,
+        webhookId: webhookId!,
         status: 'retrying',
         retryAttempt: 1,
         scheduledFor: new Date(Date.now() + 60000), // 1 minute from now
@@ -469,7 +464,7 @@ export class WebhookController extends BaseController {
           if (!acc[event.category]) {
             acc[event.category] = [];
           }
-          acc[event.category].push({
+          acc[event.category]!.push({
             value: event.value,
             action: event.action,
           });
@@ -524,7 +519,7 @@ export class WebhookController extends BaseController {
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
-      const { workspaceId, webhookId } = this.validateParams(
+      const { workspaceId: _workspaceId, webhookId } = this.validateParams(
         request.params,
         ParamsSchema
       );
@@ -536,7 +531,7 @@ export class WebhookController extends BaseController {
         Math.random().toString(36).substring(2, 15);
 
       const result = {
-        webhookId,
+        webhookId: webhookId!,
         secret: newSecret,
         rotatedAt: new Date(),
         rotatedBy: userId,

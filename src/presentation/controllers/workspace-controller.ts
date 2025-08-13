@@ -9,12 +9,6 @@ import {
   UpdateWorkspaceMemberSchema,
   WorkspaceQuerySchema,
   WorkspaceMemberQuerySchema,
-  CreateWorkspaceRequest,
-  UpdateWorkspaceRequest,
-  InviteWorkspaceMemberRequest,
-  UpdateWorkspaceMemberRequest,
-  WorkspaceQuery,
-  WorkspaceMemberQuery,
 } from '../dto/workspace-dto';
 import { z } from 'zod';
 
@@ -29,6 +23,10 @@ const MemberParamsSchema = z.object({
 
 const InvitationParamsSchema = z.object({
   id: z.string(),
+  invitationId: z.string(),
+});
+
+const InvitationIdParamsSchema = z.object({
   invitationId: z.string(),
 });
 
@@ -51,12 +49,18 @@ export class WorkspaceController extends BaseController {
         CreateWorkspaceSchema
       );
 
-      const workspace = await this.workspaceService.createWorkspace(
+      // Transform DTO to service request
+      const createRequest = {
+        name: workspaceData.name,
+        description: workspaceData.description || null,
+      };
+
+      const workspaceId = await this.workspaceService.createWorkspace(
         userId,
-        workspaceData
+        createRequest
       );
 
-      await this.sendCreated(reply, workspace);
+      await this.sendCreated(reply, { id: workspaceId.value });
     });
   };
 
@@ -68,7 +72,7 @@ export class WorkspaceController extends BaseController {
       const userId = this.getUserId(request);
       const { id } = this.validateParams(request.params, ParamsSchema);
 
-      const workspace = await this.workspaceService.getWorkspace(userId, id);
+      const workspace = await this.workspaceService.getWorkspaceById(id, userId);
 
       return workspace;
     });
@@ -83,10 +87,16 @@ export class WorkspaceController extends BaseController {
       const { id } = this.validateParams(request.params, ParamsSchema);
       const updateData = this.validateBody(request.body, UpdateWorkspaceSchema);
 
+      // Transform DTO to service request
+      const updateRequest = {
+        name: updateData.name,
+        description: updateData.description || null,
+      };
+
       const workspace = await this.workspaceService.updateWorkspace(
         userId,
         id,
-        updateData
+        updateRequest
       );
 
       return workspace;
@@ -149,14 +159,14 @@ export class WorkspaceController extends BaseController {
       const userId = this.getUserId(request);
       const query = this.validateQuery(request.query, WorkspaceQuerySchema);
 
-      const result = await this.workspaceService.getWorkspaces(userId, query);
+      const result = await this.workspaceService.getUserWorkspaces(userId, query);
 
       await this.sendPaginated(
         reply,
         result.workspaces,
         result.total,
-        query.page,
-        query.limit
+        query.page || 1,
+        query.limit || 10
       );
     });
   };
@@ -169,14 +179,14 @@ export class WorkspaceController extends BaseController {
       const userId = this.getUserId(request);
       const query = this.validateQuery(request.query, WorkspaceQuerySchema);
 
-      const result = await this.workspaceService.getMyWorkspaces(userId, query);
+      const result = await this.workspaceService.getUserWorkspaces(userId, query);
 
       await this.sendPaginated(
         reply,
         result.workspaces,
         result.total,
-        query.page,
-        query.limit
+        query.page || 1,
+        query.limit || 10
       );
     });
   };
@@ -283,8 +293,8 @@ export class WorkspaceController extends BaseController {
         reply,
         result.members,
         result.total,
-        query.page,
-        query.limit
+        query.page || 1,
+        query.limit || 10
       );
     });
   };
@@ -348,9 +358,7 @@ export class WorkspaceController extends BaseController {
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
-      const { invitationId } = this.validateParams(request.params, {
-        invitationId: z.string(),
-      });
+      const { invitationId } = this.validateParams(request.params, InvitationIdParamsSchema);
 
       const member = await this.workspaceService.acceptWorkspaceInvitation(
         userId,
@@ -367,9 +375,7 @@ export class WorkspaceController extends BaseController {
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
-      const { invitationId } = this.validateParams(request.params, {
-        invitationId: z.string(),
-      });
+      const { invitationId } = this.validateParams(request.params, InvitationIdParamsSchema);
 
       await this.workspaceService.declineWorkspaceInvitation(
         userId,
