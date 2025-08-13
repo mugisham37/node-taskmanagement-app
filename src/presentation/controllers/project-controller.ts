@@ -8,11 +8,6 @@ import {
   AddProjectMemberSchema,
   UpdateProjectMemberSchema,
   ProjectQuerySchema,
-  CreateProjectRequest,
-  UpdateProjectRequest,
-  AddProjectMemberRequest,
-  UpdateProjectMemberRequest,
-  ProjectQuery,
 } from '../dto/project-dto';
 import { z } from 'zod';
 
@@ -45,12 +40,17 @@ export class ProjectController extends BaseController {
       const userId = this.getUserId(request);
       const projectData = this.validateBody(request.body, CreateProjectSchema);
 
-      const project = await this.projectService.createProject(
-        userId,
-        projectData
-      );
+      // Ensure required fields are present and clean undefined values
+      const cleanProjectData: any = {
+        ownerId: userId,
+        ...Object.fromEntries(
+          Object.entries(projectData).filter(([, value]) => value !== undefined)
+        ),
+      };
 
-      await this.sendCreated(reply, project);
+      const projectId = await this.projectService.createProject(cleanProjectData);
+
+      await this.sendCreated(reply, { projectId });
     });
   };
 
@@ -62,7 +62,7 @@ export class ProjectController extends BaseController {
       const userId = this.getUserId(request);
       const { id } = this.validateParams(request.params, ParamsSchema);
 
-      const project = await this.projectService.getProject(userId, id);
+      const project = await this.projectService.getProjectById(id, userId);
 
       return project;
     });
@@ -77,13 +77,18 @@ export class ProjectController extends BaseController {
       const { id } = this.validateParams(request.params, ParamsSchema);
       const updateData = this.validateBody(request.body, UpdateProjectSchema);
 
-      const project = await this.projectService.updateProject(
-        userId,
-        id,
-        updateData
-      );
+      // Clean undefined values to match exactOptionalPropertyTypes
+      const cleanUpdateData: any = {
+        projectId: id,
+        updatedBy: userId,
+        ...Object.fromEntries(
+          Object.entries(updateData).filter(([, value]) => value !== undefined)
+        ),
+      };
 
-      return project;
+      await this.projectService.updateProject(cleanUpdateData);
+
+      return { success: true, message: 'Project updated successfully' };
     });
   };
 
@@ -95,7 +100,7 @@ export class ProjectController extends BaseController {
       const userId = this.getUserId(request);
       const { id } = this.validateParams(request.params, ParamsSchema);
 
-      await this.projectService.deleteProject(userId, id);
+      await this.projectService.deleteProject(id, userId);
 
       await this.sendNoContent(reply);
     });
@@ -137,14 +142,22 @@ export class ProjectController extends BaseController {
       const userId = this.getUserId(request);
       const query = this.validateQuery(request.query, ProjectQuerySchema);
 
-      const result = await this.projectService.getProjects(userId, query);
+      const cleanOptions: any = {
+        page: query.page || 1,
+        limit: query.limit || 20,
+      };
+      if (query.workspaceId) {
+        cleanOptions.workspaceId = query.workspaceId;
+      }
+
+      const result = await this.projectService.getProjects(userId, cleanOptions);
 
       await this.sendPaginated(
         reply,
         result.projects,
         result.total,
-        query.page,
-        query.limit
+        query.page || 1,
+        query.limit || 20
       );
     });
   };
@@ -162,17 +175,20 @@ export class ProjectController extends BaseController {
       const query = this.validateQuery(request.query, ProjectQuerySchema);
 
       const result = await this.projectService.getWorkspaceProjects(
-        userId,
         workspaceId,
-        query
+        userId,
+        {
+          page: query.page || 1,
+          limit: query.limit || 20,
+        }
       );
 
       await this.sendPaginated(
         reply,
         result.projects,
         result.total,
-        query.page,
-        query.limit
+        query.page || 1,
+        query.limit || 20
       );
     });
   };
@@ -185,14 +201,17 @@ export class ProjectController extends BaseController {
       const userId = this.getUserId(request);
       const query = this.validateQuery(request.query, ProjectQuerySchema);
 
-      const result = await this.projectService.getMyProjects(userId, query);
+      const result = await this.projectService.getMyProjects(userId, {
+        page: query.page || 1,
+        limit: query.limit || 20,
+      });
 
       await this.sendPaginated(
         reply,
         result.projects,
         result.total,
-        query.page,
-        query.limit
+        query.page || 1,
+        query.limit || 20
       );
     });
   };
@@ -224,13 +243,14 @@ export class ProjectController extends BaseController {
         AddProjectMemberSchema
       );
 
-      const member = await this.projectService.addProjectMember(
-        userId,
-        id,
-        memberData
-      );
+      await this.projectService.addProjectMember({
+        projectId: id,
+        userId: memberData.userId,
+        role: memberData.role,
+        addedBy: userId,
+      });
 
-      await this.sendCreated(reply, member);
+      await this.sendCreated(reply, { success: true, message: 'Member added successfully' });
     });
   };
 
@@ -245,7 +265,7 @@ export class ProjectController extends BaseController {
         MemberParamsSchema
       );
 
-      await this.projectService.removeProjectMember(userId, id, memberId);
+      await this.projectService.removeProjectMember(id, memberId, userId);
 
       await this.sendNoContent(reply);
     });
@@ -266,14 +286,14 @@ export class ProjectController extends BaseController {
         UpdateProjectMemberSchema
       );
 
-      const member = await this.projectService.updateProjectMember(
-        userId,
-        id,
-        memberId,
-        updateData
-      );
+      await this.projectService.updateProjectMember({
+        projectId: id,
+        userId: memberId,
+        role: updateData.role,
+        updatedBy: userId,
+      });
 
-      return member;
+      return { success: true, message: 'Member updated successfully' };
     });
   };
 
@@ -299,7 +319,7 @@ export class ProjectController extends BaseController {
       const userId = this.getUserId(request);
       const { id } = this.validateParams(request.params, ParamsSchema);
 
-      await this.projectService.leaveProject(userId, id);
+      await this.projectService.leaveProject(id, userId);
 
       await this.sendNoContent(reply);
     });

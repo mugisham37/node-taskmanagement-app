@@ -32,9 +32,9 @@ export interface CreateTaskUseCaseInput {
   priority: Priority;
   projectId: ProjectId;
   createdById: UserId;
-  dueDate?: Date;
-  assigneeId?: UserId;
-  estimatedHours?: number;
+  dueDate?: Date | undefined;
+  assigneeId?: UserId | undefined;
+  estimatedHours?: number | undefined;
   tags?: string[];
   notifyAssignee?: boolean;
   templateId?: string;
@@ -45,10 +45,10 @@ export interface UpdateTaskUseCaseInput {
   userId: UserId;
   title?: string;
   description?: string;
-  priority?: Priority;
-  dueDate?: Date;
-  estimatedHours?: number;
-  actualHours?: number;
+  priority?: Priority | undefined;
+  dueDate?: Date | undefined;
+  estimatedHours?: number | undefined;
+  actualHours?: number | undefined;
   tags?: string[];
   notifyChanges?: boolean;
 }

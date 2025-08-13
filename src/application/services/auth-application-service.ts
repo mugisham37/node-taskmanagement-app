@@ -60,11 +60,16 @@ export interface AuthResponse {
 export interface UserDto {
   id: string;
   email: string;
+  username: string;
   firstName: string;
   lastName: string;
-  isEmailVerified: boolean;
+  avatar?: string;
+  isActive: boolean;
+  role: string;
+  lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
+  isEmailVerified: boolean;
 }
 
 export interface SessionInfo {
@@ -1102,8 +1107,13 @@ export class AuthApplicationService extends BaseApplicationService {
     return {
       id: user.id.value,
       email: user.email.value,
+      username: user.name, // using name as username
       firstName: user.firstName,
       lastName: user.lastName,
+      ...(user.avatar && { avatar: user.avatar }),
+      isActive: user.isActive(),
+      role: 'user', // default role
+      ...(user.lastLoginAt && { lastLoginAt: user.lastLoginAt }),
       isEmailVerified: user.isEmailVerified,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,

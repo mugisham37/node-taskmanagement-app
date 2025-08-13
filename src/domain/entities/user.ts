@@ -123,6 +123,48 @@ export class User extends BaseEntity<UserId> {
   }
 
   /**
+   * Update the user's first name
+   */
+  updateFirstName(firstName: string): void {
+    if (!firstName || firstName.trim().length === 0) {
+      throw new ValidationError([], 'First name cannot be empty');
+    }
+    this._firstName = firstName.trim();
+    this.markAsUpdated();
+  }
+
+  /**
+   * Update the user's last name
+   */
+  updateLastName(lastName: string): void {
+    if (!lastName || lastName.trim().length === 0) {
+      throw new ValidationError([], 'Last name cannot be empty');
+    }
+    this._lastName = lastName.trim();
+    this.markAsUpdated();
+  }
+
+  /**
+   * Update the user's avatar
+   */
+  updateAvatar(avatar: string): void {
+    this._avatar = avatar;
+    this.markAsUpdated();
+  }
+
+  /**
+   * Update user settings
+   */
+  updateSettings(settings: Record<string, any>): void {
+    // In a real implementation, you might want to validate settings
+    // or have a dedicated settings property. For now, we'll just mark as updated
+    if (settings && Object.keys(settings).length > 0) {
+      // Store settings logic would go here
+      this.markAsUpdated();
+    }
+  }
+
+  /**
    * Update the user's profile information
    */
   updateProfile(name: string, email?: Email): void {

@@ -4,18 +4,6 @@ import { LoggingService } from '../../infrastructure/monitoring/logging-service'
 import { z } from 'zod';
 
 // Monitoring schemas
-const HealthCheckQuerySchema = z.object({
-  detailed: z.boolean().default(false),
-  includeExternal: z.boolean().default(true),
-});
-
-const MetricsQuerySchema = z.object({
-  metric: z.string().optional(),
-  startTime: z.string().datetime().optional(),
-  endTime: z.string().datetime().optional(),
-  interval: z.enum(['1m', '5m', '15m', '1h', '6h', '24h']).default('5m'),
-  aggregation: z.enum(['avg', 'sum', 'min', 'max', 'count']).default('avg'),
-});
 
 const AlertRuleSchema = z.object({
   name: z.string().min(1).max(255),
@@ -73,9 +61,6 @@ export class MonitoringController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
-      const query = this.validateQuery(request.query, HealthCheckQuerySchema);
-
       // TODO: Check admin permissions
       // TODO: Implement health monitoring service
       const healthStatus = {
@@ -127,9 +112,6 @@ export class MonitoringController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
-      const query = this.validateQuery(request.query, MetricsQuerySchema);
-
       // TODO: Check admin permissions
       // TODO: Implement metrics service
       const metrics = {
@@ -179,14 +161,6 @@ export class MonitoringController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
-      const query = this.validateQuery(
-        request.query,
-        z.object({
-          timeRange: z.enum(['1h', '6h', '24h', '7d', '30d']).default('24h'),
-        })
-      );
-
       // TODO: Check admin permissions
       // TODO: Implement performance monitoring service
       const performance = {
@@ -221,15 +195,14 @@ export class MonitoringController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
       const query = this.validateQuery(request.query, LogQuerySchema);
 
       // TODO: Check admin permissions
       // TODO: Implement log aggregation service
-      const logs = [];
+      const logs: any[] = [];
       const total = 0;
 
-      await this.sendPaginated(reply, logs, total, query.page, query.limit);
+      await this.sendPaginated(reply, logs, total, query.page || 1, query.limit || 100);
     });
   };
 
@@ -243,7 +216,6 @@ export class MonitoringController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
       const query = this.validateQuery(
         request.query,
         z.object({
@@ -256,15 +228,15 @@ export class MonitoringController extends BaseController {
 
       // TODO: Check admin permissions
       // TODO: Implement alert rules service
-      const alertRules = [];
+      const alertRules: any[] = [];
       const total = 0;
 
       await this.sendPaginated(
         reply,
         alertRules,
         total,
-        query.page,
-        query.limit
+        query.page || 1,
+        query.limit || 20
       );
     });
   };
@@ -344,8 +316,7 @@ export class MonitoringController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
-      const { alertId } = this.validateParams(request.params, ParamsSchema);
+      const { alertId: _alertId } = this.validateParams(request.params, ParamsSchema);
 
       // TODO: Check admin permissions
       // TODO: Implement alert rules service
@@ -364,7 +335,6 @@ export class MonitoringController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
       const query = this.validateQuery(
         request.query,
         z.object({
@@ -376,10 +346,10 @@ export class MonitoringController extends BaseController {
 
       // TODO: Check admin permissions
       // TODO: Implement active alerts service
-      const alerts = [];
+      const alerts: any[] = [];
       const total = 0;
 
-      await this.sendPaginated(reply, alerts, total, query.page, query.limit);
+      await this.sendPaginated(reply, alerts, total, query.page || 1, query.limit || 20);
     });
   };
 
@@ -429,8 +399,6 @@ export class MonitoringController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
-
       // TODO: Check admin permissions
       // TODO: Implement monitoring dashboard service
       const dashboardData = {
@@ -452,7 +420,7 @@ export class MonitoringController extends BaseController {
         systemInfo: {
           uptime: process.uptime(),
           version: '1.0.0',
-          environment: process.env.NODE_ENV || 'development',
+          environment: process.env['NODE_ENV'] || 'development',
         },
       };
 
@@ -474,7 +442,6 @@ export class MonitoringController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
       const exportRequest = this.validateBody(
         request.body,
         z.object({

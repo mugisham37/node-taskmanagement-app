@@ -409,4 +409,143 @@ export class TaskApplicationService {
 
     return taskId;
   }
+
+  // Additional methods needed by controller
+  async getTask(userId: string, taskId: string): Promise<TaskDto> {
+    const userIdObj = new UserId(userId);
+    const taskIdObj = new TaskId(taskId);
+    return await this.getTaskById(taskIdObj, userIdObj);
+  }
+
+  async deleteTask(userId: string, taskId: string): Promise<void> {
+    const userIdObj = new UserId(userId);
+    const taskIdObj = new TaskId(taskId);
+    
+    // Find the task first
+    const task = await this.taskRepository.findById(taskIdObj);
+    if (!task) {
+      throw new Error('Task not found');
+    }
+
+    // Delete the task
+    await this.taskRepository.delete(taskIdObj);
+    
+    this.logger.info('Task deleted', { taskId, userId });
+  }
+
+  async unassignTask(userId: string, taskId: string): Promise<void> {
+    const userIdObj = new UserId(userId);
+    const taskIdObj = new TaskId(taskId);
+    
+    // Find the task
+    const task = await this.taskRepository.findById(taskIdObj);
+    if (!task) {
+      throw new Error('Task not found');
+    }
+
+    // Unassign the task
+    task.unassign(userIdObj);
+    await this.taskRepository.save(task);
+    
+    this.logger.info('Task unassigned', { taskId, userId });
+  }
+
+  async reopenTask(userId: string, taskId: string): Promise<void> {
+    const userIdObj = new UserId(userId);
+    const taskIdObj = new TaskId(taskId);
+    
+    // Find the task
+    const task = await this.taskRepository.findById(taskIdObj);
+    if (!task) {
+      throw new Error('Task not found');
+    }
+
+    // Reopen the task
+    task.reopen(userIdObj);
+    await this.taskRepository.save(task);
+    
+    this.logger.info('Task reopened', { taskId, userId });
+  }
+
+  async startTask(userId: string, taskId: string): Promise<void> {
+    const userIdObj = new UserId(userId);
+    const taskIdObj = new TaskId(taskId);
+    
+    // Find the task
+    const task = await this.taskRepository.findById(taskIdObj);
+    if (!task) {
+      throw new Error('Task not found');
+    }
+
+    // Start the task
+    task.start(userIdObj);
+    await this.taskRepository.save(task);
+    
+    this.logger.info('Task started', { taskId, userId });
+  }
+
+  async submitForReview(userId: string, taskId: string): Promise<void> {
+    const userIdObj = new UserId(userId);
+    const taskIdObj = new TaskId(taskId);
+    
+    // Find the task
+    const task = await this.taskRepository.findById(taskIdObj);
+    if (!task) {
+      throw new Error('Task not found');
+    }
+
+    // Complete task and mark for review (using complete method)
+    task.complete(userIdObj);
+    await this.taskRepository.save(task);
+    
+    this.logger.info('Task submitted for review', { taskId, userId });
+  }
+
+  async cancelTask(userId: string, taskId: string): Promise<void> {
+    const userIdObj = new UserId(userId);
+    const taskIdObj = new TaskId(taskId);
+    
+    // Find the task
+    const task = await this.taskRepository.findById(taskIdObj);
+    if (!task) {
+      throw new Error('Task not found');
+    }
+
+    // Cancel the task
+    task.cancel(userIdObj);
+    await this.taskRepository.save(task);
+    
+    this.logger.info('Task cancelled', { taskId, userId });
+  }
+
+  async getTasks(userId: string, filters?: any, page?: number, limit?: number): Promise<PaginatedResult<TaskDto>> {
+    const userIdObj = new UserId(userId);
+    const pagination = { page: page || 1, limit: limit || 20 };
+    
+    // Use existing method
+    return await this.getTasksByAssignee(userIdObj, userIdObj, filters, pagination);
+  }
+
+  async getProjectTasks(projectId: string, userId: string, filters?: any, page?: number, limit?: number): Promise<PaginatedResult<TaskDto>> {
+    const userIdObj = new UserId(userId);
+    const projectIdObj = new ProjectId(projectId);
+    const pagination = { page: page || 1, limit: limit || 20 };
+    
+    return await this.getTasksByProject(projectIdObj, userIdObj, filters, pagination);
+  }
+
+  async getMyTasks(userId: string, filters?: any, page?: number, limit?: number): Promise<PaginatedResult<TaskDto>> {
+    const userIdObj = new UserId(userId);
+    const pagination = { page: page || 1, limit: limit || 20 };
+    
+    return await this.getTasksByAssignee(userIdObj, userIdObj, filters, pagination);
+  }
+
+  async getAssignedTasks(assigneeId: string, userId: string, filters?: any, page?: number, limit?: number): Promise<PaginatedResult<TaskDto>> {
+    const userIdObj = new UserId(userId);
+    const assigneeIdObj = new UserId(assigneeId);
+    const pagination = { page: page || 1, limit: limit || 20 };
+    
+    return await this.getTasksByAssignee(assigneeIdObj, userIdObj, filters, pagination);
+  }
 }

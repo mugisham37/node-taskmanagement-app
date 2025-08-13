@@ -71,6 +71,18 @@ export interface IUserRepository {
   ): Promise<PaginatedResult<User>>;
 
   /**
+   * Find users with filters for application service compatibility
+   */
+  findWithFilters(
+    filters: {
+      search?: string;
+      role?: string;
+      isActive?: boolean;
+    },
+    pagination: { offset: number; limit: number }
+  ): Promise<{ users: User[]; total: number }>;
+
+  /**
    * Search users by name or email
    */
   searchUsers(

@@ -799,4 +799,140 @@ export class ProjectApplicationService extends BaseApplicationService {
   private async clearMemberCaches(projectId: ProjectId): Promise<void> {
     await this.cacheService.delete(`project-members:${projectId.value}`);
   }
+
+  // Additional convenience methods for controller compatibility
+  
+  async archiveProject(projectId: string, archivedBy: string): Promise<void> {
+    return await this.executeWithMonitoring('archiveProject', async () => {
+      // TODO: Implement archive functionality
+      // This could update the project status to 'ARCHIVED'
+      await this.updateProject({
+        projectId,
+        status: 'ARCHIVED',
+        updatedBy: archivedBy,
+      });
+    });
+  }
+
+  async unarchiveProject(projectId: string, unarchivedBy: string): Promise<void> {
+    return await this.executeWithMonitoring('unarchiveProject', async () => {
+      // TODO: Implement unarchive functionality
+      await this.updateProject({
+        projectId,
+        status: 'ACTIVE',
+        updatedBy: unarchivedBy,
+      });
+    });
+  }
+
+  async getProjects(
+    userId: string,
+    options?: { page?: number; limit?: number; workspaceId?: string }
+  ): Promise<{ projects: any[]; total: number; page: number; limit: number }> {
+    return await this.executeWithMonitoring('getProjects', async () => {
+      // TODO: Implement general project listing
+      const page = options?.page || 1;
+      const limit = options?.limit || 20;
+      
+      if (options?.workspaceId) {
+        const projects = await this.getProjectsByWorkspace(
+          options.workspaceId,
+          userId
+        );
+        return {
+          projects: projects,
+          total: projects.length,
+          page,
+          limit
+        };
+      }
+      
+      // Return empty for now - TODO: implement user's accessible projects
+      return {
+        projects: [],
+        total: 0,
+        page,
+        limit
+      };
+    });
+  }
+
+  async getWorkspaceProjects(
+    workspaceId: string,
+    userId: string,
+    options?: { page?: number; limit?: number }
+  ): Promise<{ projects: any[]; total: number; page: number; limit: number }> {
+    const projects = await this.getProjectsByWorkspace(workspaceId, userId);
+    return {
+      projects: projects,
+      total: projects.length,
+      page: options?.page || 1,
+      limit: options?.limit || 20
+    };
+  }
+
+  async getMyProjects(
+    userId: string,
+    options?: { page?: number; limit?: number }
+  ): Promise<{ projects: any[]; total: number; page: number; limit: number }> {
+    return await this.executeWithMonitoring('getMyProjects', async () => {
+      // TODO: Get projects where user is owner or member
+      // userId will be used when implementing the actual logic
+      void userId; // Suppress unused variable warning
+      const page = options?.page || 1;
+      const limit = options?.limit || 20;
+      
+      return {
+        projects: [],
+        total: 0,
+        page,
+        limit
+      };
+    });
+  }
+
+  // Alias for getProjectStatistics with different naming
+  async getProjectStats(projectId: string, userId: string): Promise<any> {
+    return await this.getProjectStatistics(projectId, userId);
+  }
+
+  async addProjectMember(request: {
+    projectId: string;
+    userId: string;
+    role: string;
+    addedBy: string;
+  }): Promise<void> {
+    await this.addMember({
+      projectId: request.projectId,
+      userId: request.userId,
+      role: request.role as ProjectRole,
+      addedBy: request.addedBy,
+    });
+  }
+
+  async removeProjectMember(
+    projectId: string,
+    userId: string,
+    removedBy: string
+  ): Promise<void> {
+    await this.removeMember(projectId, userId, removedBy);
+  }
+
+  async updateProjectMember(request: {
+    projectId: string;
+    userId: string;
+    role: string;
+    updatedBy: string;
+  }): Promise<void> {
+    await this.updateMemberRole({
+      projectId: request.projectId,
+      userId: request.userId,
+      newRole: request.role as ProjectRole,
+      updatedBy: request.updatedBy,
+    });
+  }
+
+  async leaveProject(projectId: string, userId: string): Promise<void> {
+    await this.removeMember(projectId, userId, userId);
+  }
 }

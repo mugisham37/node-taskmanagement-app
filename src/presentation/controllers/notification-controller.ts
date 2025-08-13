@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './base-controller';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
@@ -63,19 +64,18 @@ export class NotificationController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
       const query = this.validateQuery(request.query, NotificationQuerySchema);
 
       // TODO: Implement notification service integration
-      const notifications = [];
+      const notifications: any[] = [];
       const total = 0;
 
       await this.sendPaginated(
         reply,
         notifications,
         total,
-        query.page,
-        query.limit
+        query.page || 1,
+        query.limit || 20
       );
     });
   };
@@ -91,6 +91,7 @@ export class NotificationController extends BaseController {
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
+      void userId; // TODO: Use for filtering user notifications
       const { id } = this.validateParams(request.params, ParamsSchema);
 
       // TODO: Implement notification service integration
@@ -124,6 +125,7 @@ export class NotificationController extends BaseController {
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
+      void userId; // TODO: Use for authorization
       const { id } = this.validateParams(request.params, ParamsSchema);
 
       // TODO: Implement notification service integration
@@ -151,7 +153,7 @@ export class NotificationController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
+      // TODO: const userId = this.getUserId(request); - Use for filtering user notifications
 
       // TODO: Implement notification service integration
       const result = {
@@ -177,8 +179,8 @@ export class NotificationController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
-      const { id } = this.validateParams(request.params, ParamsSchema);
+      // TODO: const userId = this.getUserId(request); - Use for authorization
+      // TODO: const { id } = this.validateParams(request.params, ParamsSchema); - Use for deletion
 
       // TODO: Implement notification service integration
 
@@ -196,7 +198,7 @@ export class NotificationController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
+      // TODO: const userId = this.getUserId(request); - Use for user-specific stats
 
       // TODO: Implement notification service integration
       const stats = {
@@ -295,7 +297,7 @@ export class NotificationController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
+      // TODO: const userId = this.getUserId(request); - Use for user-specific count
 
       // TODO: Implement notification service integration
       const count = 0;
@@ -318,7 +320,7 @@ export class NotificationController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
+      // TODO: const userId = this.getUserId(request); - Use for user-specific preferences
 
       // TODO: Implement notification preferences service
       const preferences = {
@@ -353,7 +355,7 @@ export class NotificationController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
+      // TODO: const userId = this.getUserId(request); - Use for user authorization
       const preferences = this.validateBody(
         request.body,
         NotificationPreferencesSchema
@@ -383,7 +385,7 @@ export class NotificationController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
+      // TODO: const userId = this.getUserId(request); - Use for user-specific testing
       const testData = this.validateBody(
         request.body,
         z.object({

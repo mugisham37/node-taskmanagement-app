@@ -2,17 +2,16 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './base-controller';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { TaskApplicationService } from '../../application/services/task-application-service';
+import { TaskId } from '../../domain/value-objects/task-id';
+import { UserId } from '../../domain/value-objects/user-id';
+import { ProjectId } from '../../domain/value-objects/project-id';
+import { Priority } from '../../domain/value-objects/priority';
 import {
   CreateTaskSchema,
   UpdateTaskSchema,
   AssignTaskSchema,
   CompleteTaskSchema,
   TaskQuerySchema,
-  CreateTaskRequest,
-  UpdateTaskRequest,
-  AssignTaskRequest,
-  CompleteTaskRequest,
-  TaskQuery,
 } from '../dto/task-dto';
 import { z } from 'zod';
 
@@ -40,7 +39,16 @@ export class TaskController extends BaseController {
       const userId = this.getUserId(request);
       const taskData = this.validateBody(request.body, CreateTaskSchema);
 
-      const task = await this.taskService.createTask(userId, taskData);
+      const task = await this.taskService.createTask({
+        projectId: new ProjectId(taskData.projectId),
+        title: taskData.title,
+        priority: Priority.fromString(taskData.priority),
+        createdById: new UserId(userId),
+        description: taskData.description || '',
+        assigneeId: taskData.assigneeId ? new UserId(taskData.assigneeId) : undefined,
+        dueDate: taskData.dueDate || undefined,
+        estimatedHours: taskData.estimatedHours || undefined
+      });
 
       await this.sendCreated(reply, task);
     });
@@ -69,9 +77,18 @@ export class TaskController extends BaseController {
       const { id } = this.validateParams(request.params, ParamsSchema);
       const updateData = this.validateBody(request.body, UpdateTaskSchema);
 
-      const task = await this.taskService.updateTask(userId, id, updateData);
+      await this.taskService.updateTask({
+        taskId: new TaskId(id),
+        userId: new UserId(userId),
+        title: updateData.title || undefined,
+        description: updateData.description || undefined,
+        priority: updateData.priority || undefined,
+        assigneeId: updateData.assigneeId ? new UserId(updateData.assigneeId) : undefined,
+        dueDate: updateData.dueDate || undefined,
+        estimatedHours: updateData.estimatedHours || undefined
+      });
 
-      return task;
+      return { success: true, message: 'Task updated successfully' };
     });
   };
 
@@ -98,13 +115,13 @@ export class TaskController extends BaseController {
       const { id } = this.validateParams(request.params, ParamsSchema);
       const assignData = this.validateBody(request.body, AssignTaskSchema);
 
-      const task = await this.taskService.assignTask(
-        userId,
-        id,
-        assignData.assigneeId
-      );
+      await this.taskService.assignTask({
+        taskId: new TaskId(id),
+        assigneeId: new UserId(assignData.assigneeId),
+        assignedBy: new UserId(userId)
+      });
 
-      return task;
+      return { success: true, message: 'Task assigned successfully' };
     });
   };
 
@@ -116,9 +133,9 @@ export class TaskController extends BaseController {
       const userId = this.getUserId(request);
       const { id } = this.validateParams(request.params, ParamsSchema);
 
-      const task = await this.taskService.unassignTask(userId, id);
+      await this.taskService.unassignTask(userId, id);
 
-      return task;
+      return { success: true, message: 'Task unassigned successfully' };
     });
   };
 
@@ -131,13 +148,13 @@ export class TaskController extends BaseController {
       const { id } = this.validateParams(request.params, ParamsSchema);
       const completeData = this.validateBody(request.body, CompleteTaskSchema);
 
-      const task = await this.taskService.completeTask(
-        userId,
-        id,
-        completeData.actualHours
-      );
+      await this.taskService.completeTask({
+        taskId: new TaskId(id),
+        completedBy: new UserId(userId),
+        actualHours: completeData.actualHours || 0
+      });
 
-      return task;
+      return { success: true, message: 'Task completed successfully' };
     });
   };
 
@@ -209,10 +226,10 @@ export class TaskController extends BaseController {
 
       await this.sendPaginated(
         reply,
-        result.tasks,
-        result.total,
-        query.page,
-        query.limit
+        result.data || result.items,
+        result.total || result.totalCount,
+        query.page || 1,
+        query.limit || 20
       );
     });
   };
@@ -237,10 +254,10 @@ export class TaskController extends BaseController {
 
       await this.sendPaginated(
         reply,
-        result.tasks,
+        result.data,
         result.total,
-        query.page,
-        query.limit
+        query.page || 1,
+        query.limit || 20
       );
     });
   };
@@ -257,10 +274,10 @@ export class TaskController extends BaseController {
 
       await this.sendPaginated(
         reply,
-        result.tasks,
+        result.data,
         result.total,
-        query.page,
-        query.limit
+        query.page || 1,
+        query.limit || 20
       );
     });
   };
@@ -273,14 +290,14 @@ export class TaskController extends BaseController {
       const userId = this.getUserId(request);
       const query = this.validateQuery(request.query, TaskQuerySchema);
 
-      const result = await this.taskService.getAssignedTasks(userId, query);
+      const result = await this.taskService.getAssignedTasks(userId, userId, query);
 
       await this.sendPaginated(
         reply,
-        result.tasks,
+        result.data,
         result.total,
-        query.page,
-        query.limit
+        query.page || 1,
+        query.limit || 20
       );
     });
   };
@@ -297,10 +314,10 @@ export class TaskController extends BaseController {
 
       await this.sendPaginated(
         reply,
-        result.tasks,
+        result.data,
         result.total,
-        query.page,
-        query.limit
+        query.page || 1,
+        query.limit || 20
       );
     });
   };

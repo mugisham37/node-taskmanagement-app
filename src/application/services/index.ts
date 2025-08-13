@@ -1,6 +1,7 @@
 // Application services
 export * from './base-application-service';
 export * from './task-application-service';
+export * from './user-application-service';
 export * from './notification-application-service';
 export * from './auth-application-service';
 export * from './project-application-service';
