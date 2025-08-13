@@ -230,7 +230,7 @@ export class StandardizedResponseMiddleware {
     return {
       success: true,
       data,
-      message,
+      message: message || '',
       meta,
     };
   }
@@ -257,8 +257,8 @@ export class StandardizedResponseMiddleware {
     };
 
     // Add stack trace in development
-    if (process.env.NODE_ENV === 'development' && details instanceof Error) {
-      error.stack = details.stack;
+    if (process.env['NODE_ENV'] === 'development' && details instanceof Error) {
+      (error as any).stack = details.stack;
     }
 
     return {
@@ -281,7 +281,7 @@ export class StandardizedResponseMiddleware {
     const meta: any = {
       timestamp: new Date().toISOString(),
       requestId: (request as any).requestId,
-      version: process.env.API_VERSION || '1.0.0',
+      version: process.env['API_VERSION'] || '1.0.0',
       performance: {
         responseTime,
         cacheHit: (request as any).cacheHit || false,
@@ -332,9 +332,7 @@ export class StandardizedResponseMiddleware {
       request: FastifyRequest,
       reply: FastifyReply
     ) => {
-      this.logger.error('Unhandled error', {
-        error: error.message,
-        stack: error.stack,
+      this.logger.error('Unhandled error', error, {
         url: request.url,
         method: request.method,
         requestId: (request as any).requestId,
@@ -370,10 +368,10 @@ export class StandardizedResponseMiddleware {
 
       // Default to internal server error
       return (reply as any).internalError(
-        process.env.NODE_ENV === 'production'
+        process.env['NODE_ENV'] === 'production'
           ? 'An unexpected error occurred'
           : error.message,
-        process.env.NODE_ENV === 'development' ? error : undefined
+        process.env['NODE_ENV'] === 'development' ? error : undefined
       );
     };
   }
@@ -408,7 +406,7 @@ export class StandardizedResponseMiddleware {
     return async (request: FastifyRequest, reply: FastifyReply) => {
       reply.header(
         'Access-Control-Allow-Origin',
-        process.env.CORS_ORIGIN || '*'
+        process.env['CORS_ORIGIN'] || '*'
       );
       reply.header(
         'Access-Control-Allow-Methods',

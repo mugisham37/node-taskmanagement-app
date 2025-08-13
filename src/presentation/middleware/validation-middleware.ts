@@ -9,7 +9,7 @@ export class ValidationMiddleware {
   validateBody = <T>(schema: ZodSchema<T>) => {
     return async (
       request: FastifyRequest,
-      reply: FastifyReply
+      _reply: FastifyReply
     ): Promise<void> => {
       try {
         const validatedBody = schema.parse(request.body);
@@ -19,7 +19,7 @@ export class ValidationMiddleware {
           const validationErrors = error.errors.map(err => ({
             field: err.path.join('.'),
             message: err.message,
-            value: err.input,
+            value: (err as any).received || undefined,
           }));
 
           this.logger.warn('Request body validation failed', {
@@ -28,9 +28,7 @@ export class ValidationMiddleware {
             validationErrors,
           });
 
-          throw new ValidationError('Request body validation failed', {
-            validationErrors,
-          });
+          throw new ValidationError(validationErrors, 'Request body validation failed');
         }
         throw error;
       }
@@ -40,7 +38,7 @@ export class ValidationMiddleware {
   validateQuery = <T>(schema: ZodSchema<T>) => {
     return async (
       request: FastifyRequest,
-      reply: FastifyReply
+      _reply: FastifyReply
     ): Promise<void> => {
       try {
         const validatedQuery = schema.parse(request.query);
@@ -50,7 +48,7 @@ export class ValidationMiddleware {
           const validationErrors = error.errors.map(err => ({
             field: err.path.join('.'),
             message: err.message,
-            value: err.input,
+            value: (err as any).received || undefined,
           }));
 
           this.logger.warn('Query parameters validation failed', {
@@ -59,9 +57,7 @@ export class ValidationMiddleware {
             validationErrors,
           });
 
-          throw new ValidationError('Query parameters validation failed', {
-            validationErrors,
-          });
+          throw new ValidationError(validationErrors, 'Query parameters validation failed');
         }
         throw error;
       }
@@ -71,7 +67,7 @@ export class ValidationMiddleware {
   validateParams = <T>(schema: ZodSchema<T>) => {
     return async (
       request: FastifyRequest,
-      reply: FastifyReply
+      _reply: FastifyReply
     ): Promise<void> => {
       try {
         const validatedParams = schema.parse(request.params);
@@ -81,7 +77,7 @@ export class ValidationMiddleware {
           const validationErrors = error.errors.map(err => ({
             field: err.path.join('.'),
             message: err.message,
-            value: err.input,
+            value: (err as any).received || undefined,
           }));
 
           this.logger.warn('Path parameters validation failed', {
@@ -90,9 +86,7 @@ export class ValidationMiddleware {
             validationErrors,
           });
 
-          throw new ValidationError('Path parameters validation failed', {
-            validationErrors,
-          });
+          throw new ValidationError(validationErrors, 'Path parameters validation failed');
         }
         throw error;
       }

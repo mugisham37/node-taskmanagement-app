@@ -2,7 +2,6 @@ import { ValueObject } from './value-object';
 import { ValidationError } from '../../shared/errors';
 import { Status as UserStatus } from '../../shared/enums/common.enums';
 import {
-  UserStatus as UserStatusConst,
   USER_STATUS_TRANSITIONS,
 } from '../../shared/constants/user-constants';
 

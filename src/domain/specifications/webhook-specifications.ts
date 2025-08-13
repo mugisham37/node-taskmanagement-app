@@ -14,8 +14,12 @@ export class WebhookIsActiveSpecification extends Specification<Webhook> {
 }
 
 export class WebhookCanTriggerSpecification extends Specification<Webhook> {
+  constructor(private readonly event: WebhookEvent) {
+    super();
+  }
+
   isSatisfiedBy(webhook: Webhook): boolean {
-    return webhook.canTrigger();
+    return webhook.canTrigger(this.event);
   }
 }
 
@@ -52,7 +56,7 @@ export class WebhookByWorkspaceSpecification extends Specification<Webhook> {
 export class WebhookIsHealthySpecification extends Specification<Webhook> {
   isSatisfiedBy(webhook: Webhook): boolean {
     const health = webhook.getHealthStatus();
-    return health.isHealthy;
+    return health === 'healthy';
   }
 }
 
@@ -102,13 +106,13 @@ export class WebhookDeliveryByEventSpecification extends Specification<WebhookDe
 
 export class WebhookDeliveryIsSuccessfulSpecification extends Specification<WebhookDelivery> {
   isSatisfiedBy(delivery: WebhookDelivery): boolean {
-    return delivery.isSuccess();
+    return delivery.isSuccessful();
   }
 }
 
 export class WebhookDeliveryIsFailedSpecification extends Specification<WebhookDelivery> {
   isSatisfiedBy(delivery: WebhookDelivery): boolean {
-    return delivery.isFailed();
+    return delivery.hasFailed();
   }
 }
 

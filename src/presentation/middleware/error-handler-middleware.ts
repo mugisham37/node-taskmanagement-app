@@ -73,10 +73,10 @@ export class ErrorHandlerMiddleware {
       error: {
         code: 'VALIDATION_ERROR',
         message: error.message,
-        details: { ...error.details, requestId },
+        details: { ...error.context, requestId },
         timestamp: new Date().toISOString(),
         path,
-        validationErrors: error.details?.validationErrors || [],
+        validationErrors: error.errors || [],
       },
     };
     await reply.status(400).send(response);
@@ -92,7 +92,7 @@ export class ErrorHandlerMiddleware {
       error: {
         code: 'NOT_FOUND',
         message: error.message,
-        details: { ...error.details, requestId },
+        details: { ...error.context, requestId },
         timestamp: new Date().toISOString(),
         path,
       },
@@ -126,9 +126,9 @@ export class ErrorHandlerMiddleware {
   ): Promise<void> {
     const response: ErrorResponseDto = {
       error: {
-        code: error.code || 'APP_ERROR',
+        code: error.errorCode || 'APP_ERROR',
         message: error.message,
-        details: { ...error.details, requestId },
+        details: { ...error.context, requestId },
         timestamp: new Date().toISOString(),
         path,
       },
@@ -156,7 +156,7 @@ export class ErrorHandlerMiddleware {
 
   private async sendPayloadTooLargeError(
     reply: FastifyReply,
-    error: FastifyError,
+    _error: FastifyError,
     path: string,
     requestId: string
   ): Promise<void> {
@@ -174,7 +174,7 @@ export class ErrorHandlerMiddleware {
 
   private async sendRateLimitError(
     reply: FastifyReply,
-    error: FastifyError,
+    _error: FastifyError,
     path: string,
     requestId: string
   ): Promise<void> {
@@ -192,7 +192,7 @@ export class ErrorHandlerMiddleware {
 
   private async sendInternalError(
     reply: FastifyReply,
-    error: Error,
+    _error: Error,
     path: string,
     requestId: string
   ): Promise<void> {

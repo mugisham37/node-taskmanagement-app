@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { RateLimitService } from '../../infrastructure/security/rate-limit-service';
 import { AppError } from '../../shared/errors/app-error';
+import { InfrastructureError } from '../../shared/errors/infrastructure-error';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 
 export interface RateLimitOptions {
@@ -95,10 +96,9 @@ export class RateLimitMiddleware {
           );
           reply.header('Retry-After', retryAfter.toString());
 
-          throw new AppError(
+          throw new InfrastructureError(
             options.message || 'Rate limit exceeded. Please try again later.',
             'RATE_LIMIT_EXCEEDED',
-            429,
             { retryAfter }
           );
         }
@@ -107,25 +107,28 @@ export class RateLimitMiddleware {
         if (this.rateLimitService) {
           const result = await this.rateLimitService.checkLimit(
             key,
-            options.maxRequests,
-            options.windowMs
+            'request',
+            {
+              maxRequests: options.maxRequests,
+              windowMs: options.windowMs
+            }
           );
 
           // Add rate limit headers
           reply.header('X-RateLimit-Limit', options.maxRequests);
           reply.header(
             'X-RateLimit-Remaining',
-            Math.max(0, options.maxRequests - result.count)
+            Math.max(0, options.maxRequests - result.totalRequests)
           );
           reply.header(
             'X-RateLimit-Reset',
             new Date(result.resetTime).toISOString()
           );
 
-          if (result.blocked) {
+          if (!result.allowed) {
             this.logger.warn('Rate limit exceeded (distributed)', {
               key,
-              count: result.count,
+              count: result.totalRequests,
               limit: options.maxRequests,
               windowMs: options.windowMs,
               url: request.url,
@@ -134,12 +137,11 @@ export class RateLimitMiddleware {
               userAgent: request.headers['user-agent'],
             });
 
-            throw new AppError(
+            throw new InfrastructureError(
               options.message || 'Rate limit exceeded. Please try again later.',
               'RATE_LIMIT_EXCEEDED',
-              429,
               {
-                retryAfter: Math.ceil((result.resetTime - Date.now()) / 1000),
+                retryAfter: Math.ceil((result.resetTime.getTime() - Date.now()) / 1000),
               }
             );
           }
@@ -184,7 +186,7 @@ export class RateLimitMiddleware {
    */
   globalRateLimit() {
     if (!this.config?.global) {
-      return (req: FastifyRequest, res: FastifyReply, next: () => void) =>
+      return (_req: FastifyRequest, _res: FastifyReply, next: () => void) =>
         next();
     }
 
@@ -196,7 +198,7 @@ export class RateLimitMiddleware {
    */
   perIPRateLimit() {
     if (!this.config?.perIP) {
-      return (req: FastifyRequest, res: FastifyReply, next: () => void) =>
+      return (_req: FastifyRequest, _res: FastifyReply, next: () => void) =>
         next();
     }
 
@@ -213,7 +215,7 @@ export class RateLimitMiddleware {
    */
   perUserRateLimit() {
     if (!this.config?.perUser) {
-      return (req: FastifyRequest, res: FastifyReply, next: () => void) =>
+      return (_req: FastifyRequest, _res: FastifyReply, next: () => void) =>
         next();
     }
 
@@ -267,7 +269,7 @@ export class RateLimitMiddleware {
         return `auth:${email || ip}`;
       },
       message: 'Too many authentication attempts. Please try again later.',
-      onLimitReached: (req: FastifyRequest, res: FastifyReply) => {
+      onLimitReached: (req: FastifyRequest, _res: FastifyReply) => {
         this.logger.warn('Authentication rate limit exceeded', {
           ip: this.getClientIP(req),
           email: (req.body as any)?.email,
@@ -412,10 +414,9 @@ export class RateLimitMiddleware {
             'Retry-After': retryAfter.toString(),
           });
 
-          throw new AppError(
+          throw new InfrastructureError(
             rule.message || 'Too many requests',
             'RATE_LIMIT_EXCEEDED',
-            429,
             { retryAfter }
           );
         }

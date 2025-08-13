@@ -34,7 +34,7 @@ export class TaskStatusVO extends ValueObject<TaskStatus> {
   /**
    * Get the task status value
    */
-  get value(): TaskStatus {
+  override get value(): TaskStatus {
     return this._value;
   }
 

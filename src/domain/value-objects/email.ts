@@ -63,14 +63,16 @@ export class Email extends ValueObject<string> {
    * Get the domain part of the email
    */
   get domain(): string {
-    return this._value.split('@')[1];
+    const parts = this._value.split('@');
+    return parts[1] || '';
   }
 
   /**
    * Get the local part (username) of the email
    */
   get localPart(): string {
-    return this._value.split('@')[0];
+    const parts = this._value.split('@');
+    return parts[0] || '';
   }
 
   /**
@@ -97,6 +99,11 @@ export class Email extends ValueObject<string> {
    */
   getMasked(): string {
     const [local, domain] = this._value.split('@');
+    
+    if (!local || !domain) {
+      return this._value; // Fallback to original if split fails
+    }
+    
     if (local.length <= 2) {
       return `${local[0]}***@${domain}`;
     }

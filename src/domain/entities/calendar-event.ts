@@ -55,10 +55,12 @@ export interface CalendarEventProps {
   userId: string;
   workspaceId?: string | undefined;
   projectId?: string | undefined;
+  taskId?: string | undefined;
   createdBy: string;
   attendees: CalendarEventAttendee[];
   isAllDay: boolean;
   recurrenceRule?: string | undefined;
+  isRecurring?: boolean;
   reminders: CalendarEventReminder[];
   visibility: string;
   metadata?: Record<string, any>;
@@ -71,6 +73,7 @@ export class CalendarEvent extends BaseEntity<CalendarEventId> {
   private _startTime: Date;
   private _endTime: Date;
   private _projectId?: ProjectId | undefined;
+  private _taskId?: string | undefined;
   private _workspaceId?: string | undefined;
   private _createdBy: UserId;
   private _attendees: CalendarEventAttendee[];
@@ -79,6 +82,7 @@ export class CalendarEvent extends BaseEntity<CalendarEventId> {
   private _color?: string | undefined;
   private _allDay: boolean;
   private _recurrenceRule?: RecurrenceRule | undefined;
+  private _isRecurring: boolean;
   private _reminders: CalendarEventReminder[];
   private _visibility: string;
   private _status: CalendarEventStatus;
@@ -97,6 +101,7 @@ export class CalendarEvent extends BaseEntity<CalendarEventId> {
     this._startTime = props.startTime || props.startDate;
     this._endTime = props.endTime || props.endDate || props.startDate;
     this._projectId = props.projectId ? new ProjectId(props.projectId) : undefined;
+    this._taskId = props.taskId;
     this._workspaceId = props.workspaceId;
     this._createdBy = new UserId(props.createdBy);
     this._attendees = props.attendees || [];
@@ -105,6 +110,7 @@ export class CalendarEvent extends BaseEntity<CalendarEventId> {
     this._color = props.color;
     this._allDay = props.isAllDay || props.allDay || false;
     this._recurrenceRule = props.recurrenceRule ? RecurrenceRule.create(JSON.parse(props.recurrenceRule)) : undefined;
+    this._isRecurring = props.isRecurring || !!this._recurrenceRule;
     this._reminders = props.reminders || [];
     this._visibility = props.visibility;
     this._status = CalendarEventStatus.ACTIVE;
@@ -123,6 +129,7 @@ export class CalendarEvent extends BaseEntity<CalendarEventId> {
   get startDate(): Date { return this._startTime; } // Alias for compatibility
   get endDate(): Date { return this._endTime; } // Alias for compatibility
   get projectId(): ProjectId | undefined { return this._projectId; }
+  get taskId(): string | undefined { return this._taskId; }
   get workspaceId(): string | undefined { return this._workspaceId; }
   get createdBy(): UserId { return this._createdBy; }
   get userId(): string { return this._createdBy.value; } // Alias for compatibility
@@ -133,6 +140,7 @@ export class CalendarEvent extends BaseEntity<CalendarEventId> {
   get allDay(): boolean { return this._allDay; }
   get isAllDay(): boolean { return this._allDay; }
   get recurrenceRule(): RecurrenceRule | undefined { return this._recurrenceRule; }
+  get isRecurring(): boolean { return this._isRecurring; }
   get reminders(): CalendarEventReminder[] { return this._reminders; }
   get visibility(): string { return this._visibility; }
   get status(): CalendarEventStatus { return this._status; }
@@ -281,6 +289,56 @@ export class CalendarEvent extends BaseEntity<CalendarEventId> {
 
   getDuration(): number {
     return this._endTime.getTime() - this._startTime.getTime();
+  }
+
+  // Time-based utility methods
+  isUpcoming(): boolean {
+    const now = new Date();
+    return this._startTime > now;
+  }
+
+  isPast(): boolean {
+    const now = new Date();
+    return this._endTime < now;
+  }
+
+  isHappening(): boolean {
+    const now = new Date();
+    return this._startTime <= now && this._endTime >= now;
+  }
+
+  // Scheduling conflict detection
+  checkSchedulingConflict(otherEvent: CalendarEvent): boolean {
+    if (this._allDay && otherEvent._allDay) {
+      // For all-day events, check if dates overlap
+      const thisStart = new Date(this._startTime.getFullYear(), this._startTime.getMonth(), this._startTime.getDate());
+      const thisEnd = new Date(this._endTime.getFullYear(), this._endTime.getMonth(), this._endTime.getDate());
+      const otherStart = new Date(otherEvent._startTime.getFullYear(), otherEvent._startTime.getMonth(), otherEvent._startTime.getDate());
+      const otherEnd = new Date(otherEvent._endTime.getFullYear(), otherEvent._endTime.getMonth(), otherEvent._endTime.getDate());
+      
+      return thisStart <= otherEnd && thisEnd >= otherStart;
+    }
+
+    if (this._allDay || otherEvent._allDay) {
+      // If one is all-day and the other is not, check if they're on the same day
+      const thisStart = this._allDay ? 
+        new Date(this._startTime.getFullYear(), this._startTime.getMonth(), this._startTime.getDate()) :
+        this._startTime;
+      const thisEnd = this._allDay ? 
+        new Date(this._endTime.getFullYear(), this._endTime.getMonth(), this._endTime.getDate(), 23, 59, 59) :
+        this._endTime;
+      const otherStart = otherEvent._allDay ? 
+        new Date(otherEvent._startTime.getFullYear(), otherEvent._startTime.getMonth(), otherEvent._startTime.getDate()) :
+        otherEvent._startTime;
+      const otherEnd = otherEvent._allDay ? 
+        new Date(otherEvent._endTime.getFullYear(), otherEvent._endTime.getMonth(), otherEvent._endTime.getDate(), 23, 59, 59) :
+        otherEvent._endTime;
+      
+      return thisStart <= otherEnd && thisEnd >= otherStart;
+    }
+
+    // For time-specific events, check for time overlap
+    return this._startTime < otherEvent._endTime && this._endTime > otherEvent._startTime;
   }
 
   static create(props: CalendarEventProps): CalendarEvent {

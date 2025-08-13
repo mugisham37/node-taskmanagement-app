@@ -4,12 +4,10 @@ import { ConfigLoader } from '../../shared/config';
 import { SERVICE_TOKENS } from '../../shared/container/types';
 
 // Import middleware
-import { authMiddleware } from './auth-middleware';
-import { rateLimitMiddleware } from './rate-limit-middleware';
-import { errorHandlerMiddleware } from './error-handler-middleware';
-import { corsMiddleware } from './cors-middleware';
-import { securityMiddleware } from './security-middleware';
-import { validationMiddleware } from './validation-middleware';
+import { RateLimitMiddleware } from './rate-limit-middleware';
+import { ErrorHandlerMiddleware } from './error-handler-middleware';
+import { CorsMiddleware } from './cors-middleware';
+import { SecurityMiddleware } from './security-middleware';
 
 /**
  * Setup all middleware for the Fastify application
@@ -20,36 +18,26 @@ export async function setupMiddleware(
   config: ReturnType<typeof ConfigLoader.validateAllConfigs>
 ): Promise<void> {
   // Register CORS middleware
-  await app.register(corsMiddleware, {
-    origins: config.app.corsOrigins,
-  });
+  const corsMiddleware = container.resolve<CorsMiddleware>('CorsMiddleware');
+  app.addHook('preHandler', corsMiddleware.handle);
 
   // Register security middleware (helmet, etc.)
-  await app.register(securityMiddleware);
+  const securityMiddleware = container.resolve<SecurityMiddleware>('SecurityMiddleware');
+  app.addHook('preHandler', securityMiddleware.handle);
 
   // Register rate limiting middleware
-  const rateLimitService = container.resolve(SERVICE_TOKENS.RATE_LIMIT_SERVICE);
-  await app.register(rateLimitMiddleware, {
-    rateLimitService,
-    max: config.app.rateLimitMax,
-    timeWindow: config.app.rateLimitWindow,
-  });
+  const rateLimitMiddleware = container.resolve<RateLimitMiddleware>('RateLimitMiddleware');
+  app.addHook('preHandler', rateLimitMiddleware.globalRateLimit());
 
   // Register validation middleware
-  await app.register(validationMiddleware);
+  // ValidationMiddleware is typically added per route, not globally
 
-  // Register authentication middleware
-  const jwtService = container.resolve(SERVICE_TOKENS.JWT_SERVICE);
-  await app.register(authMiddleware, {
-    jwtService,
-  });
+  // Register authentication middleware  
+  // AuthMiddleware is typically added per route, not globally
 
   // Register error handler middleware (should be last)
-  const loggingService = container.resolve(SERVICE_TOKENS.LOGGING_SERVICE);
-  await app.register(errorHandlerMiddleware, {
-    loggingService,
-    nodeEnv: config.app.nodeEnv,
-  });
+  const errorHandlerMiddleware = container.resolve<ErrorHandlerMiddleware>('ErrorHandlerMiddleware');
+  app.setErrorHandler(errorHandlerMiddleware.handle);
 
   // Add container and config to request context
   app.addHook('onRequest', async request => {
@@ -59,13 +47,13 @@ export async function setupMiddleware(
 
   // Add health check endpoint
   app.get('/health', async () => {
-    const healthService = container.resolve(SERVICE_TOKENS.HEALTH_SERVICE);
+    const healthService = container.resolve(SERVICE_TOKENS.HEALTH_SERVICE) as any;
     const health = await healthService.getOverallHealth();
 
     return {
       status: health.status,
       timestamp: new Date().toISOString(),
-      services: health.services.map(s => ({
+      services: health.services.map((s: any) => ({
         name: s.name,
         status: s.status,
         lastChecked: s.lastChecked,
@@ -76,7 +64,7 @@ export async function setupMiddleware(
   // Add metrics endpoint if enabled
   if (config.app.enableMetrics) {
     app.get('/metrics', async () => {
-      const metricsService = container.resolve(SERVICE_TOKENS.METRICS_SERVICE);
+      const metricsService = container.resolve(SERVICE_TOKENS.METRICS_SERVICE) as any;
       return await metricsService.getMetrics();
     });
   }

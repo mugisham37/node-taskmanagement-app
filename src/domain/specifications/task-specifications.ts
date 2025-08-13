@@ -1,6 +1,6 @@
 import { Task } from '../entities/task';
 import { User } from '../entities/user';
-import { UserId, TaskStatusVO } from '../value-objects';
+import { UserId} from '../value-objects';
 import { TaskStatus } from '../../shared/constants/task-constants';
 
 /**

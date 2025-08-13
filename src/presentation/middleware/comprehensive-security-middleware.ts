@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { AppError } from '../../shared/errors/app-error';
+import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { ValidationError } from '../../shared/errors/validation-error';
 
 export interface SecurityConfig {
   cors?: {
@@ -35,7 +36,7 @@ export class ComprehensiveSecurityMiddleware {
    */
   securityHeaders() {
     return async (
-      req: FastifyRequest,
+      _req: FastifyRequest,
       reply: FastifyReply,
       next?: () => void
     ) => {
@@ -139,7 +140,7 @@ export class ComprehensiveSecurityMiddleware {
   ipFilter() {
     return async (
       req: FastifyRequest,
-      reply: FastifyReply,
+      _reply: FastifyReply,
       next?: () => void
     ) => {
       const clientIP = this.getClientIP(req);
@@ -155,7 +156,7 @@ export class ComprehensiveSecurityMiddleware {
           url: req.url,
         });
 
-        throw new AppError('Access denied', 403, 'IP_BLOCKED');
+        throw new AuthorizationError('Access denied - IP blocked');
       }
 
       // Check IP whitelist (if configured)
@@ -167,7 +168,7 @@ export class ComprehensiveSecurityMiddleware {
             url: req.url,
           });
 
-          throw new AppError('Access denied', 403, 'IP_NOT_WHITELISTED');
+          throw new AuthorizationError('Access denied - IP not whitelisted');
         }
       }
 
@@ -181,7 +182,7 @@ export class ComprehensiveSecurityMiddleware {
   userAgentFilter() {
     return async (
       req: FastifyRequest,
-      reply: FastifyReply,
+      _reply: FastifyReply,
       next?: () => void
     ) => {
       const userAgent = req.headers['user-agent'] || '';
@@ -199,7 +200,7 @@ export class ComprehensiveSecurityMiddleware {
             url: req.url,
           });
 
-          throw new AppError('Access denied', 403, 'USER_AGENT_BLOCKED');
+          throw new AuthorizationError('Access denied - User agent blocked');
         }
       }
 
@@ -214,7 +215,7 @@ export class ComprehensiveSecurityMiddleware {
     // 10MB default
     return async (
       req: FastifyRequest,
-      reply: FastifyReply,
+      _reply: FastifyReply,
       next?: () => void
     ) => {
       const contentLength = parseInt(req.headers['content-length'] || '0', 10);
@@ -227,11 +228,9 @@ export class ComprehensiveSecurityMiddleware {
           url: req.url,
         });
 
-        throw new AppError(
-          'Request entity too large',
-          413,
-          'REQUEST_TOO_LARGE',
-          { maxSize }
+        throw new ValidationError(
+          [{ field: 'request', message: 'Request entity too large', value: undefined }],
+          'Request entity too large'
         );
       }
 
@@ -253,7 +252,7 @@ export class ComprehensiveSecurityMiddleware {
 
     return async (
       req: FastifyRequest,
-      reply: FastifyReply,
+      _reply: FastifyReply,
       next?: () => void
     ) => {
       const checkForSQLInjection = (obj: any, path: string = ''): boolean => {
@@ -287,7 +286,10 @@ export class ComprehensiveSecurityMiddleware {
           suspiciousData: requestData,
         });
 
-        throw new AppError('Invalid request data', 400, 'INVALID_INPUT');
+        throw new ValidationError(
+          [{ field: 'request', message: 'Invalid request data', value: undefined }],
+          'Invalid request data'
+        );
       }
 
       if (next) next();
@@ -311,7 +313,7 @@ export class ComprehensiveSecurityMiddleware {
 
     return async (
       req: FastifyRequest,
-      reply: FastifyReply,
+      _reply: FastifyReply,
       next?: () => void
     ) => {
       const checkForXSS = (obj: any): boolean => {
@@ -345,7 +347,10 @@ export class ComprehensiveSecurityMiddleware {
           suspiciousData: requestData,
         });
 
-        throw new AppError('Invalid request data', 400, 'INVALID_INPUT');
+        throw new ValidationError(
+          [{ field: 'request', message: 'Invalid request data - XSS detected', value: undefined }],
+          'Invalid request data'
+        );
       }
 
       if (next) next();
@@ -367,7 +372,7 @@ export class ComprehensiveSecurityMiddleware {
 
     return async (
       req: FastifyRequest,
-      reply: FastifyReply,
+      _reply: FastifyReply,
       next?: () => void
     ) => {
       const checkForPathTraversal = (str: string): boolean => {
@@ -390,7 +395,10 @@ export class ComprehensiveSecurityMiddleware {
           method: req.method,
         });
 
-        throw new AppError('Invalid request path', 400, 'INVALID_PATH');
+        throw new ValidationError(
+          [{ field: 'path', message: 'Invalid request path', value: undefined }],
+          'Invalid request path'
+        );
       }
 
       if (next) next();
@@ -438,7 +446,7 @@ export class ComprehensiveSecurityMiddleware {
    */
   apiSecurityHeaders() {
     return async (
-      req: FastifyRequest,
+      _req: FastifyRequest,
       reply: FastifyReply,
       next?: () => void
     ) => {
@@ -484,7 +492,7 @@ export class ComprehensiveSecurityMiddleware {
  */
 export const defaultSecurityConfig: SecurityConfig = {
   cors: {
-    origins: process.env.ALLOWED_ORIGINS?.split(',') || [
+    origins: process.env['ALLOWED_ORIGINS']?.split(',') || [
       'http://localhost:3000',
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

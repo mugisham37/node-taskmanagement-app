@@ -49,7 +49,7 @@ export class CalendarEventByProjectSpecification extends Specification<CalendarE
   }
 
   isSatisfiedBy(event: CalendarEvent): boolean {
-    return event.projectId === this.projectId;
+    return event.projectId?.value === this.projectId;
   }
 }
 

@@ -1,9 +1,8 @@
-import { Project, ProjectMember } from '../entities/project';
+import { Project } from '../entities/project';
 import { Task } from '../entities/task';
 import { User } from '../entities/user';
 import { UserId, ProjectRoleVO } from '../value-objects';
 import {
-  ProjectRole,
   ProjectStatus,
 } from '../../shared/constants/project-constants';
 import { Specification } from './task-specifications';
@@ -225,7 +224,7 @@ export class UserCanBeAddedToProjectSpecification extends Specification<{
     user: User;
     role: ProjectRoleVO;
   }): boolean {
-    const { project, user, role } = candidate;
+    const { project, user } = candidate;
 
     // Project must be operational
     if (!project.isOperational()) {

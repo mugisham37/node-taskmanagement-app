@@ -2,7 +2,6 @@ import { ValueObject } from './value-object';
 import { ValidationError } from '../../shared/errors';
 import { Priority as TaskPriority } from '../../shared/enums/common.enums';
 import {
-  TaskPriority as TaskPriorityConst,
   TASK_PRIORITY_WEIGHTS,
 } from '../../shared/constants/task-constants';
 

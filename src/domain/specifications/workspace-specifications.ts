@@ -297,7 +297,7 @@ export class WorkspaceCanBeDeletedSpecification extends Specification<{
     workspace: Workspace;
     projects: Project[];
   }): boolean {
-    const { workspace, projects } = candidate;
+    const { projects } = candidate;
 
     // Only the owner can delete the workspace (this should be checked at the service level)
     // Here we check business rules

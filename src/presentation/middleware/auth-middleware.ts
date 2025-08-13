@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { JWTService } from '../../infrastructure/security/jwt-service';
-import { UserRepository } from '../../infrastructure/persistence/repositories/user-repository';
+import { IUserRepository } from '../../domain/repositories/user-repository';
+import { UserId } from '../../domain/value-objects/user-id';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 
@@ -28,8 +29,8 @@ export interface WorkspaceContext {
 
 export interface AuthContext {
   ipAddress?: string;
-  userAgent?: string;
-  deviceFingerprint?: string;
+  userAgent?: string | undefined;
+  deviceFingerprint?: string | undefined;
   requestPath: string;
   requestMethod: string;
   correlationId: string;
@@ -64,13 +65,13 @@ declare module 'fastify' {
 export class AuthMiddleware {
   constructor(
     private readonly jwtService: JWTService,
-    private readonly userRepository: UserRepository,
+    private readonly userRepository: IUserRepository,
     private readonly logger: LoggingService
   ) {}
 
   authenticate = async (
     request: FastifyRequest,
-    reply: FastifyReply
+    _reply: FastifyReply
   ): Promise<void> => {
     try {
       const authHeader = request.headers.authorization;
@@ -86,14 +87,14 @@ export class AuthMiddleware {
       }
 
       // Verify and decode the JWT token
-      const payload = await this.jwtService.verifyToken(token);
+      const payload = this.jwtService.verifyAccessToken(token);
 
       if (!payload.sub) {
         throw new AuthorizationError('Invalid token payload');
       }
 
       // Get user from database to ensure they still exist and are active
-      const user = await this.userRepository.findById(payload.sub);
+      const user = await this.userRepository.findById(new UserId(payload.sub));
 
       if (!user) {
         throw new AuthorizationError('User not found');
@@ -108,15 +109,15 @@ export class AuthMiddleware {
         id: user.id.value,
         email: user.email.value,
         name: user.name,
-        isActive: user.isActive,
-        role: payload.role,
-        workspaceId: payload.workspaceId,
+        isActive: user.isActive(),
+        role: payload['role'],
+        workspaceId: payload['workspaceId'],
         permissions: payload.permissions || [],
-        riskScore: payload.riskScore || 0,
+        riskScore: payload['riskScore'] || 0,
         sessionId: payload.sessionId,
-        deviceId: payload.deviceId,
-        mfaEnabled: payload.mfaEnabled || false,
-        emailVerified: payload.emailVerified || false,
+        deviceId: payload['deviceId'],
+        mfaEnabled: payload['mfaEnabled'] || false,
+        emailVerified: payload['emailVerified'] || false,
       };
 
       // Add auth context
@@ -127,10 +128,11 @@ export class AuthMiddleware {
         email: user.email.value,
       });
     } catch (error) {
-      this.logger.warn('Authentication failed', error as Error, {
+      this.logger.warn('Authentication failed', {
         url: request.url,
         method: request.method,
         userAgent: request.headers['user-agent'],
+        error: (error as Error).message,
       });
 
       if (error instanceof AuthorizationError) {
@@ -168,14 +170,14 @@ export class AuthMiddleware {
         }
 
         // Verify and decode the JWT token
-        const payload = await this.jwtService.verifyToken(token);
+        const payload = this.jwtService.verifyAccessToken(token);
 
         if (!payload.sub) {
           throw new AuthorizationError('Invalid token payload');
         }
 
         // Get user from database
-        const user = await this.userRepository.findById(payload.sub);
+        const user = await this.userRepository.findById(new UserId(payload.sub));
 
         if (!user) {
           throw new AuthorizationError('User not found');
@@ -188,11 +190,11 @@ export class AuthMiddleware {
         // Check role restrictions
         if (
           options.allowedRoles &&
-          !options.allowedRoles.includes(payload.role)
+          !options.allowedRoles.includes(payload['role'])
         ) {
           this.logger.warn('Authorization failed: Insufficient role', {
             userId: payload.sub,
-            userRole: payload.role,
+            userRole: payload['role'],
             requiredRoles: options.allowedRoles,
           });
 
@@ -200,20 +202,20 @@ export class AuthMiddleware {
         }
 
         // Check email verification requirement
-        if (options.requireEmailVerification && !payload.emailVerified) {
+        if (options.requireEmailVerification && !payload['emailVerified']) {
           throw new AuthorizationError('Email verification required');
         }
 
         // Check MFA requirement
-        if (options.requireMfa && !payload.mfaEnabled) {
+        if (options.requireMfa && !payload['mfaEnabled']) {
           throw new AuthorizationError('Multi-factor authentication required');
         }
 
         // Check risk score threshold
-        if (options.maxRiskScore && payload.riskScore > options.maxRiskScore) {
+        if (options.maxRiskScore && payload['riskScore'] > options.maxRiskScore) {
           this.logger.warn('Authorization failed: High risk score', {
             userId: payload.sub,
-            riskScore: payload.riskScore,
+            riskScore: payload['riskScore'],
             threshold: options.maxRiskScore,
           });
 
@@ -250,32 +252,32 @@ export class AuthMiddleware {
           id: user.id.value,
           email: user.email.value,
           name: user.name,
-          isActive: user.isActive,
-          role: payload.role,
-          workspaceId: payload.workspaceId,
+          isActive: user.isActive(),
+          role: payload['role'],
+          workspaceId: payload['workspaceId'],
           permissions: payload.permissions || [],
-          riskScore: payload.riskScore || 0,
+          riskScore: payload['riskScore'] || 0,
           sessionId: payload.sessionId,
-          deviceId: payload.deviceId,
-          mfaEnabled: payload.mfaEnabled || false,
-          emailVerified: payload.emailVerified || false,
+          deviceId: payload['deviceId'],
+          mfaEnabled: payload['mfaEnabled'] || false,
+          emailVerified: payload['emailVerified'] || false,
         };
 
         // Add workspace context if available
-        if (payload.workspaceId) {
+        if (payload['workspaceId']) {
           request.workspaceContext = {
-            workspaceId: payload.workspaceId,
-            workspaceName: payload.workspaceName || '',
-            role: payload.workspaceRole || payload.role,
+            workspaceId: payload['workspaceId'],
+            workspaceName: payload['workspaceName'] || '',
+            role: payload['workspaceRole'] || payload['role'],
             permissions:
-              payload.workspacePermissions || payload.permissions || [],
+              payload['workspacePermissions'] || payload.permissions || [],
           };
         } else if (options.requireWorkspace) {
           throw new AuthorizationError('Workspace context required');
         }
 
         // Add security headers
-        this.addSecurityHeaders(reply, payload.riskScore || 0);
+        this.addSecurityHeaders(reply, payload['riskScore'] || 0);
       } catch (error) {
         this.logger.error('Enhanced authentication failed', error as Error);
         if (error instanceof AuthorizationError) {
@@ -338,8 +340,8 @@ export class AuthMiddleware {
   private extractAuthContext(request: FastifyRequest): AuthContext {
     return {
       ipAddress: request.ip,
-      userAgent: request.headers['user-agent'],
-      deviceFingerprint: request.headers['x-device-fingerprint'] as string,
+      userAgent: request.headers['user-agent'] || undefined,
+      deviceFingerprint: (request.headers['x-device-fingerprint'] as string) || undefined,
       requestPath: request.url,
       requestMethod: request.method,
       correlationId:
@@ -379,7 +381,7 @@ export class AuthMiddleware {
     }
 
     // Add risk score header for debugging (remove in production)
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env['NODE_ENV'] !== 'production') {
       reply.header('X-Risk-Score', riskScore.toString());
     }
   }

@@ -173,7 +173,7 @@ export class SecurityMiddleware {
     auditContext: AuditContext
   ): void {
     const suspiciousPatterns = [
-      /<script[^>]*>.*?<\/script>/gis,
+      /<script[^>]*>.*?<\/script>/gi,
       /javascript:/gi,
       /vbscript:/gi,
       /onload=/gi,
