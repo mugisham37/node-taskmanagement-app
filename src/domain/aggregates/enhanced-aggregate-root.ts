@@ -1,5 +1,13 @@
 import { DomainEvent } from '../events/domain-event';
-import { AggregateRoot } from './aggregate-root';
+import { AggregateRoot, AggregateProps } from './aggregate-root';
+
+/**
+ * Enhanced Aggregate Props interface
+ */
+export interface EnhancedAggregateProps extends AggregateProps {
+  isDeleted?: boolean;
+  lastModified?: Date;
+}
 
 /**
  * Enhanced Aggregate Root
@@ -7,18 +15,36 @@ import { AggregateRoot } from './aggregate-root';
  * Provides comprehensive aggregate root functionality with integrated
  * event publishing, transaction management, and domain event handling.
  */
-export abstract class EnhancedAggregateRoot extends AggregateRoot {
+export abstract class EnhancedAggregateRoot<TProps extends EnhancedAggregateProps> extends AggregateRoot<TProps> {
   private uncommittedEvents: DomainEvent[] = [];
-  private version: number = 0;
-  private isDeleted: boolean = false;
-  private lastModified: Date = new Date();
+  private _isDeleted: boolean = false;
+
+  constructor(props: TProps) {
+    super(props);
+    this._isDeleted = props.isDeleted || false;
+  }
+
+  /**
+   * Get if the aggregate is deleted
+   */
+  get isDeleted(): boolean {
+    return this._isDeleted;
+  }
+
+  /**
+   * Get last modified date
+   */
+  get lastModified(): Date {
+    return this.props.lastModified || this.updatedAt;
+  }
 
   /**
    * Add a domain event to be published
    */
-  protected addDomainEvent(event: DomainEvent): void {
+  protected override addDomainEvent(event: DomainEvent): void {
+    super.addDomainEvent(event);
     this.uncommittedEvents.push(event);
-    this.lastModified = new Date();
+    this.props.lastModified = new Date();
   }
 
   /**
@@ -33,68 +59,47 @@ export abstract class EnhancedAggregateRoot extends AggregateRoot {
    */
   markEventsAsCommitted(): void {
     this.uncommittedEvents = [];
-    this.version++;
+    this.clearDomainEvents();
   }
 
   /**
-   * Get the current version of the aggregate
+   * Check if aggregate has uncommitted changes
    */
-  getVersion(): number {
-    return this.version;
-  }
-
-  /**
-   * Set the version (used when loading from persistence)
-   */
-  setVersion(version: number): void {
-    this.version = version;
-  }
-
-  /**
-   * Check if the aggregate has uncommitted changes
-   */
-  hasUncommittedChanges(): boolean {
+  override hasUncommittedChanges(): boolean {
     return this.uncommittedEvents.length > 0;
   }
 
   /**
-   * Mark the aggregate as deleted
+   * Delete the aggregate (soft delete)
    */
-  protected markAsDeleted(): void {
-    this.isDeleted = true;
-    this.lastModified = new Date();
+  delete(): void {
+    this._isDeleted = true;
+    this.markAsUpdated();
   }
 
   /**
-   * Check if the aggregate is deleted
+   * Restore the aggregate (undo soft delete)
    */
-  isAggregateDeleted(): boolean {
-    return this.isDeleted;
-  }
-
-  /**
-   * Get the last modified timestamp
-   */
-  getLastModified(): Date {
-    return this.lastModified;
+  restore(): void {
+    this._isDeleted = false;
+    this.markAsUpdated();
   }
 
   /**
    * Apply an event to the aggregate (for event sourcing)
    */
-  protected applyEvent(event: DomainEvent): void {
-    const handler = this.getEventHandler(event.eventName);
+  protected override applyEvent(event: DomainEvent): void {
+    const handler = this.getEventHandler(event.getEventName());
     if (handler) {
       handler.call(this, event);
-      this.version++;
-      this.lastModified = new Date();
+      this.props.lastModified = new Date();
     }
   }
 
   /**
    * Replay events to rebuild aggregate state (for event sourcing)
    */
-  replayEvents(events: DomainEvent[]): void {
+  override replayEvents(events: DomainEvent[]): void {
     events.forEach(event => {
       this.applyEvent(event);
     });
@@ -126,7 +131,7 @@ export abstract class EnhancedAggregateRoot extends AggregateRoot {
   /**
    * Create a snapshot of the aggregate state
    */
-  createSnapshot(): AggregateSnapshot {
+  override createSnapshot(): AggregateSnapshot {
     return {
       aggregateId: this.id,
       aggregateType: this.constructor.name,
@@ -140,11 +145,10 @@ export abstract class EnhancedAggregateRoot extends AggregateRoot {
   /**
    * Restore aggregate from snapshot
    */
-  restoreFromSnapshot(snapshot: AggregateSnapshot): void {
-    this.id = snapshot.aggregateId;
-    this.version = snapshot.version;
-    this.isDeleted = snapshot.isDeleted;
-    this.lastModified = snapshot.lastModified;
+  override restoreFromSnapshot(snapshot: AggregateSnapshot): void {
+    // Note: We can't modify the id since it's readonly, so we assume it's already correct
+    this._isDeleted = snapshot.isDeleted;
+    this.props.lastModified = snapshot.lastModified;
     this.restoreSnapshotData(snapshot.state);
     this.uncommittedEvents = [];
   }
@@ -192,6 +196,28 @@ export abstract class EnhancedAggregateRoot extends AggregateRoot {
       hasUncommittedChanges: this.hasUncommittedChanges(),
       uncommittedEventCount: this.uncommittedEvents.length,
     };
+  }
+
+  /**
+   * Implementation of abstract method from base class
+   */
+  protected checkInvariants(): void {
+    this.validateInvariants();
+  }
+
+  /**
+   * Implementation of abstract method from base class
+   */
+  override getValidationErrors(): string[] {
+    const errors: string[] = [];
+    try {
+      this.validateInvariants();
+    } catch (error) {
+      if (error instanceof Error) {
+        errors.push(error.message);
+      }
+    }
+    return errors;
   }
 }
 

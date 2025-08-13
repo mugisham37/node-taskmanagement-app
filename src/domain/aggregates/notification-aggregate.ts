@@ -1,8 +1,7 @@
-import { AggregateRoot } from './aggregate-root';
+import { AggregateRoot, AggregateProps } from './aggregate-root';
 import {
   Notification,
   NotificationPreferences,
-  NotificationType,
   NotificationChannel,
 } from '../entities/notification';
 import {
@@ -11,12 +10,9 @@ import {
   NotificationReadEvent,
 } from '../events/notification-events';
 
-export interface NotificationAggregateProps {
-  id: string;
+export interface NotificationAggregateProps extends AggregateProps {
   notification: Notification;
   preferences?: NotificationPreferences;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 export class NotificationAggregate extends AggregateRoot<NotificationAggregateProps> {
@@ -29,18 +25,23 @@ export class NotificationAggregate extends AggregateRoot<NotificationAggregatePr
     preferences?: NotificationPreferences
   ): NotificationAggregate {
     const now = new Date();
-    const aggregate = new NotificationAggregate({
-      id: notification.id,
+    const props: NotificationAggregateProps = {
+      id: notification.id.value, // Convert NotificationId to string
       notification,
-      preferences,
       createdAt: now,
       updatedAt: now,
-    });
+    };
+    
+    if (preferences) {
+      props.preferences = preferences;
+    }
+    
+    const aggregate = new NotificationAggregate(props);
 
     aggregate.addDomainEvent(
       new NotificationCreatedEvent(
-        notification.id,
-        notification.userId,
+        notification.id.value, // Convert NotificationId to string
+        notification.userId.value, // Convert UserId to string
         notification.type,
         notification.title
       )
@@ -108,8 +109,8 @@ export class NotificationAggregate extends AggregateRoot<NotificationAggregatePr
 
     this.addDomainEvent(
       new NotificationSentEvent(
-        this.props.notification.id,
-        this.props.notification.userId,
+        this.props.notification.id.value,
+        this.props.notification.userId.value,
         enabledChannels
       )
     );
@@ -121,8 +122,8 @@ export class NotificationAggregate extends AggregateRoot<NotificationAggregatePr
 
     this.addDomainEvent(
       new NotificationReadEvent(
-        this.props.notification.id,
-        this.props.notification.userId,
+        this.props.notification.id.value,
+        this.props.notification.userId.value,
         new Date()
       )
     );
@@ -147,9 +148,66 @@ export class NotificationAggregate extends AggregateRoot<NotificationAggregatePr
     this.props.updatedAt = new Date();
   }
 
-  protected validate(): void {
+  protected override validate(): void {
     if (!this.props.notification) {
       throw new Error('Notification is required');
     }
+  }
+
+  // Required abstract method implementations
+  protected applyEvent(_event: any): void {
+    // Handle event sourcing if needed
+    // For now, we'll leave this empty as it's not being used
+  }
+
+  protected checkInvariants(): void {
+    if (!this.props.notification) {
+      throw new Error('Notification is required');
+    }
+    
+    // Add other business rule validations here
+    if (!this.props.notification.title || this.props.notification.title.trim() === '') {
+      throw new Error('Notification title is required');
+    }
+  }
+
+  createSnapshot(): Record<string, any> {
+    return {
+      id: this.id,
+      notification: {
+        id: this.props.notification.id.value,
+        userId: this.props.notification.userId.value,
+        type: this.props.notification.type,
+        title: this.props.notification.title,
+        message: this.props.notification.message,
+        status: this.props.notification.status,
+        channels: this.props.notification.channels,
+        // Add other notification properties as needed
+      },
+      preferences: this.props.preferences ? {
+        // Add preference properties as needed
+      } : null,
+      createdAt: this.props.createdAt.toISOString(),
+      updatedAt: this.props.updatedAt.toISOString(),
+    };
+  }
+
+  restoreFromSnapshot(_snapshot: Record<string, any>): void {
+    // Implement snapshot restoration if needed for event sourcing
+    // For now, we'll leave this empty as it's not being used
+  }
+
+  getValidationErrors(): string[] {
+    const errors: string[] = [];
+    
+    try {
+      this.checkInvariants();
+    } catch (error) {
+      if (error instanceof Error) {
+        errors.push(error.message);
+      }
+    }
+    
+    return errors;
   }
 }

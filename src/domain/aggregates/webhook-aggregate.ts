@@ -1,4 +1,4 @@
-import { AggregateRoot } from './aggregate-root';
+import { AggregateRoot, AggregateProps } from './aggregate-root';
 import { Webhook, WebhookDelivery, WebhookEvent } from '../entities/webhook';
 import {
   WebhookCreatedEvent,
@@ -7,12 +7,9 @@ import {
   WebhookDeliveryFailedEvent,
 } from '../events/webhook-events';
 
-export interface WebhookAggregateProps {
-  id: string;
+export interface WebhookAggregateProps extends AggregateProps {
   webhook: Webhook;
   deliveries: WebhookDelivery[];
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 export class WebhookAggregate extends AggregateRoot<WebhookAggregateProps> {
@@ -36,7 +33,7 @@ export class WebhookAggregate extends AggregateRoot<WebhookAggregateProps> {
         webhook.workspaceId,
         webhook.name,
         webhook.url,
-        webhook.events
+        webhook.events.map(e => e.toString())
       )
     );
 
@@ -58,9 +55,7 @@ export class WebhookAggregate extends AggregateRoot<WebhookAggregateProps> {
   }
 
   public canTrigger(event: WebhookEvent): boolean {
-    return (
-      this.props.webhook.canTrigger() && this.props.webhook.supportsEvent(event)
-    );
+    return this.props.webhook.isActive() && this.props.webhook.supportsEvent(event);
   }
 
   public trigger(
@@ -68,19 +63,16 @@ export class WebhookAggregate extends AggregateRoot<WebhookAggregateProps> {
     payload: Record<string, any>
   ): WebhookDelivery {
     if (!this.canTrigger(event)) {
-      throw new Error('Webhook cannot be triggered for this event');
+      throw new Error(
+        `Webhook ${this.props.webhook.id} cannot handle event ${event} or is not active`
+      );
     }
 
     const delivery = WebhookDelivery.create({
       webhookId: this.props.webhook.id,
       event,
-      payload: {
-        ...payload,
-        event,
-        timestamp: new Date().toISOString(),
-        workspaceId: this.props.webhook.workspaceId,
-      },
-      status: 'pending' as any,
+      payload,
+      attempt: 1,
       maxAttempts: this.props.webhook.maxRetries,
     });
 
@@ -90,7 +82,7 @@ export class WebhookAggregate extends AggregateRoot<WebhookAggregateProps> {
     this.addDomainEvent(
       new WebhookTriggeredEvent(
         this.props.webhook.id,
-        event,
+        event.toString(),
         payload,
         delivery.id
       )
@@ -99,154 +91,199 @@ export class WebhookAggregate extends AggregateRoot<WebhookAggregateProps> {
     return delivery;
   }
 
-  public recordDeliverySuccess(
+  public markDeliveryAsSucceeded(
     deliveryId: string,
-    httpStatus: number,
-    responseBody?: string
+    response: Record<string, any>,
+    statusCode: number
   ): void {
-    const delivery = this.findDelivery(deliveryId);
-    if (!delivery) {
-      throw new Error('Delivery not found');
-    }
+    const delivery = this.getDelivery(deliveryId);
+    
+    const updatedDelivery = delivery.withSuccess(
+      statusCode,
+      JSON.stringify(response),
+      {},
+      0 // duration - would be calculated in real implementation
+    );
 
-    delivery.markAsSuccess(httpStatus, responseBody);
-    this.props.webhook.recordSuccess();
+    this.updateDelivery(deliveryId, updatedDelivery);
     this.props.updatedAt = new Date();
 
     this.addDomainEvent(
       new WebhookDeliverySucceededEvent(
         this.props.webhook.id,
         deliveryId,
-        httpStatus,
-        delivery.attemptCount
+        response,
+        statusCode,
+        delivery.attempt
       )
     );
   }
 
-  public recordDeliveryFailure(
+  public markDeliveryAsFailed(
     deliveryId: string,
-    errorMessage: string,
-    httpStatus?: number,
-    responseBody?: string
+    error: string,
+    statusCode?: number
   ): void {
-    const delivery = this.findDelivery(deliveryId);
-    if (!delivery) {
-      throw new Error('Delivery not found');
-    }
+    const delivery = this.getDelivery(deliveryId);
+    
+    const willRetry = delivery.attempt < delivery.maxAttempts;
+    const nextRetryAt = willRetry ? this.calculateNextRetryTime(delivery.attempt) : undefined;
+    
+    const updatedDelivery = delivery.withFailure(
+      error,
+      statusCode,
+      undefined,
+      nextRetryAt
+    );
 
-    delivery.markAsFailed(httpStatus, errorMessage, responseBody);
-    this.props.webhook.recordFailure();
+    this.updateDelivery(deliveryId, updatedDelivery);
     this.props.updatedAt = new Date();
-
-    const willRetry = delivery.canRetry();
-    if (willRetry) {
-      const retryDelay = this.calculateRetryDelay(delivery.attemptCount);
-      delivery.scheduleRetry(retryDelay);
-    }
 
     this.addDomainEvent(
       new WebhookDeliveryFailedEvent(
         this.props.webhook.id,
         deliveryId,
-        errorMessage,
-        delivery.attemptCount,
+        error,
+        statusCode || 0,
+        delivery.attempt,
         willRetry
       )
     );
+
+    // If we should retry, schedule the retry
+    if (willRetry) {
+      this.scheduleRetry(deliveryId);
+    }
   }
 
-  public activate(): void {
-    this.props.webhook.activate();
+  public retryDelivery(deliveryId: string): void {
+    const delivery = this.getDelivery(deliveryId);
+    
+    if (!delivery.canRetry()) {
+      throw new Error(`Delivery ${deliveryId} cannot be retried`);
+    }
+
+    const retryDelivery = delivery.withRetryAttempt();
+    this.updateDelivery(deliveryId, retryDelivery);
     this.props.updatedAt = new Date();
   }
 
-  public deactivate(): void {
-    this.props.webhook.deactivate();
+  public disable(): void {
+    this.props.webhook = this.props.webhook.withStatus('INACTIVE' as any);
     this.props.updatedAt = new Date();
   }
 
-  public suspend(): void {
-    this.props.webhook.suspend();
+  public enable(): void {
+    this.props.webhook = this.props.webhook.withStatus('ACTIVE' as any);
     this.props.updatedAt = new Date();
   }
 
-  public updateConfiguration(updates: {
-    name?: string;
-    url?: string;
-    events?: WebhookEvent[];
-    headers?: Record<string, string>;
-    secret?: string;
-  }): void {
-    if (updates.name) {
-      this.props.webhook.updateUrl(updates.name); // This should be updateName in the entity
+  private getDelivery(deliveryId: string): WebhookDelivery {
+    const delivery = this.props.deliveries.find(d => d.id === deliveryId);
+    if (!delivery) {
+      throw new Error(`Delivery ${deliveryId} not found`);
     }
-    if (updates.url) {
-      this.props.webhook.updateUrl(updates.url);
-    }
-    if (updates.events) {
-      this.props.webhook.updateEvents(updates.events);
-    }
-    if (updates.headers) {
-      this.props.webhook.updateHeaders(updates.headers);
-    }
-    if (updates.secret) {
-      this.props.webhook.updateSecret(updates.secret);
-    }
-
-    this.props.updatedAt = new Date();
+    return delivery;
   }
 
-  public getHealthStatus(): {
-    isHealthy: boolean;
-    failureRate: number;
-    recentDeliveries: number;
-    successRate: number;
-    lastTriggered?: Date;
-  } {
-    const health = this.props.webhook.getHealthStatus();
-    const recentDeliveries = this.props.deliveries.filter(
-      d => d.createdAt > new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
-    );
-
-    const successfulDeliveries = recentDeliveries.filter(d => d.isSuccess());
-    const successRate =
-      recentDeliveries.length > 0
-        ? successfulDeliveries.length / recentDeliveries.length
-        : 0;
-
-    return {
-      ...health,
-      recentDeliveries: recentDeliveries.length,
-      successRate,
-    };
+  private updateDelivery(deliveryId: string, updatedDelivery: WebhookDelivery): void {
+    const index = this.props.deliveries.findIndex(d => d.id === deliveryId);
+    if (index === -1) {
+      throw new Error(`Delivery ${deliveryId} not found`);
+    }
+    this.props.deliveries[index] = updatedDelivery;
   }
 
-  public getPendingDeliveries(): WebhookDelivery[] {
+  private calculateNextRetryTime(attempt: number): Date {
+    // Exponential backoff: 2^attempt seconds
+    const seconds = Math.pow(2, attempt);
+    return new Date(Date.now() + seconds * 1000);
+  }
+
+  private scheduleRetry(deliveryId: string): void {
+    // In a real implementation, this would schedule the retry
+    // For now, we'll just update the delivery with the next retry time
+    const delivery = this.getDelivery(deliveryId);
+    const nextRetryAt = this.calculateNextRetryTime(delivery.attempt);
+    const updatedDelivery = delivery.withRetryAttempt(nextRetryAt);
+    this.updateDelivery(deliveryId, updatedDelivery);
+  }
+
+  public getActiveDeliveries(): WebhookDelivery[] {
     return this.props.deliveries.filter(d => d.isPending());
   }
 
   public getFailedDeliveries(): WebhookDelivery[] {
-    return this.props.deliveries.filter(d => d.isFailed());
+    return this.props.deliveries.filter(d => d.hasFailed());
   }
 
-  public getRetryableDeliveries(): WebhookDelivery[] {
-    return this.props.deliveries.filter(
-      d => d.canRetry() && d.isReadyForRetry()
-    );
+  public getSuccessfulDeliveries(): WebhookDelivery[] {
+    return this.props.deliveries.filter(d => d.isSuccessful());
   }
 
-  private findDelivery(deliveryId: string): WebhookDelivery | undefined {
-    return this.props.deliveries.find(d => d.id === deliveryId);
+  // Required abstract method implementations
+  protected applyEvent(_event: any): void {
+    // Handle event sourcing if needed
+    // For now, we'll leave this empty as it's not being used
   }
 
-  private calculateRetryDelay(attemptCount: number): number {
-    // Exponential backoff: 1min, 2min, 4min, 8min, etc.
-    return Math.min(60000 * Math.pow(2, attemptCount - 1), 30 * 60000); // Max 30 minutes
-  }
-
-  protected validate(): void {
+  protected checkInvariants(): void {
     if (!this.props.webhook) {
       throw new Error('Webhook is required');
     }
+    
+    if (!this.props.webhook.url || this.props.webhook.url.trim() === '') {
+      throw new Error('Webhook URL is required');
+    }
+    
+    if (!this.props.webhook.name || this.props.webhook.name.trim() === '') {
+      throw new Error('Webhook name is required');
+    }
+  }
+
+  createSnapshot(): Record<string, any> {
+    return {
+      id: this.id,
+      webhook: {
+        id: this.props.webhook.id,
+        workspaceId: this.props.webhook.workspaceId,
+        name: this.props.webhook.name,
+        url: this.props.webhook.url,
+        events: this.props.webhook.events,
+        status: this.props.webhook.status,
+        // Add other webhook properties as needed
+      },
+      deliveries: this.props.deliveries.map(d => ({
+        id: d.id,
+        webhookId: d.webhookId,
+        event: d.event,
+        payload: d.payload,
+        status: d.status,
+        attempt: d.attempt,
+        maxAttempts: d.maxAttempts,
+        // Add other delivery properties as needed
+      })),
+      createdAt: this.props.createdAt.toISOString(),
+      updatedAt: this.props.updatedAt.toISOString(),
+    };
+  }
+
+  restoreFromSnapshot(_snapshot: Record<string, any>): void {
+    // Implement snapshot restoration if needed for event sourcing
+    // For now, we'll leave this empty as it's not being used
+  }
+
+  getValidationErrors(): string[] {
+    const errors: string[] = [];
+    
+    try {
+      this.checkInvariants();
+    } catch (error) {
+      if (error instanceof Error) {
+        errors.push(error.message);
+      }
+    }
+    
+    return errors;
   }
 }

@@ -1,9 +1,9 @@
-import { DomainEvent } from './domain-event';
+import { BaseDomainEvent } from './domain-event';
 
 /**
  * Webhook Created Event
  */
-export class WebhookCreatedEvent extends DomainEvent {
+export class WebhookCreatedEvent extends BaseDomainEvent {
   constructor(
     public readonly webhookId: string,
     public readonly workspaceId: string,
@@ -36,7 +36,7 @@ export class WebhookCreatedEvent extends DomainEvent {
 /**
  * Webhook Triggered Event
  */
-export class WebhookTriggeredEvent extends DomainEvent {
+export class WebhookTriggeredEvent extends BaseDomainEvent {
   constructor(
     public readonly webhookId: string,
     public readonly event: string,
@@ -67,11 +67,12 @@ export class WebhookTriggeredEvent extends DomainEvent {
 /**
  * Webhook Delivery Succeeded Event
  */
-export class WebhookDeliverySucceededEvent extends DomainEvent {
+export class WebhookDeliverySucceededEvent extends BaseDomainEvent {
   constructor(
     public readonly webhookId: string,
     public readonly deliveryId: string,
-    public readonly httpStatus: number,
+    public readonly response: Record<string, any>,
+    public readonly statusCode: number,
     public readonly attemptCount: number
   ) {
     super();
@@ -89,7 +90,8 @@ export class WebhookDeliverySucceededEvent extends DomainEvent {
     return {
       webhookId: this.webhookId,
       deliveryId: this.deliveryId,
-      httpStatus: this.httpStatus,
+      response: this.response,
+      statusCode: this.statusCode,
       attemptCount: this.attemptCount,
     };
   }
@@ -98,11 +100,12 @@ export class WebhookDeliverySucceededEvent extends DomainEvent {
 /**
  * Webhook Delivery Failed Event
  */
-export class WebhookDeliveryFailedEvent extends DomainEvent {
+export class WebhookDeliveryFailedEvent extends BaseDomainEvent {
   constructor(
     public readonly webhookId: string,
     public readonly deliveryId: string,
-    public readonly errorMessage: string,
+    public readonly error: string,
+    public readonly statusCode: number,
     public readonly attemptCount: number,
     public readonly willRetry: boolean
   ) {
@@ -121,38 +124,10 @@ export class WebhookDeliveryFailedEvent extends DomainEvent {
     return {
       webhookId: this.webhookId,
       deliveryId: this.deliveryId,
-      errorMessage: this.errorMessage,
+      error: this.error,
+      statusCode: this.statusCode,
       attemptCount: this.attemptCount,
       willRetry: this.willRetry,
-    };
-  }
-}
-
-/**
- * Webhook Disabled Event
- */
-export class WebhookDisabledEvent extends DomainEvent {
-  constructor(
-    public readonly webhookId: string,
-    public readonly reason: string,
-    public readonly failureCount: number
-  ) {
-    super();
-  }
-
-  getEventName(): string {
-    return 'WebhookDisabled';
-  }
-
-  getAggregateId(): string {
-    return this.webhookId;
-  }
-
-  protected getPayload(): Record<string, any> {
-    return {
-      webhookId: this.webhookId,
-      reason: this.reason,
-      failureCount: this.failureCount,
     };
   }
 }

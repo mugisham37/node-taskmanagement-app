@@ -413,6 +413,37 @@ export class WebhookDelivery extends BaseEntity<string> {
   }
 
   /**
+   * Static method to create a new WebhookDelivery
+   */
+  static create(props: {
+    webhookId: string;
+    event: WebhookEvent;
+    payload: Record<string, any>;
+    attempt: number;
+    maxAttempts: number;
+    headers?: Record<string, string>;
+  }): WebhookDelivery {
+    const now = new Date();
+    const deliveryProps: WebhookDeliveryProps = {
+      id: nanoid(),
+      webhookId: props.webhookId,
+      event: props.event,
+      payload: props.payload,
+      status: WebhookDeliveryStatus.PENDING,
+      attempt: props.attempt,
+      maxAttempts: props.maxAttempts,
+      createdAt: now,
+      updatedAt: now,
+    };
+    
+    if (props.headers) {
+      deliveryProps.headers = props.headers;
+    }
+    
+    return new WebhookDelivery(deliveryProps);
+  }
+
+  /**
    * Check if delivery is pending
    */
   public isPending(): boolean {

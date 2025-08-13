@@ -1,21 +1,35 @@
-import { BaseEntity } from '../entities/base-entity';
 import { DomainEvent } from '../events/domain-event';
 import { DomainEventPublisher } from '../events/domain-event-publisher';
-import { ValueObject } from '../value-objects/value-object';
+
+/**
+ * Interface for aggregate properties
+ */
+export interface AggregateProps {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 /**
  * Abstract base class for aggregate roots
  * Aggregate roots are the only entities that can be directly accessed from outside the aggregate
  * They are responsible for maintaining consistency within the aggregate boundary
  */
-export abstract class AggregateRoot<
-  TId extends ValueObject<any>,
-> extends BaseEntity<TId> {
+export abstract class AggregateRoot<TProps extends AggregateProps> {
+  protected readonly props: TProps;
+  private _domainEvents: DomainEvent[] = [];
   private _version: number = 0;
 
-  constructor(id: TId, createdAt?: Date, updatedAt?: Date, version?: number) {
-    super(id, createdAt, updatedAt);
-    this._version = version || 0;
+  constructor(props: TProps) {
+    this.props = props;
+    this._version = 0;
+  }
+
+  /**
+   * Get the aggregate ID
+   */
+  get id(): string {
+    return this.props.id;
   }
 
   /**
@@ -23,6 +37,27 @@ export abstract class AggregateRoot<
    */
   get version(): number {
     return this._version;
+  }
+
+  /**
+   * Get when the aggregate was created
+   */
+  get createdAt(): Date {
+    return this.props.createdAt;
+  }
+
+  /**
+   * Get when the aggregate was last updated
+   */
+  get updatedAt(): Date {
+    return this.props.updatedAt;
+  }
+
+  /**
+   * Get all domain events that have occurred on this aggregate
+   */
+  get domainEvents(): DomainEvent[] {
+    return [...this._domainEvents];
   }
 
   /**
@@ -34,11 +69,25 @@ export abstract class AggregateRoot<
   }
 
   /**
+   * Mark the aggregate as updated
+   */
+  protected markAsUpdated(): void {
+    this.props.updatedAt = new Date();
+  }
+
+  /**
    * Add a domain event and increment version
    */
-  protected override addDomainEvent(event: DomainEvent): void {
-    super.addDomainEvent(event);
+  protected addDomainEvent(event: DomainEvent): void {
+    this._domainEvents.push(event);
     this.incrementVersion();
+  }
+
+  /**
+   * Clear all domain events from this aggregate
+   */
+  protected clearDomainEvents(): void {
+    this._domainEvents = [];
   }
 
   /**
@@ -87,7 +136,7 @@ export abstract class AggregateRoot<
   /**
    * Validate the aggregate's state including all invariants
    */
-  protected override validate(): void {
+  protected validate(): void {
     this.checkInvariants();
   }
 
@@ -109,4 +158,26 @@ export abstract class AggregateRoot<
    * Useful for event sourcing optimizations
    */
   abstract restoreFromSnapshot(snapshot: Record<string, any>): void;
+
+  /**
+   * Get validation errors for the aggregate
+   */
+  abstract getValidationErrors(): string[];
+
+  /**
+   * Check equality with another aggregate based on ID
+   */
+  equals(other: AggregateRoot<TProps>): boolean {
+    if (!other || other.constructor !== this.constructor) {
+      return false;
+    }
+    return this.id === other.id;
+  }
+
+  /**
+   * Get the string representation of the aggregate ID
+   */
+  toString(): string {
+    return `${this.constructor.name}(${this.id})`;
+  }
 }

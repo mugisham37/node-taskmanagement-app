@@ -1,9 +1,10 @@
-import { DomainEvent } from './domain-event';
+import { BaseDomainEvent } from './domain-event';
+import { NotificationChannel } from '../entities/notification';
 
 /**
  * Notification Created Event
  */
-export class NotificationCreatedEvent extends DomainEvent {
+export class NotificationCreatedEvent extends BaseDomainEvent {
   constructor(
     public readonly notificationId: string,
     public readonly userId: string,
@@ -34,11 +35,11 @@ export class NotificationCreatedEvent extends DomainEvent {
 /**
  * Notification Sent Event
  */
-export class NotificationSentEvent extends DomainEvent {
+export class NotificationSentEvent extends BaseDomainEvent {
   constructor(
     public readonly notificationId: string,
     public readonly userId: string,
-    public readonly channels: string[]
+    public readonly channels: NotificationChannel[]
   ) {
     super();
   }
@@ -63,7 +64,7 @@ export class NotificationSentEvent extends DomainEvent {
 /**
  * Notification Read Event
  */
-export class NotificationReadEvent extends DomainEvent {
+export class NotificationReadEvent extends BaseDomainEvent {
   constructor(
     public readonly notificationId: string,
     public readonly userId: string,
@@ -92,7 +93,7 @@ export class NotificationReadEvent extends DomainEvent {
 /**
  * Notification Failed Event
  */
-export class NotificationFailedEvent extends DomainEvent {
+export class NotificationFailedEvent extends BaseDomainEvent {
   constructor(
     public readonly notificationId: string,
     public readonly userId: string,
