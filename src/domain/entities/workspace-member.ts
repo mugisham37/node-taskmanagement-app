@@ -132,4 +132,20 @@ export class WorkspaceMember {
   canManageWebhooks(): boolean {
     return this.role === 'OWNER' || this.role === 'ADMIN';
   }
+
+  /**
+   * Create a new WorkspaceMember instance
+   */
+  static create(data: {
+    workspaceId: WorkspaceId;
+    userId: UserId;
+    role: 'OWNER' | 'ADMIN' | 'MEMBER';
+    addedBy: UserId;
+  }): WorkspaceMember {
+    return new WorkspaceMember(
+      data.userId,
+      data.workspaceId,
+      data.role
+    );
+  }
 }

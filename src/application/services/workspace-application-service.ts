@@ -7,6 +7,7 @@
 import {
   BaseApplicationService,
   ValidationResult,
+  ValidationRule,
   RequiredFieldValidationRule,
   LengthValidationRule,
 } from './base-application-service';
@@ -21,7 +22,6 @@ import { UserId } from '../../domain/value-objects/user-id';
 import { Email } from '../../domain/value-objects/email';
 import { Workspace } from '../../domain/entities/workspace';
 import { WorkspaceMember } from '../../domain/entities/workspace-member';
-import { WorkspaceRole } from '../../domain/value-objects/workspace-role';
 import { WorkspacePlan } from '../../domain/value-objects/workspace-plan';
 import { injectable } from '../../shared/decorators/injectable.decorator';
 
@@ -92,7 +92,7 @@ export interface WorkspaceMemberDto {
   role: string;
   permissions: string[];
   joinedAt: Date;
-  lastActiveAt?: Date;
+  lastActiveAt?: Date | undefined;
   user: {
     id: string;
     firstName: string;
@@ -223,9 +223,9 @@ export class WorkspaceApplicationService extends BaseApplicationService {
       const workspace = Workspace.create({
         name: request.name,
         slug: request.slug,
-        description: request.description,
+        description: request.description || '',
         ownerId,
-        plan: new WorkspacePlan(request.plan || 'free'),
+        plan: WorkspacePlan.fromString(request.plan || 'free'),
         settings: { ...defaultSettings, ...request.settings },
       });
 
@@ -235,7 +235,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
       const ownerMember = WorkspaceMember.create({
         workspaceId: workspace.id,
         userId: ownerId,
-        role: WorkspaceRole.ADMIN,
+        role: 'OWNER',
         addedBy: ownerId,
       });
 
@@ -287,16 +287,16 @@ export class WorkspaceApplicationService extends BaseApplicationService {
 
       // Update workspace fields
       if (request.name !== undefined) {
-        workspace.updateName(request.name);
+        workspace.updateName(request.name, updatedBy);
       }
       if (request.description !== undefined) {
-        workspace.updateDescription(request.description);
+        workspace.updateDescription(request.description, updatedBy);
       }
       if (request.settings !== undefined) {
         workspace.updateSettings({
           ...workspace.settings,
           ...request.settings,
-        });
+        }, updatedBy);
       }
 
       await this.workspaceRepository.save(workspace);
@@ -437,7 +437,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
         email: email.value,
         role: request.role,
         invitedBy: invitedBy.value,
-        message: request.message,
+        message: request.message || '',
         token: this.generateInvitationToken(),
         expiresAt: new Date(Date.now() + this.INVITATION_EXPIRY),
         createdAt: new Date(),
@@ -450,13 +450,11 @@ export class WorkspaceApplicationService extends BaseApplicationService {
       const inviter = await this.userRepository.findById(invitedBy);
       await this.emailService.sendWorkspaceInvitation({
         recipientEmail: email.value,
-        recipientName: email.value,
         workspaceName: workspace.name,
         inviterName: inviter
           ? `${inviter.firstName} ${inviter.lastName}`
           : 'Team Member',
-        invitationLink: `${process.env.APP_URL}/workspaces/join?token=${invitation.token}`,
-        message: request.message,
+        invitationLink: `${process.env['APP_URL']}/workspaces/join?token=${invitation.token}`,
       });
 
       this.logInfo('Workspace invitation sent', {
@@ -513,7 +511,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
       const member = WorkspaceMember.create({
         workspaceId,
         userId: userIdVO,
-        role: new WorkspaceRole(invitation.role),
+        role: invitation.role as 'OWNER' | 'ADMIN' | 'MEMBER',
         addedBy: new UserId(invitation.invitedBy),
       });
 
@@ -622,10 +620,10 @@ export class WorkspaceApplicationService extends BaseApplicationService {
         const user = await this.userRepository.findById(member.userId);
         if (user) {
           memberDtos.push({
-            id: member.id.value,
+            id: member.id,
             workspaceId: member.workspaceId.value,
             userId: member.userId.value,
-            role: member.role.value,
+            role: member.role,
             permissions: member.getPermissions(),
             joinedAt: member.joinedAt,
             lastActiveAt: member.lastActiveAt,
@@ -688,7 +686,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
   private validateUpdateWorkspaceRequest(
     request: UpdateWorkspaceRequest
   ): ValidationResult {
-    const rules = [
+    const rules: ValidationRule<UpdateWorkspaceRequest>[] = [
       new RequiredFieldValidationRule('workspaceId', 'Workspace ID'),
       new RequiredFieldValidationRule('updatedBy', 'Updated By'),
     ];
@@ -729,7 +727,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
       workspaceId,
       userId
     );
-    return member && (member.role.isAdmin() || member.role.isOwner());
+    return !!member && (member.role === 'ADMIN' || member.role === 'OWNER');
   }
 
   private async canUserAccessWorkspace(
@@ -751,7 +749,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
       workspaceId,
       userId
     );
-    return member && (member.role.isAdmin() || member.role.isOwner());
+    return !!member && (member.role === 'ADMIN' || member.role === 'OWNER');
   }
 
   private async canUserManageMembers(
@@ -762,7 +760,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
       workspaceId,
       userId
     );
-    return member && (member.role.isAdmin() || member.role.isOwner());
+    return !!member && (member.role === 'ADMIN' || member.role === 'OWNER');
   }
 
   private async mapWorkspaceToDto(workspace: Workspace): Promise<WorkspaceDto> {
@@ -783,7 +781,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
       slug: workspace.slug,
       description: workspace.description,
       ownerId: workspace.ownerId.value,
-      plan: workspace.plan.value,
+      plan: workspace.plan.getValue(),
       settings: workspace.settings,
       memberCount,
       projectCount,

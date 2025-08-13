@@ -233,6 +233,11 @@ export interface IWorkspaceRepository {
   /**
    * Add workspace member
    */
+  addMember(member: WorkspaceMember): Promise<void>;
+
+  /**
+   * Add workspace member (alias for addMember)
+   */
   addWorkspaceMember(
     workspaceId: WorkspaceId,
     member: WorkspaceMember
@@ -240,6 +245,11 @@ export interface IWorkspaceRepository {
 
   /**
    * Remove workspace member
+   */
+  removeMember(workspaceId: WorkspaceId, userId: UserId): Promise<void>;
+
+  /**
+   * Remove workspace member (alias for removeMember)
    */
   removeWorkspaceMember(
     workspaceId: WorkspaceId,

@@ -18,8 +18,13 @@ import { CacheService } from '../../infrastructure/caching/cache-service';
 import { WebhookId } from '../../domain/value-objects/webhook-id';
 import { WorkspaceId } from '../../domain/value-objects/workspace-id';
 import { UserId } from '../../domain/value-objects/user-id';
-import { Webhook } from '../../domain/entities/webhook';
-import { WebhookDelivery } from '../../domain/entities/webhook-delivery';
+import { 
+  Webhook, 
+  WebhookStatus, 
+  WebhookDelivery, 
+  WebhookDeliveryStatus 
+} from '../../domain/entities/webhook';
+import { WebhookEvent } from '../../domain/enums/webhook-event';
 import { injectable } from '../../shared/decorators/injectable.decorator';
 import * as crypto from 'crypto';
 
@@ -81,7 +86,7 @@ export interface WebhookDeliveryDto {
   createdAt: Date;
 }
 
-export interface WebhookEvent {
+export interface WebhookEventData {
   id: string;
   type: string;
   data: any;
@@ -170,16 +175,29 @@ export class WebhookApplicationService extends BaseApplicationService {
       // Generate secret if not provided
       const secret = request.secret || this.generateWebhookSecret();
 
-      // Create webhook
-      const webhook = Webhook.create({
-        workspaceId,
+      // Convert string events to WebhookEvent enum values
+      const webhookEvents = request.events.map(event => event as any);
+
+      // Create webhook using constructor with generated ID
+      const webhookId = `wh_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const webhook = new Webhook({
+        id: webhookId,
+        workspaceId: workspaceId.value,
         name: request.name,
         url: request.url,
-        events: request.events,
+        events: webhookEvents,
         secret,
         headers: request.headers || {},
-        isActive: request.isActive !== false,
-        createdBy,
+        status: request.isActive !== false ? WebhookStatus.ACTIVE : WebhookStatus.INACTIVE,
+        createdBy: createdBy.value,
+        retryCount: 0,
+        maxRetries: 3,
+        timeout: 30000,
+        failureCount: 0,
+        maxFailures: 10,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        metadata: {},
       });
 
       await this.webhookRepository.save(webhook);
@@ -188,14 +206,14 @@ export class WebhookApplicationService extends BaseApplicationService {
       await this.clearWebhookCaches(workspaceId);
 
       this.logInfo('Webhook created successfully', {
-        webhookId: webhook.id.value,
+        webhookId: webhookId,
         name: request.name,
         url: request.url,
         workspaceId: request.workspaceId,
         events: request.events,
       });
 
-      return webhook.id;
+      return WebhookId.create(webhookId);
     });
   }
 
@@ -220,7 +238,7 @@ export class WebhookApplicationService extends BaseApplicationService {
       // Check permissions
       const canUpdate = await this.canUserManageWebhooks(
         updatedBy,
-        webhook.workspaceId
+        new WorkspaceId(webhook.workspaceId)
       );
       if (!canUpdate) {
         throw new Error('Insufficient permissions to update webhook');
@@ -244,7 +262,8 @@ export class WebhookApplicationService extends BaseApplicationService {
         if (invalidEvents.length > 0) {
           throw new Error(`Invalid event types: ${invalidEvents.join(', ')}`);
         }
-        webhook.updateEvents(request.events);
+        const webhookEvents = request.events.map(event => event as any);
+        webhook.updateEvents(webhookEvents);
       }
       if (request.secret !== undefined) {
         webhook.updateSecret(request.secret);
@@ -263,7 +282,7 @@ export class WebhookApplicationService extends BaseApplicationService {
       await this.webhookRepository.save(webhook);
 
       // Clear cache
-      await this.clearWebhookCaches(webhook.workspaceId);
+      await this.clearWebhookCaches(new WorkspaceId(webhook.workspaceId));
 
       this.logInfo('Webhook updated successfully', {
         webhookId: request.webhookId,
@@ -288,7 +307,7 @@ export class WebhookApplicationService extends BaseApplicationService {
       // Check permissions
       const canDelete = await this.canUserManageWebhooks(
         deletedByVO,
-        webhook.workspaceId
+        new WorkspaceId(webhook.workspaceId)
       );
       if (!canDelete) {
         throw new Error('Insufficient permissions to delete webhook');
@@ -297,7 +316,7 @@ export class WebhookApplicationService extends BaseApplicationService {
       await this.webhookRepository.delete(webhookIdVO);
 
       // Clear cache
-      await this.clearWebhookCaches(webhook.workspaceId);
+      await this.clearWebhookCaches(new WorkspaceId(webhook.workspaceId));
 
       this.logInfo('Webhook deleted successfully', {
         webhookId,
@@ -322,7 +341,7 @@ export class WebhookApplicationService extends BaseApplicationService {
       // Check permissions
       const canView = await this.canUserViewWebhooks(
         userIdVO,
-        webhook.workspaceId
+        new WorkspaceId(webhook.workspaceId)
       );
       if (!canView) {
         throw new Error('Insufficient permissions to view webhook');
@@ -384,7 +403,7 @@ export class WebhookApplicationService extends BaseApplicationService {
    * Trigger webhook for event
    */
   async triggerWebhook(
-    event: WebhookEvent,
+    event: WebhookEventData,
     options?: WebhookDeliveryOptions
   ): Promise<void> {
     return await this.executeWithMonitoring('triggerWebhook', async () => {
@@ -425,17 +444,20 @@ export class WebhookApplicationService extends BaseApplicationService {
    */
   private async deliverWebhook(
     webhook: Webhook,
-    event: WebhookEvent,
+    event: WebhookEventData,
     options?: WebhookDeliveryOptions
   ): Promise<void> {
-    const delivery = WebhookDelivery.create({
+    const delivery = new WebhookDelivery({
+      id: `wd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       webhookId: webhook.id,
-      eventType: event.type,
+      event: event.type as WebhookEvent,
       payload: event.data,
-      url: webhook.url,
-      httpMethod: 'POST',
       headers: this.buildDeliveryHeaders(webhook, event),
+      status: WebhookDeliveryStatus.PENDING,
+      attempt: 0,
       maxAttempts: options?.maxAttempts || this.DEFAULT_MAX_ATTEMPTS,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     await this.webhookRepository.saveDelivery(delivery);
@@ -444,8 +466,8 @@ export class WebhookApplicationService extends BaseApplicationService {
       await this.attemptDelivery(delivery, webhook, options);
     } catch (error) {
       this.logError('Webhook delivery failed', error as Error, {
-        webhookId: webhook.id.value,
-        deliveryId: delivery.id.value,
+        webhookId: webhook.id,
+        deliveryId: delivery.id,
         eventType: event.type,
       });
     }
@@ -462,36 +484,39 @@ export class WebhookApplicationService extends BaseApplicationService {
     const timeout = options?.timeout || this.DEFAULT_TIMEOUT;
     const retryDelays = options?.retryDelays || this.DEFAULT_RETRY_DELAYS;
 
-    while (delivery.attempts < delivery.maxAttempts) {
-      delivery.incrementAttempts();
+    let currentDelivery = delivery;
+
+    while (currentDelivery.attempt < currentDelivery.maxAttempts) {
+      // Create a new delivery with incremented attempt
+      currentDelivery = currentDelivery.withRetryAttempt();
 
       try {
         const startTime = Date.now();
 
-        // Make HTTP request
+        // Make HTTP request - using webhook URL since delivery doesn't have url property
         const response = await this.makeHttpRequest(
-          delivery.url,
-          delivery.httpMethod,
-          delivery.payload,
-          delivery.headers,
+          webhook.url,
+          'POST',
+          currentDelivery.payload,
+          currentDelivery.headers || {},
           timeout
         );
 
         const duration = Date.now() - startTime;
 
-        // Update delivery with success
-        delivery.markAsDelivered(
+        // Create delivery with success status
+        currentDelivery = currentDelivery.withSuccess(
           response.statusCode,
           response.body,
           response.headers,
           duration
         );
 
-        await this.webhookRepository.saveDelivery(delivery);
+        await this.webhookRepository.saveDelivery(currentDelivery);
 
         this.logInfo('Webhook delivered successfully', {
-          webhookId: webhook.id.value,
-          deliveryId: delivery.id.value,
+          webhookId: webhook.id,
+          deliveryId: currentDelivery.id,
           statusCode: response.statusCode,
           duration,
         });
@@ -500,36 +525,44 @@ export class WebhookApplicationService extends BaseApplicationService {
       } catch (error) {
         const errorMessage = (error as Error).message;
 
-        if (delivery.attempts >= delivery.maxAttempts) {
+        if (currentDelivery.attempt >= currentDelivery.maxAttempts) {
           // Final failure
-          delivery.markAsFailed(errorMessage);
-          await this.webhookRepository.saveDelivery(delivery);
+          currentDelivery = currentDelivery.withFailure(errorMessage);
+          await this.webhookRepository.saveDelivery(currentDelivery);
 
           this.logError('Webhook delivery failed permanently', error as Error, {
-            webhookId: webhook.id.value,
-            deliveryId: delivery.id.value,
-            attempts: delivery.attempts,
+            webhookId: webhook.id,
+            deliveryId: currentDelivery.id,
+            attempts: currentDelivery.attempt,
           });
 
           return;
         } else {
           // Schedule retry
           const retryDelay =
-            retryDelays[delivery.attempts - 1] ||
+            retryDelays[currentDelivery.attempt - 1] ||
             retryDelays[retryDelays.length - 1];
-          delivery.scheduleRetry(new Date(Date.now() + retryDelay));
-          await this.webhookRepository.saveDelivery(delivery);
+          
+          if (retryDelay !== undefined) {
+            currentDelivery = currentDelivery.withFailure(
+              errorMessage,
+              undefined,
+              undefined,
+              new Date(Date.now() + retryDelay)
+            );
+            await this.webhookRepository.saveDelivery(currentDelivery);
 
-          this.logWarning('Webhook delivery failed, scheduling retry', {
-            webhookId: webhook.id.value,
-            deliveryId: delivery.id.value,
-            attempt: delivery.attempts,
-            nextRetryAt: delivery.nextRetryAt,
-            error: errorMessage,
-          });
+            this.logWarning('Webhook delivery failed, scheduling retry', {
+              webhookId: webhook.id,
+              deliveryId: currentDelivery.id,
+              attempt: currentDelivery.attempt,
+              nextRetryAt: currentDelivery.nextRetryAt,
+              error: errorMessage,
+            });
 
-          // Wait before retry
-          await this.delay(retryDelay);
+            // Wait before retry
+            await this.delay(retryDelay);
+          }
         }
       }
     }
@@ -557,7 +590,7 @@ export class WebhookApplicationService extends BaseApplicationService {
         // Check permissions
         const canView = await this.canUserViewWebhooks(
           userIdVO,
-          webhook.workspaceId
+          new WorkspaceId(webhook.workspaceId)
         );
         if (!canView) {
           throw new Error(
@@ -571,22 +604,22 @@ export class WebhookApplicationService extends BaseApplicationService {
         );
 
         return deliveries.map(delivery => ({
-          id: delivery.id.value,
-          webhookId: delivery.webhookId.value,
-          eventType: delivery.eventType,
+          id: delivery.id,
+          webhookId: delivery.webhookId,
+          eventType: delivery.event.toString(),
           payload: delivery.payload,
-          url: delivery.url,
-          httpMethod: delivery.httpMethod,
-          headers: delivery.headers,
-          status: delivery.status.value,
-          statusCode: delivery.statusCode,
-          responseBody: delivery.responseBody,
-          responseHeaders: delivery.responseHeaders,
-          deliveredAt: delivery.deliveredAt,
-          duration: delivery.duration,
-          attempts: delivery.attempts,
+          url: webhook.url, // Use webhook URL since delivery doesn't have url
+          httpMethod: 'POST', // Default HTTP method
+          headers: delivery.headers || {},
+          status: delivery.status.toString(),
+          ...(delivery.httpStatus !== undefined && { statusCode: delivery.httpStatus }),
+          ...(delivery.responseBody && { responseBody: delivery.responseBody }),
+          ...(delivery.responseHeaders && { responseHeaders: delivery.responseHeaders }),
+          ...(delivery.deliveredAt && { deliveredAt: delivery.deliveredAt }),
+          ...(delivery.duration !== undefined && { duration: delivery.duration }),
+          attempts: delivery.attempt,
           maxAttempts: delivery.maxAttempts,
-          nextRetryAt: delivery.nextRetryAt,
+          ...(delivery.nextRetryAt && { nextRetryAt: delivery.nextRetryAt }),
           createdAt: delivery.createdAt,
         }));
       }
@@ -612,38 +645,41 @@ export class WebhookApplicationService extends BaseApplicationService {
       // Check permissions
       const canTest = await this.canUserManageWebhooks(
         userIdVO,
-        webhook.workspaceId
+        new WorkspaceId(webhook.workspaceId)
       );
       if (!canTest) {
         throw new Error('Insufficient permissions to test webhook');
       }
 
       // Create test event
-      const testEvent: WebhookEvent = {
+      const testEvent: WebhookEventData = {
         id: `test_${Date.now()}`,
         type: 'webhook.test',
         data: {
           message: 'This is a test webhook delivery',
           timestamp: new Date().toISOString(),
           webhook: {
-            id: webhook.id.value,
+            id: webhook.id,
             name: webhook.name,
           },
         },
         timestamp: new Date(),
-        workspaceId: webhook.workspaceId.value,
+        workspaceId: webhook.workspaceId,
         userId: userId,
       };
 
       // Create test delivery
-      const delivery = WebhookDelivery.create({
+      const delivery = new WebhookDelivery({
+        id: `wd_test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         webhookId: webhook.id,
-        eventType: testEvent.type,
+        event: WebhookEvent.WEBHOOK_TEST,
         payload: testEvent.data,
-        url: webhook.url,
-        httpMethod: 'POST',
         headers: this.buildDeliveryHeaders(webhook, testEvent),
+        status: WebhookDeliveryStatus.PENDING,
+        attempt: 0,
         maxAttempts: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       await this.webhookRepository.saveDelivery(delivery);
@@ -660,22 +696,22 @@ export class WebhookApplicationService extends BaseApplicationService {
       }
 
       return {
-        id: updatedDelivery.id.value,
-        webhookId: updatedDelivery.webhookId.value,
-        eventType: updatedDelivery.eventType,
+        id: updatedDelivery.id,
+        webhookId: updatedDelivery.webhookId,
+        eventType: updatedDelivery.event.toString(),
         payload: updatedDelivery.payload,
-        url: updatedDelivery.url,
-        httpMethod: updatedDelivery.httpMethod,
-        headers: updatedDelivery.headers,
-        status: updatedDelivery.status.value,
-        statusCode: updatedDelivery.statusCode,
-        responseBody: updatedDelivery.responseBody,
-        responseHeaders: updatedDelivery.responseHeaders,
-        deliveredAt: updatedDelivery.deliveredAt,
-        duration: updatedDelivery.duration,
-        attempts: updatedDelivery.attempts,
+        url: webhook.url,
+        httpMethod: 'POST',
+        headers: updatedDelivery.headers || {},
+        status: updatedDelivery.status.toString(),
+        ...(updatedDelivery.httpStatus !== undefined && { statusCode: updatedDelivery.httpStatus }),
+        ...(updatedDelivery.responseBody && { responseBody: updatedDelivery.responseBody }),
+        ...(updatedDelivery.responseHeaders && { responseHeaders: updatedDelivery.responseHeaders }),
+        ...(updatedDelivery.deliveredAt && { deliveredAt: updatedDelivery.deliveredAt }),
+        ...(updatedDelivery.duration !== undefined && { duration: updatedDelivery.duration }),
+        attempts: updatedDelivery.attempt,
         maxAttempts: updatedDelivery.maxAttempts,
-        nextRetryAt: updatedDelivery.nextRetryAt,
+        ...(updatedDelivery.nextRetryAt && { nextRetryAt: updatedDelivery.nextRetryAt }),
         createdAt: updatedDelivery.createdAt,
       };
     });
@@ -698,7 +734,7 @@ export class WebhookApplicationService extends BaseApplicationService {
   private validateUpdateWebhookRequest(
     request: UpdateWebhookRequest
   ): ValidationResult {
-    const rules = [
+    const rules: any[] = [
       new RequiredFieldValidationRule('webhookId', 'Webhook ID'),
       new RequiredFieldValidationRule('updatedBy', 'Updated By'),
     ];
@@ -746,13 +782,13 @@ export class WebhookApplicationService extends BaseApplicationService {
 
   private buildDeliveryHeaders(
     webhook: Webhook,
-    event: WebhookEvent
+    event: WebhookEventData
   ): Record<string, string> {
     const timestamp = Math.floor(event.timestamp.getTime() / 1000).toString();
     const payload = JSON.stringify(event.data);
     const signature = this.generateSignature(
       payload,
-      webhook.secret,
+      webhook.secret || '',
       timestamp
     );
 
@@ -781,11 +817,11 @@ export class WebhookApplicationService extends BaseApplicationService {
   }
 
   private async makeHttpRequest(
-    url: string,
-    method: string,
-    payload: any,
-    headers: Record<string, string>,
-    timeout: number
+    _url: string,
+    _method: string,
+    _payload: any,
+    _headers: Record<string, string>,
+    _timeout: number
   ): Promise<{
     statusCode: number;
     body: string;
@@ -818,7 +854,7 @@ export class WebhookApplicationService extends BaseApplicationService {
       workspaceId,
       userId
     );
-    return member && (member.role.isAdmin() || member.role.isOwner());
+    return !!member && (member.role === 'ADMIN' || member.role === 'OWNER');
   }
 
   private async canUserViewWebhooks(
@@ -833,17 +869,17 @@ export class WebhookApplicationService extends BaseApplicationService {
   }
 
   private async mapWebhookToDto(webhook: Webhook): Promise<WebhookDto> {
-    const stats = await this.webhookRepository.getWebhookStatistics(webhook.id);
+    const stats = await this.webhookRepository.getWebhookStatistics(new WebhookId(webhook.id));
 
     return {
-      id: webhook.id.value,
-      workspaceId: webhook.workspaceId.value,
+      id: webhook.id,
+      workspaceId: webhook.workspaceId,
       name: webhook.name,
       url: webhook.url,
-      events: webhook.events,
-      isActive: webhook.isActive,
-      lastDeliveryAt: stats.lastDeliveryAt,
-      lastDeliveryStatus: stats.lastDeliveryStatus,
+      events: webhook.events.map(event => event.toString()),
+      isActive: webhook.status === WebhookStatus.ACTIVE,
+      ...(stats.lastDeliveryAt && { lastDeliveryAt: stats.lastDeliveryAt }),
+      ...(stats.lastDeliveryStatus && { lastDeliveryStatus: stats.lastDeliveryStatus }),
       totalDeliveries: stats.totalDeliveries,
       successfulDeliveries: stats.successfulDeliveries,
       failedDeliveries: stats.failedDeliveries,
@@ -856,7 +892,7 @@ export class WebhookApplicationService extends BaseApplicationService {
     await this.cacheService.delete(`workspace-webhooks:${workspaceId.value}`);
   }
 
-  private delay(ms: number): Promise<void> {
+  protected override delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 }

@@ -1,7 +1,32 @@
 import { BaseEntity } from './base-entity';
 import { WorkspaceId, UserId, ProjectId } from '../value-objects';
+import { WorkspacePlan } from '../value-objects/workspace-plan';
 import { DomainError, ValidationError } from '../../shared/errors';
 import { WorkspaceMember } from './workspace-member';
+
+/**
+ * Workspace settings interface
+ */
+export interface WorkspaceSettings {
+  allowPublicProjects: boolean;
+  requireApprovalForMembers: boolean;
+  maxProjects: number;
+  maxMembers: number;
+  maxStorageGB: number;
+  enableIntegrations: boolean;
+  enableCustomFields: boolean;
+  enableTimeTracking: boolean;
+  enableReporting: boolean;
+  defaultProjectVisibility: 'private' | 'internal' | 'public';
+  allowedEmailDomains: string[];
+  ssoEnabled: boolean;
+  ssoProvider?: string;
+  customBranding: {
+    logoUrl?: string;
+    primaryColor?: string;
+    secondaryColor?: string;
+  };
+}
 
 /**
  * Workspace domain entity
@@ -9,8 +34,11 @@ import { WorkspaceMember } from './workspace-member';
  */
 export class Workspace extends BaseEntity<WorkspaceId> {
   private _name: string;
+  private _slug: string;
   private _description: string;
   private _ownerId: UserId;
+  private _plan: WorkspacePlan;
+  private _settings: WorkspaceSettings;
   private _isActive: boolean;
   private _members: Map<string, WorkspaceMember>;
   private _projectIds: Set<string>;
@@ -18,16 +46,22 @@ export class Workspace extends BaseEntity<WorkspaceId> {
   constructor(
     id: WorkspaceId,
     name: string,
+    slug: string,
     description: string,
     ownerId: UserId,
+    plan: WorkspacePlan,
+    settings: WorkspaceSettings,
     isActive: boolean = true,
     createdAt?: Date,
     updatedAt?: Date
   ) {
     super(id, createdAt, updatedAt);
     this._name = name;
+    this._slug = slug;
     this._description = description;
     this._ownerId = ownerId;
+    this._plan = plan;
+    this._settings = settings;
     this._isActive = isActive;
     this._members = new Map();
     this._projectIds = new Set();
@@ -46,6 +80,13 @@ export class Workspace extends BaseEntity<WorkspaceId> {
   }
 
   /**
+   * Get the workspace's slug
+   */
+  get slug(): string {
+    return this._slug;
+  }
+
+  /**
    * Get the workspace's description
    */
   get description(): string {
@@ -57,6 +98,20 @@ export class Workspace extends BaseEntity<WorkspaceId> {
    */
   get ownerId(): UserId {
     return this._ownerId;
+  }
+
+  /**
+   * Get the workspace's plan
+   */
+  get plan(): WorkspacePlan {
+    return this._plan;
+  }
+
+  /**
+   * Get the workspace's settings
+   */
+  get settings(): WorkspaceSettings {
+    return this._settings;
   }
 
   /**
@@ -128,6 +183,22 @@ export class Workspace extends BaseEntity<WorkspaceId> {
 
     this.validateDescription(description);
     this._description = description;
+    this.markAsUpdated();
+  }
+
+  /**
+   * Update workspace settings
+   */
+  updateSettings(settings: WorkspaceSettings, updatedBy: UserId): void {
+    if (!this._isActive) {
+      throw new DomainError('Cannot update inactive workspace');
+    }
+
+    if (!this.canUserUpdateWorkspace(updatedBy)) {
+      throw new DomainError('Insufficient permissions to update workspace settings');
+    }
+
+    this._settings = { ...this._settings, ...settings };
     this.markAsUpdated();
   }
 
@@ -473,13 +544,24 @@ export class Workspace extends BaseEntity<WorkspaceId> {
   /**
    * Create a new Workspace instance
    */
-  static create(
-    id: WorkspaceId,
-    name: string,
-    description: string,
-    ownerId: UserId
-  ): Workspace {
-    return new Workspace(id, name, description, ownerId);
+  static create(data: {
+    name: string;
+    slug: string;
+    description?: string;
+    ownerId: UserId;
+    plan: WorkspacePlan;
+    settings: WorkspaceSettings;
+  }): Workspace {
+    const id = WorkspaceId.generate();
+    return new Workspace(
+      id,
+      data.name,
+      data.slug,
+      data.description || '',
+      data.ownerId,
+      data.plan,
+      data.settings
+    );
   }
 
   /**
@@ -488,8 +570,11 @@ export class Workspace extends BaseEntity<WorkspaceId> {
   static restore(
     id: WorkspaceId,
     name: string,
+    slug: string,
     description: string,
     ownerId: UserId,
+    plan: WorkspacePlan,
+    settings: WorkspaceSettings,
     isActive: boolean,
     members: WorkspaceMember[],
     projectIds: string[],
@@ -499,8 +584,11 @@ export class Workspace extends BaseEntity<WorkspaceId> {
     const workspace = new Workspace(
       id,
       name,
+      slug,
       description,
       ownerId,
+      plan,
+      settings,
       isActive,
       createdAt,
       updatedAt
