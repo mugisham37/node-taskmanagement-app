@@ -1,6 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { WebhookController } from '../controllers/webhook-controller';
-import { AuthMiddleware, RateLimitMiddleware } from '../middleware';
+import { RateLimitMiddleware } from '../middleware';
 
 export async function webhookRoutes(
   fastify: FastifyInstance,

@@ -1,6 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { MonitoringController } from '../controllers/monitoring-controller';
-import { AuthMiddleware, RateLimitMiddleware } from '../middleware';
+import { RateLimitMiddleware } from '../middleware';
 
 export async function monitoringRoutes(
   fastify: FastifyInstance,

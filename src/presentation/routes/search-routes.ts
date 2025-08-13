@@ -1,6 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { SearchController } from '../controllers/search-controller';
-import { AuthMiddleware, RateLimitMiddleware } from '../middleware';
+import { RateLimitMiddleware } from '../middleware';
 
 export async function searchRoutes(
   fastify: FastifyInstance,

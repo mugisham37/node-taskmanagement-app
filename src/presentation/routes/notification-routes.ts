@@ -1,6 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { NotificationController } from '../controllers/notification-controller';
-import { AuthMiddleware, RateLimitMiddleware } from '../middleware';
+import { RateLimitMiddleware } from '../middleware';
 
 export async function notificationRoutes(
   fastify: FastifyInstance,
