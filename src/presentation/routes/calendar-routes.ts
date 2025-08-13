@@ -1,6 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { CalendarController } from '../controllers/calendar-controller';
-import { AuthMiddleware, RateLimitMiddleware } from '../middleware';
+import { RateLimitMiddleware } from '../middleware';
 
 export async function calendarRoutes(
   fastify: FastifyInstance,

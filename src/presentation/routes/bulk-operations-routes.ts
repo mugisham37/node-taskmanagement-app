@@ -1,8 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { TaskController } from '../controllers/task-controller';
-import { ProjectController } from '../controllers/project-controller';
-import { UserController } from '../controllers/user-controller';
-import { AuthMiddleware, RateLimitMiddleware } from '../middleware';
+import { RateLimitMiddleware } from '../middleware';
 import { z } from 'zod';
 
 // Bulk operation schemas
@@ -77,7 +74,7 @@ export async function bulkOperationsRoutes(
               result = await (taskController as any).taskService.assignTask(
                 userId,
                 taskId,
-                data?.assigneeId
+                data?.['assigneeId']
               );
               break;
             case 'unassign':
@@ -90,7 +87,7 @@ export async function bulkOperationsRoutes(
               result = await (taskController as any).taskService.completeTask(
                 userId,
                 taskId,
-                data?.actualHours
+                data?.['actualHours']
               );
               break;
             case 'delete':
@@ -104,14 +101,14 @@ export async function bulkOperationsRoutes(
               result = await (taskController as any).taskService.updateTask(
                 userId,
                 taskId,
-                { status: data?.status }
+                { status: data?.['status'] }
               );
               break;
             case 'update_priority':
               result = await (taskController as any).taskService.updateTask(
                 userId,
                 taskId,
-                { priority: data?.priority }
+                { priority: data?.['priority'] }
               );
               break;
             default:
@@ -179,7 +176,7 @@ export async function bulkOperationsRoutes(
               result = await (
                 projectController as any
               ).projectService.updateProject(userId, projectId, {
-                status: data?.status,
+                status: data?.['status'],
               });
               break;
             default:
@@ -244,7 +241,7 @@ export async function bulkOperationsRoutes(
               result = await (userController as any).userService.updateUser(
                 currentUserId,
                 userId,
-                { role: data?.role }
+                { role: data?.['role'] }
               );
               break;
             case 'send_notification':

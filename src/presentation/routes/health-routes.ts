@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { HealthCheckService } from '../../infrastructure/monitoring/health-check-service';
+import { HealthCheckService } from '../../infrastructure/monitoring';
 import { RateLimitMiddleware } from '../middleware';
 
 export async function healthRoutes(
@@ -12,7 +12,7 @@ export async function healthRoutes(
     preHandler: [
       rateLimitMiddleware.createRateLimit(RateLimitMiddleware.LENIENT),
     ],
-    handler: async (request, reply) => {
+    handler: async (_request, reply) => {
       try {
         const health = await healthCheckService.checkHealth();
 
@@ -22,7 +22,7 @@ export async function healthRoutes(
           status: health.status,
           timestamp: health.timestamp,
           uptime: health.uptime,
-          version: process.env.npm_package_version || '1.0.0',
+          version: process.env['npm_package_version'] || '1.0.0',
           environment: process.env.NODE_ENV || 'development',
           checks: health.checks,
         });
@@ -41,7 +41,7 @@ export async function healthRoutes(
     preHandler: [
       rateLimitMiddleware.createRateLimit(RateLimitMiddleware.LENIENT),
     ],
-    handler: async (request, reply) => {
+    handler: async (_request, reply) => {
       try {
         const isReady = await healthCheckService.checkReadiness();
 
@@ -63,7 +63,7 @@ export async function healthRoutes(
     preHandler: [
       rateLimitMiddleware.createRateLimit(RateLimitMiddleware.LENIENT),
     ],
-    handler: async (request, reply) => {
+    handler: async (_request, reply) => {
       // Simple liveness check - if we can respond, we're alive
       await reply.status(200).send({ status: 'alive' });
     },
@@ -74,11 +74,16 @@ export async function healthRoutes(
     preHandler: [
       rateLimitMiddleware.createRateLimit(RateLimitMiddleware.MODERATE),
     ],
-    handler: async (request, reply) => {
+    handler: async (_request, reply) => {
       try {
-        const metrics = await healthCheckService.getMetrics();
+        const detailedHealth = await healthCheckService.getDetailedHealth();
 
-        await reply.status(200).send(metrics);
+        await reply.status(200).send({
+          timestamp: new Date().toISOString(),
+          health: detailedHealth.health,
+          database: detailedHealth.database,
+          metrics: detailedHealth.metrics ? 'Available' : 'Not Available'
+        });
       } catch (error) {
         await reply.status(500).send({ error: 'Failed to retrieve metrics' });
       }

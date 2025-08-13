@@ -17,6 +17,9 @@ export type {
   HealthCheckFunction,
 } from './health-service';
 
+export { HealthCheckService } from './health-check-service';
+export type { HealthCheckServiceConfig } from './health-check-service';
+
 export { ErrorTrackingService } from './error-tracking';
 export type {
   ErrorTrackingConfig,

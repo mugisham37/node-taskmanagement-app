@@ -1,6 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { CollaborationController } from '../controllers/collaboration-controller';
-import { AuthMiddleware, RateLimitMiddleware } from '../middleware';
+import { RateLimitMiddleware } from '../middleware';
 
 export async function collaborationRoutes(
   fastify: FastifyInstance,

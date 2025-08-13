@@ -1,6 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { FileManagementController } from '../controllers/file-management-controller';
-import { AuthMiddleware, RateLimitMiddleware } from '../middleware';
+import { RateLimitMiddleware } from '../middleware';
 
 export async function fileManagementRoutes(
   fastify: FastifyInstance,
