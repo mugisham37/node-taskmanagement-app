@@ -46,6 +46,7 @@ export interface UpdateTaskUseCaseInput {
   title?: string;
   description?: string;
   priority?: Priority | undefined;
+  assigneeId?: UserId | undefined;
   dueDate?: Date | undefined;
   estimatedHours?: number | undefined;
   actualHours?: number | undefined;
@@ -162,7 +163,16 @@ export class CreateTaskUseCase {
         }
 
         // Create task through domain service
-        const task = await this.taskDomainService.createTask(input);
+        const task = await this.taskDomainService.createTask({
+          title: input.title,
+          description: input.description,
+          priority: input.priority,
+          projectId: input.projectId,
+          createdById: input.createdById,
+          ...(input.dueDate && { dueDate: input.dueDate }),
+          ...(input.assigneeId && { assigneeId: input.assigneeId }),
+          ...(input.estimatedHours && { estimatedHours: input.estimatedHours }),
+        });
 
         // Save task
         await this.taskRepository.save(task);

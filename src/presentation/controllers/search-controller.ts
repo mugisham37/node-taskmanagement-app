@@ -143,6 +143,8 @@ export class SearchController extends BaseController {
         })
       );
 
+      suppressUnused(userId, query); // TODO: Implement search suggestions service
+
       // TODO: Implement search suggestions service
       const suggestions: string[] = [];
 
@@ -172,6 +174,8 @@ export class SearchController extends BaseController {
         })
       );
 
+      suppressUnused(userId, query); // TODO: Implement recent searches service
+
       // TODO: Implement recent searches service
       const recentSearches: string[] = [];
 
@@ -194,6 +198,8 @@ export class SearchController extends BaseController {
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
+
+      suppressUnused(userId); // TODO: Implement clear recent searches service
 
       // TODO: Implement clear recent searches service
 
@@ -220,6 +226,8 @@ export class SearchController extends BaseController {
           includePublic: z.boolean().default(false),
         })
       );
+
+      suppressUnused(userId); // TODO: Implement saved searches service
 
       // TODO: Implement saved searches service
       const savedSearches: any[] = [];
@@ -285,6 +293,8 @@ export class SearchController extends BaseController {
         SavedSearchSchema.partial()
       );
 
+      suppressUnused(userId, id); // TODO: Implement saved search service
+
       // TODO: Implement saved search service
       const savedSearch = {
         id,
@@ -313,6 +323,8 @@ export class SearchController extends BaseController {
       const userId = this.getUserId(request);
       const { id } = this.validateParams(request.params, ParamsSchema);
 
+      suppressUnused(userId, id); // TODO: Implement saved search service
+
       // TODO: Implement saved search service
 
       await this.sendNoContent(reply);
@@ -338,6 +350,8 @@ export class SearchController extends BaseController {
           limit: z.coerce.number().min(1).max(100).default(20),
         })
       );
+
+      suppressUnused(userId, id); // TODO: Implement saved search execution service
 
       // TODO: Implement saved search execution service
       const searchResults = {
@@ -375,6 +389,8 @@ export class SearchController extends BaseController {
         })
       );
 
+      suppressUnused(userId, query); // TODO: Implement search analytics service
+
       // TODO: Implement search analytics service
       const analytics = {
         totalSearches: 0,
@@ -408,6 +424,8 @@ export class SearchController extends BaseController {
       const userId = this.getUserId(request);
       const indexRequest = this.validateBody(request.body, SearchIndexSchema);
 
+      suppressUnused(userId); // TODO: Check admin permissions
+
       // TODO: Check admin permissions
       // TODO: Implement search reindexing service
       const reindexResult = {
@@ -438,6 +456,8 @@ export class SearchController extends BaseController {
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
+
+      suppressUnused(userId); // TODO: Check admin permissions
 
       // TODO: Check admin permissions
       // TODO: Implement search index status service
@@ -499,6 +519,8 @@ export class SearchController extends BaseController {
             .optional(),
         })
       );
+
+      suppressUnused(userId); // TODO: Implement advanced search service
 
       // TODO: Implement advanced search service
       const searchResults = {

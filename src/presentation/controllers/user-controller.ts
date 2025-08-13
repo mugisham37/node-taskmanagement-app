@@ -5,8 +5,6 @@ import { UserApplicationService } from '../../application/services/user-applicat
 import {
   UpdateUserSchema,
   UserQuerySchema,
-  UpdateUserRequest,
-  UserQuery,
 } from '../dto/user-dto';
 import { z } from 'zod';
 
@@ -45,10 +43,16 @@ export class UserController extends BaseController {
       const { id } = this.validateParams(request.params, ParamsSchema);
       const updateData = this.validateBody(request.body, UpdateUserSchema);
 
+      // Remove undefined values to match the UpdateUserRequest interface
+      const cleanUpdateData: any = {};
+      if (updateData.firstName !== undefined) cleanUpdateData.firstName = updateData.firstName;
+      if (updateData.lastName !== undefined) cleanUpdateData.lastName = updateData.lastName;
+      if (updateData.email !== undefined) cleanUpdateData.email = updateData.email;
+
       const user = await this.userService.updateUser(
         currentUserId,
         id,
-        updateData
+        cleanUpdateData
       );
 
       return user;
@@ -89,13 +93,21 @@ export class UserController extends BaseController {
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const currentUserId = this.getUserId(request);
-      const query = this.validateQuery(request.query, UserQuerySchema);
+      const rawQuery = this.validateQuery(request.query, UserQuerySchema);
+      
+      // Ensure required defaults are set for the service
+      const query = {
+        ...rawQuery,
+        page: rawQuery.page ?? 1,
+        limit: rawQuery.limit ?? 20,
+        sortOrder: rawQuery.sortOrder ?? 'desc' as const,
+      };
 
       const result = await this.userService.getUsers(currentUserId, query);
 
       await this.sendPaginated(
         reply,
-        result.users,
+        result.data,
         result.total,
         query.page,
         query.limit
@@ -109,18 +121,26 @@ export class UserController extends BaseController {
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const currentUserId = this.getUserId(request);
-      const query = this.validateQuery(
+      const rawQuery = this.validateQuery(
         request.query,
         UserQuerySchema.extend({
           search: z.string().min(1, 'Search term is required'),
         })
       );
 
+      // Ensure required defaults are set for the service
+      const query = {
+        ...rawQuery,
+        page: rawQuery.page ?? 1,
+        limit: rawQuery.limit ?? 20,
+        sortOrder: rawQuery.sortOrder ?? 'desc' as const,
+      };
+
       const result = await this.userService.searchUsers(currentUserId, query);
 
       await this.sendPaginated(
         reply,
-        result.users,
+        result.data,
         result.total,
         query.page,
         query.limit

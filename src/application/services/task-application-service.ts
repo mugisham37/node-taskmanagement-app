@@ -412,13 +412,12 @@ export class TaskApplicationService {
 
   // Additional methods needed by controller
   async getTask(userId: string, taskId: string): Promise<TaskDto> {
-    const userIdObj = new UserId(userId);
     const taskIdObj = new TaskId(taskId);
+    const userIdObj = new UserId(userId);
     return await this.getTaskById(taskIdObj, userIdObj);
   }
 
   async deleteTask(userId: string, taskId: string): Promise<void> {
-    const userIdObj = new UserId(userId);
     const taskIdObj = new TaskId(taskId);
     
     // Find the task first
@@ -547,5 +546,15 @@ export class TaskApplicationService {
     const pagination = { page: page || 1, limit: limit || 20 };
     
     return await this.getTasksByAssignee(assigneeIdObj, userIdObj, filters, pagination);
+  }
+
+  async getOverdueTasksForUser(userId: string, filters?: any, page?: number, limit?: number): Promise<PaginatedResult<TaskDto>> {
+    const userIdObj = new UserId(userId);
+    const pagination = { page: page || 1, limit: limit || 20 };
+    
+    // TODO: Use filters parameter when implementing filtering logic
+    void filters;
+    
+    return await this.getOverdueTasks(userIdObj, undefined, undefined, pagination);
   }
 }

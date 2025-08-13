@@ -20,7 +20,7 @@ import { EmailService } from '../../infrastructure/external-services/email-servi
 import { CalendarEventId } from '../../domain/value-objects/calendar-event-id';
 import { ProjectId } from '../../domain/value-objects/project-id';
 import { UserId } from '../../domain/value-objects/user-id';
-import { CalendarEvent } from '../../domain/entities/calendar-event';
+import { CalendarEvent, AttendeeStatus, EventType } from '../../domain/entities/calendar-event';
 import { RecurrenceRule } from '../../domain/value-objects/recurrence-rule';
 import { injectable } from '../../shared/decorators/injectable.decorator';
 
@@ -234,12 +234,17 @@ export class CalendarApplicationService extends BaseApplicationService {
       const calendarEvent = CalendarEvent.create({
         title: request.title,
         description: request.description || undefined,
+        type: EventType.MEETING, // Default event type
+        startDate: request.startTime,
         startTime: request.startTime,
+        endDate: request.endTime,
         endTime: request.endTime,
         projectId: projectId?.value,
+        userId: createdBy.value,
         createdBy: createdBy.value,
-        attendees: attendeeIds.map(id => ({ userId: id.value, status: 'pending' as const })),
+        attendees: attendeeIds.map(id => ({ userId: id.value, status: AttendeeStatus.PENDING })),
         location: request.location || undefined,
+        allDay: request.isAllDay || false,
         isAllDay: request.isAllDay || false,
         recurrenceRule: recurrenceRule?.toString(),
         reminders: request.reminders?.filter(r => r.isEnabled).map(r => ({

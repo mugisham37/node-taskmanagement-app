@@ -80,12 +80,12 @@ export class TaskController extends BaseController {
       await this.taskService.updateTask({
         taskId: new TaskId(id),
         userId: new UserId(userId),
-        title: updateData.title || undefined,
-        description: updateData.description || undefined,
-        priority: updateData.priority || undefined,
-        assigneeId: updateData.assigneeId ? new UserId(updateData.assigneeId) : undefined,
-        dueDate: updateData.dueDate || undefined,
-        estimatedHours: updateData.estimatedHours || undefined
+        ...(updateData.title && { title: updateData.title }),
+        ...(updateData.description && { description: updateData.description }),
+        ...(updateData.priority && { priority: Priority.fromString(updateData.priority) }),
+        ...(updateData.assigneeId && { assigneeId: new UserId(updateData.assigneeId) }),
+        ...(updateData.dueDate && { dueDate: updateData.dueDate }),
+        ...(updateData.estimatedHours && { estimatedHours: updateData.estimatedHours })
       });
 
       return { success: true, message: 'Task updated successfully' };
@@ -226,8 +226,8 @@ export class TaskController extends BaseController {
 
       await this.sendPaginated(
         reply,
-        result.data || result.items,
-        result.total || result.totalCount,
+        result.data || [],
+        result.total || 0,
         query.page || 1,
         query.limit || 20
       );
@@ -310,7 +310,7 @@ export class TaskController extends BaseController {
       const userId = this.getUserId(request);
       const query = this.validateQuery(request.query, TaskQuerySchema);
 
-      const result = await this.taskService.getOverdueTasks(userId, query);
+      const result = await this.taskService.getOverdueTasksForUser(userId, query);
 
       await this.sendPaginated(
         reply,

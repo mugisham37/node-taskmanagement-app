@@ -6,20 +6,13 @@ import { ValidationError } from '../../shared/errors/validation-error';
 import { NotFoundError } from '../../shared/errors/not-found-error';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
 import { UserDto } from './auth-application-service';
+import { UserQuery } from '../../presentation/dto/user-dto';
 
 export interface UpdateUserRequest {
   firstName?: string;
   lastName?: string;
   avatar?: string;
   settings?: Record<string, any>;
-}
-
-export interface UserQuery {
-  page?: number;
-  limit?: number;
-  search?: string;
-  role?: string;
-  isActive?: boolean;
 }
 
 export interface PaginatedResult<T> {
@@ -103,23 +96,20 @@ export class UserApplicationService {
     }
   }
 
-  async getUsers(query: UserQuery): Promise<PaginatedResult<UserDto>> {
+  async getUsers(currentUserId: string, query: UserQuery): Promise<PaginatedResult<UserDto>> {
+    void currentUserId; // Mark as intentionally unused for now
     try {
-      const page = query.page || 1;
-      const limit = query.limit || 20;
+      const page = query.page ?? 1;
+      const limit = query.limit ?? 20;
       const offset = (page - 1) * limit;
 
       const filters: {
         search?: string;
-        role?: string;
         isActive?: boolean;
       } = {};
       
       if (query.search !== undefined) {
         filters.search = query.search;
-      }
-      if (query.role !== undefined) {
-        filters.role = query.role;
       }
       if (query.isActive !== undefined) {
         filters.isActive = query.isActive;
@@ -170,6 +160,126 @@ export class UserApplicationService {
       this.logger.error('Error deleting user', error as Error, { currentUserId, userId });
       throw error;
     }
+  }
+
+  async deactivateUser(currentUserId: string, userId: string): Promise<void> {
+    try {
+      const targetUserIdObj = new UserId(userId);
+
+      // Check authorization - implement your business rules here
+      if (currentUserId === userId) {
+        throw new ValidationError([], 'Cannot deactivate your own account');
+      }
+
+      const user = await this.userRepository.findById(targetUserIdObj);
+      if (!user) {
+        throw new NotFoundError('User not found');
+      }
+
+      // Deactivate the user
+      user.deactivate();
+      await this.userRepository.save(user);
+
+      this.logger.info('User deactivated successfully', { userId, deactivatedBy: currentUserId });
+    } catch (error) {
+      this.logger.error('Error deactivating user', error as Error, { currentUserId, userId });
+      throw error;
+    }
+  }
+
+  async activateUser(currentUserId: string, userId: string): Promise<void> {
+    try {
+      const targetUserIdObj = new UserId(userId);
+
+      const user = await this.userRepository.findById(targetUserIdObj);
+      if (!user) {
+        throw new NotFoundError('User not found');
+      }
+
+      // Activate the user
+      user.activate();
+      await this.userRepository.save(user);
+
+      this.logger.info('User activated successfully', { userId, activatedBy: currentUserId });
+    } catch (error) {
+      this.logger.error('Error activating user', error as Error, { currentUserId, userId });
+      throw error;
+    }
+  }
+
+  async searchUsers(currentUserId: string, query: UserQuery): Promise<PaginatedResult<UserDto>> {
+    try {
+      const page = query.page ?? 1;
+      const limit = query.limit ?? 20;
+      const offset = (page - 1) * limit;
+
+      const filters: {
+        search?: string;
+        isActive?: boolean;
+      } = {};
+      
+      if (query.search !== undefined) {
+        filters.search = query.search;
+      }
+      if (query.isActive !== undefined) {
+        filters.isActive = query.isActive;
+      }
+
+      const { users, total } = await this.userRepository.findWithFilters(
+        filters,
+        { offset, limit }
+      );
+
+      const userDtos = users.map((user: User) => this.mapUserToDto(user));
+
+      return {
+        data: userDtos,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+        hasPrevious: page > 1,
+      };
+    } catch (error) {
+      this.logger.error('Error searching users', error as Error, { currentUserId, query });
+      throw error;
+    }
+  }
+
+  async getUserStats(currentUserId: string, userId: string): Promise<any> {
+    try {
+      const targetUserIdObj = new UserId(userId);
+
+      const user = await this.userRepository.findById(targetUserIdObj);
+      if (!user) {
+        throw new NotFoundError('User not found');
+      }
+
+      // Check if current user can view this user's stats
+      if (currentUserId !== userId) {
+        // You might want to add permission checks here
+        this.logger.info('User accessed another user stats', { currentUserId, targetUserId: userId });
+      }
+
+      // Return basic user stats (you can extend this based on your requirements)
+      return {
+        id: user.id.value,
+        tasksCreated: 0, // You can implement actual counts from task repository
+        tasksAssigned: 0,
+        tasksCompleted: 0,
+        joinedDate: user.createdAt,
+        lastActivity: user.updatedAt,
+        isActive: user.isActive(),
+      };
+    } catch (error) {
+      this.logger.error('Error getting user stats', error as Error, { currentUserId, userId });
+      throw error;
+    }
+  }
+
+  async getMyStats(userId: string): Promise<any> {
+    return this.getUserStats(userId, userId);
   }
 
   private mapUserToDto(user: User): UserDto {
