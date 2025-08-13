@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { DIContainer } from '../../shared/container';
+import { Container } from '../../shared/container';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { WebSocketHandler } from './websocket-handler';
 
@@ -8,7 +8,7 @@ import { WebSocketHandler } from './websocket-handler';
  */
 export async function setupWebSocket(
   app: FastifyInstance,
-  container: DIContainer
+  container: Container
 ): Promise<void> {
   // Get logging service from container
   const loggingService = container.resolve('LOGGING_SERVICE') as LoggingService;

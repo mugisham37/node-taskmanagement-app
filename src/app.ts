@@ -7,7 +7,8 @@ import { setupMiddleware } from './presentation/middleware';
 import { setupWebSocket } from './presentation/websocket';
 import { LoggingService } from './infrastructure/monitoring/logging-service';
 import { HealthService } from './infrastructure/monitoring/health-service';
-import { MetricsService } from './infrastructure/monitoring/metrics-service';
+import { IDatabaseConnection } from './infrastructure/database/database-connection-interface';
+import { ICacheService } from './infrastructure/caching/cache-service-interface';
 
 /**
  * Application class that manages the entire system lifecycle
@@ -48,7 +49,7 @@ export class Application {
       await this.validateSystemHealth();
     } catch (error) {
       const logger = this.getLogger();
-      logger.error('Failed to initialize application', { error });
+      logger.error('Failed to initialize application', error as Error);
       throw error;
     }
   }
@@ -81,7 +82,7 @@ export class Application {
       }
     } catch (error) {
       const logger = this.getLogger();
-      logger.error('Failed to start application', { error });
+      logger.error('Failed to start application', error as Error);
       throw error;
     }
   }
@@ -113,7 +114,7 @@ export class Application {
 
       logger.info('Application shutdown completed');
     } catch (error) {
-      logger.error('Error during application shutdown', { error });
+      logger.error('Error during application shutdown', error as Error);
       throw error;
     }
   }
@@ -152,13 +153,13 @@ export class Application {
     logger.info('Setting up infrastructure services...');
 
     // Initialize database connection
-    const dbConnection = this.container.resolve(
+    const dbConnection = this.container.resolve<IDatabaseConnection>(
       SERVICE_TOKENS.DATABASE_CONNECTION
     );
     await dbConnection.initialize();
 
     // Initialize cache service
-    const cacheService = this.container.resolve(SERVICE_TOKENS.CACHE_SERVICE);
+    const cacheService = this.container.resolve<ICacheService>(SERVICE_TOKENS.CACHE_SERVICE);
     await cacheService.connect();
 
     // Initialize other infrastructure services
@@ -227,7 +228,7 @@ export class Application {
           await this.stop();
           process.exit(0);
         } catch (error) {
-          logger.error('Error during graceful shutdown', { error });
+          logger.error('Error during graceful shutdown', error as Error);
           process.exit(1);
         }
       });
@@ -235,12 +236,12 @@ export class Application {
 
     // Handle uncaught exceptions
     process.on('uncaughtException', error => {
-      logger.error('Uncaught exception', { error });
+      logger.error('Uncaught exception', error);
       process.exit(1);
     });
 
-    process.on('unhandledRejection', (reason, promise) => {
-      logger.error('Unhandled rejection', { reason, promise });
+    process.on('unhandledRejection', (reason) => {
+      logger.error('Unhandled rejection', new Error(String(reason)));
       process.exit(1);
     });
   }
@@ -258,8 +259,8 @@ export class Application {
 
     if (health.status === 'unhealthy') {
       const unhealthyServices = health.services
-        .filter(s => s.status === 'unhealthy')
-        .map(s => s.name);
+        .filter((s: any) => s.status === 'unhealthy')
+        .map((s: any) => s.name);
 
       throw new Error(
         `System health check failed. Unhealthy services: ${unhealthyServices.join(', ')}`
@@ -268,7 +269,7 @@ export class Application {
 
     logger.info('System health validation passed', {
       status: health.status,
-      healthyServices: health.services.filter(s => s.status === 'healthy')
+      healthyServices: health.services.filter((s: any) => s.status === 'healthy')
         .length,
       totalServices: health.services.length,
     });
@@ -291,12 +292,12 @@ export class Application {
           logger.warn('System health degraded', {
             status: health.status,
             unhealthyServices: health.services
-              .filter(s => s.status === 'unhealthy')
-              .map(s => s.name),
+              .filter((s: any) => s.status === 'unhealthy')
+              .map((s: any) => s.name),
           });
         }
       } catch (error) {
-        logger.error('Health check failed', { error });
+        logger.error('Health check failed', error as Error);
       }
     }, this.config.app.healthCheckInterval);
 
@@ -310,18 +311,18 @@ export class Application {
 
     try {
       // Close database connection
-      const dbConnection = this.container.resolve(
+      const dbConnection = this.container.resolve<IDatabaseConnection>(
         SERVICE_TOKENS.DATABASE_CONNECTION
       );
       await dbConnection.close();
 
       // Close cache service
-      const cacheService = this.container.resolve(SERVICE_TOKENS.CACHE_SERVICE);
+      const cacheService = this.container.resolve<ICacheService>(SERVICE_TOKENS.CACHE_SERVICE);
       await cacheService.disconnect();
 
       logger.info('Infrastructure services closed successfully');
     } catch (error) {
-      logger.error('Error closing infrastructure services', { error });
+      logger.error('Error closing infrastructure services', error as Error);
     }
   }
 

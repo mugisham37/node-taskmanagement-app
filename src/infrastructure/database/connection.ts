@@ -1,6 +1,7 @@
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema';
+import { IDatabaseConnection } from './database-connection-interface';
 
 export type DatabaseSchema = typeof schema;
 export type Database = NodePgDatabase<DatabaseSchema>;
@@ -13,7 +14,7 @@ export interface DatabaseConfig {
   ssl?: boolean;
 }
 
-export class DatabaseConnection {
+export class DatabaseConnection implements IDatabaseConnection {
   private static instance: DatabaseConnection;
   private _db: Database | null = null;
   private _pool: Pool | null = null;
@@ -33,6 +34,10 @@ export class DatabaseConnection {
       DatabaseConnection.instance = new DatabaseConnection(config);
     }
     return DatabaseConnection.instance;
+  }
+
+  public async initialize(): Promise<void> {
+    await this.connect();
   }
 
   public async connect(): Promise<void> {
@@ -66,6 +71,10 @@ export class DatabaseConnection {
   }
 
   public async disconnect(): Promise<void> {
+    await this.close();
+  }
+
+  public async close(): Promise<void> {
     if (this._pool) {
       await this._pool.end();
       this._pool = null;
@@ -75,6 +84,10 @@ export class DatabaseConnection {
   }
 
   public get db() {
+    return this.getDatabase();
+  }
+
+  public getDatabase() {
     if (!this._db) {
       throw new Error('Database not connected. Call connect() first.');
     }

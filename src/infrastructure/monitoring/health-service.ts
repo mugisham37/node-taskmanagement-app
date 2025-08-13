@@ -30,18 +30,86 @@ export interface SystemHealth {
   };
 }
 
+export interface OverallHealth {
+  status: 'healthy' | 'unhealthy' | 'degraded';
+  services: Array<{
+    name: string;
+    status: 'healthy' | 'unhealthy' | 'degraded';
+    message?: string;
+  }>;
+  timestamp: Date;
+  uptime: number;
+}
+
 export type HealthCheckFunction = () => Promise<HealthCheckResult>;
 
 export class HealthService {
   private healthChecks: Map<string, HealthCheckFunction> = new Map();
   private lastHealthCheck: SystemHealth | null = null;
   private healthCheckInterval: NodeJS.Timeout | null = null;
+  private isInitialized = false;
 
   constructor(
     private readonly config: HealthCheckConfig,
     private readonly appVersion: string,
     private readonly environment: string
   ) {}
+
+  /**
+   * Initialize the health service
+   */
+  async initialize(): Promise<void> {
+    if (this.isInitialized) {
+      return;
+    }
+
+    // Register default health checks
+    this.registerDefaultHealthChecks();
+    this.isInitialized = true;
+  }
+
+  /**
+   * Get overall health status with simplified interface
+   */
+  async getOverallHealth(): Promise<OverallHealth> {
+    const systemHealth = await this.checkHealth();
+    
+    return {
+      status: systemHealth.status,
+      services: systemHealth.checks.map((check: HealthCheckResult) => ({
+        name: check.name,
+        status: check.status,
+        ...(check.message && { message: check.message }),
+      })),
+      timestamp: systemHealth.timestamp,
+      uptime: systemHealth.uptime,
+    };
+  }
+
+  /**
+   * Register default health checks
+   */
+  private registerDefaultHealthChecks(): void {
+    // Basic system health check
+    this.registerHealthCheck('system', async (): Promise<HealthCheckResult> => {
+      const startTime = Date.now();
+      const memUsage = process.memoryUsage();
+      const memoryUsagePercent = (memUsage.heapUsed / memUsage.heapTotal) * 100;
+
+      return {
+        name: 'system',
+        status: memoryUsagePercent > 90 ? 'unhealthy' : 
+               memoryUsagePercent > 70 ? 'degraded' : 'healthy',
+        message: `Memory usage: ${memoryUsagePercent.toFixed(2)}%`,
+        timestamp: new Date(),
+        duration: Date.now() - startTime,
+        metadata: {
+          memoryUsage: memUsage,
+          memoryUsagePercent,
+        },
+      };
+    });
+  }
 
   /**
    * Register a health check

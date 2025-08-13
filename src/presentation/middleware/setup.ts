@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { DIContainer } from '../../shared/container';
+import { Container } from '../../shared/container';
 import { ConfigLoader } from '../../shared/config';
 import { SERVICE_TOKENS } from '../../shared/container/types';
 
@@ -14,7 +14,7 @@ import { SecurityMiddleware } from './security-middleware';
  */
 export async function setupMiddleware(
   app: FastifyInstance,
-  container: DIContainer,
+  container: Container,
   config: ReturnType<typeof ConfigLoader.validateAllConfigs>
 ): Promise<void> {
   // Register CORS middleware

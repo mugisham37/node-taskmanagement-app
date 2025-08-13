@@ -1,6 +1,7 @@
 import { RedisClient } from './redis-client';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
 import { logger } from '../monitoring/logging-service';
+import { ICacheService } from './cache-service-interface';
 
 export interface CacheOptions {
   ttl?: number;
@@ -170,7 +171,7 @@ class LRUMemoryCache implements IMemoryCache {
   }
 }
 
-export class CacheService {
+export class CacheService implements ICacheService {
   private readonly defaultTTL = 3600; // 1 hour
   private readonly keyPrefix = 'cache:';
   private readonly tagPrefix = 'tag:';
@@ -180,6 +181,34 @@ export class CacheService {
   constructor(private readonly redisClient: RedisClient) {
     this.memoryCache = new LRUMemoryCache(1000);
     this.startCleanupInterval();
+  }
+
+  /**
+   * Connect to the cache service
+   */
+  async connect(): Promise<void> {
+    if (!this.redisClient.isConnected()) {
+      await this.redisClient.connect();
+    }
+  }
+
+  /**
+   * Disconnect from the cache service
+   */
+  async disconnect(): Promise<void> {
+    if (this.redisClient.isConnected()) {
+      await this.redisClient.disconnect();
+    }
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+    }
+  }
+
+  /**
+   * Check if cache is connected
+   */
+  isConnected(): boolean {
+    return this.redisClient.isConnected();
   }
 
   private logError(message: string, context: Record<string, any>, error?: any): void {
@@ -702,12 +731,12 @@ export class CacheService {
    * Health check for cache system
    */
   async healthCheck(): Promise<{
-    l1Healthy: boolean;
-    l2Healthy: boolean;
-    overall: boolean;
+    status: 'healthy' | 'unhealthy';
+    latency?: number;
   }> {
     let l1Healthy = true;
     let l2Healthy = true;
+    const startTime = Date.now();
 
     try {
       // Test memory cache
@@ -733,10 +762,12 @@ export class CacheService {
       l2Healthy = false;
     }
 
+    const latency = Date.now() - startTime;
+    const isHealthy = l1Healthy && l2Healthy;
+
     return {
-      l1Healthy,
-      l2Healthy,
-      overall: l1Healthy && l2Healthy,
+      status: isHealthy ? 'healthy' : 'unhealthy',
+      latency,
     };
   }
 

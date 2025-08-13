@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { DIContainer } from '../../shared/container';
+import { Container } from '../../shared/container';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 
 /**
@@ -7,7 +7,7 @@ import { LoggingService } from '../../infrastructure/monitoring/logging-service'
  */
 export async function setupRoutes(
   app: FastifyInstance,
-  container: DIContainer
+  container: Container
 ): Promise<void> {
   // API version prefix
   const apiPrefix = '/api/v1';
@@ -99,7 +99,7 @@ export async function setupRoutes(
 
 // Export interfaces and functions needed by server-setup
 export interface RoutesDependencies {
-  container: DIContainer;
+  container: Container;
 }
 
 export async function registerRoutes(
