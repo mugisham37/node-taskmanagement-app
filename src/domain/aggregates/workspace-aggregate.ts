@@ -6,6 +6,20 @@ import {
 } from '../value-objects';
 
 /**
+ * Project Summary Interface
+ */
+export interface ProjectSummary {
+  id: ProjectId;
+  name: string;
+  status: string;
+  taskCount: number;
+  completedTaskCount: number;
+  startDate?: Date;
+  endDate?: Date;
+  lastActivity: Date;
+}
+
+/**
  * Workspace Aggregate Props interface
  */
 export interface WorkspaceAggregateProps extends AggregateProps {

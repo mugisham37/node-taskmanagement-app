@@ -1,7 +1,7 @@
 /**
  * Base Domain Event interface
  */
-export interface DomainEvent {
+export interface IDomainEvent {
   /**
    * Get the unique event identifier
    */
@@ -41,7 +41,7 @@ export interface DomainEvent {
 /**
  * Abstract base class for domain events
  */
-export abstract class BaseDomainEvent implements DomainEvent {
+export abstract class DomainEvent implements IDomainEvent {
   protected readonly eventId: string;
   protected readonly occurredOn: Date;
   protected readonly version: number;
@@ -90,3 +90,6 @@ export abstract class BaseDomainEvent implements DomainEvent {
     return `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 }
+
+// Export BaseDomainEvent for backward compatibility
+export { DomainEvent as BaseDomainEvent };

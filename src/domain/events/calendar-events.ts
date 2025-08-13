@@ -5,7 +5,7 @@ import { DomainEvent } from './domain-event';
  */
 export class CalendarEventCreatedEvent extends DomainEvent {
   constructor(
-    public readonly eventId: string,
+    public override readonly eventId: string,
     public readonly userId: string,
     public readonly title: string,
     public readonly startDate: Date,
@@ -38,7 +38,7 @@ export class CalendarEventCreatedEvent extends DomainEvent {
  */
 export class CalendarEventUpdatedEvent extends DomainEvent {
   constructor(
-    public readonly eventId: string,
+    public override readonly eventId: string,
     public readonly userId: string,
     public readonly changes: string[]
   ) {
@@ -67,7 +67,7 @@ export class CalendarEventUpdatedEvent extends DomainEvent {
  */
 export class CalendarEventDeletedEvent extends DomainEvent {
   constructor(
-    public readonly eventId: string,
+    public override readonly eventId: string,
     public readonly userId: string,
     public readonly title: string
   ) {
@@ -96,7 +96,7 @@ export class CalendarEventDeletedEvent extends DomainEvent {
  */
 export class CalendarEventAttendeeAddedEvent extends DomainEvent {
   constructor(
-    public readonly eventId: string,
+    public override readonly eventId: string,
     public readonly attendeeUserId: string,
     public readonly organizerUserId: string
   ) {
@@ -125,7 +125,7 @@ export class CalendarEventAttendeeAddedEvent extends DomainEvent {
  */
 export class CalendarEventReminderTriggeredEvent extends DomainEvent {
   constructor(
-    public readonly eventId: string,
+    public override readonly eventId: string,
     public readonly userId: string,
     public readonly reminderId: string,
     public readonly minutesBefore: number

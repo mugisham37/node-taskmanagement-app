@@ -332,6 +332,53 @@ export class Webhook extends BaseEntity<string> {
   private markAsUpdated(): void {
     (this as any).updatedAt = new Date();
   }
+
+  // Additional methods required by domain service
+  canTrigger(event: WebhookEvent): boolean {
+    return this.isActive() && this.supportsEvent(event) && !this.hasExceededMaxFailures();
+  }
+
+  recordSuccess(): void {
+    (this as any).lastSuccessAt = new Date();
+    (this as any).lastDeliveryAt = new Date();
+    (this as any).failureCount = 0;
+    this.markAsUpdated();
+  }
+
+  recordFailure(failureReason?: string): void {
+    (this as any).failureCount = this.failureCount + 1;
+    (this as any).lastFailureAt = new Date();
+    if (failureReason) {
+      (this as any).failureReason = failureReason;
+    }
+    
+    // Auto-suspend if max failures exceeded
+    if (this.failureCount >= this.maxFailures) {
+      (this as any).status = WebhookStatus.SUSPENDED;
+    }
+    this.markAsUpdated();
+  }
+
+  suspend(): void {
+    (this as any).status = WebhookStatus.SUSPENDED;
+    this.markAsUpdated();
+  }
+
+  getHealthStatus(): 'healthy' | 'degraded' | 'unhealthy' {
+    if (this.status === WebhookStatus.SUSPENDED || this.status === WebhookStatus.FAILED) {
+      return 'unhealthy';
+    }
+    
+    if (this.failureCount > this.maxFailures / 2) {
+      return 'degraded';
+    }
+    
+    return 'healthy';
+  }
+
+  static generateSecret(): string {
+    return nanoid(32);
+  }
 }
 
 /**
@@ -604,5 +651,40 @@ export class WebhookDelivery extends BaseEntity<string> {
     }
 
     return result;
+  }
+
+  // Additional methods required by domain service
+  markAsFailed(errorMessage?: string): void {
+    (this as any).status = WebhookDeliveryStatus.FAILED;
+    if (errorMessage) {
+      (this as any).errorMessage = errorMessage;
+    }
+    (this as any).updatedAt = new Date();
+  }
+
+  markAsSuccess(httpStatus?: number, responseBody?: string, duration?: number): void {
+    (this as any).status = WebhookDeliveryStatus.SUCCESS;
+    (this as any).deliveredAt = new Date();
+    if (httpStatus !== undefined) {
+      (this as any).httpStatus = httpStatus;
+    }
+    if (responseBody !== undefined) {
+      (this as any).responseBody = responseBody;
+    }
+    if (duration !== undefined) {
+      (this as any).duration = duration;
+    }
+    (this as any).updatedAt = new Date();
+  }
+
+  scheduleRetry(nextRetryAt: Date): void {
+    (this as any).status = WebhookDeliveryStatus.RETRYING;
+    (this as any).nextRetryAt = nextRetryAt;
+    (this as any).attempt = this.attempt + 1;
+    (this as any).updatedAt = new Date();
+  }
+
+  get attemptCount(): number {
+    return this.attempt;
   }
 }

@@ -1,6 +1,7 @@
-import { Workspace, WorkspaceMember } from '../entities/workspace';
+import { Workspace, WorkspaceMember, WorkspaceSettings } from '../entities/workspace';
 import { Project } from '../entities/project';
 import { WorkspaceId, UserId } from '../value-objects';
+import { WorkspacePlan } from '../value-objects/workspace-plan';
 import { DomainError } from '../../shared/errors';
 
 /**
@@ -61,12 +62,32 @@ export class WorkspaceDomainService {
     ownerId: UserId;
   }): Promise<Workspace> {
     const workspaceId = WorkspaceId.generate();
+    const slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const plan = WorkspacePlan.free();
+    const settings: WorkspaceSettings = {
+      allowPublicProjects: false,
+      requireApprovalForMembers: true,
+      maxProjects: 10,
+      maxMembers: 5,
+      maxStorageGB: 1,
+      enableIntegrations: false,
+      enableCustomFields: false,
+      enableTimeTracking: false,
+      enableReporting: false,
+      defaultProjectVisibility: 'private',
+      allowedEmailDomains: [],
+      ssoEnabled: false,
+      customBranding: {}
+    };
     
     return new Workspace(
       workspaceId,
       data.name,
+      slug,
       data.description,
       data.ownerId,
+      plan,
+      settings,
       true
     );
   }

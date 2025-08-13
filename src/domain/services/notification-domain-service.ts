@@ -1,6 +1,5 @@
 import {
   Notification,
-  NotificationPreferences,
   NotificationType,
   NotificationChannel,
 } from '../entities/notification';
@@ -8,6 +7,7 @@ import {
   INotificationRepository,
   INotificationPreferencesRepository,
 } from '../repositories/notification-repository';
+import { UserId, WorkspaceId, ProjectId, TaskId } from '../value-objects';
 
 export class NotificationDomainService {
   constructor(
@@ -96,20 +96,39 @@ export class NotificationDomainService {
     }
 
     // Create notification
-    const notification = Notification.create({
-      userId,
-      workspaceId: options.workspaceId,
-      projectId: options.projectId,
-      taskId: options.taskId,
+    const createOptions: {
+      userId: UserId;
+      type: string;
+      title: string;
+      message: string;
+      data?: Record<string, any>;
+      workspaceId?: WorkspaceId;
+      projectId?: ProjectId;
+      taskId?: TaskId;
+      channels?: NotificationChannel[];
+    } = {
+      userId: UserId.create(userId),
       type,
       title,
       message,
-      data: options.data,
       channels,
-      scheduledFor: options.scheduledFor,
-      expiresAt: options.expiresAt,
-      maxRetries: 3,
-    });
+    };
+
+    // Only add optional properties if they have values
+    if (options.data !== undefined) {
+      createOptions.data = options.data;
+    }
+    if (options.workspaceId !== undefined) {
+      createOptions.workspaceId = WorkspaceId.create(options.workspaceId);
+    }
+    if (options.projectId !== undefined) {
+      createOptions.projectId = ProjectId.create(options.projectId);
+    }
+    if (options.taskId !== undefined) {
+      createOptions.taskId = TaskId.create(options.taskId);
+    }
+
+    const notification = Notification.create(createOptions);
 
     await this.notificationRepository.save(notification);
     return notification;
@@ -125,8 +144,8 @@ export class NotificationDomainService {
 
     for (const notification of notifications) {
       if (
-        (entityType === 'project' && notification.projectId === entityId) ||
-        (entityType === 'task' && notification.taskId === entityId)
+        (entityType === 'project' && notification.projectId && notification.projectId.value === entityId) ||
+        (entityType === 'task' && notification.taskId && notification.taskId.value === entityId)
       ) {
         if (!notification.isRead()) {
           notification.markAsRead();
@@ -149,7 +168,7 @@ export class NotificationDomainService {
       ? await this.notificationRepository.findByWorkspaceId(workspaceId)
       : await this.notificationRepository.findByUserId(userId);
 
-    const userNotifications = notifications.filter(n => n.userId === userId);
+    const userNotifications = notifications.filter(n => n.userId.value === userId);
     const unreadNotifications = userNotifications.filter(n => !n.isRead());
 
     const byType: Record<NotificationType, number> = {} as any;
@@ -175,7 +194,7 @@ export class NotificationDomainService {
     let deletedCount = 0;
 
     for (const notification of expiredNotifications) {
-      await this.notificationRepository.delete(notification.id);
+      await this.notificationRepository.delete(notification.id.value);
       deletedCount++;
     }
 

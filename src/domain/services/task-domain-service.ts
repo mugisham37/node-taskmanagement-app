@@ -130,6 +130,7 @@ export class TaskDomainService {
   ): Promise<void> {
     // This would typically involve aggregate operations
     // For now, we'll assume this is handled at the aggregate level
+    console.log(`Adding dependency: ${taskId.value} depends on ${dependsOnTaskId.value}`);
   }
 
   /**
@@ -141,6 +142,7 @@ export class TaskDomainService {
   ): Promise<void> {
     // This would typically involve aggregate operations
     // For now, we'll assume this is handled at the aggregate level
+    console.log(`Removing dependency: ${taskId.value} no longer depends on ${dependsOnTaskId.value}`);
   }
 
   /**
@@ -213,9 +215,9 @@ export class TaskDomainService {
     const incompleteDependencies: TaskId[] = [];
 
     for (const dependency of dependencies) {
-      const dependencyTask = allTasks.get(dependency.dependsOnId.toString());
+      const dependencyTask = allTasks.get(dependency.dependsOnTaskId.toString());
       if (!dependencyTask || !dependencyTask.isCompleted()) {
-        incompleteDependencies.push(dependency.dependsOnId);
+        incompleteDependencies.push(dependency.dependsOnTaskId);
       }
     }
 
@@ -344,7 +346,7 @@ export class TaskDomainService {
     // Check if dependency already exists
     const taskDependencies = existingDependencies.get(taskId.toString()) || [];
     const dependencyExists = taskDependencies.some(dep =>
-      dep.dependsOnId.equals(dependsOnId)
+      dep.dependsOnTaskId.equals(dependsOnId)
     );
 
     if (dependencyExists) {
@@ -396,7 +398,7 @@ export class TaskDomainService {
     let latestDependencyCompletion = new Date();
 
     for (const dependency of dependencies) {
-      const dependencyTask = allTasks.get(dependency.dependsOnId.toString());
+      const dependencyTask = allTasks.get(dependency.dependsOnTaskId.toString());
       if (dependencyTask) {
         const dependencyCompletion = this.calculateEstimatedCompletionDate(
           dependencyTask,
@@ -516,7 +518,7 @@ export class TaskDomainService {
     for (const dependency of taskDependencies) {
       if (
         this.hasTransitiveDependency(
-          dependency.dependsOnId,
+          dependency.dependsOnTaskId,
           taskB,
           dependencies,
           visited

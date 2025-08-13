@@ -1,5 +1,6 @@
 import {
   CalendarEvent,
+  AttendeeStatus,
 } from '../entities/calendar-event';
 import { CalendarEventId } from '../value-objects/calendar-event-id';
 import { UserId } from '../value-objects/user-id';
@@ -68,4 +69,30 @@ export interface ICalendarEventRepository {
   ): Promise<CalendarEvent[]>;
   findRecurring(userId: string): Promise<CalendarEvent[]>;
   delete(id: CalendarEventId): Promise<void>;
+
+  // Additional methods required by domain service
+  findConflicts(
+    userId: UserId,
+    startDate: Date,
+    endDate: Date,
+    excludeEventId?: CalendarEventId
+  ): Promise<CalendarEvent[]>;
+  findByAttendee(
+    userId: UserId,
+    status?: AttendeeStatus
+  ): Promise<CalendarEvent[]>;
+  findWithReminders(
+    beforeDate: Date,
+    limit?: number
+  ): Promise<CalendarEvent[]>;
+  getEventStats(
+    userId: UserId,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<{
+    total: number;
+    completed: number;
+    upcoming: number;
+    overdue: number;
+  }>;
 }

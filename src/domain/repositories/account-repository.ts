@@ -1,4 +1,4 @@
-import { Account, AccountType, OAuthProvider } from '../entities/account';
+import { Account, AccountType} from '../entities/account';
 
 export interface IAccountRepository {
   save(account: Account): Promise<void>;

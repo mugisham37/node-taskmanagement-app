@@ -7,6 +7,16 @@ import {
 } from '../value-objects';
 
 /**
+ * Task Dependency Interface
+ */
+export interface TaskDependency {
+  taskId: TaskId;
+  dependsOnTaskId: TaskId;
+  dependencyType: 'FINISH_TO_START' | 'START_TO_START' | 'FINISH_TO_FINISH' | 'START_TO_FINISH';
+  createdAt: Date;
+}
+
+/**
  * Task Aggregate Props interface
  */
 export interface TaskAggregateProps extends AggregateProps {

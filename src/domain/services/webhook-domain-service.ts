@@ -8,6 +8,7 @@ import {
   IWebhookRepository,
   IWebhookDeliveryRepository,
 } from '../repositories/webhook-repository';
+import { WorkspaceId, WebhookId } from '../value-objects';
 
 export class WebhookDomainService {
   constructor(
@@ -58,6 +59,8 @@ export class WebhookDomainService {
       maxFailures: options.maxFailures || 5,
       timeout: options.timeout || 30000,
       maxRetries: options.maxRetries || 3,
+      retryCount: 0,
+      failureCount: 0,
       headers: options.headers || {},
       metadata: options.metadata || {},
     });
@@ -74,9 +77,9 @@ export class WebhookDomainService {
     // Find all active webhooks that support this event
     const webhooks = await this.webhookRepository.findByEvent(
       event,
-      workspaceId
+      WorkspaceId.create(workspaceId)
     );
-    const activeWebhooks = webhooks.filter(w => w.canTrigger());
+    const activeWebhooks = webhooks.filter(w => w.canTrigger(event));
 
     const deliveries: WebhookDelivery[] = [];
 
@@ -90,7 +93,7 @@ export class WebhookDomainService {
           timestamp: new Date().toISOString(),
           workspaceId,
         },
-        status: 'pending' as any,
+        attempt: 1,
         maxAttempts: webhook.maxRetries,
       });
 
@@ -112,13 +115,13 @@ export class WebhookDomainService {
       throw new Error('Webhook delivery not found');
     }
 
-    const webhook = await this.webhookRepository.findById(delivery.webhookId);
+    const webhook = await this.webhookRepository.findById(WebhookId.create(delivery.webhookId));
     if (!webhook) {
       throw new Error('Webhook not found');
     }
 
-    if (!webhook.canTrigger()) {
-      delivery.markAsFailed(undefined, 'Webhook is not active or suspended');
+    if (!webhook.canTrigger(delivery.event)) {
+      delivery.markAsFailed('Webhook is not active or suspended');
       await this.deliveryRepository.save(delivery);
       return { success: false, errorMessage: 'Webhook is not active' };
     }
@@ -129,20 +132,19 @@ export class WebhookDomainService {
       const result = await this.makeHttpRequest(webhook, delivery);
 
       if (result.success) {
-        delivery.markAsSuccess(result.httpStatus!, result.responseBody);
-        webhook.recordSuccess();
-      } else {
-        delivery.markAsFailed(
+                delivery.markAsSuccess(
           result.httpStatus,
-          result.errorMessage,
           result.responseBody
         );
+        webhook.recordSuccess();
+      } else {
+        delivery.markAsFailed(result.errorMessage);
         webhook.recordFailure();
 
         // Schedule retry if possible
         if (delivery.canRetry()) {
           const retryDelay = this.calculateRetryDelay(delivery.attemptCount);
-          delivery.scheduleRetry(retryDelay);
+          delivery.scheduleRetry(new Date(Date.now() + retryDelay));
         }
       }
 
@@ -154,12 +156,12 @@ export class WebhookDomainService {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
 
-      delivery.markAsFailed(undefined, errorMessage);
+      delivery.markAsFailed(errorMessage);
       webhook.recordFailure();
 
       if (delivery.canRetry()) {
         const retryDelay = this.calculateRetryDelay(delivery.attemptCount);
-        delivery.scheduleRetry(retryDelay);
+        delivery.scheduleRetry(new Date(Date.now() + retryDelay));
       }
 
       await this.deliveryRepository.save(delivery);
@@ -170,8 +172,8 @@ export class WebhookDomainService {
   }
 
   private async makeHttpRequest(
-    webhook: Webhook,
-    delivery: WebhookDelivery
+    _webhook: Webhook,
+    _delivery: WebhookDelivery
   ): Promise<{
     success: boolean;
     httpStatus?: number;
@@ -208,9 +210,9 @@ export class WebhookDomainService {
     }
   }
 
-  private calculateRetryDelay(attemptCount: number): number {
+  private calculateRetryDelay(_attemptCount: number): number {
     // Exponential backoff: 1min, 2min, 4min, 8min, etc.
-    return Math.min(60000 * Math.pow(2, attemptCount - 1), 30 * 60000); // Max 30 minutes
+    return Math.min(60000 * Math.pow(2, _attemptCount - 1), 30 * 60000); // Max 30 minutes
   }
 
   async processRetries(): Promise<number> {
@@ -235,7 +237,7 @@ export class WebhookDomainService {
       averageAttempts: number;
     };
   }> {
-    const webhook = await this.webhookRepository.findById(webhookId);
+    const webhook = await this.webhookRepository.findById(WebhookId.create(webhookId));
     if (!webhook) {
       throw new Error('Webhook not found');
     }
@@ -251,7 +253,11 @@ export class WebhookDomainService {
       webhook,
       health,
       recentDeliveries,
-      stats,
+      stats: {
+        totalDeliveries: stats.total,
+        successRate: stats.successRate,
+        averageAttempts: stats.averageAttempts,
+      },
     };
   }
 
@@ -276,7 +282,7 @@ export class WebhookDomainService {
     responseTime?: number;
     errorMessage?: string;
   }> {
-    const webhook = await this.webhookRepository.findById(webhookId);
+    const webhook = await this.webhookRepository.findById(WebhookId.create(webhookId));
     if (!webhook) {
       throw new Error('Webhook not found');
     }
@@ -292,7 +298,7 @@ export class WebhookDomainService {
       webhookId: webhook.id,
       event: 'webhook.test' as WebhookEvent,
       payload: testPayload,
-      status: 'pending' as any,
+      attempt: 1,
       maxAttempts: 1,
     });
 
@@ -321,7 +327,7 @@ export class WebhookDomainService {
     successRate: number;
     topEvents: Array<{ event: WebhookEvent; count: number }>;
   }> {
-    const stats = await this.webhookRepository.getWebhookStats(workspaceId);
+    const stats = await this.webhookRepository.getWebhookStats(WorkspaceId.create(workspaceId));
     const deliveryStats = await this.deliveryRepository.getDeliveryStats();
 
     const topEvents = Object.entries(deliveryStats.byEvent)

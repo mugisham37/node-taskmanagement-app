@@ -43,32 +43,46 @@ export interface CalendarEventReminder {
 export interface CalendarEventProps {
   title: string;
   description?: string | undefined;
+  type: EventType;
+  startDate: Date;
   startTime: Date;
+  endDate?: Date | undefined;
   endTime: Date;
+  allDay?: boolean;
+  location?: string | undefined;
+  url?: string | undefined;
+  color?: string | undefined;
+  userId: string;
+  workspaceId?: string | undefined;
   projectId?: string | undefined;
   createdBy: string;
   attendees: CalendarEventAttendee[];
-  location?: string | undefined;
   isAllDay: boolean;
   recurrenceRule?: string | undefined;
   reminders: CalendarEventReminder[];
   visibility: string;
+  metadata?: Record<string, any>;
 }
 
 export class CalendarEvent extends BaseEntity<CalendarEventId> {
   private _title: string;
   private _description?: string | undefined;
+  private _type: EventType;
   private _startTime: Date;
   private _endTime: Date;
   private _projectId?: ProjectId | undefined;
+  private _workspaceId?: string | undefined;
   private _createdBy: UserId;
   private _attendees: CalendarEventAttendee[];
   private _location?: string | undefined;
+  private _url?: string | undefined;
+  private _color?: string | undefined;
   private _allDay: boolean;
   private _recurrenceRule?: RecurrenceRule | undefined;
   private _reminders: CalendarEventReminder[];
   private _visibility: string;
   private _status: CalendarEventStatus;
+  private _metadata?: Record<string, any>;
 
   constructor(
     id: CalendarEventId,
@@ -79,35 +93,50 @@ export class CalendarEvent extends BaseEntity<CalendarEventId> {
     super(id, createdAt, updatedAt);
     this._title = props.title;
     this._description = props.description;
-    this._startTime = props.startTime;
-    this._endTime = props.endTime;
+    this._type = props.type;
+    this._startTime = props.startTime || props.startDate;
+    this._endTime = props.endTime || props.endDate || props.startDate;
     this._projectId = props.projectId ? new ProjectId(props.projectId) : undefined;
+    this._workspaceId = props.workspaceId;
     this._createdBy = new UserId(props.createdBy);
     this._attendees = props.attendees || [];
     this._location = props.location;
-    this._allDay = props.isAllDay;
+    this._url = props.url;
+    this._color = props.color;
+    this._allDay = props.isAllDay || props.allDay || false;
     this._recurrenceRule = props.recurrenceRule ? RecurrenceRule.create(JSON.parse(props.recurrenceRule)) : undefined;
     this._reminders = props.reminders || [];
     this._visibility = props.visibility;
     this._status = CalendarEventStatus.ACTIVE;
+    if (props.metadata) {
+      this._metadata = props.metadata;
+    }
     this.validate();
   }
 
   // Getters
   get title(): string { return this._title; }
   get description(): string | undefined { return this._description; }
+  get type(): EventType { return this._type; }
   get startTime(): Date { return this._startTime; }
   get endTime(): Date { return this._endTime; }
+  get startDate(): Date { return this._startTime; } // Alias for compatibility
+  get endDate(): Date { return this._endTime; } // Alias for compatibility
   get projectId(): ProjectId | undefined { return this._projectId; }
+  get workspaceId(): string | undefined { return this._workspaceId; }
   get createdBy(): UserId { return this._createdBy; }
+  get userId(): string { return this._createdBy.value; } // Alias for compatibility
   get attendees(): CalendarEventAttendee[] { return this._attendees; }
   get location(): string | undefined { return this._location; }
+  get url(): string | undefined { return this._url; }
+  get color(): string | undefined { return this._color; }
   get allDay(): boolean { return this._allDay; }
   get isAllDay(): boolean { return this._allDay; }
   get recurrenceRule(): RecurrenceRule | undefined { return this._recurrenceRule; }
   get reminders(): CalendarEventReminder[] { return this._reminders; }
   get visibility(): string { return this._visibility; }
   get status(): CalendarEventStatus { return this._status; }
+  get metadata(): Record<string, any> | undefined { return this._metadata; }
 
   protected validate(): void {
     if (!this._title || this._title.trim().length === 0) {
@@ -205,6 +234,53 @@ export class CalendarEvent extends BaseEntity<CalendarEventId> {
   cancel(): void {
     this._status = CalendarEventStatus.CANCELLED;
     this.markAsUpdated();
+  }
+
+  // Additional methods required by domain service
+  update(updates: Partial<CalendarEventProps>): void {
+    if (updates.title !== undefined) {
+      this.updateTitle(updates.title);
+    }
+    if (updates.description !== undefined) {
+      this.updateDescription(updates.description);
+    }
+    if (updates.startTime || updates.endTime) {
+      const startTime = updates.startTime || this._startTime;
+      const endTime = updates.endTime || this._endTime;
+      this.updateTimeRange(startTime, endTime);
+    }
+    if (updates.location !== undefined) {
+      this.updateLocation(updates.location);
+    }
+    if (updates.isAllDay !== undefined) {
+      this.updateAllDay(updates.isAllDay);
+    }
+    if (updates.visibility !== undefined) {
+      this.updateVisibility(updates.visibility);
+    }
+  }
+
+  updateAttendeeStatus(userId: string, status: AttendeeStatus): void {
+    const attendee = this._attendees.find(a => a.userId === userId);
+    if (!attendee) {
+      throw new DomainError('User is not an attendee');
+    }
+    attendee.status = status;
+    this.markAsUpdated();
+  }
+
+  markReminderSent(reminderId: string): void {
+    const reminder = this._reminders.find(r => r.id === reminderId);
+    if (!reminder) {
+      throw new DomainError('Reminder not found');
+    }
+    reminder.sent = true;
+    reminder.sentAt = new Date();
+    this.markAsUpdated();
+  }
+
+  getDuration(): number {
+    return this._endTime.getTime() - this._startTime.getTime();
   }
 
   static create(props: CalendarEventProps): CalendarEvent {

@@ -2,8 +2,10 @@ import {
   CalendarEvent,
   EventType,
   AttendeeStatus,
+  CalendarEventProps,
 } from '../entities/calendar-event';
 import { ICalendarEventRepository } from '../repositories/calendar-event-repository';
+import { UserId, CalendarEventId } from '../value-objects';
 
 export class CalendarDomainService {
   constructor(
@@ -17,10 +19,10 @@ export class CalendarDomainService {
     excludeEventId?: string
   ): Promise<CalendarEvent[]> {
     return this.calendarEventRepository.findConflicts(
-      userId,
+      UserId.create(userId),
       startDate,
       endDate,
-      excludeEventId
+      excludeEventId ? CalendarEventId.create(excludeEventId) : undefined
     );
   }
 
@@ -75,7 +77,30 @@ export class CalendarDomainService {
     }
 
     // Create the event
-    const event = CalendarEvent.create(eventData);
+    const calendarEventProps: CalendarEventProps = {
+      title: eventData.title,
+      description: eventData.description,
+      type: eventData.type,
+      startDate: eventData.startDate,
+      startTime: eventData.startDate,
+      endDate: eventData.endDate,
+      endTime: eventData.endDate || eventData.startDate,
+      allDay: eventData.allDay || false,
+      location: eventData.location,
+      url: eventData.url,
+      color: eventData.color,
+      userId: eventData.userId,
+      workspaceId: eventData.workspaceId,
+      projectId: eventData.projectId,
+      createdBy: eventData.userId,
+      attendees: [],
+      isAllDay: eventData.allDay || false,
+      recurrenceRule: eventData.recurrenceRule,
+      reminders: [],
+      visibility: 'private',
+      ...(eventData.metadata && { metadata: eventData.metadata })
+    };
+    const event = CalendarEvent.create(calendarEventProps);
     await this.calendarEventRepository.save(event);
 
     return { event, conflicts };
@@ -83,8 +108,7 @@ export class CalendarDomainService {
 
   async getUpcomingEvents(
     userId: string,
-    days: number = 7,
-    limit: number = 50
+    days: number = 7
   ): Promise<CalendarEvent[]> {
     const startDate = new Date();
     const endDate = new Date();
@@ -93,7 +117,7 @@ export class CalendarDomainService {
     return this.calendarEventRepository.findByDateRange(
       startDate,
       endDate,
-      userId
+      new UserId(userId)
     );
   }
 
@@ -127,7 +151,7 @@ export class CalendarDomainService {
     },
     allowConflicts: boolean = false
   ): Promise<{ event: CalendarEvent; conflicts: CalendarEvent[] }> {
-    const event = await this.calendarEventRepository.findById(eventId);
+    const event = await this.calendarEventRepository.findById(new CalendarEventId(eventId));
     if (!event) {
       throw new Error('Event not found');
     }
@@ -161,15 +185,14 @@ export class CalendarDomainService {
 
   async addAttendeeToEvent(
     eventId: string,
-    userId: string,
-    status: AttendeeStatus = AttendeeStatus.PENDING
+    userId: string
   ): Promise<void> {
-    const event = await this.calendarEventRepository.findById(eventId);
+    const event = await this.calendarEventRepository.findById(new CalendarEventId(eventId));
     if (!event) {
       throw new Error('Event not found');
     }
 
-    event.addAttendee(userId, status);
+    event.addAttendee(new UserId(userId));
     await this.calendarEventRepository.save(event);
   }
 
@@ -178,7 +201,7 @@ export class CalendarDomainService {
     userId: string,
     status: AttendeeStatus
   ): Promise<void> {
-    const event = await this.calendarEventRepository.findById(eventId);
+    const event = await this.calendarEventRepository.findById(new CalendarEventId(eventId));
     if (!event) {
       throw new Error('Event not found');
     }
@@ -191,7 +214,7 @@ export class CalendarDomainService {
     userId: string,
     status?: AttendeeStatus
   ): Promise<CalendarEvent[]> {
-    return this.calendarEventRepository.findByAttendee(userId, status);
+    return this.calendarEventRepository.findByAttendee(new UserId(userId), status);
   }
 
   async getEventsRequiringReminders(
@@ -204,7 +227,7 @@ export class CalendarDomainService {
   }
 
   async markReminderSent(eventId: string, reminderId: string): Promise<void> {
-    const event = await this.calendarEventRepository.findById(eventId);
+    const event = await this.calendarEventRepository.findById(new CalendarEventId(eventId));
     if (!event) {
       throw new Error('Event not found');
     }
@@ -225,38 +248,52 @@ export class CalendarDomainService {
     averageDuration: number;
     busyHours: number;
   }> {
-    const stats = await this.calendarEventRepository.getEventStats(
-      userId,
-      startDate,
-      endDate
-    );
-
     // Calculate busy hours
     const events = await this.calendarEventRepository.findByDateRange(
       startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
       endDate || new Date(),
-      userId
+      new UserId(userId)
     );
 
     const busyHours = events.reduce((total, event) => {
-      return total + event.getDuration() / 60; // Convert minutes to hours
+      return total + event.getDuration() / (1000 * 60 * 60); // Convert milliseconds to hours
     }, 0);
 
+    // Calculate statistics
+    const now = new Date();
+    const upcomingEvents = events.filter(e => e.startTime > now).length;
+    const completedEvents = events.filter(e => e.endTime < now).length;
+    
+    // Group by type
+    const byType = events.reduce((acc, event) => {
+      acc[event.type] = (acc[event.type] || 0) + 1;
+      return acc;
+    }, {} as Record<EventType, number>);
+
+    // Calculate average duration
+    const averageDuration = events.length > 0 
+      ? events.reduce((total, event) => total + event.getDuration(), 0) / events.length / (1000 * 60) // in minutes
+      : 0;
+
     return {
-      ...stats,
-      busyHours,
+      totalEvents: events.length,
+      upcomingEvents,
+      completedEvents,
+      byType,
+      averageDuration,
+      busyHours
     };
   }
 
   async deleteEventAndCleanup(eventId: string): Promise<void> {
-    const event = await this.calendarEventRepository.findById(eventId);
+    const event = await this.calendarEventRepository.findById(new CalendarEventId(eventId));
     if (!event) {
       throw new Error('Event not found');
     }
 
     // Perform any cleanup logic here (e.g., notify attendees, cancel reminders)
 
-    await this.calendarEventRepository.delete(eventId);
+    await this.calendarEventRepository.delete(new CalendarEventId(eventId));
   }
 
   async bulkUpdateEventsForProject(

@@ -1,5 +1,5 @@
 import { AuditLog, AuditAction } from '../entities/audit-log';
-import { ActivityTracking, ActivityType } from '../entities/activity-tracking';
+import { ActivityTracking, ActivityType, ActivityTrackingProps } from '../entities/activity-tracking';
 import { IAuditLogRepository } from '../repositories/audit-log-repository';
 import { IActivityTrackingRepository } from '../repositories/activity-tracking-repository';
 
@@ -70,11 +70,8 @@ export class AuditDomainService {
       duration?: number;
     }
   ): Promise<ActivityTracking> {
-    const activity = ActivityTracking.create({
+    const activityProps: Partial<Omit<ActivityTrackingProps, 'id' | 'createdAt' | 'updatedAt'>> = {
       userId,
-      workspaceId: context?.workspaceId,
-      projectId: context?.projectId,
-      taskId: context?.taskId,
       type: context?.type || ActivityType.USER_ACTION,
       action,
       description,
@@ -84,11 +81,32 @@ export class AuditDomainService {
         module: this.extractModuleFromAction(action),
         ...context?.metadata,
       },
-      ipAddress: context?.ipAddress,
-      userAgent: context?.userAgent,
-      sessionId: context?.sessionId,
-      duration: context?.duration,
-    });
+    };
+
+    // Only add optional properties if they have values
+    if (context?.workspaceId !== undefined) {
+      activityProps['workspaceId'] = context.workspaceId;
+    }
+    if (context?.projectId !== undefined) {
+      activityProps['projectId'] = context.projectId;
+    }
+    if (context?.taskId !== undefined) {
+      activityProps['taskId'] = context.taskId;
+    }
+    if (context?.ipAddress !== undefined) {
+      activityProps['ipAddress'] = context.ipAddress;
+    }
+    if (context?.userAgent !== undefined) {
+      activityProps['userAgent'] = context.userAgent;
+    }
+    if (context?.sessionId !== undefined) {
+      activityProps['sessionId'] = context.sessionId;
+    }
+    if (context?.duration !== undefined) {
+      activityProps['duration'] = context.duration;
+    }
+
+    const activity = ActivityTracking.create(activityProps as Omit<ActivityTrackingProps, 'id' | 'createdAt' | 'updatedAt'>);
 
     await this.activityTrackingRepository.save(activity);
     return activity;
@@ -261,7 +279,7 @@ export class AuditDomainService {
 
   private extractModuleFromAction(action: string): string {
     const actionParts = action.split('_');
-    return actionParts.length > 1 ? actionParts[1] : 'unknown';
+    return actionParts.length > 1 ? (actionParts[1] || 'unknown') : 'unknown';
   }
 
   private calculateRiskScore(summary: any): number {
@@ -296,10 +314,10 @@ export class AuditDomainService {
     return events.filter(event => {
       // Define suspicious patterns
       const suspiciousActions: AuditAction[] = [
-        'LOGIN',
-        'PASSWORD_CHANGE',
-        'PERMISSION_CHANGE',
-        'DELETE',
+        AuditAction.LOGIN,
+        AuditAction.PASSWORD_CHANGE,
+        AuditAction.PERMISSION_CHANGE,
+        AuditAction.DELETE,
       ];
 
       // Check for multiple failed attempts
