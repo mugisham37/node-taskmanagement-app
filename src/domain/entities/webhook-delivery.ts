@@ -62,14 +62,14 @@ export class WebhookDelivery extends BaseEntity<WebhookDeliveryId> {
   private _eventType: string;
   private _payload: Record<string, any>;
   private _status: WebhookDeliveryStatus;
-  private _httpStatus?: number;
-  private _responseBody?: string;
-  private _responseHeaders?: Record<string, string>;
-  private _errorMessage?: string;
+  private _httpStatus: number | undefined;
+  private _responseBody: string | undefined;
+  private _responseHeaders: Record<string, string> | undefined;
+  private _errorMessage: string | undefined;
   private _attempts: number;
   private _maxAttempts: number;
-  private _nextRetryAt?: Date;
-  private _deliveredAt?: Date;
+  private _nextRetryAt: Date | undefined;
+  private _deliveredAt: Date | undefined;
 
   constructor(props: WebhookDeliveryProps) {
     super(props.id, props.createdAt, props.updatedAt);

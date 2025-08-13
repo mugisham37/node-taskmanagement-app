@@ -16,7 +16,7 @@ import { TASK_VALIDATION } from '../../shared/constants/task-constants';
  */
 export class Task extends BaseEntity<TaskId> {
   private _title: string;
-  private _description: string;
+  private _description: string | undefined;
   private _status: TaskStatusVO;
   private _priority: Priority;
   private _assigneeId: UserId | null;
@@ -30,7 +30,7 @@ export class Task extends BaseEntity<TaskId> {
   constructor(
     id: TaskId,
     title: string,
-    description: string,
+    description: string | undefined,
     projectId: ProjectId,
     createdById: UserId,
     status: TaskStatusVO = TaskStatusVO.create(TaskStatus.TODO),
@@ -68,7 +68,7 @@ export class Task extends BaseEntity<TaskId> {
   /**
    * Get the task's description
    */
-  get description(): string {
+  get description(): string | undefined {
     return this._description;
   }
 
@@ -152,12 +152,16 @@ export class Task extends BaseEntity<TaskId> {
       this.validateDescription(description);
     }
 
-    if (estimatedHours !== undefined) {
+    if (estimatedHours !== undefined && estimatedHours !== null) {
       this.validateEstimatedHours(estimatedHours);
     }
 
-    this._title = title;
-    this._description = description;
+    if (title !== undefined) {
+      this._title = title;
+    }
+    if (description !== undefined) {
+      this._description = description;
+    }
     this._dueDate = dueDate ?? this._dueDate;
     this._estimatedHours = estimatedHours ?? this._estimatedHours;
 
@@ -175,6 +179,10 @@ export class Task extends BaseEntity<TaskId> {
 
     this._title = title;
     this.markAsUpdated();
+    
+    // TODO: Add audit log or domain event for updatedBy tracking
+    // This parameter is reserved for future audit trail implementation
+    void updatedBy;
   }
 
   /**
@@ -188,6 +196,9 @@ export class Task extends BaseEntity<TaskId> {
 
     this._description = description;
     this.markAsUpdated();
+    
+    // TODO: Add audit log or domain event for updatedBy tracking
+    void updatedBy;
   }
 
   /**
@@ -200,6 +211,9 @@ export class Task extends BaseEntity<TaskId> {
 
     this._dueDate = dueDate;
     this.markAsUpdated();
+    
+    // TODO: Add audit log or domain event for updatedBy tracking
+    void updatedBy;
   }
 
   /**
@@ -216,6 +230,9 @@ export class Task extends BaseEntity<TaskId> {
 
     this._estimatedHours = estimatedHours;
     this.markAsUpdated();
+    
+    // TODO: Add audit log or domain event for updatedBy tracking
+    void updatedBy;
   }
 
   /**
@@ -228,6 +245,9 @@ export class Task extends BaseEntity<TaskId> {
 
     this._priority = priority;
     this.markAsUpdated();
+    
+    // TODO: Add audit log or domain event for updatedBy tracking
+    void updatedBy;
   }
 
   /**
@@ -242,6 +262,9 @@ export class Task extends BaseEntity<TaskId> {
 
     this._status = status;
     this.markAsUpdated();
+    
+    // TODO: Add audit log or domain event for updatedBy tracking
+    void updatedBy;
   }
 
   /**
@@ -256,6 +279,9 @@ export class Task extends BaseEntity<TaskId> {
 
     this._assigneeId = assigneeId;
     this.markAsUpdated();
+    
+    // TODO: Add audit log or domain event for assignedBy tracking
+    void assignedBy;
   }
 
   /**
@@ -275,6 +301,9 @@ export class Task extends BaseEntity<TaskId> {
 
     this._assigneeId = null;
     this.markAsUpdated();
+    
+    // TODO: Add audit log or domain event for unassignedBy tracking
+    void unassignedBy;
   }
 
   /**
@@ -337,6 +366,9 @@ export class Task extends BaseEntity<TaskId> {
     this._status = TaskStatusVO.create(TaskStatus.COMPLETED);
     this._completedAt = new Date();
     this.markAsUpdated();
+    
+    // TODO: Add audit log or domain event for completedBy tracking
+    void completedBy;
   }
 
   /**
@@ -351,6 +383,10 @@ export class Task extends BaseEntity<TaskId> {
 
     this._status = TaskStatusVO.create(TaskStatus.CANCELLED);
     this.markAsUpdated();
+    
+    // TODO: Add audit log or domain event for cancelledBy and reason tracking
+    void cancelledBy;
+    void reason;
   }
 
   /**
@@ -366,6 +402,9 @@ export class Task extends BaseEntity<TaskId> {
     this._status = TaskStatusVO.create(TaskStatus.TODO);
     this._completedAt = null;
     this.markAsUpdated();
+    
+    // TODO: Add audit log or domain event for reopenedBy tracking
+    void reopenedBy;
   }
 
   /**
@@ -436,7 +475,9 @@ export class Task extends BaseEntity<TaskId> {
    */
   protected validate(): void {
     this.validateTitle(this._title);
-    this.validateDescription(this._description);
+    if (this._description !== undefined) {
+      this.validateDescription(this._description);
+    }
 
     if (this._estimatedHours !== null) {
       this.validateEstimatedHours(this._estimatedHours);
@@ -528,9 +569,30 @@ export class Task extends BaseEntity<TaskId> {
   }
 
   /**
+   * Get validation errors for the task
+   */
+  getValidationErrors(): string[] {
+    const errors: string[] = [];
+    
+    try {
+      this.validate();
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        errors.push(error.message);
+      } else if (error instanceof DomainError) {
+        errors.push(error.message);
+      } else if (error instanceof Error) {
+        errors.push(error.message);
+      }
+    }
+    
+    return errors;
+  }
+
+  /**
    * Mark the entity as updated
    */
-  private markAsUpdated(): void {
+  protected override markAsUpdated(): void {
     this._updatedAt = new Date();
   }
 }

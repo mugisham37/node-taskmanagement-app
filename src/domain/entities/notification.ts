@@ -39,23 +39,23 @@ export enum NotificationStatus {
 
 export class Notification extends BaseEntity<NotificationId> {
   private _userId: UserId;
-  private _workspaceId?: WorkspaceId;
-  private _projectId?: ProjectId;
-  private _taskId?: TaskId;
+  private _workspaceId: WorkspaceId | undefined;
+  private _projectId: ProjectId | undefined;
+  private _taskId: TaskId | undefined;
   private _type: NotificationType;
   private _title: string;
   private _message: string;
-  private _data?: Record<string, any>;
+  private _data: Record<string, any> | undefined;
   private _channels: NotificationChannel[];
   private _status: NotificationStatus;
   private _readAt?: Date;
   private _sentAt?: Date;
-  private _deliveredAt?: Date;
+  private _deliveredAt: Date | undefined;
   private _failureReason?: string;
   private _retryCount: number;
   private _maxRetries: number;
-  private _scheduledFor?: Date;
-  private _expiresAt?: Date;
+  private _scheduledFor: Date | undefined;
+  private _expiresAt: Date | undefined;
 
   constructor(
     id: NotificationId,
@@ -350,7 +350,7 @@ export interface TypePreference {
 
 export class NotificationPreferences extends BaseEntity<NotificationId> {
   private _userId: UserId;
-  private _workspaceId?: WorkspaceId;
+  private _workspaceId: WorkspaceId | undefined;
   private _emailEnabled: boolean;
   private _pushEnabled: boolean;
   private _inAppEnabled: boolean;

@@ -17,3 +17,4 @@ export { NotificationId } from './notification-id';
 export { CalendarEventId } from './calendar-event-id';
 export { AuditLogId } from './audit-log-id';
 export { RecurrenceRule } from './recurrence-rule';
+export { MetricsId } from './metrics-id';

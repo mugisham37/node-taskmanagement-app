@@ -11,9 +11,25 @@ export enum CalendarEventStatus {
   DRAFT = 'draft'
 }
 
+export enum EventType {
+  MEETING = 'meeting',
+  TASK_DEADLINE = 'task_deadline',
+  PROJECT_MILESTONE = 'project_milestone',
+  REMINDER = 'reminder',
+  PERSONAL = 'personal',
+  TEAM_EVENT = 'team_event'
+}
+
+export enum AttendeeStatus {
+  PENDING = 'pending',
+  ACCEPTED = 'accepted',
+  DECLINED = 'declined',
+  TENTATIVE = 'tentative'
+}
+
 export interface CalendarEventAttendee {
   userId: string;
-  status: 'pending' | 'accepted' | 'declined' | 'tentative';
+  status: AttendeeStatus;
 }
 
 export interface CalendarEventReminder {
@@ -171,7 +187,7 @@ export class CalendarEvent extends BaseEntity<CalendarEventId> {
     
     this._attendees.push({
       userId: userId.value,
-      status: 'pending'
+      status: AttendeeStatus.PENDING
     });
     this.markAsUpdated();
   }
