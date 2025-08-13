@@ -999,6 +999,105 @@ export class AuthApplicationService extends BaseApplicationService {
     return local.slice(0, 2) + '*'.repeat(local.length - 2) + '@' + domain;
   }
 
+  /**
+   * Get user profile
+   */
+  async getProfile(userId: string): Promise<UserDto> {
+    return await this.executeWithMonitoring('getProfile', async () => {
+      const userIdObj = new UserId(userId);
+      const user = await this.userRepository.findById(userIdObj);
+      if (!user) {
+        throw new Error('User not found');
+      }
+      return this.mapUserToDto(user);
+    });
+  }
+
+  /**
+   * Update user profile
+   */
+  async updateProfile(userId: string, updateData: Partial<UserDto>): Promise<UserDto> {
+    return await this.executeWithMonitoring('updateProfile', async () => {
+      const userIdObj = new UserId(userId);
+      const user = await this.userRepository.findById(userIdObj);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Update user profile
+      const newName = `${updateData.firstName || user.firstName} ${updateData.lastName || user.lastName}`.trim();
+      const newEmail = updateData.email ? new Email(updateData.email) : undefined;
+      
+      user.updateProfile(newName, newEmail);
+
+      await this.userRepository.save(user);
+      return this.mapUserToDto(user);
+    });
+  }
+
+  /**
+   * Change user password
+   */
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+    return await this.executeWithMonitoring('changePassword', async () => {
+      const userIdObj = new UserId(userId);
+      const user = await this.userRepository.findById(userIdObj);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Verify current password
+      const isCurrentPasswordValid = await this.passwordService.verify(
+        currentPassword,
+        user.passwordHash
+      );
+      if (!isCurrentPasswordValid) {
+        throw new Error('Current password is incorrect');
+      }
+
+      // Hash new password and update
+      const newPasswordHash = await this.passwordService.hash(newPassword);
+      user.updatePassword(newPasswordHash);
+
+      await this.userRepository.save(user);
+    });
+  }
+
+  /**
+   * Deactivate user account
+   */
+  async deactivateAccount(userId: string): Promise<void> {
+    return await this.executeWithMonitoring('deactivateAccount', async () => {
+      const userIdObj = new UserId(userId);
+      const user = await this.userRepository.findById(userIdObj);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      user.deactivate();
+      await this.userRepository.save(user);
+
+      // Invalidate all sessions
+      await this.logoutAll(userIdObj);
+    });
+  }
+
+  /**
+   * Activate user account
+   */
+  async activateAccount(userId: string): Promise<void> {
+    return await this.executeWithMonitoring('activateAccount', async () => {
+      const userIdObj = new UserId(userId);
+      const user = await this.userRepository.findById(userIdObj);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      user.activate();
+      await this.userRepository.save(user);
+    });
+  }
+
   private mapUserToDto(user: User): UserDto {
     return {
       id: user.id.value,

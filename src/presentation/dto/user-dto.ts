@@ -2,7 +2,6 @@ import { z } from 'zod';
 import {
   BaseDto,
   BaseQuerySchema,
-  IdSchema,
   EmailSchema,
   PasswordSchema,
   NameSchema,
@@ -11,19 +10,22 @@ import {
 // User DTOs
 export interface UserResponseDto extends BaseDto {
   email: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   isActive: boolean;
   lastLoginAt: Date | null;
 }
 
 export interface CreateUserRequestDto {
   email: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   password: string;
 }
 
 export interface UpdateUserRequestDto {
-  name?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
 }
 
@@ -48,16 +50,25 @@ export interface ChangePasswordRequestDto {
   newPassword: string;
 }
 
+export interface RegisterRequestDto {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+}
+
 // Validation schemas
 export const CreateUserSchema = z.object({
   email: EmailSchema,
-  name: NameSchema,
+  firstName: NameSchema,
+  lastName: NameSchema,
   password: PasswordSchema,
 });
 
 export const UpdateUserSchema = z
   .object({
-    name: NameSchema.optional(),
+    firstName: NameSchema.optional(),
+    lastName: NameSchema.optional(),
     email: EmailSchema.optional(),
   })
   .refine(data => Object.keys(data).length > 0, {
@@ -78,6 +89,13 @@ export const ChangePasswordSchema = z.object({
   newPassword: PasswordSchema,
 });
 
+export const RegisterSchema = z.object({
+  email: EmailSchema,
+  password: PasswordSchema,
+  firstName: NameSchema,
+  lastName: NameSchema,
+});
+
 export const UserQuerySchema = BaseQuerySchema.extend({
   search: z.string().optional(),
   isActive: z.coerce.boolean().optional(),
@@ -89,4 +107,5 @@ export type UpdateUserRequest = z.infer<typeof UpdateUserSchema>;
 export type LoginRequest = z.infer<typeof LoginSchema>;
 export type RefreshTokenRequest = z.infer<typeof RefreshTokenSchema>;
 export type ChangePasswordRequest = z.infer<typeof ChangePasswordSchema>;
+export type RegisterRequest = z.infer<typeof RegisterSchema>;
 export type UserQuery = z.infer<typeof UserQuerySchema>;

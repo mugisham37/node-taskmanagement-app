@@ -71,14 +71,14 @@ export class FileManagementController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
+      this.getUserId(request); // TODO: Use userId when implementing service
       const query = this.validateQuery(request.query, FileQuerySchema);
 
       // TODO: Implement file management service integration
-      const files = [];
+      const files: any[] = [];
       const total = 0;
 
-      await this.sendPaginated(reply, files, total, query.page, query.limit);
+      await this.sendPaginated(reply, files, total, query.page!, query.limit!);
     });
   };
 
@@ -197,8 +197,8 @@ export class FileManagementController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
-      const { id } = this.validateParams(request.params, ParamsSchema);
+      this.getUserId(request); // TODO: Use userId when implementing service
+      this.validateParams(request.params, ParamsSchema); // TODO: Use id when implementing service
 
       // TODO: Implement file deletion service
 
@@ -216,8 +216,8 @@ export class FileManagementController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
-      const { id } = this.validateParams(request.params, ParamsSchema);
+      this.getUserId(request); // TODO: Use userId when implementing service
+      this.validateParams(request.params, ParamsSchema); // TODO: Use id when implementing service
 
       // TODO: Implement file download service
       // This should stream the file content
@@ -240,14 +240,14 @@ export class FileManagementController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
-      const { id } = this.validateParams(request.params, ParamsSchema);
-      const query = this.validateQuery(
+      this.getUserId(request); // TODO: Use userId when implementing service
+      this.validateParams(request.params, ParamsSchema); // TODO: Use id when implementing service
+      this.validateQuery(
         request.query,
         z.object({
           size: z.enum(['small', 'medium', 'large']).default('medium'),
         })
-      );
+      ); // TODO: Use query when implementing service
 
       // TODO: Implement thumbnail generation service
 
@@ -332,8 +332,8 @@ export class FileManagementController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
-      const { folderId } = this.validateParams(request.params, ParamsSchema);
+      this.getUserId(request); // TODO: Use userId when implementing service
+      this.validateParams(request.params, ParamsSchema); // TODO: Use folderId when implementing service
 
       // TODO: Implement folder deletion service
 
@@ -384,11 +384,11 @@ export class FileManagementController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
-      const { id } = this.validateParams(request.params, ParamsSchema);
+      this.getUserId(request); // TODO: Use userId when implementing service
+      this.validateParams(request.params, ParamsSchema); // TODO: Use id when implementing service
 
       // TODO: Implement file shares service
-      const shares = [];
+      const shares: any[] = [];
 
       return {
         success: true,
@@ -408,8 +408,8 @@ export class FileManagementController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
-      const { id, shareId } = this.validateParams(request.params, ParamsSchema);
+      this.getUserId(request); // TODO: Use userId when implementing service
+      this.validateParams(request.params, ParamsSchema); // TODO: Use id, shareId when implementing service
 
       // TODO: Implement share revocation service
 
@@ -427,11 +427,11 @@ export class FileManagementController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
-      const { id } = this.validateParams(request.params, ParamsSchema);
+      this.getUserId(request); // TODO: Use userId when implementing service
+      this.validateParams(request.params, ParamsSchema); // TODO: Use id when implementing service
 
       // TODO: Implement file versioning service
-      const versions = [];
+      const versions: any[] = [];
 
       return {
         success: true,
@@ -484,7 +484,7 @@ export class FileManagementController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
+      this.getUserId(request); // TODO: Use userId when implementing service
 
       // TODO: Implement storage statistics service
       const stats = {
@@ -516,7 +516,7 @@ export class FileManagementController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
+      this.getUserId(request); // TODO: Use userId when implementing service
       const query = this.validateQuery(
         request.query,
         z.object({
@@ -531,10 +531,10 @@ export class FileManagementController extends BaseController {
       );
 
       // TODO: Implement file search service
-      const files = [];
+      const files: any[] = [];
       const total = 0;
 
-      await this.sendPaginated(reply, files, total, query.page, query.limit);
+      await this.sendPaginated(reply, files, total, query.page!, query.limit!);
     });
   };
 }

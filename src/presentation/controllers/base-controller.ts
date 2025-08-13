@@ -32,13 +32,12 @@ export abstract class BaseController {
       return schema.parse(body);
     } catch (error) {
       if (error instanceof ZodError) {
-        throw new ValidationError('Validation failed', {
-          validationErrors: error.errors.map(err => ({
-            field: err.path.join('.'),
-            message: err.message,
-            value: err.input,
-          })),
-        });
+        const validationErrors = error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message,
+          value: (err as any).received,
+        }));
+        throw new ValidationError(validationErrors, 'Validation failed');
       }
       throw error;
     }
@@ -49,13 +48,12 @@ export abstract class BaseController {
       return schema.parse(query);
     } catch (error) {
       if (error instanceof ZodError) {
-        throw new ValidationError('Query validation failed', {
-          validationErrors: error.errors.map(err => ({
-            field: err.path.join('.'),
-            message: err.message,
-            value: err.input,
-          })),
-        });
+        const validationErrors = error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message,
+          value: (err as any).received,
+        }));
+        throw new ValidationError(validationErrors, 'Query validation failed');
       }
       throw error;
     }
@@ -66,13 +64,12 @@ export abstract class BaseController {
       return schema.parse(params);
     } catch (error) {
       if (error instanceof ZodError) {
-        throw new ValidationError('Parameter validation failed', {
-          validationErrors: error.errors.map(err => ({
-            field: err.path.join('.'),
-            message: err.message,
-            value: err.input,
-          })),
-        });
+        const validationErrors = error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message,
+          value: (err as any).received,
+        }));
+        throw new ValidationError(validationErrors, 'Parameter validation failed');
       }
       throw error;
     }
@@ -165,10 +162,10 @@ export abstract class BaseController {
       error: {
         code: 'VALIDATION_ERROR',
         message: error.message,
-        details: error.details,
+        details: error.context,
         timestamp: new Date().toISOString(),
         path,
-        validationErrors: error.details?.validationErrors || [],
+        validationErrors: error.errors,
       },
     };
     await reply.status(400).send(response);
@@ -183,7 +180,7 @@ export abstract class BaseController {
       error: {
         code: 'NOT_FOUND',
         message: error.message,
-        details: error.details,
+        details: error.context,
         timestamp: new Date().toISOString(),
         path,
       },
@@ -200,7 +197,7 @@ export abstract class BaseController {
       error: {
         code: 'AUTHORIZATION_ERROR',
         message: error.message,
-        details: error.details,
+        details: error.context,
         timestamp: new Date().toISOString(),
         path,
       },
@@ -215,9 +212,9 @@ export abstract class BaseController {
   ): Promise<void> {
     const response: ErrorResponseDto = {
       error: {
-        code: error.code || 'APP_ERROR',
+        code: error.errorCode || 'APP_ERROR',
         message: error.message,
-        details: error.details,
+        details: error.context,
         timestamp: new Date().toISOString(),
         path,
       },
@@ -227,7 +224,7 @@ export abstract class BaseController {
 
   private async sendInternalError(
     reply: FastifyReply,
-    error: Error,
+    _error: Error,
     path: string
   ): Promise<void> {
     const response: ErrorResponseDto = {

@@ -34,8 +34,8 @@ export class AnalyticsController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
-      const query = this.validateQuery(request.query, AnalyticsQuerySchema);
+      this.getUserId(request); // TODO: Use userId when implementing service
+      this.validateQuery(request.query, AnalyticsQuerySchema); // TODO: Use query when implementing service
 
       // TODO: Implement analytics service integration
       const analytics = {
@@ -70,8 +70,8 @@ export class AnalyticsController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
-      const query = this.validateQuery(request.query, AnalyticsQuerySchema);
+      this.getUserId(request); // TODO: Use userId when implementing service
+      this.validateQuery(request.query, AnalyticsQuerySchema); // TODO: Use query when implementing service
 
       // TODO: Implement analytics service integration
       const analytics = {
@@ -103,8 +103,8 @@ export class AnalyticsController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
-      const query = this.validateQuery(request.query, AnalyticsQuerySchema);
+      this.getUserId(request); // TODO: Use userId when implementing service
+      this.validateQuery(request.query, AnalyticsQuerySchema); // TODO: Use query when implementing service
 
       // TODO: Implement analytics service integration
       const analytics = {
@@ -137,8 +137,8 @@ export class AnalyticsController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
-      const query = this.validateQuery(request.query, DashboardQuerySchema);
+      this.getUserId(request); // TODO: Use userId when implementing service
+      this.validateQuery(request.query, DashboardQuerySchema); // TODO: Use query when implementing service
 
       // TODO: Implement analytics service integration
       const analytics = {
@@ -190,8 +190,8 @@ export class AnalyticsController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
-      const query = this.validateQuery(request.query, AnalyticsQuerySchema);
+      this.getUserId(request); // TODO: Use userId when implementing service
+      this.validateQuery(request.query, AnalyticsQuerySchema); // TODO: Use query when implementing service
 
       // TODO: Implement analytics service integration
       const analytics = {
@@ -224,15 +224,15 @@ export class AnalyticsController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const userId = this.getUserId(request);
-      const exportRequest = this.validateBody(
+      this.getUserId(request); // TODO: Use userId when implementing service
+      this.validateBody(
         request.body,
         z.object({
           type: z.enum(['tasks', 'projects', 'productivity', 'activity']),
           format: z.enum(['csv', 'xlsx', 'json']).default('csv'),
           dateRange: AnalyticsQuerySchema,
         })
-      );
+      ); // TODO: Use exportRequest when implementing service
 
       // TODO: Implement analytics export service
       const exportResult = {

@@ -6,11 +6,8 @@ import {
   LoginSchema,
   RefreshTokenSchema,
   ChangePasswordSchema,
-  CreateUserSchema,
-  LoginRequest,
-  RefreshTokenRequest,
-  ChangePasswordRequest,
-  CreateUserRequest,
+  RegisterSchema,
+  UpdateUserSchema,
 } from '../dto/user-dto';
 import { z } from 'zod';
 
@@ -31,7 +28,7 @@ export class AuthController extends BaseController {
     reply: FastifyReply
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
-      const registerData = this.validateBody(request.body, CreateUserSchema);
+      const registerData = this.validateBody(request.body, RegisterSchema);
 
       const result = await this.authService.register(registerData);
 
@@ -45,8 +42,10 @@ export class AuthController extends BaseController {
   ): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const loginData = this.validateBody(request.body, LoginSchema);
+      const ipAddress = request.ip || '0.0.0.0';
+      const userAgent = request.headers['user-agent'] || 'Unknown';
 
-      const result = await this.authService.login(loginData);
+      const result = await this.authService.login(loginData, ipAddress, userAgent);
 
       return result;
     });
@@ -101,12 +100,29 @@ export class AuthController extends BaseController {
       const userId = this.getUserId(request);
       const updateData = this.validateBody(
         request.body,
-        CreateUserSchema.partial()
+        UpdateUserSchema
       );
+
+      // Filter out undefined values for the service call
+      const filteredUpdateData: Partial<{
+        firstName: string;
+        lastName: string;
+        email: string;
+      }> = {};
+      
+      if (updateData.firstName !== undefined) {
+        filteredUpdateData.firstName = updateData.firstName;
+      }
+      if (updateData.lastName !== undefined) {
+        filteredUpdateData.lastName = updateData.lastName;
+      }
+      if (updateData.email !== undefined) {
+        filteredUpdateData.email = updateData.email;
+      }
 
       const updatedProfile = await this.authService.updateProfile(
         userId,
-        updateData
+        filteredUpdateData
       );
 
       return updatedProfile;

@@ -1,14 +1,14 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { CollaborationService } from '../../infrastructure/external-services/collaboration-service';
+import { CollaborationService, OperationType } from '../../infrastructure/external-services/collaboration-service';
 import { RealtimeEventService } from '../../infrastructure/external-services/realtime-event-service';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { AppError } from '../../shared/errors/app-error';
 import { ValidationError } from '../../shared/errors/validation-error';
 import { NotFoundError } from '../../shared/errors/not-found-error';
 
 export class CollaborationController {
   constructor(
     private readonly collaborationService: CollaborationService,
+    // @ts-expect-error - TODO: Use realtimeEventService when implementing real-time features
     private readonly realtimeEventService: RealtimeEventService,
     private readonly logger: LoggingService
   ) {}
@@ -28,13 +28,17 @@ export class CollaborationController {
 
       const userId = (request as any).user?.id;
       if (!userId) {
-        throw new ValidationError('User ID is required');
+        throw new ValidationError([{
+          field: 'userId',
+          message: 'User ID is required'
+        }]);
       }
 
       if (!documentId || !type || !entityId) {
-        throw new ValidationError(
-          'Document ID, type, and entity ID are required'
-        );
+        throw new ValidationError([{
+          field: 'request',
+          message: 'Document ID, type, and entity ID are required'
+        }]);
       }
 
       const document = await this.collaborationService.createDocument(
@@ -83,7 +87,10 @@ export class CollaborationController {
       const userId = (request as any).user?.id;
 
       if (!userId) {
-        throw new ValidationError('User ID is required');
+        throw new ValidationError([{
+          field: 'userId',
+          message: 'User ID is required'
+        }]);
       }
 
       const document = await this.collaborationService.getDocument(documentId);
@@ -131,7 +138,7 @@ export class CollaborationController {
     try {
       const { documentId } = request.params as { documentId: string };
       const { type, position, content, length, version } = request.body as {
-        type: 'insert' | 'delete' | 'replace' | 'format';
+        type: 'INSERT' | 'DELETE' | 'REPLACE' | 'MODIFY';
         position: number;
         content?: string;
         length?: number;
@@ -140,18 +147,31 @@ export class CollaborationController {
 
       const userId = (request as any).user?.id;
       if (!userId) {
-        throw new ValidationError('User ID is required');
+        throw new ValidationError([{
+          field: 'userId',
+          message: 'User ID is required'
+        }]);
       }
 
       if (!type || position === undefined || version === undefined) {
-        throw new ValidationError(
-          'Operation type, position, and version are required'
-        );
+        throw new ValidationError([{
+          field: 'operation',
+          message: 'Operation type, position, and version are required'
+        }]);
       }
 
       const result = await this.collaborationService.applyOperation(
         documentId,
-        { type, position, content, length, version, userId },
+        { 
+          documentId,
+          type: type as OperationType, 
+          position, 
+          content: content || '', 
+          length: length || 0, 
+          version, 
+          userId,
+          userEmail: 'user@example.com' // TODO: Get actual user email from request/auth
+        },
         userId
       );
 
@@ -197,11 +217,17 @@ export class CollaborationController {
 
       const userId = (request as any).user?.id;
       if (!userId) {
-        throw new ValidationError('User ID is required');
+        throw new ValidationError([{
+          field: 'userId',
+          message: 'User ID is required'
+        }]);
       }
 
       if (!collaboratorId) {
-        throw new ValidationError('Collaborator ID is required');
+        throw new ValidationError([{
+          field: 'collaboratorId',
+          message: 'Collaborator ID is required'
+        }]);
       }
 
       const success = await this.collaborationService.addCollaborator(
@@ -253,11 +279,17 @@ export class CollaborationController {
       const userEmail = (request as any).user?.email;
 
       if (!userId || !userEmail) {
-        throw new ValidationError('User authentication required');
+        throw new ValidationError([{
+          field: 'authentication',
+          message: 'User authentication required'
+        }]);
       }
 
       if (!content || content.trim().length === 0) {
-        throw new ValidationError('Comment content is required');
+        throw new ValidationError([{
+          field: 'content',
+          message: 'Comment content is required'
+        }]);
       }
 
       const comment = await this.collaborationService.addComment(
@@ -304,11 +336,17 @@ export class CollaborationController {
 
       const userId = (request as any).user?.id;
       if (!userId) {
-        throw new ValidationError('User ID is required');
+        throw new ValidationError([{
+          field: 'userId',
+          message: 'User ID is required'
+        }]);
       }
 
       if (!content || content.trim().length === 0) {
-        throw new ValidationError('Comment content is required');
+        throw new ValidationError([{
+          field: 'content',
+          message: 'Comment content is required'
+        }]);
       }
 
       const comment = await this.collaborationService.updateComment(
@@ -357,7 +395,10 @@ export class CollaborationController {
 
       const userId = (request as any).user?.id;
       if (!userId) {
-        throw new ValidationError('User ID is required');
+        throw new ValidationError([{
+          field: 'userId',
+          message: 'User ID is required'
+        }]);
       }
 
       const success = await this.collaborationService.deleteComment(
@@ -402,7 +443,10 @@ export class CollaborationController {
 
       const userId = (request as any).user?.id;
       if (!userId) {
-        throw new ValidationError('User ID is required');
+        throw new ValidationError([{
+          field: 'userId',
+          message: 'User ID is required'
+        }]);
       }
 
       const comments = this.collaborationService.getComments(documentId);
@@ -433,7 +477,10 @@ export class CollaborationController {
 
       const userId = (request as any).user?.id;
       if (!userId) {
-        throw new ValidationError('User ID is required');
+        throw new ValidationError([{
+          field: 'userId',
+          message: 'User ID is required'
+        }]);
       }
 
       const success = await this.collaborationService.acquireLock(
@@ -474,7 +521,10 @@ export class CollaborationController {
 
       const userId = (request as any).user?.id;
       if (!userId) {
-        throw new ValidationError('User ID is required');
+        throw new ValidationError([{
+          field: 'userId',
+          message: 'User ID is required'
+        }]);
       }
 
       const success = await this.collaborationService.releaseLock(
