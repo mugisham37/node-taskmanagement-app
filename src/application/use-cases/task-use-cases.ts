@@ -9,7 +9,6 @@ import { TaskId } from '../../domain/value-objects/task-id';
 import { ProjectId } from '../../domain/value-objects/project-id';
 import { UserId } from '../../domain/value-objects/user-id';
 import { Priority } from '../../domain/value-objects/priority';
-import { TaskStatus } from '../../domain/value-objects/task-status';
 import { NotFoundError } from '../../shared/errors/not-found-error';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
 import { ICommandBus, IQueryBus } from '../cqrs';
@@ -25,6 +24,7 @@ import {
   LengthValidationRule,
 } from '../services/base-application-service';
 import { ValidationError } from '../../shared/errors/validation-error';
+import { Priority as PriorityEnum } from '../../shared/enums/common.enums';
 
 export interface CreateTaskUseCaseInput {
   title: string;
@@ -252,7 +252,7 @@ export class UpdateTaskUseCase {
         await this.invalidateTaskCaches(
           input.taskId,
           task.projectId,
-          task.assigneeId
+          task.assigneeId || undefined
         );
 
         await this.eventPublisher.publishAll();
@@ -392,7 +392,7 @@ export class CompleteTaskUseCase {
         await this.invalidateTaskCaches(
           input.taskId,
           task.projectId,
-          task.assigneeId
+          task.assigneeId || undefined
         );
 
         await this.eventPublisher.publishAll();
@@ -438,12 +438,13 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
     logger: LoggingService,
     eventPublisher: DomainEventPublisher,
     private readonly commandBus: ICommandBus,
-    private readonly queryBus: IQueryBus,
-    private readonly taskRepository: ITaskRepository,
-    private readonly projectRepository: IProjectRepository,
-    private readonly taskDomainService: TaskDomainService,
-    private readonly transactionManager: TransactionManager,
-    private readonly cacheService: CacheService
+    private readonly queryBus: IQueryBus
+    // Future dependencies for enhanced functionality:
+    // private readonly taskRepository: ITaskRepository,
+    // private readonly projectRepository: IProjectRepository,
+    // private readonly taskDomainService: TaskDomainService,
+    // private readonly transactionManager: TransactionManager,
+    // private readonly cacheService: CacheService
   ) {
     super(logger, eventPublisher);
   }
@@ -468,9 +469,10 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
           this.getCreateTaskValidationRules()
         );
         if (!validationResult.isValid) {
-          throw new ValidationError(
-            `Task creation validation failed: ${validationResult.errors.join(', ')}`
-          );
+          throw new ValidationError([{
+            field: 'request',
+            message: `Task creation validation failed: ${validationResult.errors.join(', ')}`
+          }]);
         }
 
         // Validate business rules
@@ -487,9 +489,13 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
           const command = new CreateTaskCommand(
             request.title,
             request.description || '',
+            request.priority ? new Priority(request.priority as any) : new Priority(PriorityEnum.MEDIUM),
+            new ProjectId(request.projectId || 'default-project'),
             userId,
-            request.projectId ? new ProjectId(request.projectId) : undefined,
-            request.assigneeId ? new UserId(request.assigneeId) : undefined
+            userId,
+            request.dueDate,
+            request.assigneeId ? new UserId(request.assigneeId) : undefined,
+            request.estimatedHours
           );
 
           const taskId = await this.commandBus.send<TaskId>(command);
@@ -536,9 +542,10 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
           this.getUpdateTaskValidationRules()
         );
         if (!validationResult.isValid) {
-          throw new ValidationError(
-            `Task update validation failed: ${validationResult.errors.join(', ')}`
-          );
+          throw new ValidationError([{
+            field: 'request',
+            message: `Task update validation failed: ${validationResult.errors.join(', ')}`
+          }]);
         }
 
         // Get current task state for comparison
@@ -555,9 +562,12 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
           // Update the task
           const command = new UpdateTaskCommand(
             taskId,
+            userId,
             request.updates.title,
             request.updates.description,
-            userId
+            request.updates.priority ? new Priority(request.updates.priority as any) : undefined,
+            request.updates.dueDate,
+            request.updates.estimatedHours
           );
 
           await this.commandBus.send(command);
@@ -620,19 +630,18 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
 
         // Execute within transaction
         return this.executeInTransaction(async () => {
-          let updatedTask: any;
-
           switch (request.action) {
             case 'start':
             case 'complete':
-              updatedTask = await this.commandBus.send(
-                new UpdateTaskCommand(taskId, undefined, undefined, userId)
+              await this.commandBus.send(
+                new UpdateTaskCommand(taskId, userId)
               );
               break;
             default:
-              throw new ValidationError(
-                `Invalid workflow action: ${request.action}`
-              );
+              throw new ValidationError([{
+                field: 'action',
+                message: `Invalid workflow action: ${request.action}`
+              }]);
           }
 
           // Get updated task details
@@ -674,15 +683,16 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
         const tasks = await this.queryBus.send(
           new GetTasksQuery(
             userId,
-            filters.projectId ? new ProjectId(filters.projectId) : undefined
+            filters,
+            { page: 1, limit: 100 }
           )
         );
 
         // Calculate stats
-        const stats = this.calculateTaskStats(tasks);
+        const stats = this.calculateTaskStats(tasks as any[]);
 
         // Generate trends (simplified for now)
-        const trends = await this.generateTaskTrends(tasks, userId);
+        const trends = await this.generateTaskTrends(tasks as any[], userId);
 
         // Generate recommendations
         const recommendations = await this.generateTaskRecommendations(
@@ -816,7 +826,7 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
     currentTask: any,
     updatedTask: any,
     request: UpdateTaskRequest,
-    userId: UserId
+    _userId: UserId // Prefixed with underscore to indicate intentionally unused
   ): Promise<void> {
     this.logDebug('Orchestrating task update', {
       taskId: updatedTask.id,
@@ -871,9 +881,10 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
 
     const allowedFromStates = validTransitions[action];
     if (allowedFromStates && !allowedFromStates.includes(task.status)) {
-      throw new ValidationError(
-        `Cannot ${action} task from ${task.status} status`
-      );
+      throw new ValidationError([{
+        field: 'status',
+        message: `Cannot ${action} task from ${task.status} status`
+      }]);
     }
   }
 
@@ -881,7 +892,7 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
     currentTask: any,
     updatedTask: any,
     request: TaskWorkflowRequest,
-    userId: UserId
+    _userId: UserId
   ): Promise<void> {
     this.logDebug('Orchestrating workflow transition', {
       taskId: updatedTask.id,
@@ -919,7 +930,7 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
     };
   }
 
-  private async generateTaskTrends(tasks: any[], userId: UserId): Promise<any> {
+  private async generateTaskTrends(_tasks: any[], _userId: UserId): Promise<any> {
     // Generate trend data (simplified for now)
     return {
       completionTrend: 'stable',
@@ -930,8 +941,8 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
 
   private async generateTaskRecommendations(
     stats: TaskInsightsResponse['stats'],
-    trends: any,
-    userId: UserId
+    _trends: any,
+    _userId: UserId
   ): Promise<string[]> {
     const recommendations: string[] = [];
 
