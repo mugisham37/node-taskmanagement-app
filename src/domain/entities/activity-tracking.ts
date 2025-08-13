@@ -1,4 +1,5 @@
 import { BaseEntity } from './base-entity';
+import { ActivityTrackingId } from '../value-objects/activity-tracking-id';
 
 export enum ActivityType {
   USER_ACTION = 'user_action',
@@ -42,9 +43,11 @@ export interface ActivityTrackingProps {
   updatedAt: Date;
 }
 
-export class ActivityTracking extends BaseEntity<ActivityTrackingProps> {
+export class ActivityTracking extends BaseEntity<ActivityTrackingId> {
+  protected props: ActivityTrackingProps;
+
   constructor(props: ActivityTrackingProps) {
-    super(props.id, props.createdAt, props.updatedAt);
+    super(ActivityTrackingId.create(props.id), props.createdAt, props.updatedAt);
     this.props = props;
   }
 

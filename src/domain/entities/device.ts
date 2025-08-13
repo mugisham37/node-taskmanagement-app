@@ -1,4 +1,5 @@
 import { BaseEntity } from './base-entity';
+import { DeviceId } from '../value-objects/device-id';
 
 export type DeviceType = 'mobile' | 'desktop' | 'tablet' | 'unknown';
 
@@ -14,9 +15,11 @@ export interface DeviceProps {
   updatedAt: Date;
 }
 
-export class Device extends BaseEntity<DeviceProps> {
+export class Device extends BaseEntity<DeviceId> {
+  protected props: DeviceProps;
+
   private constructor(props: DeviceProps) {
-    super(props.id, props.createdAt, props.updatedAt);
+    super(DeviceId.create(props.id), props.createdAt, props.updatedAt);
     this.props = props;
   }
 
@@ -73,7 +76,7 @@ export class Device extends BaseEntity<DeviceProps> {
     this.props.updatedAt = new Date();
   }
 
-  public untrust(reason: string): void {
+  public untrust(_reason: string): void {
     if (!this.props.trusted) {
       throw new Error('Device is not trusted');
     }
@@ -143,14 +146,16 @@ export class Device extends BaseEntity<DeviceProps> {
     lastUsedAt?: Date;
     daysSinceLastUse?: number;
   } {
+    const daysSinceLastUse = this.getDaysSinceLastUse();
+    
     return {
-      id: this.id,
+      id: this.id.value,
       name: this.name,
       type: this.type,
       trusted: this.trusted,
       isActive: this.isActive(),
-      lastUsedAt: this.lastUsedAt,
-      daysSinceLastUse: this.getDaysSinceLastUse() ?? undefined,
+      ...(this.lastUsedAt && { lastUsedAt: this.lastUsedAt }),
+      ...(daysSinceLastUse !== null && { daysSinceLastUse }),
     };
   }
 
@@ -192,9 +197,9 @@ export class Device extends BaseEntity<DeviceProps> {
     const components = [
       userAgent || 'unknown',
       ipAddress || 'unknown',
-      additionalData?.screenResolution || 'unknown',
-      additionalData?.timezone || 'unknown',
-      additionalData?.language || 'unknown',
+      additionalData?.['screenResolution'] || 'unknown',
+      additionalData?.['timezone'] || 'unknown',
+      additionalData?.['language'] || 'unknown',
       Date.now().toString(),
     ];
 

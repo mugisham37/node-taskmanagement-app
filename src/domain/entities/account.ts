@@ -1,4 +1,5 @@
 import { BaseEntity } from './base-entity';
+import { AccountId } from '../value-objects/account-id';
 
 export type AccountType = 'oauth' | 'email' | 'credentials';
 export type OAuthProvider =
@@ -27,9 +28,11 @@ export interface AccountProps {
   updatedAt: Date;
 }
 
-export class Account extends BaseEntity<AccountProps> {
+export class Account extends BaseEntity<AccountId> {
+  protected props: AccountProps;
+
   private constructor(props: AccountProps) {
-    super(props.id, props.createdAt, props.updatedAt);
+    super(AccountId.create(props.id), props.createdAt, props.updatedAt);
     this.props = props;
   }
 
@@ -157,14 +160,16 @@ export class Account extends BaseEntity<AccountProps> {
     expiresAt?: Date;
     scope?: string;
   } {
+    const expiresAt = this.props.expiresAt
+      ? new Date(this.props.expiresAt * 1000)
+      : undefined;
+    
     return {
       hasAccessToken: !!this.props.accessToken,
       hasRefreshToken: !!this.props.refreshToken,
       isExpired: this.isTokenExpired(),
-      expiresAt: this.props.expiresAt
-        ? new Date(this.props.expiresAt * 1000)
-        : undefined,
-      scope: this.props.scope,
+      ...(expiresAt && { expiresAt }),
+      ...(this.props.scope && { scope: this.props.scope }),
     };
   }
 
