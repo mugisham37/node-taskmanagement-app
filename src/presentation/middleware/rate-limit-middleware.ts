@@ -3,6 +3,7 @@ import { RateLimitService } from '../../infrastructure/security/rate-limit-servi
 import { AppError } from '../../shared/errors/app-error';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { RATE_LIMITS, RATE_LIMIT } from '../../shared/constants';
 
 export interface RateLimitOptions {
   windowMs: number; // Time window in milliseconds
@@ -259,7 +260,7 @@ export class RateLimitMiddleware {
   /**
    * Authentication rate limiting (for login attempts)
    */
-  authRateLimit(maxAttempts: number = 5, windowMs: number = 15 * 60 * 1000) {
+  authRateLimit(maxAttempts: number = RATE_LIMITS.AUTH_ATTEMPTS_PER_MINUTE, windowMs: number = 15 * 60 * 1000) {
     const rule: RateLimitRule = {
       windowMs,
       maxRequests: maxAttempts,
@@ -285,7 +286,7 @@ export class RateLimitMiddleware {
    * API key rate limiting
    */
   apiKeyRateLimit(
-    maxRequests: number = 1000,
+    maxRequests: number = RATE_LIMITS.API_REQUESTS_PER_MINUTE * 60, // Convert per minute to per hour
     windowMs: number = 60 * 60 * 1000
   ) {
     const rule: RateLimitRule = {
@@ -325,15 +326,15 @@ export class RateLimitMiddleware {
   adaptiveRateLimit() {
     return (req: FastifyRequest, res: FastifyReply, next: () => void) => {
       const serverLoad = this.getServerLoad();
-      let maxRequests = 100; // Base limit
-      let windowMs = 60000; // 1 minute
+      let maxRequests: number = RATE_LIMITS.API_REQUESTS_PER_MINUTE; // Base limit from constants
+      let windowMs: number = 60000; // 1 minute
 
       // Adjust limits based on server load
       if (serverLoad > 0.8) {
-        maxRequests = 20;
+        maxRequests = Math.floor(RATE_LIMITS.API_REQUESTS_PER_MINUTE * 0.2); // 20% of normal
         windowMs = 60000;
       } else if (serverLoad > 0.6) {
-        maxRequests = 50;
+        maxRequests = Math.floor(RATE_LIMITS.API_REQUESTS_PER_MINUTE * 0.5); // 50% of normal
         windowMs = 60000;
       }
 
@@ -349,25 +350,25 @@ export class RateLimitMiddleware {
     };
   }
 
-  // Predefined rate limit configurations
+  // Predefined rate limit configurations using centralized constants
   static readonly STRICT = {
     windowMs: 15 * 60 * 1000, // 15 minutes
-    maxRequests: 100,
+    maxRequests: RATE_LIMITS.API_REQUESTS_PER_MINUTE,
   };
 
   static readonly MODERATE = {
     windowMs: 15 * 60 * 1000, // 15 minutes
-    maxRequests: 1000,
+    maxRequests: RATE_LIMIT.DEFAULT_MAX,
   };
 
   static readonly LENIENT = {
     windowMs: 15 * 60 * 1000, // 15 minutes
-    maxRequests: 5000,
+    maxRequests: 200, // More lenient than default
   };
 
   static readonly AUTH = {
     windowMs: 15 * 60 * 1000, // 15 minutes
-    maxRequests: 5, // Very strict for auth endpoints
+    maxRequests: RATE_LIMITS.AUTH_ATTEMPTS_PER_MINUTE,
   };
 
   /**

@@ -3,6 +3,7 @@ import { LoggingService } from '../../infrastructure/monitoring/logging-service'
 import { JWTService } from '../../infrastructure/security/jwt-service';
 import { WebSocketService } from '../../infrastructure/external-services/websocket-service';
 import { RealtimeEventService } from '../../infrastructure/external-services/realtime-event-service';
+import { WEBSOCKET_EVENTS } from '../../shared/constants';
 import { nanoid } from 'nanoid';
 
 // Define WebSocket connection type
@@ -420,7 +421,7 @@ export class WebSocketHandler {
         this.broadcastToChannel(
           data.channel || `project:${data.projectId}`,
           {
-            type: 'user_typing',
+            type: WEBSOCKET_EVENTS.USER_TYPING,
             data: {
               userId: connectionInfo.user.id,
               userName: connectionInfo.user.name,
@@ -949,5 +950,62 @@ export class WebSocketHandler {
     this.connectionsByProject.clear();
 
     this.logger.info('Enhanced WebSocket handler shutdown complete');
+  }
+
+  /**
+   * Public broadcast methods using centralized WebSocket event constants
+   */
+  public broadcastTaskCreated(projectId: string, taskData: any): void {
+    this.broadcastToProject(projectId, {
+      type: WEBSOCKET_EVENTS.TASK_CREATED,
+      data: taskData,
+      timestamp: new Date().toISOString(),
+      messageId: nanoid(),
+    });
+  }
+
+  public broadcastTaskUpdated(projectId: string, taskData: any): void {
+    this.broadcastToProject(projectId, {
+      type: WEBSOCKET_EVENTS.TASK_UPDATED,
+      data: taskData,
+      timestamp: new Date().toISOString(),
+      messageId: nanoid(),
+    });
+  }
+
+  public broadcastTaskCompleted(projectId: string, taskData: any): void {
+    this.broadcastToProject(projectId, {
+      type: WEBSOCKET_EVENTS.TASK_COMPLETED,
+      data: taskData,
+      timestamp: new Date().toISOString(),
+      messageId: nanoid(),
+    });
+  }
+
+  public broadcastUserOnline(userId: string): void {
+    this.broadcast({
+      type: WEBSOCKET_EVENTS.USER_ONLINE,
+      data: { userId },
+      timestamp: new Date().toISOString(),
+      messageId: nanoid(),
+    });
+  }
+
+  public broadcastUserOffline(userId: string): void {
+    this.broadcast({
+      type: WEBSOCKET_EVENTS.USER_OFFLINE,
+      data: { userId },
+      timestamp: new Date().toISOString(),
+      messageId: nanoid(),
+    });
+  }
+
+  public broadcastNotificationReceived(userId: string, notificationData: any): void {
+    this.broadcastToUser(userId, {
+      type: WEBSOCKET_EVENTS.NOTIFICATION_RECEIVED,
+      data: notificationData,
+      timestamp: new Date().toISOString(),
+      messageId: nanoid(),
+    });
   }
 }

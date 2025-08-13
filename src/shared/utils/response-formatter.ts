@@ -1,5 +1,6 @@
 import type { Response } from 'express';
 import * as crypto from 'crypto';
+import { PAGINATION } from '../constants';
 
 /**
  * Enhanced API response formatting utilities
@@ -477,6 +478,71 @@ export class ResponseBuilder {
  */
 export const createResponseBuilder = (res: Response): ResponseBuilder => {
   return new ResponseBuilder(res);
+};
+
+/**
+ * Pagination utilities using centralized constants
+ */
+export const PaginationUtils = {
+  /**
+   * Normalize pagination parameters using constants
+   */
+  normalizePaginationParams(page?: number, limit?: number) {
+    const normalizedPage = Math.max(1, page || PAGINATION.DEFAULT_PAGE);
+    const normalizedLimit = Math.min(
+      PAGINATION.MAX_PAGE_SIZE,
+      Math.max(PAGINATION.MIN_PAGE_SIZE, limit || PAGINATION.DEFAULT_PAGE_SIZE)
+    );
+    
+    return {
+      page: normalizedPage,
+      limit: normalizedLimit,
+      offset: (normalizedPage - 1) * normalizedLimit,
+    };
+  },
+
+  /**
+   * Create pagination metadata with default values from constants
+   */
+  createPaginationMeta(
+    total: number,
+    page?: number,
+    limit?: number
+  ): PaginationMeta {
+    const { page: normalizedPage, limit: normalizedLimit } = this.normalizePaginationParams(page, limit);
+    const pages = Math.ceil(total / normalizedLimit);
+    
+    const result: PaginationMeta = {
+      total,
+      page: normalizedPage,
+      limit: normalizedLimit,
+      pages,
+      hasNext: normalizedPage < pages,
+      hasPrev: normalizedPage > 1,
+    };
+
+    if (normalizedPage < pages) {
+      result.nextPage = normalizedPage + 1;
+    }
+    
+    if (normalizedPage > 1) {
+      result.prevPage = normalizedPage - 1;
+    }
+
+    return result;
+  },
+
+  /**
+   * Get default pagination values from constants
+   */
+  getDefaults() {
+    return {
+      page: PAGINATION.DEFAULT_PAGE,
+      limit: PAGINATION.DEFAULT_PAGE_SIZE,
+      maxLimit: PAGINATION.MAX_PAGE_SIZE,
+      minLimit: PAGINATION.MIN_PAGE_SIZE,
+    };
+  },
 };
 
 // Export all response functions as default

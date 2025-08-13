@@ -6,6 +6,7 @@ export * from './guards';
 export * from './types';
 export * from './utils';
 export * from './config';
+export * from './services';
 
 // Export decorators (excluding Container to avoid conflict)
 export {

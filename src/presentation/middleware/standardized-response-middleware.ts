@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { ALL_ERROR_CODES, PAGINATION } from '../../shared/constants';
 
 export interface StandardResponse<T = any> {
   success: boolean;
@@ -297,7 +298,7 @@ export class StandardizedResponseMiddleware {
   }
 
   /**
-   * Create pagination metadata
+   * Create pagination metadata using centralized constants
    */
   private createPaginationMeta(
     total: number,
@@ -314,6 +315,23 @@ export class StandardizedResponseMiddleware {
       hasNext: page < totalPages,
       hasPrevious: page > 1,
     };
+  }
+
+  /**
+   * Validate and normalize pagination parameters using centralized constants
+   */
+  public static normalizePaginationParams(query: any): { page: number; limit: number } {
+    let page = parseInt(query.page) || PAGINATION.DEFAULT_PAGE;
+    let limit = parseInt(query.limit) || PAGINATION.DEFAULT_PAGE_SIZE;
+
+    // Ensure page is at least 1
+    page = Math.max(page, 1);
+
+    // Ensure limit is within allowed bounds
+    limit = Math.max(limit, PAGINATION.MIN_PAGE_SIZE);
+    limit = Math.min(limit, PAGINATION.MAX_PAGE_SIZE);
+
+    return { page, limit };
   }
 
   /**
@@ -460,66 +478,7 @@ export class StandardizedResponseMiddleware {
   }
 }
 
-// HTTP Status Code Constants
-export const HTTP_STATUS = {
-  // Success
-  OK: 200,
-  CREATED: 201,
-  ACCEPTED: 202,
-  NO_CONTENT: 204,
 
-  // Redirection
-  MOVED_PERMANENTLY: 301,
-  FOUND: 302,
-  NOT_MODIFIED: 304,
 
-  // Client Error
-  BAD_REQUEST: 400,
-  UNAUTHORIZED: 401,
-  FORBIDDEN: 403,
-  NOT_FOUND: 404,
-  METHOD_NOT_ALLOWED: 405,
-  CONFLICT: 409,
-  UNPROCESSABLE_ENTITY: 422,
-  TOO_MANY_REQUESTS: 429,
-
-  // Server Error
-  INTERNAL_SERVER_ERROR: 500,
-  NOT_IMPLEMENTED: 501,
-  BAD_GATEWAY: 502,
-  SERVICE_UNAVAILABLE: 503,
-  GATEWAY_TIMEOUT: 504,
-} as const;
-
-// Error Code Constants
-export const ERROR_CODES = {
-  // Authentication & Authorization
-  UNAUTHORIZED: 'UNAUTHORIZED',
-  FORBIDDEN: 'FORBIDDEN',
-  TOKEN_EXPIRED: 'TOKEN_EXPIRED',
-  INVALID_TOKEN: 'INVALID_TOKEN',
-
-  // Validation
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
-  INVALID_INPUT: 'INVALID_INPUT',
-  MISSING_REQUIRED_FIELD: 'MISSING_REQUIRED_FIELD',
-
-  // Resource
-  NOT_FOUND: 'NOT_FOUND',
-  ALREADY_EXISTS: 'ALREADY_EXISTS',
-  CONFLICT: 'CONFLICT',
-
-  // Rate Limiting
-  RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
-
-  // Business Logic
-  BUSINESS_RULE_VIOLATION: 'BUSINESS_RULE_VIOLATION',
-  INSUFFICIENT_PERMISSIONS: 'INSUFFICIENT_PERMISSIONS',
-  OPERATION_NOT_ALLOWED: 'OPERATION_NOT_ALLOWED',
-
-  // System
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
-  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
-  DATABASE_ERROR: 'DATABASE_ERROR',
-  EXTERNAL_SERVICE_ERROR: 'EXTERNAL_SERVICE_ERROR',
-} as const;
+// Use centralized error codes from constants
+export const ERROR_CODES = ALL_ERROR_CODES;

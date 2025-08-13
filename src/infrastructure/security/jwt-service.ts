@@ -1,6 +1,7 @@
 import jwt, { JwtPayload, SignOptions, VerifyOptions } from 'jsonwebtoken';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { JWT } from '../../shared/constants';
 
 export interface JWTConfig {
   accessTokenSecret: string;
@@ -35,6 +36,29 @@ export interface RefreshTokenPayload {
 export class JWTService {
   constructor(private readonly config: JWTConfig) {
     this.validateConfig();
+  }
+
+  /**
+   * Get default JWT configuration using centralized constants
+   */
+  static getDefaultConfig(): Partial<JWTConfig> {
+    return {
+      accessTokenExpiresIn: JWT.ACCESS_TOKEN_EXPIRY,
+      refreshTokenExpiresIn: JWT.REFRESH_TOKEN_EXPIRY,
+    };
+  }
+
+  /**
+   * Create JWTService with default configuration enhanced with custom config
+   */
+  static createWithDefaults(customConfig: Partial<JWTConfig> & Pick<JWTConfig, 'accessTokenSecret' | 'refreshTokenSecret' | 'issuer' | 'audience'>): JWTService {
+    const defaultConfig = this.getDefaultConfig();
+    const finalConfig: JWTConfig = {
+      ...defaultConfig,
+      ...customConfig,
+    } as JWTConfig;
+    
+    return new JWTService(finalConfig);
   }
 
   /**
@@ -278,7 +302,7 @@ export class JWTService {
   generatePasswordResetToken(userId: string, email: string): string {
     try {
       const options: SignOptions = {
-        expiresIn: '1h', // Password reset tokens expire in 1 hour
+        expiresIn: JWT.PASSWORD_RESET_TOKEN_EXPIRY, // Use centralized constant
         issuer: this.config.issuer,
         audience: this.config.audience,
         subject: userId,
@@ -346,7 +370,7 @@ export class JWTService {
   generateEmailVerificationToken(userId: string, email: string): string {
     try {
       const options: SignOptions = {
-        expiresIn: '24h', // Email verification tokens expire in 24 hours
+        expiresIn: JWT.EMAIL_VERIFICATION_TOKEN_EXPIRY, // Use centralized constant
         issuer: this.config.issuer,
         audience: this.config.audience,
         subject: userId,
