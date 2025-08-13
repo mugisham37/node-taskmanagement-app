@@ -104,4 +104,32 @@ export class WorkspaceMember {
     }
     this.role = newRole;
   }
+
+  /**
+   * Check if member is admin
+   */
+  isAdmin(): boolean {
+    return this.role === 'ADMIN';
+  }
+
+  /**
+   * Check if member is owner
+   */
+  isOwner(): boolean {
+    return this.role === 'OWNER';
+  }
+
+  /**
+   * Check if member is regular member
+   */
+  isMember(): boolean {
+    return this.role === 'MEMBER';
+  }
+
+  /**
+   * Check if member can manage webhooks
+   */
+  canManageWebhooks(): boolean {
+    return this.role === 'OWNER' || this.role === 'ADMIN';
+  }
 }

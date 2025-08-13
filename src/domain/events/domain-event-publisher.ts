@@ -107,4 +107,15 @@ export class DomainEventPublisher {
   getRegisteredEventTypes(): string[] {
     return Array.from(this.handlers.keys());
   }
+
+  /**
+   * Subscribe to an event (alias for register)
+   */
+  subscribe<T extends DomainEvent>(
+    eventClass: new (...args: any[]) => T,
+    handler: (event: T) => Promise<void>
+  ): void {
+    const eventName = new eventClass().getEventName();
+    this.register(eventName, { handle: handler });
+  }
 }

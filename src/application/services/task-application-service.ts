@@ -244,7 +244,20 @@ export class TaskApplicationService {
       const assignee = await this.userRepository.findById(assigneeId);
 
       if (task && assignee) {
-        await this.emailService.sendTaskAssignmentNotification(task, assignee);
+        // Get project information for the notification
+        const project = await this.projectRepository.findById(task.projectId);
+        const assigner = await this.userRepository.findById(task.createdById);
+
+        await this.emailService.sendTaskAssignmentNotification(
+          assignee.email.value,
+          assignee.name,
+          task.title,
+          task.description || '',
+          project?.name || 'Unknown Project',
+          assigner?.name || 'Unknown User',
+          task.dueDate || undefined
+        );
+        
         this.logger.info('Task assignment notification sent', {
           taskId: taskId.value,
           assigneeId: assigneeId.value,
@@ -272,10 +285,18 @@ export class TaskApplicationService {
       const completedByUser = await this.userRepository.findById(completedBy);
 
       if (task && completedByUser) {
+        // Get project information for the notification
+        const project = await this.projectRepository.findById(task.projectId);
+
         await this.emailService.sendTaskCompletionNotification(
-          task,
-          completedByUser
+          completedByUser.email.value,
+          completedByUser.name,
+          task.title,
+          project?.name || 'Unknown Project',
+          completedByUser.name,
+          task.completedAt || new Date()
         );
+        
         this.logger.info('Task completion notification sent', {
           taskId: taskId.value,
           completedBy: completedBy.value,
@@ -309,6 +330,10 @@ export class TaskApplicationService {
       for (const taskId of taskIds) {
         await this.assignTask({ taskId, assigneeId, assignedBy });
       }
+      
+      // Clear cache for affected tasks
+      await this.cacheService.invalidatePattern(`task:*`);
+      await this.cacheService.invalidatePattern(`tasks:assignee:${assigneeId.value}:*`);
     });
 
     this.logger.info('Bulk task assignment completed', {
@@ -331,11 +356,57 @@ export class TaskApplicationService {
       for (const taskId of taskIds) {
         await this.updateTask({ taskId, userId: updatedBy, priority });
       }
+      
+      // Clear cache for affected tasks
+      await this.cacheService.invalidatePattern(`task:*`);
     });
 
     this.logger.info('Bulk task priority update completed', {
       taskCount: taskIds.length,
       priority: priority.value,
     });
+  }
+
+  // Validation methods using task domain service
+  async validateTaskAssignment(taskId: TaskId, assigneeId: UserId): Promise<boolean> {
+    try {
+      const task = await this.taskRepository.findById(taskId);
+      
+      if (!task) {
+        return false;
+      }
+
+      // Get user's active tasks for validation (extract items from paginated result)
+      const userActiveTasksResult = await this.taskRepository.findByAssigneeId(assigneeId);
+      const userActiveTasks = userActiveTasksResult.items;
+
+      // Use task domain service for business validation
+      const result = this.taskDomainService.validateTaskAssignment(task, userActiveTasks);
+      return result.success;
+    } catch (error) {
+      this.logger.error('Failed to validate task assignment', error as Error, {
+        taskId: taskId.value,
+        assigneeId: assigneeId.value,
+      });
+      return false;
+    }
+  }
+
+  // Enhanced create task method with event publishing
+  async createTaskWithEvents(input: CreateTaskUseCaseInput): Promise<TaskId> {
+    const taskId = await this.createTask(input);
+
+    // Publish domain events for task creation
+    const task = await this.taskRepository.findById(taskId);
+    if (task && task.domainEvents.length > 0) {
+      for (const event of task.domainEvents) {
+        await this.eventPublisher.publish(event);
+      }
+      task.clearDomainEvents();
+      // Save the task to persist the cleared events
+      await this.taskRepository.save(task);
+    }
+
+    return taskId;
   }
 }

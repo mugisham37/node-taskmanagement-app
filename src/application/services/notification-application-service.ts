@@ -5,10 +5,8 @@ import { CacheService } from '../../infrastructure/caching/cache-service';
 import { ITaskRepository } from '../../domain/repositories/task-repository';
 import { IUserRepository } from '../../domain/repositories/user-repository';
 import { IProjectRepository } from '../../domain/repositories/project-repository';
-import { TaskId } from '../../domain/value-objects/task-id';
-import { ProjectId } from '../../domain/value-objects/project-id';
+import { IWorkspaceRepository } from '../../domain/repositories/workspace-repository';
 import { UserId } from '../../domain/value-objects/user-id';
-import { WorkspaceId } from '../../domain/value-objects/workspace-id';
 import {
   TaskCreatedEvent,
   TaskAssignedEvent,
@@ -51,6 +49,7 @@ export class NotificationApplicationService {
     private readonly taskRepository: ITaskRepository,
     private readonly userRepository: IUserRepository,
     private readonly projectRepository: IProjectRepository,
+    private readonly workspaceRepository: IWorkspaceRepository,
     private readonly emailService: EmailService,
     private readonly cacheService: CacheService,
     private readonly eventPublisher: DomainEventPublisher,
@@ -117,23 +116,23 @@ export class NotificationApplicationService {
       );
 
       for (const member of projectMembers) {
-        if (!member.id.equals(event.createdById)) {
+        if (!member.userId.equals(event.createdById)) {
           await this.createNotification({
-            userId: member.id,
+            userId: member.userId.toString(),
             type: 'TASK_CREATED',
             title: 'New Task Created',
             message: `A new task "${task.title}" was created in project "${project.name}"`,
             data: {
-              taskId: event.taskId.value,
-              projectId: event.projectId.value,
-              createdById: event.createdById.value,
+              taskId: event.taskId.toString(),
+              projectId: event.projectId.toString(),
+              createdById: event.createdById.toString(),
             },
           });
         }
       }
 
       this.logger.info('Task created notifications sent', {
-        taskId: event.taskId.value,
+        taskId: event.taskId.toString(),
       });
     } catch (error) {
       this.logger.error('Failed to handle task created event', error as Error, {
@@ -152,13 +151,13 @@ export class NotificationApplicationService {
 
       // Create in-app notification
       await this.createNotification({
-        userId: event.assigneeId,
+        userId: event.assigneeId.toString(),
         type: 'TASK_ASSIGNED',
         title: 'Task Assigned to You',
         message: `You have been assigned to task "${task.title}" by ${assigner.name}`,
         data: {
-          taskId: event.taskId.value,
-          assignedBy: event.assignedBy.value,
+          taskId: event.taskId.toString(),
+          assignedBy: event.assignedBy.toString(),
         },
       });
 
@@ -167,12 +166,21 @@ export class NotificationApplicationService {
         event.assigneeId
       );
       if (preferences.emailNotifications && preferences.taskAssignments) {
-        await this.emailService.sendTaskAssignmentNotification(task, assignee);
+        const project = await this.projectRepository.findById(task.projectId);
+        await this.emailService.sendTaskAssignmentNotification(
+          assignee.email.value,
+          assignee.name,
+          task.title,
+          task.description || '',
+          project?.name || 'Unknown Project',
+          assigner.name,
+          task.dueDate || undefined
+        );
       }
 
       this.logger.info('Task assignment notifications sent', {
-        taskId: event.taskId.value,
-        assigneeId: event.assigneeId.value,
+        taskId: event.taskId.toString(),
+        assigneeId: event.assigneeId.toString(),
       });
     } catch (error) {
       this.logger.error(
@@ -199,34 +207,42 @@ export class NotificationApplicationService {
       );
 
       for (const member of projectMembers) {
-        if (!member.id.equals(event.completedBy)) {
+        if (!member.userId.equals(event.completedBy)) {
           await this.createNotification({
-            userId: member.id,
+            userId: member.userId.toString(),
             type: 'TASK_COMPLETED',
             title: 'Task Completed',
             message: `Task "${task.title}" was completed by ${completedByUser.name}`,
             data: {
-              taskId: event.taskId.value,
-              completedBy: event.completedBy.value,
+              taskId: event.taskId.toString(),
+              completedBy: event.completedBy.toString(),
               completedAt: event.completedAt.toISOString(),
             },
           });
 
           // Send email notification if preferences allow
           const preferences = await this.getUserNotificationPreferences(
-            member.id
+            member.userId
           );
           if (preferences.emailNotifications && preferences.taskCompletions) {
-            await this.emailService.sendTaskCompletionNotification(
-              task,
-              completedByUser
-            );
+            const memberUser = await this.userRepository.findById(member.userId);
+            const project = await this.projectRepository.findById(task.projectId);
+            if (memberUser) {
+              await this.emailService.sendTaskCompletionNotification(
+                memberUser.email.value,
+                memberUser.name,
+                task.title,
+                project?.name || 'Unknown Project',
+                completedByUser.name,
+                event.completedAt
+              );
+            }
           }
         }
       }
 
       this.logger.info('Task completion notifications sent', {
-        taskId: event.taskId.value,
+        taskId: event.taskId.toString(),
       });
     } catch (error) {
       this.logger.error(
@@ -247,21 +263,21 @@ export class NotificationApplicationService {
       // Notify assignee if task status changed
       if (task.assigneeId && !task.assigneeId.equals(event.changedBy)) {
         await this.createNotification({
-          userId: task.assigneeId,
+          userId: task.assigneeId.toString(),
           type: 'TASK_STATUS_CHANGED',
           title: 'Task Status Updated',
-          message: `Status of task "${task.title}" changed to ${event.newStatus.value}`,
+          message: `Status of task "${task.title}" changed to ${event.newStatus}`,
           data: {
-            taskId: event.taskId.value,
-            oldStatus: event.oldStatus.value,
-            newStatus: event.newStatus.value,
-            changedBy: event.changedBy.value,
+            taskId: event.taskId.toString(),
+            previousStatus: event.previousStatus,
+            newStatus: event.newStatus,
+            changedBy: event.changedBy.toString(),
           },
         });
       }
 
       this.logger.info('Task status change notification sent', {
-        taskId: event.taskId.value,
+        taskId: event.taskId.toString(),
       });
     } catch (error) {
       this.logger.error(
@@ -283,7 +299,7 @@ export class NotificationApplicationService {
       // This would require workspace member lookup in a real implementation
 
       this.logger.info('Project created notification handled', {
-        projectId: event.projectId.value,
+        projectId: event.projectId.toString(),
       });
     } catch (error) {
       this.logger.error(
@@ -305,20 +321,20 @@ export class NotificationApplicationService {
 
       // Welcome notification for new member
       await this.createNotification({
-        userId: event.memberId,
+        userId: event.memberId.toString(),
         type: 'PROJECT_MEMBER_ADDED',
         title: 'Added to Project',
-        message: `You have been added to project "${project.name}" with role ${event.role.value}`,
+        message: `You have been added to project "${project.name}" with role ${event.role.toString()}`,
         data: {
-          projectId: event.projectId.value,
-          role: event.role.value,
-          addedBy: event.addedBy.value,
+          projectId: event.projectId.toString(),
+          role: event.role.toString(),
+          addedBy: event.addedBy.toString(),
         },
       });
 
       this.logger.info('Project member added notification sent', {
-        projectId: event.projectId.value,
-        memberId: event.memberId.value,
+        projectId: event.projectId.toString(),
+        memberId: event.memberId.toString(),
       });
     } catch (error) {
       this.logger.error(
@@ -335,8 +351,8 @@ export class NotificationApplicationService {
     try {
       // Handle member removal notification if needed
       this.logger.info('Project member removed notification handled', {
-        projectId: event.projectId.value,
-        memberId: event.memberId.value,
+        projectId: event.projectId.toString(),
+        memberId: event.memberId.toString(),
       });
     } catch (error) {
       this.logger.error(
@@ -353,7 +369,7 @@ export class NotificationApplicationService {
     try {
       // Handle workspace creation notification if needed
       this.logger.info('Workspace created notification handled', {
-        workspaceId: event.workspaceId.value,
+        workspaceId: event.workspaceId.toString(),
       });
     } catch (error) {
       this.logger.error(
@@ -368,17 +384,31 @@ export class NotificationApplicationService {
     event: UserInvitedToWorkspaceEvent
   ): Promise<void> {
     try {
+      // Get workspace details
+      const workspace = await this.workspaceRepository.findById(event.workspaceId);
+      const inviter = await this.userRepository.findById(event.invitedBy);
+
+      if (!workspace || !inviter) {
+        this.logger.warn('Workspace or inviter not found for invitation', {
+          workspaceId: event.workspaceId.toString(),
+          invitedBy: event.invitedBy.toString(),
+        });
+        return;
+      }
+
       // Send workspace invitation email
       await this.emailService.sendWorkspaceInvitation({
-        recipientEmail: event.inviteeEmail,
-        workspaceName: 'Workspace', // Would be fetched from workspace repository
-        inviterName: 'User', // Would be fetched from user repository
-        invitationLink: `${process.env.APP_URL}/workspaces/${event.workspaceId.value}/join`,
+        recipientEmail: event.email,
+        workspaceName: workspace.name,
+        inviterName: inviter.name,
+        invitationLink: `${process.env['APP_URL']}/workspaces/${event.workspaceId.toString()}/join?token=${event.invitationToken}`,
       });
 
       this.logger.info('Workspace invitation sent', {
-        workspaceId: event.workspaceId.value,
-        inviteeEmail: event.inviteeEmail,
+        workspaceId: event.workspaceId.toString(),
+        inviteeEmail: event.email,
+        inviterName: inviter.name,
+        workspaceName: workspace.name,
       });
     } catch (error) {
       this.logger.error(
@@ -497,7 +527,19 @@ export class NotificationApplicationService {
       );
 
       if (todayNotifications.length > 0) {
-        await this.emailService.sendDailyDigest(user, todayNotifications);
+        // Create digest summary
+        const digest = {
+          newTasks: todayNotifications.filter(n => n.type === 'TASK_CREATED').length,
+          completedTasks: todayNotifications.filter(n => n.type === 'TASK_COMPLETED').length,
+          pendingTasks: todayNotifications.filter(n => n.type === 'TASK_ASSIGNED').length,
+          totalNotifications: todayNotifications.length
+        };
+        
+        await this.emailService.sendDailyDigest(
+          user.email.value,
+          user.name,
+          digest
+        );
         this.logger.info('Daily digest sent', { userId: userId.value });
       }
     } catch (error) {

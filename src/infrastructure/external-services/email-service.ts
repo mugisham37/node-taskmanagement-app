@@ -1230,4 +1230,158 @@ Task Management Team
       throw error;
     }
   }
+
+  /**
+   * Send task created notification
+   */
+  async sendTaskCreatedNotification(
+    recipientEmail: string,
+    recipientName: string,
+    taskTitle: string,
+    projectName: string,
+    taskDescription: string,
+    taskPriority: string
+  ): Promise<boolean> {
+    try {
+      const subject = `New Task Created: ${taskTitle}`;
+      const html = `
+        <h2>New Task Created</h2>
+        <p>Hello ${recipientName},</p>
+        <p>A new task has been created in project "${projectName}":</p>
+        <div style="background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px;">
+          <h3>${taskTitle}</h3>
+          <p><strong>Description:</strong> ${taskDescription}</p>
+          <p><strong>Priority:</strong> ${taskPriority}</p>
+          <p><strong>Project:</strong> ${projectName}</p>
+        </div>
+        <p>Best regards,<br>Task Management Team</p>
+      `;
+
+      return this.sendEmail({
+        to: recipientEmail,
+        subject,
+        html,
+        priority: taskPriority === 'HIGH' ? 'high' : 'normal',
+        tags: ['task', 'created', 'notification'],
+      });
+    } catch (error) {
+      this.logger.error('Failed to send task created notification', error as Error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send task assigned notification
+   */
+  async sendTaskAssignedNotification(
+    recipientEmail: string,
+    recipientName: string,
+    taskTitle: string,
+    projectName: string,
+    taskDescription: string,
+    taskPriority: string
+  ): Promise<boolean> {
+    try {
+      const subject = `Task Assigned: ${taskTitle}`;
+      const html = `
+        <h2>Task Assigned to You</h2>
+        <p>Hello ${recipientName},</p>
+        <p>You have been assigned a new task in project "${projectName}":</p>
+        <div style="background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px;">
+          <h3>${taskTitle}</h3>
+          <p><strong>Description:</strong> ${taskDescription}</p>
+          <p><strong>Priority:</strong> ${taskPriority}</p>
+          <p><strong>Project:</strong> ${projectName}</p>
+        </div>
+        <p>Please log in to view the full details and start working on this task.</p>
+        <p>Best regards,<br>Task Management Team</p>
+      `;
+
+      return this.sendEmail({
+        to: recipientEmail,
+        subject,
+        html,
+        priority: taskPriority === 'HIGH' ? 'high' : 'normal',
+        tags: ['task', 'assigned', 'notification'],
+      });
+    } catch (error) {
+      this.logger.error('Failed to send task assigned notification', error as Error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send task completed notification
+   */
+  async sendTaskCompletedNotification(
+    recipientEmail: string,
+    recipientName: string,
+    taskTitle: string,
+    projectName: string,
+    taskDescription: string,
+    completedAt: Date
+  ): Promise<boolean> {
+    try {
+      const subject = `Task Completed: ${taskTitle}`;
+      const html = `
+        <h2>Task Completed</h2>
+        <p>Hello ${recipientName},</p>
+        <p>A task has been completed in project "${projectName}":</p>
+        <div style="background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px;">
+          <h3>${taskTitle}</h3>
+          <p><strong>Description:</strong> ${taskDescription}</p>
+          <p><strong>Project:</strong> ${projectName}</p>
+          <p><strong>Completed:</strong> ${completedAt.toLocaleDateString()}</p>
+        </div>
+        <p>Best regards,<br>Task Management Team</p>
+      `;
+
+      return this.sendEmail({
+        to: recipientEmail,
+        subject,
+        html,
+        priority: 'normal',
+        tags: ['task', 'completed', 'notification'],
+      });
+    } catch (error) {
+      this.logger.error('Failed to send task completed notification', error as Error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send daily digest
+   */
+  async sendDailyDigest(
+    recipientEmail: string,
+    recipientName: string,
+    digest: any
+  ): Promise<boolean> {
+    try {
+      const subject = 'Daily Task Digest';
+      const html = `
+        <h2>Your Daily Task Digest</h2>
+        <p>Hello ${recipientName},</p>
+        <p>Here's your daily summary:</p>
+        <div style="background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px;">
+          <h3>Tasks Summary</h3>
+          <p><strong>New Tasks:</strong> ${digest.newTasks || 0}</p>
+          <p><strong>Completed Tasks:</strong> ${digest.completedTasks || 0}</p>
+          <p><strong>Pending Tasks:</strong> ${digest.pendingTasks || 0}</p>
+        </div>
+        <p>Best regards,<br>Task Management Team</p>
+      `;
+
+      return this.sendEmail({
+        to: recipientEmail,
+        subject,
+        html,
+        priority: 'low',
+        tags: ['digest', 'daily', 'summary'],
+      });
+    } catch (error) {
+      this.logger.error('Failed to send daily digest', error as Error);
+      throw error;
+    }
+  }
 }

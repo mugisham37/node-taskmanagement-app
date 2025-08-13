@@ -223,6 +223,14 @@ export interface IWorkspaceRepository {
   ): Promise<WorkspaceMember | null>;
 
   /**
+   * Find workspace member by user ID
+   */
+  findMember(
+    workspaceId: WorkspaceId,
+    userId: UserId
+  ): Promise<WorkspaceMember | null>;
+
+  /**
    * Add workspace member
    */
   addWorkspaceMember(

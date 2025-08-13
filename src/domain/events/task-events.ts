@@ -144,6 +144,7 @@ export class TaskCompletedEvent extends BaseDomainEvent {
     public readonly taskId: TaskId,
     public readonly completedBy: UserId,
     public readonly projectId: ProjectId,
+    public readonly completedAt: Date = new Date(),
     public readonly actualHours?: number
   ) {
     super();
@@ -162,6 +163,7 @@ export class TaskCompletedEvent extends BaseDomainEvent {
       taskId: this.taskId.toString(),
       completedBy: this.completedBy.toString(),
       projectId: this.projectId.toString(),
+      completedAt: this.completedAt.toISOString(),
       actualHours: this.actualHours,
     };
   }

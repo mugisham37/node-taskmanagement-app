@@ -5,26 +5,32 @@ import {
   WebhookDeliveryStatus,
 } from '../entities/webhook';
 import { WebhookEvent } from '../enums/webhook-event';
+import { WebhookId } from '../value-objects/webhook-id';
+import { WorkspaceId } from '../value-objects/workspace-id';
+import { WebhookDeliveryId } from '../entities/webhook-delivery';
 
 export interface IWebhookRepository {
   save(webhook: Webhook): Promise<Webhook>;
-  findById(id: string): Promise<Webhook | null>;
-  findByWorkspaceId(
-    workspaceId: string,
-    filters?: any,
-    limit?: number,
-    offset?: number
-  ): Promise<Webhook[]>;
+  findById(id: WebhookId): Promise<Webhook | null>;
+  findByWorkspaceId(workspaceId: WorkspaceId): Promise<Webhook[]>;
   findByStatus(
     status: WebhookStatus,
     limit?: number,
     offset?: number
   ): Promise<Webhook[]>;
-  findByEvent(event: WebhookEvent, workspaceId?: string): Promise<Webhook[]>;
+  findByEvent(event: WebhookEvent, workspaceId?: WorkspaceId): Promise<Webhook[]>;
   findActive(): Promise<Webhook[]>;
   findFailed(): Promise<Webhook[]>;
   findByUrl(url: string): Promise<Webhook[]>;
-  getWebhookStats(workspaceId?: string): Promise<{
+  findActiveByWorkspaceAndEvent(workspaceId: WorkspaceId, eventType: string): Promise<Webhook[]>;
+  delete(id: WebhookId): Promise<void>;
+  
+  // Delivery methods
+  saveDelivery(delivery: WebhookDelivery): Promise<WebhookDelivery>;
+  getDeliveryById(id: WebhookDeliveryId): Promise<WebhookDelivery | null>;
+  getDeliveries(webhookId: WebhookId, limit?: number): Promise<WebhookDelivery[]>;
+  
+  getWebhookStats(workspaceId?: WorkspaceId): Promise<{
     total: number;
     active: number;
     failed: number;
@@ -33,21 +39,17 @@ export interface IWebhookRepository {
     totalDeliveries: number;
     successRate: number;
   }>;
-  getWebhookStatistics(webhookId: string): Promise<{
+  getWebhookStatistics(webhookId: WebhookId): Promise<{
     lastDeliveryAt?: Date;
     lastDeliveryStatus?: string;
     totalDeliveries: number;
     successfulDeliveries: number;
     failedDeliveries: number;
   }>;
-  getDeliveries(
-    webhookId: string,
-    filters?: any,
-    limit?: number
-  ): Promise<WebhookDelivery[]>;
+  
   getStatistics(
-    webhookId?: string,
-    workspaceId?: string,
+    webhookId?: WebhookId,
+    workspaceId?: WorkspaceId,
     dateFrom?: Date,
     dateTo?: Date
   ): Promise<{

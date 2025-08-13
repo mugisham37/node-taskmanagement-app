@@ -113,6 +113,7 @@ export class ProjectMemberRemovedEvent extends BaseDomainEvent {
   constructor(
     public readonly projectId: ProjectId,
     public readonly userId: UserId,
+    public readonly memberId: UserId,
     public readonly removedBy: UserId,
     public readonly previousRole: ProjectRoleVO
   ) {
@@ -131,6 +132,7 @@ export class ProjectMemberRemovedEvent extends BaseDomainEvent {
     return {
       projectId: this.projectId.toString(),
       userId: this.userId.toString(),
+      memberId: this.memberId.toString(),
       removedBy: this.removedBy.toString(),
       previousRole: this.previousRole.value,
     };
