@@ -72,12 +72,6 @@ export interface WorkspaceInvitationResponseDto {
 
 // Validation schemas
 const WorkspaceRoleSchema = z.enum(['ADMIN', 'MEMBER', 'VIEWER']);
-const InvitationStatusSchema = z.enum([
-  'PENDING',
-  'ACCEPTED',
-  'DECLINED',
-  'EXPIRED',
-]);
 
 export const CreateWorkspaceSchema = z.object({
   name: NameSchema,

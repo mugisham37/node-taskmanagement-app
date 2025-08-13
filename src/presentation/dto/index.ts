@@ -1,6 +1,10 @@
 // Base DTOs and schemas
 export * from './base-dto';
-export * from './error-dto';
+// Export specific types from error-dto to avoid conflicts
+export {
+  ErrorResponseSchema,
+  ValidationErrorResponseSchema
+} from './error-dto';
 
 // Entity DTOs and schemas
 export * from './user-dto';

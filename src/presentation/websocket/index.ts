@@ -3,5 +3,4 @@ export * from './websocket-routes';
 export * from './websocket-gateway';
 export { setupWebSocket } from './setup';
 
-// Enhanced WebSocket from migration
-export * from './enhanced-websocket-handler';
+// Note: Enhanced WebSocket handler has been simplified and integrated into websocket-handler

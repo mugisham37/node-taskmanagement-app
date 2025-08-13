@@ -42,7 +42,7 @@ export async function setupPhase7API(
  */
 async function setupComprehensiveValidation(
   app: FastifyInstance,
-  container: DIContainer,
+  _container: DIContainer,
   logger: LoggingService
 ): Promise<void> {
   const validationMiddleware = new ComprehensiveValidationMiddleware(logger);
@@ -76,7 +76,7 @@ async function setupComprehensiveValidation(
  */
 async function setupStandardizedResponses(
   app: FastifyInstance,
-  container: DIContainer,
+  _container: DIContainer,
   logger: LoggingService
 ): Promise<void> {
   const responseMiddleware = new StandardizedResponseMiddleware(logger);
@@ -107,7 +107,7 @@ async function setupStandardizedResponses(
  */
 async function setupAdditionalAPIFeatures(
   app: FastifyInstance,
-  container: DIContainer,
+  _container: DIContainer,
   logger: LoggingService
 ): Promise<void> {
   // Setup request/response compression
@@ -156,7 +156,7 @@ async function setupAdditionalAPIFeatures(
   });
 
   // Setup health check endpoint
-  app.get('/health', async (request, reply) => {
+  app.get('/health', async (_request, reply) => {
     const healthCheck = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -175,7 +175,7 @@ async function setupAdditionalAPIFeatures(
   });
 
   // Setup metrics endpoint
-  app.get('/metrics', async (request, reply) => {
+  app.get('/metrics', async (_request, reply) => {
     const metrics = {
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
@@ -200,13 +200,13 @@ async function setupAPIVersioning(
   logger: LoggingService
 ): Promise<void> {
   // Add version header to all responses
-  app.addHook('onSend', async (request, reply, payload) => {
+  app.addHook('onSend', async (_request, reply, payload) => {
     reply.header('API-Version', process.env.API_VERSION || '1.0.0');
     return payload;
   });
 
   // Handle version negotiation
-  app.addHook('preHandler', async (request, reply) => {
+  app.addHook('preHandler', async (request, _reply) => {
     const acceptVersion = request.headers['accept-version'];
     const currentVersion = process.env.API_VERSION || '1.0.0';
 
@@ -227,7 +227,7 @@ async function setupAPIVersioning(
   });
 
   // Add deprecation warnings for old endpoints
-  const deprecatedEndpoints = [
+  const deprecatedEndpoints: string[] = [
     // Add deprecated endpoints here
   ];
 
@@ -259,11 +259,11 @@ async function setupAPIVersioning(
  */
 async function setupAPIMonitoring(
   app: FastifyInstance,
-  container: DIContainer,
+  _container: DIContainer,
   logger: LoggingService
 ): Promise<void> {
   // Request/response logging
-  app.addHook('onRequest', async (request, reply) => {
+  app.addHook('onRequest', async (request, _reply) => {
     (request as any).startTime = Date.now();
 
     logger.info('API request started', {
@@ -289,12 +289,10 @@ async function setupAPIMonitoring(
   });
 
   // Error tracking
-  app.addHook('onError', async (request, reply, error) => {
-    logger.error('API request error', {
-      method: request.method,
+  app.addHook('onError', async (request, _reply, error) => {
+    logger.error('API request error', error, {
       url: request.url,
-      error: error.message,
-      stack: error.stack,
+      method: request.method,
       requestId: (request as any).requestId,
     });
   });
@@ -313,7 +311,7 @@ async function setupAPIMonitoring(
   });
 
   // Performance monitoring
-  app.addHook('onSend', async (request, reply, payload) => {
+  app.addHook('onSend', async (request, _reply, payload) => {
     const responseTime =
       Date.now() - ((request as any).startTime || Date.now());
 
@@ -353,7 +351,7 @@ async function setupAPIMonitoring(
  */
 export async function setupAPISecurityEnhancements(
   app: FastifyInstance,
-  container: DIContainer,
+  _container: DIContainer,
   logger: LoggingService
 ): Promise<void> {
   // Setup helmet for security headers
@@ -385,7 +383,7 @@ export async function setupAPISecurityEnhancements(
 
   // Setup IP whitelisting for admin endpoints
   const adminEndpoints = ['/api/v1/admin', '/api/v1/monitoring'];
-  const allowedIPs = process.env.ADMIN_ALLOWED_IPS?.split(',') || [];
+  const allowedIPs = process.env['ADMIN_ALLOWED_IPS']?.split(',') || [];
 
   if (allowedIPs.length > 0) {
     app.addHook('preHandler', async (request, reply) => {
