@@ -6,3 +6,5 @@ export {
   type JwtConfig,
   type EmailConfig,
 } from './app-config';
+
+export { ConfigIntegrationValidator } from './config-integration-validator';

@@ -2,6 +2,7 @@ import { RedisClient } from './redis-client';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
 import { logger } from '../monitoring/logging-service';
 import { ICacheService } from './cache-service-interface';
+import { RedisConfig } from '../../shared/config';
 
 export interface CacheOptions {
   ttl?: number;
@@ -172,14 +173,19 @@ class LRUMemoryCache implements IMemoryCache {
 }
 
 export class CacheService implements ICacheService {
-  private readonly defaultTTL = 3600; // 1 hour
-  private readonly keyPrefix = 'cache:';
+  private readonly defaultTTL: number;
+  private readonly keyPrefix: string;
   private readonly tagPrefix = 'tag:';
   private readonly memoryCache: LRUMemoryCache;
   private cleanupInterval?: NodeJS.Timeout;
 
-  constructor(private readonly redisClient: RedisClient) {
+  constructor(
+    private readonly redisClient: RedisClient,
+    redisConfig?: RedisConfig
+  ) {
     this.memoryCache = new LRUMemoryCache(1000);
+    this.defaultTTL = redisConfig?.defaultTTL || 3600;
+    this.keyPrefix = redisConfig?.keyPrefix || 'cache:';
     this.startCleanupInterval();
   }
 

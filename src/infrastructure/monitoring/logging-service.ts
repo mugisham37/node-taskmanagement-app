@@ -1,5 +1,6 @@
 import winston, { Logger, LoggerOptions, format, transports } from 'winston';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
+import { AppConfig } from '../../shared/config';
 
 export interface LoggingConfig {
   level: string;
@@ -78,6 +79,28 @@ export class LoggingService {
 
   constructor(private readonly config: LoggingConfig) {
     this.logger = this.createLogger();
+  }
+
+  /**
+   * Create LoggingService from AppConfig
+   */
+  static fromAppConfig(appConfig: AppConfig): LoggingService {
+    const loggingConfig: LoggingConfig = {
+      level: appConfig.logLevel,
+      format: appConfig.logFormat,
+      enableConsole: true,
+      enableFile: false,
+      enableRotation: false,
+      enableErrorFile: false,
+      enableSyslog: false,
+      metadata: {
+        service: 'task-management',
+        version: '1.0.0',
+        environment: appConfig.nodeEnv,
+      },
+    };
+    
+    return new LoggingService(loggingConfig);
   }
 
   /**

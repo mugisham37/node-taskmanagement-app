@@ -32,6 +32,20 @@ const AppConfigSchema = z.object({
   // Health Check Configuration
   healthCheckInterval: z.number().default(30000), // 30 seconds
   gracefulShutdownTimeout: z.number().default(10000), // 10 seconds
+
+  // Monitoring Configuration
+  enablePrometheus: z.boolean().default(true),
+  prometheusPort: z.number().default(9090),
+  metricsPath: z.string().default('/metrics'),
+
+  // Security Features
+  enableMFA: z.boolean().default(true),
+  enableOAuth: z.boolean().default(true),
+  enableAPIRateLimit: z.boolean().default(true),
+
+  // API Documentation
+  enableAPIDocs: z.boolean().default(true),
+  apiDocsPath: z.string().default('/api-docs'),
 });
 
 /**
@@ -83,8 +97,11 @@ const RedisConfigSchema = z.object({
  */
 const JwtConfigSchema = z.object({
   secret: z.string().min(32),
+  accessTokenSecret: z.string().min(32),
+  refreshTokenSecret: z.string().min(32),
   expiresIn: z.string().default('24h'),
-  refreshExpiresIn: z.string().default('7d'),
+  accessTokenExpiresIn: z.string().default('15m'),
+  refreshTokenExpiresIn: z.string().default('7d'),
   issuer: z.string().default('task-management-system'),
   audience: z.string().default('task-management-users'),
 });
@@ -99,6 +116,18 @@ const EmailConfigSchema = z.object({
   user: z.string().optional(),
   password: z.string().optional(),
   from: z.string().email(),
+  replyTo: z.string().email().optional(),
+
+  // SMTP nested structure for compatibility
+  smtp: z.object({
+    host: z.string().min(1),
+    port: z.number().min(1).max(65535).default(587),
+    secure: z.boolean().default(false),
+    auth: z.object({
+      user: z.string().optional(),
+      pass: z.string().optional(),
+    }).optional(),
+  }).optional(),
 
   // Template Configuration
   templatesPath: z
@@ -109,6 +138,10 @@ const EmailConfigSchema = z.object({
   enableQueue: z.boolean().default(true),
   maxRetries: z.number().default(3),
   retryDelay: z.number().default(5000),
+
+  // Attachment limits
+  maxAttachmentSize: z.number().default(10 * 1024 * 1024), // 10MB
+  maxTotalAttachmentSize: z.number().default(50 * 1024 * 1024), // 50MB
 });
 
 export type AppConfig = z.infer<typeof AppConfigSchema>;
@@ -147,6 +180,14 @@ export class ConfigLoader {
       gracefulShutdownTimeout: parseInt(
         process.env['GRACEFUL_SHUTDOWN_TIMEOUT'] || '10000'
       ),
+      enablePrometheus: process.env['ENABLE_PROMETHEUS'] !== 'false',
+      prometheusPort: parseInt(process.env['PROMETHEUS_PORT'] || '9090'),
+      metricsPath: process.env['METRICS_PATH'] || '/metrics',
+      enableMFA: process.env['ENABLE_MFA'] !== 'false',
+      enableOAuth: process.env['ENABLE_OAUTH'] !== 'false',
+      enableAPIRateLimit: process.env['ENABLE_API_RATE_LIMIT'] !== 'false',
+      enableAPIDocs: process.env['ENABLE_API_DOCS'] !== 'false',
+      apiDocsPath: process.env['API_DOCS_PATH'] || '/api-docs',
     };
 
     return AppConfigSchema.parse(config);
@@ -201,10 +242,15 @@ export class ConfigLoader {
    * Load and validate JWT configuration
    */
   static loadJwtConfig(): JwtConfig {
+    const secret = process.env['JWT_SECRET'] || 'your-secret-key-change-in-production';
+    
     const config = {
-      secret: process.env['JWT_SECRET'] || 'your-secret-key-change-in-production',
+      secret,
+      accessTokenSecret: process.env['JWT_ACCESS_SECRET'] || secret,
+      refreshTokenSecret: process.env['JWT_REFRESH_SECRET'] || secret + '_refresh',
       expiresIn: process.env['JWT_EXPIRES_IN'] || '24h',
-      refreshExpiresIn: process.env['JWT_REFRESH_EXPIRES_IN'] || '7d',
+      accessTokenExpiresIn: process.env['JWT_ACCESS_EXPIRES_IN'] || '15m',
+      refreshTokenExpiresIn: process.env['JWT_REFRESH_EXPIRES_IN'] || '7d',
       issuer: process.env['JWT_ISSUER'] || 'task-management-system',
       audience: process.env['JWT_AUDIENCE'] || 'task-management-users',
     };
@@ -216,19 +262,37 @@ export class ConfigLoader {
    * Load and validate email configuration
    */
   static loadEmailConfig(): EmailConfig {
+    const host = process.env['EMAIL_HOST'] || 'localhost';
+    const port = parseInt(process.env['EMAIL_PORT'] || '587');
+    const secure = process.env['EMAIL_SECURE'] === 'true';
+    const user = process.env['EMAIL_USER'];
+    const password = process.env['EMAIL_PASSWORD'];
+
     const config = {
-      host: process.env['EMAIL_HOST'] || 'localhost',
-      port: parseInt(process.env['EMAIL_PORT'] || '587'),
-      secure: process.env['EMAIL_SECURE'] === 'true',
-      user: process.env['EMAIL_USER'],
-      password: process.env['EMAIL_PASSWORD'],
+      host,
+      port,
+      secure,
+      user,
+      password,
       from: process.env['EMAIL_FROM'] || 'noreply@taskmanagement.com',
+      replyTo: process.env['EMAIL_REPLY_TO'],
+      smtp: {
+        host,
+        port,
+        secure,
+        auth: user && password ? {
+          user,
+          pass: password,
+        } : undefined,
+      },
       templatesPath:
         process.env['EMAIL_TEMPLATES_PATH'] ||
         './src/infrastructure/external-services/templates',
       enableQueue: process.env['EMAIL_ENABLE_QUEUE'] !== 'false',
       maxRetries: parseInt(process.env['EMAIL_MAX_RETRIES'] || '3'),
       retryDelay: parseInt(process.env['EMAIL_RETRY_DELAY'] || '5000'),
+      maxAttachmentSize: parseInt(process.env['EMAIL_MAX_ATTACHMENT_SIZE'] || (10 * 1024 * 1024).toString()),
+      maxTotalAttachmentSize: parseInt(process.env['EMAIL_MAX_TOTAL_ATTACHMENT_SIZE'] || (50 * 1024 * 1024).toString()),
     };
 
     return EmailConfigSchema.parse(config);

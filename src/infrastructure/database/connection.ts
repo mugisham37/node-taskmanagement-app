@@ -36,6 +36,10 @@ export class DatabaseConnection implements IDatabaseConnection {
     return DatabaseConnection.instance;
   }
 
+  public static get currentInstance(): DatabaseConnection | null {
+    return DatabaseConnection.instance;
+  }
+
   public async initialize(): Promise<void> {
     await this.connect();
   }
@@ -157,8 +161,14 @@ export function createDatabaseConnection(
 
 // Export database instance getter
 export function getDatabase() {
-  return DatabaseConnection.getInstance().db;
+  const instance = DatabaseConnection.currentInstance;
+  if (!instance) {
+    throw new Error('Database connection not initialized. Call getInstance(config) first.');
+  }
+  return instance.db;
 }
 
-// Export db instance for direct usage (compatibility)
-export const db = getDatabase();
+// Export db instance getter function (compatibility)
+export function getDbInstance() {
+  return getDatabase();
+}

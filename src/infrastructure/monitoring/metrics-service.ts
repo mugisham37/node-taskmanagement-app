@@ -7,6 +7,7 @@ import {
   collectDefaultMetrics,
 } from 'prom-client';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
+import { AppConfig } from '../../shared/config';
 
 export interface MetricsConfig {
   enableDefaultMetrics: boolean;
@@ -33,9 +34,41 @@ export class MetricsService {
   private histograms = new Map<string, Histogram>();
   private gauges = new Map<string, Gauge>();
   private summaries = new Map<string, Summary>();
+  private readonly defaultConfig: MetricsConfig = {
+    enableDefaultMetrics: true,
+    defaultMetricsInterval: 5000,
+    prefix: 'taskmanagement_',
+    labels: {
+      service: 'task-management',
+      version: '1.0.0',
+      environment: 'development',
+    },
+  };
 
-  constructor(private readonly config: MetricsConfig) {
+  constructor(private readonly config?: MetricsConfig) {
     this.initialize();
+  }
+
+  private getConfig(): MetricsConfig {
+    return this.config || this.defaultConfig;
+  }
+
+  /**
+   * Create MetricsService from AppConfig
+   */
+  static fromAppConfig(appConfig: AppConfig): MetricsService {
+    const metricsConfig: MetricsConfig = {
+      enableDefaultMetrics: appConfig.enableMetrics,
+      defaultMetricsInterval: 5000,
+      prefix: 'taskmanagement_',
+      labels: {
+        service: 'task-management',
+        version: '1.0.0',
+        environment: appConfig.nodeEnv,
+      },
+    };
+    
+    return new MetricsService(metricsConfig);
   }
 
   /**
@@ -46,10 +79,10 @@ export class MetricsService {
     register.clear();
 
     // Enable default metrics if configured
-    if (this.config.enableDefaultMetrics) {
+    if (this.getConfig().enableDefaultMetrics) {
       collectDefaultMetrics({
-        prefix: this.config.prefix,
-        labels: this.config.labels,
+        prefix: this.getConfig().prefix,
+        labels: this.getConfig().labels,
       });
     }
 
@@ -167,7 +200,7 @@ export class MetricsService {
    * Create a counter metric
    */
   createCounter(name: string, help: string, labels: string[] = []): Counter {
-    const fullName = `${this.config.prefix}${name}`;
+    const fullName = `${this.getConfig().prefix}${name}`;
 
     if (this.counters.has(fullName)) {
       return this.counters.get(fullName)!;
@@ -176,7 +209,7 @@ export class MetricsService {
     const counter = new Counter({
       name: fullName,
       help,
-      labelNames: [...labels, ...Object.keys(this.config.labels)],
+      labelNames: [...labels, ...Object.keys(this.getConfig().labels)],
     });
 
     this.counters.set(fullName, counter);
@@ -192,7 +225,7 @@ export class MetricsService {
     labels: string[] = [],
     buckets?: number[]
   ): Histogram {
-    const fullName = `${this.config.prefix}${name}`;
+    const fullName = `${this.getConfig().prefix}${name}`;
 
     if (this.histograms.has(fullName)) {
       return this.histograms.get(fullName)!;
@@ -201,7 +234,7 @@ export class MetricsService {
     const config: any = {
       name: fullName,
       help,
-      labelNames: [...labels, ...Object.keys(this.config.labels)],
+      labelNames: [...labels, ...Object.keys(this.getConfig().labels)],
     };
 
     if (buckets !== undefined) {
@@ -218,7 +251,7 @@ export class MetricsService {
    * Create a gauge metric
    */
   createGauge(name: string, help: string, labels: string[] = []): Gauge {
-    const fullName = `${this.config.prefix}${name}`;
+    const fullName = `${this.getConfig().prefix}${name}`;
 
     if (this.gauges.has(fullName)) {
       return this.gauges.get(fullName)!;
@@ -227,7 +260,7 @@ export class MetricsService {
     const gauge = new Gauge({
       name: fullName,
       help,
-      labelNames: [...labels, ...Object.keys(this.config.labels)],
+      labelNames: [...labels, ...Object.keys(this.getConfig().labels)],
     });
 
     this.gauges.set(fullName, gauge);
@@ -243,7 +276,7 @@ export class MetricsService {
     labels: string[] = [],
     percentiles?: number[]
   ): Summary {
-    const fullName = `${this.config.prefix}${name}`;
+    const fullName = `${this.getConfig().prefix}${name}`;
 
     if (this.summaries.has(fullName)) {
       return this.summaries.get(fullName)!;
@@ -252,7 +285,7 @@ export class MetricsService {
     const config: any = {
       name: fullName,
       help,
-      labelNames: [...labels, ...Object.keys(this.config.labels)],
+      labelNames: [...labels, ...Object.keys(this.getConfig().labels)],
     };
 
     if (percentiles !== undefined) {
@@ -275,7 +308,7 @@ export class MetricsService {
   ): void {
     const counter = this.getCounter(name);
     if (counter) {
-      counter.inc({ ...this.config.labels, ...labels }, value);
+      counter.inc({ ...this.getConfig().labels, ...labels }, value);
     }
   }
 
@@ -289,7 +322,7 @@ export class MetricsService {
   ): void {
     const histogram = this.getHistogram(name);
     if (histogram) {
-      histogram.observe({ ...this.config.labels, ...labels }, value);
+      histogram.observe({ ...this.getConfig().labels, ...labels }, value);
     }
   }
 
@@ -303,7 +336,7 @@ export class MetricsService {
   ): void {
     const gauge = this.getGauge(name);
     if (gauge) {
-      gauge.set({ ...this.config.labels, ...labels }, value);
+      gauge.set({ ...this.getConfig().labels, ...labels }, value);
     }
   }
 
@@ -317,7 +350,7 @@ export class MetricsService {
   ): void {
     const gauge = this.getGauge(name);
     if (gauge) {
-      gauge.inc({ ...this.config.labels, ...labels }, value);
+      gauge.inc({ ...this.getConfig().labels, ...labels }, value);
     }
   }
 
@@ -331,7 +364,7 @@ export class MetricsService {
   ): void {
     const gauge = this.getGauge(name);
     if (gauge) {
-      gauge.dec({ ...this.config.labels, ...labels }, value);
+      gauge.dec({ ...this.getConfig().labels, ...labels }, value);
     }
   }
 
@@ -345,7 +378,7 @@ export class MetricsService {
   ): void {
     const summary = this.getSummary(name);
     if (summary) {
-      summary.observe({ ...this.config.labels, ...labels }, value);
+      summary.observe({ ...this.getConfig().labels, ...labels }, value);
     }
   }
 
@@ -590,7 +623,7 @@ export class MetricsService {
    * Get counter by name
    */
   private getCounter(name: string): Counter | undefined {
-    const fullName = `${this.config.prefix}${name}`;
+    const fullName = `${this.getConfig().prefix}${name}`;
     return this.counters.get(fullName);
   }
 
@@ -598,7 +631,7 @@ export class MetricsService {
    * Get histogram by name
    */
   private getHistogram(name: string): Histogram | undefined {
-    const fullName = `${this.config.prefix}${name}`;
+    const fullName = `${this.getConfig().prefix}${name}`;
     return this.histograms.get(fullName);
   }
 
@@ -606,7 +639,7 @@ export class MetricsService {
    * Get gauge by name
    */
   private getGauge(name: string): Gauge | undefined {
-    const fullName = `${this.config.prefix}${name}`;
+    const fullName = `${this.getConfig().prefix}${name}`;
     return this.gauges.get(fullName);
   }
 
@@ -614,7 +647,7 @@ export class MetricsService {
    * Get summary by name
    */
   private getSummary(name: string): Summary | undefined {
-    const fullName = `${this.config.prefix}${name}`;
+    const fullName = `${this.getConfig().prefix}${name}`;
     return this.summaries.get(fullName);
   }
 

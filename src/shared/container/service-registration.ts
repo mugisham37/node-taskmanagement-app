@@ -109,6 +109,7 @@ import { EventIntegrationService } from '../../infrastructure/events/event-integ
 import { UnitOfWorkFactory } from '../../infrastructure/database/unit-of-work';
 import { EventHandlerLifecycleManager } from '../../application/events/event-handler-lifecycle-manager';
 import { CacheService } from '../../infrastructure/caching/cache-service';
+import { RedisClient } from '../../infrastructure/caching/redis-client';
 import { EmailService } from '../../infrastructure/external-services/email-service';
 import { JWTService } from '../../infrastructure/security/jwt-service';
 import { PasswordService } from '../../infrastructure/security/password-service';
@@ -261,9 +262,15 @@ function registerInfrastructure(container: Container): void {
   );
 
   // Caching
-  container.registerSingleton(SERVICE_TOKENS.CACHE_SERVICE, CacheService, [
-    SERVICE_TOKENS.REDIS_CONFIG,
-  ]);
+  container.registerFactory(
+    SERVICE_TOKENS.CACHE_SERVICE,
+    (container) => {
+      const redisConfig = container.resolve<any>(SERVICE_TOKENS.REDIS_CONFIG);
+      const redisClient = new RedisClient(redisConfig);
+      return new CacheService(redisClient, redisConfig);
+    },
+    ServiceLifetime.Singleton
+  );
 
   // External Services
   container.registerSingleton(SERVICE_TOKENS.EMAIL_SERVICE, EmailService, [
@@ -289,11 +296,23 @@ function registerInfrastructure(container: Container): void {
   );
 
   // Monitoring Services
-  container.registerSingleton(SERVICE_TOKENS.LOGGING_SERVICE, LoggingService, [
-    SERVICE_TOKENS.APP_CONFIG,
-  ]);
+  container.registerFactory(
+    SERVICE_TOKENS.LOGGING_SERVICE,
+    (container) => {
+      const appConfig = container.resolve<any>(SERVICE_TOKENS.APP_CONFIG);
+      return LoggingService.fromAppConfig(appConfig);
+    },
+    ServiceLifetime.Singleton
+  );
 
-  container.registerSingleton(SERVICE_TOKENS.METRICS_SERVICE, MetricsService);
+  container.registerFactory(
+    SERVICE_TOKENS.METRICS_SERVICE,
+    (container) => {
+      const appConfig = container.resolve<any>(SERVICE_TOKENS.APP_CONFIG);
+      return MetricsService.fromAppConfig(appConfig);
+    },
+    ServiceLifetime.Singleton
+  );
 
   container.registerSingleton(SERVICE_TOKENS.HEALTH_SERVICE, HealthService, [
     SERVICE_TOKENS.DATABASE_CONNECTION,
