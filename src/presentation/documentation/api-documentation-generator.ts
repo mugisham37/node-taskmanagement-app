@@ -1,6 +1,12 @@
 import { FastifyInstance } from 'fastify';
 import { ZodSchema } from 'zod';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { EnvironmentUtils } from '../../shared/types/environment';
+import { 
+  PostmanOperation,
+  isPostmanOperation 
+} from '../../shared/types/documentation';
+import '../../shared/types/environment';
 
 export interface APIEndpoint {
   method: string;
@@ -16,18 +22,20 @@ export interface APIEndpoint {
 }
 
 export interface Parameter {
-  name: string;
-  in: 'path' | 'query' | 'header' | 'cookie';
+  name?: string;
+  in?: 'path' | 'query' | 'header' | 'cookie';
   description?: string;
-  required: boolean;
-  schema: any;
+  required?: boolean;
+  schema?: any;
   example?: any;
+  $ref?: string;
 }
 
 export interface RequestBody {
   description?: string;
-  required: boolean;
-  content: Record<string, MediaType>;
+  required?: boolean;
+  content?: Record<string, MediaType>;
+  $ref?: string;
 }
 
 export interface MediaType {
@@ -37,9 +45,10 @@ export interface MediaType {
 }
 
 export interface Response {
-  description: string;
+  description?: string;
   content?: Record<string, MediaType>;
   headers?: Record<string, Header>;
+  $ref?: string;
 }
 
 export interface Header {
@@ -217,7 +226,7 @@ export class APIDocumentationGenerator {
         All errors follow a consistent format with appropriate HTTP status codes.
         See the error response schemas for details.
       `,
-      version: process.env.API_VERSION || '1.0.0',
+      version: EnvironmentUtils.getEnvVar('API_VERSION', '1.0.0'),
       contact: {
         name: 'API Support',
         url: 'https://example.com/support',
@@ -236,11 +245,11 @@ export class APIDocumentationGenerator {
   private generateServers(): Server[] {
     return [
       {
-        url: process.env.API_BASE_URL || 'https://api.example.com',
+        url: EnvironmentUtils.getEnvVar('API_BASE_URL', 'https://api.example.com'),
         description: 'Production server',
       },
       {
-        url: process.env.STAGING_API_URL || 'https://staging-api.example.com',
+        url: EnvironmentUtils.getEnvVar('STAGING_API_URL', 'https://staging-api.example.com'),
         description: 'Staging server',
       },
       {
@@ -261,16 +270,19 @@ export class APIDocumentationGenerator {
         paths[endpoint.path] = {};
       }
 
-      paths[endpoint.path][endpoint.method.toLowerCase()] = {
-        summary: endpoint.summary,
-        description: endpoint.description,
-        tags: endpoint.tags,
-        parameters: endpoint.parameters,
-        requestBody: endpoint.requestBody,
-        responses: endpoint.responses,
-        security: endpoint.security,
-        examples: endpoint.examples,
-      };
+      const pathObject = paths[endpoint.path];
+      if (pathObject) {
+        pathObject[endpoint.method.toLowerCase()] = {
+          summary: endpoint.summary,
+          description: endpoint.description,
+          tags: endpoint.tags,
+          parameters: endpoint.parameters,
+          requestBody: endpoint.requestBody,
+          responses: endpoint.responses,
+          security: endpoint.security,
+          examples: endpoint.examples,
+        };
+      }
     }
 
     return paths;
@@ -935,7 +947,14 @@ export class APIDocumentationGenerator {
     const items: any[] = [];
 
     for (const [path, methods] of Object.entries(paths)) {
-      for (const [method, operation] of Object.entries(methods)) {
+      for (const [method, operationData] of Object.entries(methods)) {
+        // Type guard to ensure operation has the expected structure
+        if (!isPostmanOperation(operationData)) {
+          continue;
+        }
+
+        const operation = operationData as PostmanOperation;
+        
         const item = {
           name: operation.summary || `${method.toUpperCase()} ${path}`,
           request: {
@@ -953,6 +972,7 @@ export class APIDocumentationGenerator {
               path: path.split('/').filter(Boolean),
             },
             description: operation.description,
+            body: undefined as any, // Initialize as undefined, will be set if requestBody exists
           },
           response: [],
         };

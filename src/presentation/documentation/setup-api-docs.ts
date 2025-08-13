@@ -1,6 +1,8 @@
 import { FastifyInstance } from 'fastify';
 import { APIDocumentationGenerator } from './api-documentation-generator';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { EnvironmentUtils } from '../../shared/types/environment';
+import '../../shared/types/environment';
 
 /**
  * Setup comprehensive API documentation
@@ -34,18 +36,18 @@ export async function setupAPIDocumentation(
   await docGenerator.setupSwaggerUI(fastify);
 
   // Add additional documentation routes
-  fastify.get('/docs/openapi.json', async (request, reply) => {
+  fastify.get('/docs/openapi.json', async (_request, reply) => {
     const spec = docGenerator.generateOpenAPISpec();
     return reply.send(spec);
   });
 
-  fastify.get('/docs/postman.json', async (request, reply) => {
+  fastify.get('/docs/postman.json', async (_request, reply) => {
     const collection = docGenerator.generatePostmanCollection();
     return reply.send(collection);
   });
 
   // Export documentation files in development
-  if (process.env.NODE_ENV === 'development') {
+  if (EnvironmentUtils.isDevelopment()) {
     docGenerator.exportToFile('./docs/openapi.json');
 
     const fs = require('fs');
@@ -170,7 +172,50 @@ function registerTaskEndpoints(docGenerator: APIDocumentationGenerator): void {
     security: [{ BearerAuth: [] }],
   });
 
-  // Add more task endpoints...
+  // Add task update endpoint
+  docGenerator.registerEndpoint({
+    method: 'PUT',
+    path: '/api/v1/tasks/{id}',
+    summary: 'Update a task',
+    description: 'Update an existing task by ID',
+    tags: ['Tasks'],
+    parameters: [
+      { $ref: '#/components/parameters/IdParam' }
+    ],
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/UpdateTaskRequest' },
+        },
+      },
+    },
+    responses: {
+      '200': { $ref: '#/components/responses/Success' },
+      '400': { $ref: '#/components/responses/BadRequest' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+      '404': { $ref: '#/components/responses/NotFound' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
+
+  // Add task deletion endpoint
+  docGenerator.registerEndpoint({
+    method: 'DELETE',
+    path: '/api/v1/tasks/{id}',
+    summary: 'Delete a task',
+    description: 'Delete a task by ID',
+    tags: ['Tasks'],
+    parameters: [
+      { $ref: '#/components/parameters/IdParam' }
+    ],
+    responses: {
+      '204': { $ref: '#/components/responses/NoContent' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+      '404': { $ref: '#/components/responses/NotFound' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
 }
 
 /**
@@ -211,7 +256,41 @@ function registerProjectEndpoints(
     security: [{ BearerAuth: [] }],
   });
 
-  // Add more project endpoints...
+  docGenerator.registerEndpoint({
+    method: 'GET',
+    path: '/api/v1/projects',
+    summary: 'List projects',
+    description: 'Retrieve a paginated list of projects',
+    tags: ['Projects'],
+    parameters: [
+      { $ref: '#/components/parameters/PageParam' },
+      { $ref: '#/components/parameters/LimitParam' },
+      { $ref: '#/components/parameters/SortByParam' },
+      { $ref: '#/components/parameters/SortOrderParam' },
+    ],
+    responses: {
+      '200': { $ref: '#/components/responses/Success' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
+
+  docGenerator.registerEndpoint({
+    method: 'GET',
+    path: '/api/v1/projects/{id}',
+    summary: 'Get project by ID',
+    description: 'Retrieve a specific project by its ID',
+    tags: ['Projects'],
+    parameters: [
+      { $ref: '#/components/parameters/IdParam' }
+    ],
+    responses: {
+      '200': { $ref: '#/components/responses/Success' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+      '404': { $ref: '#/components/responses/NotFound' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
 }
 
 /**
@@ -249,7 +328,49 @@ function registerUserEndpoints(docGenerator: APIDocumentationGenerator): void {
     security: [{ BearerAuth: [] }],
   });
 
-  // Add more user endpoints...
+  docGenerator.registerEndpoint({
+    method: 'GET',
+    path: '/api/v1/users',
+    summary: 'List users',
+    description: 'Retrieve a paginated list of users',
+    tags: ['Users'],
+    parameters: [
+      { $ref: '#/components/parameters/PageParam' },
+      { $ref: '#/components/parameters/LimitParam' },
+      { $ref: '#/components/parameters/SearchParam' },
+    ],
+    responses: {
+      '200': { $ref: '#/components/responses/Success' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
+
+  docGenerator.registerEndpoint({
+    method: 'PUT',
+    path: '/api/v1/users/{id}',
+    summary: 'Update user',
+    description: 'Update user information',
+    tags: ['Users'],
+    parameters: [
+      { $ref: '#/components/parameters/IdParam' }
+    ],
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/UpdateUserRequest' },
+        },
+      },
+    },
+    responses: {
+      '200': { $ref: '#/components/responses/Success' },
+      '400': { $ref: '#/components/responses/BadRequest' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+      '404': { $ref: '#/components/responses/NotFound' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
 }
 
 /**
@@ -258,7 +379,44 @@ function registerUserEndpoints(docGenerator: APIDocumentationGenerator): void {
 function registerWorkspaceEndpoints(
   docGenerator: APIDocumentationGenerator
 ): void {
-  // Implementation for workspace endpoints...
+  docGenerator.registerEndpoint({
+    method: 'GET',
+    path: '/api/v1/workspaces',
+    summary: 'List workspaces',
+    description: 'Retrieve workspaces accessible to the authenticated user',
+    tags: ['Workspaces'],
+    parameters: [
+      { $ref: '#/components/parameters/PageParam' },
+      { $ref: '#/components/parameters/LimitParam' },
+    ],
+    responses: {
+      '200': { $ref: '#/components/responses/Success' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
+
+  docGenerator.registerEndpoint({
+    method: 'POST',
+    path: '/api/v1/workspaces',
+    summary: 'Create workspace',
+    description: 'Create a new workspace',
+    tags: ['Workspaces'],
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/CreateWorkspaceRequest' },
+        },
+      },
+    },
+    responses: {
+      '201': { $ref: '#/components/responses/Created' },
+      '400': { $ref: '#/components/responses/BadRequest' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
 }
 
 /**
@@ -321,7 +479,22 @@ function registerNotificationEndpoints(
     security: [{ BearerAuth: [] }],
   });
 
-  // Add more notification endpoints...
+  docGenerator.registerEndpoint({
+    method: 'PATCH',
+    path: '/api/v1/notifications/{id}/read',
+    summary: 'Mark notification as read',
+    description: 'Mark a specific notification as read',
+    tags: ['Notifications'],
+    parameters: [
+      { $ref: '#/components/parameters/IdParam' }
+    ],
+    responses: {
+      '200': { $ref: '#/components/responses/Success' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+      '404': { $ref: '#/components/responses/NotFound' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
 }
 
 /**
@@ -330,7 +503,44 @@ function registerNotificationEndpoints(
 function registerWebhookEndpoints(
   docGenerator: APIDocumentationGenerator
 ): void {
-  // Implementation for webhook endpoints...
+  docGenerator.registerEndpoint({
+    method: 'POST',
+    path: '/api/v1/webhooks',
+    summary: 'Create webhook',
+    description: 'Create a new webhook subscription',
+    tags: ['Webhooks'],
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/CreateWebhookRequest' },
+        },
+      },
+    },
+    responses: {
+      '201': { $ref: '#/components/responses/Created' },
+      '400': { $ref: '#/components/responses/BadRequest' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
+
+  docGenerator.registerEndpoint({
+    method: 'GET',
+    path: '/api/v1/webhooks',
+    summary: 'List webhooks',
+    description: 'Retrieve webhook subscriptions',
+    tags: ['Webhooks'],
+    parameters: [
+      { $ref: '#/components/parameters/PageParam' },
+      { $ref: '#/components/parameters/LimitParam' },
+    ],
+    responses: {
+      '200': { $ref: '#/components/responses/Success' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
 }
 
 /**
@@ -339,7 +549,48 @@ function registerWebhookEndpoints(
 function registerAnalyticsEndpoints(
   docGenerator: APIDocumentationGenerator
 ): void {
-  // Implementation for analytics endpoints...
+  docGenerator.registerEndpoint({
+    method: 'GET',
+    path: '/api/v1/analytics/dashboard',
+    summary: 'Get dashboard analytics',
+    description: 'Retrieve analytics data for dashboard',
+    tags: ['Analytics'],
+    parameters: [
+      {
+        name: 'timeRange',
+        in: 'query',
+        description: 'Time range for analytics',
+        required: false,
+        schema: {
+          type: 'string',
+          enum: ['7d', '30d', '90d', '1y'],
+          default: '30d',
+        },
+      },
+    ],
+    responses: {
+      '200': { $ref: '#/components/responses/Success' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
+
+  docGenerator.registerEndpoint({
+    method: 'GET',
+    path: '/api/v1/analytics/tasks',
+    summary: 'Get task analytics',
+    description: 'Retrieve task-specific analytics',
+    tags: ['Analytics'],
+    parameters: [
+      { $ref: '#/components/parameters/PageParam' },
+      { $ref: '#/components/parameters/LimitParam' },
+    ],
+    responses: {
+      '200': { $ref: '#/components/responses/Success' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
 }
 
 /**
@@ -348,14 +599,93 @@ function registerAnalyticsEndpoints(
 function registerCalendarEndpoints(
   docGenerator: APIDocumentationGenerator
 ): void {
-  // Implementation for calendar endpoints...
+  docGenerator.registerEndpoint({
+    method: 'GET',
+    path: '/api/v1/calendar/events',
+    summary: 'Get calendar events',
+    description: 'Retrieve calendar events for the authenticated user',
+    tags: ['Calendar'],
+    parameters: [
+      {
+        name: 'start',
+        in: 'query',
+        description: 'Start date for events',
+        required: true,
+        schema: { type: 'string', format: 'date' },
+      },
+      {
+        name: 'end',
+        in: 'query',
+        description: 'End date for events',
+        required: true,
+        schema: { type: 'string', format: 'date' },
+      },
+    ],
+    responses: {
+      '200': { $ref: '#/components/responses/Success' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
 }
 
 /**
  * Register file endpoints
  */
 function registerFileEndpoints(docGenerator: APIDocumentationGenerator): void {
-  // Implementation for file endpoints...
+  docGenerator.registerEndpoint({
+    method: 'POST',
+    path: '/api/v1/files/upload',
+    summary: 'Upload file',
+    description: 'Upload a file to the system',
+    tags: ['Files'],
+    requestBody: {
+      required: true,
+      content: {
+        'multipart/form-data': {
+          schema: {
+            type: 'object',
+            properties: {
+              file: { type: 'string', format: 'binary' },
+              projectId: { type: 'string', format: 'uuid' },
+              taskId: { type: 'string', format: 'uuid' },
+            },
+            required: ['file'],
+          },
+        },
+      },
+    },
+    responses: {
+      '201': { $ref: '#/components/responses/Created' },
+      '400': { $ref: '#/components/responses/BadRequest' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
+
+  docGenerator.registerEndpoint({
+    method: 'GET',
+    path: '/api/v1/files/{id}',
+    summary: 'Download file',
+    description: 'Download a file by ID',
+    tags: ['Files'],
+    parameters: [
+      { $ref: '#/components/parameters/IdParam' }
+    ],
+    responses: {
+      '200': {
+        description: 'File content',
+        content: {
+          'application/octet-stream': {
+            schema: { type: 'string', format: 'binary' },
+          },
+        },
+      },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+      '404': { $ref: '#/components/responses/NotFound' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
 }
 
 /**
@@ -364,7 +694,35 @@ function registerFileEndpoints(docGenerator: APIDocumentationGenerator): void {
 function registerSearchEndpoints(
   docGenerator: APIDocumentationGenerator
 ): void {
-  // Implementation for search endpoints...
+  docGenerator.registerEndpoint({
+    method: 'GET',
+    path: '/api/v1/search',
+    summary: 'Global search',
+    description: 'Search across tasks, projects, and users',
+    tags: ['Search'],
+    parameters: [
+      { $ref: '#/components/parameters/SearchParam' },
+      { $ref: '#/components/parameters/PageParam' },
+      { $ref: '#/components/parameters/LimitParam' },
+      {
+        name: 'type',
+        in: 'query',
+        description: 'Filter by entity type',
+        required: false,
+        schema: {
+          type: 'string',
+          enum: ['tasks', 'projects', 'users', 'all'],
+          default: 'all',
+        },
+      },
+    ],
+    responses: {
+      '200': { $ref: '#/components/responses/Success' },
+      '400': { $ref: '#/components/responses/BadRequest' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
 }
 
 /**
@@ -373,7 +731,61 @@ function registerSearchEndpoints(
 function registerCollaborationEndpoints(
   docGenerator: APIDocumentationGenerator
 ): void {
-  // Implementation for collaboration endpoints...
+  docGenerator.registerEndpoint({
+    method: 'POST',
+    path: '/api/v1/collaboration/comments',
+    summary: 'Add comment',
+    description: 'Add a comment to a task or project',
+    tags: ['Collaboration'],
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/CreateCommentRequest' },
+        },
+      },
+    },
+    responses: {
+      '201': { $ref: '#/components/responses/Created' },
+      '400': { $ref: '#/components/responses/BadRequest' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
+
+  docGenerator.registerEndpoint({
+    method: 'GET',
+    path: '/api/v1/collaboration/comments',
+    summary: 'Get comments',
+    description: 'Retrieve comments for a specific entity',
+    tags: ['Collaboration'],
+    parameters: [
+      {
+        name: 'entityId',
+        in: 'query',
+        description: 'ID of the entity (task or project)',
+        required: true,
+        schema: { type: 'string', format: 'uuid' },
+      },
+      {
+        name: 'entityType',
+        in: 'query',
+        description: 'Type of entity',
+        required: true,
+        schema: {
+          type: 'string',
+          enum: ['task', 'project'],
+        },
+      },
+      { $ref: '#/components/parameters/PageParam' },
+      { $ref: '#/components/parameters/LimitParam' },
+    ],
+    responses: {
+      '200': { $ref: '#/components/responses/Success' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
 }
 
 /**
@@ -382,7 +794,53 @@ function registerCollaborationEndpoints(
 function registerMonitoringEndpoints(
   docGenerator: APIDocumentationGenerator
 ): void {
-  // Implementation for monitoring endpoints...
+  docGenerator.registerEndpoint({
+    method: 'GET',
+    path: '/api/v1/health',
+    summary: 'Health check',
+    description: 'Check the health status of the API',
+    tags: ['Monitoring'],
+    responses: {
+      '200': {
+        description: 'Service is healthy',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                status: { type: 'string', example: 'healthy' },
+                timestamp: { type: 'string', format: 'date-time' },
+                uptime: { type: 'number' },
+                version: { type: 'string' },
+                environment: { type: 'string' },
+                checks: {
+                  type: 'object',
+                  properties: {
+                    database: { type: 'string' },
+                    cache: { type: 'string' },
+                    externalServices: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  docGenerator.registerEndpoint({
+    method: 'GET',
+    path: '/api/v1/metrics',
+    summary: 'Get metrics',
+    description: 'Retrieve application metrics',
+    tags: ['Monitoring'],
+    responses: {
+      '200': { $ref: '#/components/responses/Success' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
 }
 
 /**
@@ -391,7 +849,71 @@ function registerMonitoringEndpoints(
 function registerBulkOperationEndpoints(
   docGenerator: APIDocumentationGenerator
 ): void {
-  // Implementation for bulk operation endpoints...
+  docGenerator.registerEndpoint({
+    method: 'POST',
+    path: '/api/v1/bulk/tasks',
+    summary: 'Bulk create tasks',
+    description: 'Create multiple tasks in a single operation',
+    tags: ['Bulk Operations'],
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              tasks: {
+                type: 'array',
+                items: { $ref: '#/components/schemas/CreateTaskRequest' },
+              },
+            },
+            required: ['tasks'],
+          },
+        },
+      },
+    },
+    responses: {
+      '201': { $ref: '#/components/responses/Created' },
+      '400': { $ref: '#/components/responses/BadRequest' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
+
+  docGenerator.registerEndpoint({
+    method: 'PATCH',
+    path: '/api/v1/bulk/tasks/status',
+    summary: 'Bulk update task status',
+    description: 'Update status for multiple tasks',
+    tags: ['Bulk Operations'],
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              taskIds: {
+                type: 'array',
+                items: { type: 'string', format: 'uuid' },
+              },
+              status: {
+                type: 'string',
+                enum: ['todo', 'in_progress', 'in_review', 'completed', 'cancelled'],
+              },
+            },
+            required: ['taskIds', 'status'],
+          },
+        },
+      },
+    },
+    responses: {
+      '200': { $ref: '#/components/responses/Success' },
+      '400': { $ref: '#/components/responses/BadRequest' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
 }
 
 /**
@@ -454,7 +976,64 @@ function registerAuthEndpoints(docGenerator: APIDocumentationGenerator): void {
     },
   });
 
-  // Add more auth endpoints...
+  docGenerator.registerEndpoint({
+    method: 'POST',
+    path: '/api/v1/auth/register',
+    summary: 'User registration',
+    description: 'Register a new user account',
+    tags: ['Authentication'],
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/RegisterUserRequest' },
+        },
+      },
+    },
+    responses: {
+      '201': { $ref: '#/components/responses/Created' },
+      '400': { $ref: '#/components/responses/BadRequest' },
+    },
+  });
+
+  docGenerator.registerEndpoint({
+    method: 'POST',
+    path: '/api/v1/auth/refresh',
+    summary: 'Refresh token',
+    description: 'Refresh the JWT token using refresh token',
+    tags: ['Authentication'],
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              refreshToken: { type: 'string' },
+            },
+            required: ['refreshToken'],
+          },
+        },
+      },
+    },
+    responses: {
+      '200': { $ref: '#/components/responses/Success' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+    },
+  });
+
+  docGenerator.registerEndpoint({
+    method: 'POST',
+    path: '/api/v1/auth/logout',
+    summary: 'User logout',
+    description: 'Logout user and invalidate tokens',
+    tags: ['Authentication'],
+    responses: {
+      '200': { $ref: '#/components/responses/Success' },
+      '401': { $ref: '#/components/responses/Unauthorized' },
+    },
+    security: [{ BearerAuth: [] }],
+  });
 }
 
 /**
@@ -598,6 +1177,27 @@ function registerCommonSchemas(docGenerator: APIDocumentationGenerator): void {
     required: ['title', 'projectId'],
   });
 
+  docGenerator.registerSchema('UpdateTaskRequest', {
+    type: 'object',
+    properties: {
+      title: { type: 'string', minLength: 1, maxLength: 255 },
+      description: { type: 'string', maxLength: 2000 },
+      status: {
+        type: 'string',
+        enum: ['todo', 'in_progress', 'in_review', 'completed', 'cancelled'],
+      },
+      priority: {
+        type: 'string',
+        enum: ['low', 'medium', 'high', 'urgent'],
+      },
+      dueDate: { type: 'string', format: 'date-time' },
+      estimatedHours: { type: 'number', minimum: 0 },
+      actualHours: { type: 'number', minimum: 0 },
+      assigneeId: { type: 'string', format: 'uuid' },
+      tags: { type: 'array', items: { type: 'string' } },
+    },
+  });
+
   docGenerator.registerSchema('CreateProjectRequest', {
     type: 'object',
     properties: {
@@ -609,5 +1209,64 @@ function registerCommonSchemas(docGenerator: APIDocumentationGenerator): void {
       budget: { type: 'number', minimum: 0 },
     },
     required: ['name', 'workspaceId'],
+  });
+
+  docGenerator.registerSchema('CreateWorkspaceRequest', {
+    type: 'object',
+    properties: {
+      name: { type: 'string', minLength: 1, maxLength: 255 },
+      description: { type: 'string', maxLength: 1000 },
+    },
+    required: ['name'],
+  });
+
+  docGenerator.registerSchema('UpdateUserRequest', {
+    type: 'object',
+    properties: {
+      firstName: { type: 'string', minLength: 1, maxLength: 100 },
+      lastName: { type: 'string', minLength: 1, maxLength: 100 },
+      timezone: { type: 'string' },
+      language: { type: 'string' },
+    },
+  });
+
+  docGenerator.registerSchema('RegisterUserRequest', {
+    type: 'object',
+    properties: {
+      email: { type: 'string', format: 'email' },
+      password: { type: 'string', minLength: 8 },
+      firstName: { type: 'string', minLength: 1, maxLength: 100 },
+      lastName: { type: 'string', minLength: 1, maxLength: 100 },
+    },
+    required: ['email', 'password', 'firstName', 'lastName'],
+  });
+
+  docGenerator.registerSchema('CreateWebhookRequest', {
+    type: 'object',
+    properties: {
+      url: { type: 'string', format: 'uri' },
+      events: {
+        type: 'array',
+        items: {
+          type: 'string',
+          enum: ['task.created', 'task.updated', 'task.deleted', 'project.created', 'project.updated'],
+        },
+      },
+      secret: { type: 'string' },
+    },
+    required: ['url', 'events'],
+  });
+
+  docGenerator.registerSchema('CreateCommentRequest', {
+    type: 'object',
+    properties: {
+      content: { type: 'string', minLength: 1, maxLength: 2000 },
+      entityId: { type: 'string', format: 'uuid' },
+      entityType: {
+        type: 'string',
+        enum: ['task', 'project'],
+      },
+    },
+    required: ['content', 'entityId', 'entityType'],
   });
 }
