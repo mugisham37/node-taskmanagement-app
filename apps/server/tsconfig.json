@@ -1,0 +1,36 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@taskmanagement/shared": ["../../packages/shared/src"],
+      "@taskmanagement/shared/*": ["../../packages/shared/src/*"],
+      "@taskmanagement/database": ["../../packages/database/src"],
+      "@taskmanagement/database/*": ["../../packages/database/src/*"],
+      "@taskmanagement/config": ["../../packages/config/src"],
+      "@taskmanagement/config/*": ["../../packages/config/src/*"]
+    }
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ],
+  "references": [
+    {
+      "path": "../../packages/shared"
+    },
+    {
+      "path": "../../packages/database"
+    },
+    {
+      "path": "../../packages/config"
+    }
+  ]
+}

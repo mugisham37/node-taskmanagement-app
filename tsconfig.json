@@ -1,0 +1,56 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@taskmanagement/shared": ["./packages/shared/src"],
+      "@taskmanagement/shared/*": ["./packages/shared/src/*"],
+      "@taskmanagement/database": ["./packages/database/src"],
+      "@taskmanagement/database/*": ["./packages/database/src/*"],
+      "@taskmanagement/ui": ["./packages/ui/src"],
+      "@taskmanagement/ui/*": ["./packages/ui/src/*"],
+      "@taskmanagement/config": ["./packages/config/src"],
+      "@taskmanagement/config/*": ["./packages/config/src/*"],
+      "@taskmanagement/server": ["./apps/server/src"],
+      "@taskmanagement/server/*": ["./apps/server/src/*"],
+      "@taskmanagement/client": ["./apps/client/src"],
+      "@taskmanagement/client/*": ["./apps/client/src/*"]
+    },
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    ".next",
+    "coverage"
+  ]
+}

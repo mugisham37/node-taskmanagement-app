@@ -1,12 +1,14 @@
 {
-  "name": "client",
+  "name": "@taskmanagement/client",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev --turbopack --port 3000",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start --port 3000",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf .next dist"
   },
   "dependencies": {
     "react": "19.1.0",

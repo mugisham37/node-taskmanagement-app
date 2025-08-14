@@ -1,7 +1,7 @@
 {
-  "name": "unified-enterprise-platform",
+  "name": "@taskmanagement/server",
   "version": "1.0.0",
-  "description": "Unified enterprise platform combining authentication and task management with Clean Architecture and CQRS",
+  "description": "Task management server with Clean Architecture and CQRS",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",

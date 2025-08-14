@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # Database for development
+  database:
+    image: postgres:15-alpine
+    container_name: taskmanagement-db-dev
+    environment:
+      POSTGRES_DB: taskmanagement_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    networks:
+      - taskmanagement-dev-network
+
+  # Redis for development
+  redis:
+    image: redis:7-alpine
+    container_name: taskmanagement-redis-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+    networks:
+      - taskmanagement-dev-network
+
+  # Development database admin (optional)
+  adminer:
+    image: adminer:latest
+    container_name: taskmanagement-adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      - database
+    networks:
+      - taskmanagement-dev-network
+
+  # Redis admin (optional)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: taskmanagement-redis-commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - taskmanagement-dev-network
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+
+networks:
+  taskmanagement-dev-network:
+    driver: bridge
