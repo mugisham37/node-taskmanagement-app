@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { Container } from '../../shared/container';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { WebSocketHandler } from './websocket-handler';
+import { RealtimeManager, AuthenticatedWebSocket } from './realtime-manager';
 
 /**
  * Setup WebSocket functionality for the Fastify application
@@ -17,12 +18,26 @@ export async function setupWebSocket(
     // Register WebSocket plugin
     await app.register(require('@fastify/websocket'));
 
-    // Create simplified WebSocket handler
+    // Create realtime manager
+    const realtimeManager = new RealtimeManager(container);
+
+    // Setup WebSocket route with realtime manager
+    app.register(async function (fastify) {
+      fastify.get('/ws', { websocket: true }, (connection, request) => {
+        const ws = connection.socket as AuthenticatedWebSocket;
+        realtimeManager.handleConnection(ws, request);
+      });
+    });
+
+    // Make realtime manager available to the container for other services
+    container.register('RealtimeManager', realtimeManager);
+
+    // Create simplified WebSocket handler for backward compatibility
     const webSocketHandler = new WebSocketHandler(
       loggingService,
       {} as any, // JWTService - will be properly injected later
-      {} as any, // WebSocketService - will be properly injected later  
-      {} as any  // RealtimeEventService - will be properly injected later
+      {} as any, // WebSocketService - will be properly injected later
+      {} as any // RealtimeEventService - will be properly injected later
     );
 
     // Initialize the WebSocket handler
