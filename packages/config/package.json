@@ -12,7 +12,8 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@taskmanagement/shared": "workspace:*"
+    "@taskmanagement/shared": "workspace:*",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/node": "^20.19.9",

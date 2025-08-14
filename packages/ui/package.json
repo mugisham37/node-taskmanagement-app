@@ -16,7 +16,9 @@
   "dependencies": {
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "@taskmanagement/shared": "workspace:*"
+    "@taskmanagement/shared": "workspace:*",
+    "clsx": "^2.0.0",
+    "tailwind-merge": "^2.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.19.9",

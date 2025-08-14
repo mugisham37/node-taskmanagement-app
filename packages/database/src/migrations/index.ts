@@ -1,4 +1,18 @@
-// Placeholder for database migrations
-// This will be populated in subsequent tasks
+// Migration utilities and scripts
+import { migrate } from 'drizzle-orm/postgres-js/migrator';
+import { db, connection } from '../client';
 
-export const placeholder = 'migrations will be implemented here';
+export async function runMigrations() {
+  try {
+    console.log('Running database migrations...');
+    await migrate(db, { migrationsFolder: './migrations' });
+    console.log('Migrations completed successfully');
+  } catch (error) {
+    console.error('Migration failed:', error);
+    throw error;
+  }
+}
+
+export async function closeMigrationConnection() {
+  await connection.end();
+}

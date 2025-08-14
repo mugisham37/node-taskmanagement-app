@@ -1,4 +1,9 @@
-// Placeholder for UI utilities
-// This will be populated in subsequent tasks
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
-export const placeholder = 'UI utilities will be implemented here';
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+export * from './format';
+export * from './validation';
