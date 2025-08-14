@@ -141,6 +141,9 @@ export const SERVICE_TOKENS = {
   EMAIL_SERVICE: 'EmailService',
   JWT_SERVICE: 'JwtService',
   PASSWORD_SERVICE: 'PasswordService',
+  SESSION_MANAGER: 'SessionManager',
+  OAUTH_SERVICE: 'OAuthService',
+  TWO_FACTOR_AUTH_SERVICE: 'TwoFactorAuthService',
   RATE_LIMIT_SERVICE: 'RateLimitService',
   LOGGING_SERVICE: 'LoggingService',
   METRICS_SERVICE: 'MetricsService',
@@ -156,6 +159,14 @@ export const SERVICE_TOKENS = {
   NOTIFICATION_CONTROLLER: 'NotificationController',
   WEBHOOK_CONTROLLER: 'WebhookController',
   CALENDAR_CONTROLLER: 'CalendarController',
+
+  // Middleware
+  AUTH_MIDDLEWARE: 'AuthMiddleware',
+  RATE_LIMIT_MIDDLEWARE: 'RateLimitMiddleware',
+  VALIDATION_MIDDLEWARE: 'ValidationMiddleware',
+  ERROR_HANDLER_MIDDLEWARE: 'ErrorHandlerMiddleware',
+  CORS_MIDDLEWARE: 'CorsMiddleware',
+  SECURITY_MIDDLEWARE: 'SecurityMiddleware',
 
   // Event Handling
   EVENT_BUS: 'EventBus',

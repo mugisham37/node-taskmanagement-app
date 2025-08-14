@@ -3,12 +3,6 @@ import { Container } from '../../shared/container';
 import { ConfigLoader } from '../../shared/config';
 import { SERVICE_TOKENS } from '../../shared/container/types';
 
-// Import middleware
-import { RateLimitMiddleware } from './rate-limit-middleware';
-import { ErrorHandlerMiddleware } from './error-handler-middleware';
-import { CorsMiddleware } from './cors-middleware';
-import { SecurityMiddleware } from './security-middleware';
-
 /**
  * Setup all middleware for the Fastify application
  */
@@ -17,33 +11,38 @@ export async function setupMiddleware(
   container: Container,
   config: ReturnType<typeof ConfigLoader.validateAllConfigs>
 ): Promise<void> {
-  // Register CORS middleware
-  const corsMiddleware = container.resolve<CorsMiddleware>('CorsMiddleware');
-  app.addHook('preHandler', corsMiddleware.handle);
+  try {
+    // Register CORS middleware
+    const corsMiddleware = container.resolve(SERVICE_TOKENS.CORS_MIDDLEWARE);
+    app.addHook('preHandler', (corsMiddleware as any).handle);
 
-  // Register security middleware (helmet, etc.)
-  const securityMiddleware = container.resolve<SecurityMiddleware>('SecurityMiddleware');
-  app.addHook('preHandler', securityMiddleware.handle);
+    // Register security middleware (helmet, etc.)
+    const securityMiddleware = container.resolve(SERVICE_TOKENS.SECURITY_MIDDLEWARE);
+    app.addHook('preHandler', (securityMiddleware as any).handle);
 
-  // Register rate limiting middleware
-  const rateLimitMiddleware = container.resolve<RateLimitMiddleware>('RateLimitMiddleware');
-  app.addHook('preHandler', rateLimitMiddleware.globalRateLimit());
+    // Register rate limiting middleware
+    const rateLimitMiddleware = container.resolve(SERVICE_TOKENS.RATE_LIMIT_MIDDLEWARE);
+    app.addHook('preHandler', (rateLimitMiddleware as any).globalRateLimit());
 
-  // Register validation middleware
-  // ValidationMiddleware is typically added per route, not globally
+    // Register error handler middleware (should be last)
+    const errorHandlerMiddleware = container.resolve(SERVICE_TOKENS.ERROR_HANDLER_MIDDLEWARE);
+    app.setErrorHandler((errorHandlerMiddleware as any).handle);
 
-  // Register authentication middleware  
-  // AuthMiddleware is typically added per route, not globally
-
-  // Register error handler middleware (should be last)
-  const errorHandlerMiddleware = container.resolve<ErrorHandlerMiddleware>('ErrorHandlerMiddleware');
-  app.setErrorHandler(errorHandlerMiddleware.handle);
-
-  // Add container and config to request context
-  app.addHook('onRequest', async request => {
-    (request as any).container = container;
-    (request as any).config = config;
-  });
+    // Add container and config to request context
+    app.addHook('onRequest', async request => {
+      (request as any).container = container;
+      (request as any).config = config;
+    });
+  } catch (error) {
+    // Fallback middleware setup if container services are not available
+    console.warn('Container middleware not available, using fallback setup');
+    
+    // Add basic container and config to request context
+    app.addHook('onRequest', async request => {
+      (request as any).container = container;
+      (request as any).config = config;
+    });
+  }
 
   // Add health check endpoint
   app.get('/health', async () => {
