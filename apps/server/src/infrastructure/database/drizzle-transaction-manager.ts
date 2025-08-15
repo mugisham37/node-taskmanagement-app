@@ -3,9 +3,9 @@
  * Comprehensive transaction management with advanced features migrated from older version
  */
 
-import { db } from './connection';
+import { DomainEvent } from '@monorepo/domain';
 import { logger } from '../monitoring/logging-service';
-import { DomainEvent } from '../../domain/events/domain-event';
+import { db } from './connection';
 
 export interface TransactionContext {
   id: string;
@@ -186,7 +186,7 @@ export class DrizzleTransactionManager {
       for (let i = 0; i < operations.length; i++) {
         const operation = operations[i];
         if (!operation) continue;
-        
+
         try {
           const operationStart = Date.now();
           const result = await operation(context);
@@ -253,10 +253,14 @@ export class DrizzleTransactionManager {
               duration: operationDuration,
             });
           } catch (error) {
-            logger.error('Saga operation failed, starting compensation', error as Error, {
-              transactionId: context.id,
-              failedOperationIndex: i,
-            });
+            logger.error(
+              'Saga operation failed, starting compensation',
+              error as Error,
+              {
+                transactionId: context.id,
+                failedOperationIndex: i,
+              }
+            );
 
             // Compensate in reverse order
             await this.compensateOperations(

@@ -1,33 +1,37 @@
 import {
-  eq,
-  and,
-  or,
-  like,
-  gte,
-  lte,
-  count,
-  desc,
-  asc,
-  inArray,
-  isNull,
-  isNotNull,
-} from 'drizzle-orm';
-import { getDatabase } from '../connection';
-import { tasks, taskDependencies } from '../schema';
-import {
-  ITaskRepository,
-  TaskSortOptions,
-  PaginationOptions,
-  PaginatedResult,
-} from '../../../domain/repositories/task-repository';
-import { UnifiedTaskFilters } from '../../../shared/types/task-filters';
-import { Task } from '../../../domain/entities/task';
-import {
+  Priority,
+  ProjectId,
+  Task,
   TaskAggregate,
   TaskDependency,
-} from '../../../domain/aggregates/task-aggregate';
-import { TaskId, UserId, ProjectId, TaskStatusVO, Priority } from '../../../domain/value-objects';
+  TaskId,
+  TaskStatusVO,
+  UserId,
+} from '@monorepo/domain';
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  like,
+  lte,
+  or,
+} from 'drizzle-orm';
+import {
+  ITaskRepository,
+  PaginatedResult,
+  PaginationOptions,
+  TaskSortOptions,
+} from '../../../domain/repositories/task-repository';
 import { TaskStatus } from '../../../shared/constants/task-constants';
+import { UnifiedTaskFilters } from '../../../shared/types/task-filters';
+import { getDatabase } from '../connection';
+import { taskDependencies, tasks } from '../schema';
 
 export class TaskRepository implements ITaskRepository {
   private get db() {
@@ -69,9 +73,12 @@ export class TaskRepository implements ITaskRepository {
 
     // Build base query components
     const selectClause = this.db.select().from(tasks);
-    const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
-    const orderByClause = sort 
-      ? (sort.direction === 'DESC' ? desc(tasks[sort.field]) : asc(tasks[sort.field]))
+    const whereClause =
+      whereConditions.length > 0 ? and(...whereConditions) : undefined;
+    const orderByClause = sort
+      ? sort.direction === 'DESC'
+        ? desc(tasks[sort.field])
+        : asc(tasks[sort.field])
       : desc(tasks.createdAt);
 
     // Execute the main query
@@ -84,9 +91,7 @@ export class TaskRepository implements ITaskRepository {
         .limit(pagination.limit)
         .offset(offset);
     } else {
-      result = await selectClause
-        .where(whereClause)
-        .orderBy(orderByClause);
+      result = await selectClause.where(whereClause).orderBy(orderByClause);
     }
 
     // Count total
@@ -94,7 +99,7 @@ export class TaskRepository implements ITaskRepository {
       .select({ count: count() })
       .from(tasks)
       .where(whereClause);
-    
+
     const total = totalResult[0]?.count || 0;
 
     return {
@@ -123,8 +128,10 @@ export class TaskRepository implements ITaskRepository {
     // Build base query components
     const selectClause = this.db.select().from(tasks);
     const whereClause = and(...whereConditions);
-    const orderByClause = sort 
-      ? (sort.direction === 'DESC' ? desc(tasks[sort.field]) : asc(tasks[sort.field]))
+    const orderByClause = sort
+      ? sort.direction === 'DESC'
+        ? desc(tasks[sort.field])
+        : asc(tasks[sort.field])
       : desc(tasks.createdAt);
 
     // Execute the main query
@@ -137,9 +144,7 @@ export class TaskRepository implements ITaskRepository {
         .limit(pagination.limit)
         .offset(offset);
     } else {
-      result = await selectClause
-        .where(whereClause)
-        .orderBy(orderByClause);
+      result = await selectClause.where(whereClause).orderBy(orderByClause);
     }
 
     const total = await this.count(projectId, filters);
@@ -170,8 +175,10 @@ export class TaskRepository implements ITaskRepository {
     // Build base query components
     const selectClause = this.db.select().from(tasks);
     const whereClause = and(...whereConditions);
-    const orderByClause = sort 
-      ? (sort.direction === 'DESC' ? desc(tasks[sort.field]) : asc(tasks[sort.field]))
+    const orderByClause = sort
+      ? sort.direction === 'DESC'
+        ? desc(tasks[sort.field])
+        : asc(tasks[sort.field])
       : desc(tasks.createdAt);
 
     // Execute the main query
@@ -184,9 +191,7 @@ export class TaskRepository implements ITaskRepository {
         .limit(pagination.limit)
         .offset(offset);
     } else {
-      result = await selectClause
-        .where(whereClause)
-        .orderBy(orderByClause);
+      result = await selectClause.where(whereClause).orderBy(orderByClause);
     }
 
     // Count total
@@ -194,7 +199,7 @@ export class TaskRepository implements ITaskRepository {
       .select({ count: count() })
       .from(tasks)
       .where(whereClause);
-    
+
     const total = totalResult[0]?.count || 0;
 
     return {
@@ -223,8 +228,10 @@ export class TaskRepository implements ITaskRepository {
     // Build base query components
     const selectClause = this.db.select().from(tasks);
     const whereClause = and(...whereConditions);
-    const orderByClause = sort 
-      ? (sort.direction === 'DESC' ? desc(tasks[sort.field]) : asc(tasks[sort.field]))
+    const orderByClause = sort
+      ? sort.direction === 'DESC'
+        ? desc(tasks[sort.field])
+        : asc(tasks[sort.field])
       : desc(tasks.createdAt);
 
     // Execute the main query
@@ -237,9 +244,7 @@ export class TaskRepository implements ITaskRepository {
         .limit(pagination.limit)
         .offset(offset);
     } else {
-      result = await selectClause
-        .where(whereClause)
-        .orderBy(orderByClause);
+      result = await selectClause.where(whereClause).orderBy(orderByClause);
     }
 
     // Count total
@@ -247,7 +252,7 @@ export class TaskRepository implements ITaskRepository {
       .select({ count: count() })
       .from(tasks)
       .where(whereClause);
-    
+
     const total = totalResult[0]?.count || 0;
 
     return {
@@ -292,8 +297,7 @@ export class TaskRepository implements ITaskRepository {
         .limit(pagination.limit)
         .offset(offset);
     } else {
-      result = await selectClause
-        .where(whereClause);
+      result = await selectClause.where(whereClause);
     }
 
     // Count total
@@ -348,8 +352,7 @@ export class TaskRepository implements ITaskRepository {
         .limit(pagination.limit)
         .offset(offset);
     } else {
-      result = await selectClause
-        .where(whereClause);
+      result = await selectClause.where(whereClause);
     }
 
     // Count total
@@ -403,8 +406,7 @@ export class TaskRepository implements ITaskRepository {
         .limit(pagination.limit)
         .offset(offset);
     } else {
-      result = await selectClause
-        .where(whereClause);
+      result = await selectClause.where(whereClause);
     }
 
     // Count total
@@ -600,7 +602,10 @@ export class TaskRepository implements ITaskRepository {
     return result.length > 0;
   }
 
-  async count(projectId?: ProjectId, filters?: UnifiedTaskFilters): Promise<number> {
+  async count(
+    projectId?: ProjectId,
+    filters?: UnifiedTaskFilters
+  ): Promise<number> {
     const conditions: any[] = [];
 
     if (projectId) {
@@ -612,9 +617,13 @@ export class TaskRepository implements ITaskRepository {
       conditions.push(...filterConditions);
     }
 
-    const query = conditions.length > 0 
-      ? this.db.select({ count: count() }).from(tasks).where(and(...conditions))
-      : this.db.select({ count: count() }).from(tasks);
+    const query =
+      conditions.length > 0
+        ? this.db
+            .select({ count: count() })
+            .from(tasks)
+            .where(and(...conditions))
+        : this.db.select({ count: count() }).from(tasks);
 
     const result = await query;
     return result[0]?.count || 0;
@@ -672,11 +681,11 @@ export class TaskRepository implements ITaskRepository {
   async getTaskCompletionHistory(): Promise<any[]> {
     return [];
   }
-  
+
   async getUserTaskWorkload(): Promise<any> {
     return {};
   }
-  
+
   async bulkUpdateStatus(taskIds: TaskId[], status: TaskStatus): Promise<void> {
     const idValues = taskIds.map(id => id.value);
     await this.db
@@ -684,7 +693,7 @@ export class TaskRepository implements ITaskRepository {
       .set({ status: status as any, updatedAt: new Date() })
       .where(inArray(tasks.id, idValues));
   }
-  
+
   async bulkAssignTasks(taskIds: TaskId[], assigneeId: UserId): Promise<void> {
     const idValues = taskIds.map(id => id.value);
     await this.db
@@ -692,7 +701,7 @@ export class TaskRepository implements ITaskRepository {
       .set({ assigneeId: assigneeId.value, updatedAt: new Date() })
       .where(inArray(tasks.id, idValues));
   }
-  
+
   async getTasksRequiringAttention(): Promise<Task[]> {
     return [];
   }

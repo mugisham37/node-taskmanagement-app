@@ -1,15 +1,14 @@
-import { WebSocket } from 'ws';
-import { Container } from '../../shared/container/Container';
-import { WebSocketService } from '../../infrastructure/external-services/WebSocketService';
-import { AuthenticationService } from '../../application/services/AuthenticationService';
-import { User } from '../../domain/entities/User';
+import { User } from '@monorepo/domain';
 import {
+  ProjectUpdatedEvent,
   RealtimeEvent,
   TaskUpdatedEvent,
-  ProjectUpdatedEvent,
   UserJoinedEvent,
   UserLeftEvent,
 } from '@taskmanagement/shared/types';
+import { WebSocket } from 'ws';
+import { AuthenticationService } from '../../application/services/AuthenticationService';
+import { Container } from '../../shared/container/Container';
 
 export interface AuthenticatedWebSocket extends WebSocket {
   user?: User;

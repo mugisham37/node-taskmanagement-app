@@ -1,37 +1,39 @@
-import { Container, SERVICE_TOKENS, ServiceLifetime } from './types';
 import { ConfigLoader } from '../config';
+import { Container, SERVICE_TOKENS, ServiceLifetime } from './types';
 
 // Domain Services
-import { TaskDomainService } from '../../domain/services/task-domain-service';
-import { ProjectDomainService } from '../../domain/services/project-domain-service';
-import { WorkspaceDomainService } from '../../domain/services/workspace-domain-service';
-import { NotificationDomainService } from '../../domain/services/notification-domain-service';
-import { AuditDomainService } from '../../domain/services/audit-domain-service';
-import { WebhookDomainService } from '../../domain/services/webhook-domain-service';
-import { CalendarDomainService } from '../../domain/services/calendar-domain-service';
+import {
+  AuditDomainService,
+  CalendarDomainService,
+  NotificationDomainService,
+  ProjectDomainService,
+  TaskDomainService,
+  WebhookDomainService,
+  WorkspaceDomainService,
+} from '@monorepo/domain';
 
 // Application Services
-import { TaskApplicationService } from '../../application/services/task-application-service';
-import { ProjectApplicationService } from '../../application/services/project-application-service';
-import { WorkspaceApplicationService } from '../../application/services/workspace-application-service';
-import { NotificationApplicationService } from '../../application/services/notification-application-service';
 import { AuthApplicationService } from '../../application/services/auth-application-service';
-import { WebhookApplicationService } from '../../application/services/webhook-application-service';
 import { CalendarApplicationService } from '../../application/services/calendar-application-service';
+import { NotificationApplicationService } from '../../application/services/notification-application-service';
+import { ProjectApplicationService } from '../../application/services/project-application-service';
+import { TaskApplicationService } from '../../application/services/task-application-service';
+import { WebhookApplicationService } from '../../application/services/webhook-application-service';
+import { WorkspaceApplicationService } from '../../application/services/workspace-application-service';
 
 // Command Handlers
 import {
-  CreateTaskHandler,
-  UpdateTaskHandler,
   AssignTaskHandler,
   CompleteTaskHandler,
+  CreateTaskHandler,
+  UpdateTaskHandler,
 } from '../../application/handlers/task-command-handlers';
 
 import {
-  CreateProjectHandler,
-  UpdateProjectHandler,
   AddProjectMemberHandler,
+  CreateProjectHandler,
   RemoveProjectMemberHandler,
+  UpdateProjectHandler,
 } from '../../application/handlers/project-command-handlers';
 
 import {
@@ -46,25 +48,25 @@ import {
 
 import {
   CreateNotificationHandler,
-  UpdateNotificationHandler,
   MarkNotificationReadHandler,
+  UpdateNotificationHandler,
 } from '../../application/handlers/notification-command-handlers';
 
 import {
-  CreateAuditLogHandler,
   CleanupAuditLogsHandler,
+  CreateAuditLogHandler,
 } from '../../application/handlers/audit-log-command-handlers';
 
 import {
   CreateWebhookHandler,
-  UpdateWebhookHandler,
   TriggerWebhookHandler,
+  UpdateWebhookHandler,
 } from '../../application/handlers/webhook-command-handlers';
 
 import {
   CreateCalendarEventHandler,
-  UpdateCalendarEventHandler,
   ScheduleCalendarEventHandler,
+  UpdateCalendarEventHandler,
 } from '../../application/handlers/calendar-command-handlers';
 
 // Query Handlers
@@ -75,90 +77,90 @@ import {
 
 import {
   GetProjectHandler,
-  ListProjectsHandler,
   GetProjectMembersHandler,
+  ListProjectsHandler,
 } from '../../application/handlers/project-query-handlers';
 
 import {
   GetWorkspaceHandler,
-  ListWorkspacesHandler,
   GetWorkspaceStatsHandler,
+  ListWorkspacesHandler,
 } from '../../application/handlers/workspace-query-handlers';
 
 import {
   GetUserHandler,
-  ListUsersHandler,
   GetUserPreferencesHandler,
+  ListUsersHandler,
 } from '../../application/handlers/user-query-handlers';
 
 import {
-  GetNotificationsHandler,
   GetNotificationPreferencesHandler,
+  GetNotificationsHandler,
 } from '../../application/handlers/notification-query-handlers';
 
 import {
-  GetWebhooksHandler,
   GetWebhookDeliveriesHandler,
+  GetWebhooksHandler,
 } from '../../application/handlers/webhook-query-handlers';
 
 // Infrastructure Services
-import { DatabaseConnection } from '../../infrastructure/database/connection';
-import { TransactionManager } from '../../infrastructure/database/transaction-manager';
-import { TransactionIntegrationService } from '../../infrastructure/database/transaction-integration-service';
-import { EventIntegrationService } from '../../infrastructure/events/event-integration-service';
-import { UnitOfWorkFactory } from '../../infrastructure/database/unit-of-work';
 import { EventHandlerLifecycleManager } from '../../application/events/event-handler-lifecycle-manager';
 import { CacheService } from '../../infrastructure/caching/cache-service';
 import { RedisClient } from '../../infrastructure/caching/redis-client';
+import { DatabaseConnection } from '../../infrastructure/database/connection';
+import { TransactionIntegrationService } from '../../infrastructure/database/transaction-integration-service';
+import { TransactionManager } from '../../infrastructure/database/transaction-manager';
+import { UnitOfWorkFactory } from '../../infrastructure/database/unit-of-work';
+import { EventIntegrationService } from '../../infrastructure/events/event-integration-service';
 import { EmailService } from '../../infrastructure/external-services/email-service';
-import { JWTService } from '../../infrastructure/security/jwt-service';
-import { PasswordService } from '../../infrastructure/security/password-service';
-import { SessionManager } from '../../infrastructure/security/session-manager';
-import { OAuthService } from '../../infrastructure/security/oauth-service';
-import { TwoFactorAuthService } from '../../infrastructure/security/two-factor-auth-service';
-import { RateLimitService } from '../../infrastructure/security/rate-limit-service';
+import { WebSocketService } from '../../infrastructure/external-services/websocket-service';
+import { HealthService } from '../../infrastructure/monitoring/health-service';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { MetricsService } from '../../infrastructure/monitoring/metrics-service';
-import { HealthService } from '../../infrastructure/monitoring/health-service';
-import { WebSocketService } from '../../infrastructure/external-services/websocket-service';
+import { JWTService } from '../../infrastructure/security/jwt-service';
+import { OAuthService } from '../../infrastructure/security/oauth-service';
+import { PasswordService } from '../../infrastructure/security/password-service';
+import { RateLimitService } from '../../infrastructure/security/rate-limit-service';
+import { SessionManager } from '../../infrastructure/security/session-manager';
+import { TwoFactorAuthService } from '../../infrastructure/security/two-factor-auth-service';
 
 // Repositories
-import { TaskRepository } from '../../infrastructure/database/repositories/task-repository';
-import { ProjectRepository } from '../../infrastructure/database/repositories/project-repository';
-import { UserRepository } from '../../infrastructure/database/repositories/user-repository';
-import { WorkspaceRepository } from '../../infrastructure/database/repositories/workspace-repository';
-import {
-  NotificationRepository,
-  NotificationPreferencesRepository,
-} from '../../infrastructure/database/repositories/notification-repository';
 import { AuditLogRepository } from '../../infrastructure/database/repositories/audit-log-repository';
-import { WebhookRepository } from '../../infrastructure/database/repositories/webhook-repository';
 import { CalendarEventRepository } from '../../infrastructure/database/repositories/calendar-event-repository';
 import { FileAttachmentRepository } from '../../infrastructure/database/repositories/file-attachment-repository';
+import {
+  NotificationPreferencesRepository,
+  NotificationRepository,
+} from '../../infrastructure/database/repositories/notification-repository';
+import { ProjectRepository } from '../../infrastructure/database/repositories/project-repository';
+import { TaskRepository } from '../../infrastructure/database/repositories/task-repository';
+import { UserRepository } from '../../infrastructure/database/repositories/user-repository';
+import { WebhookRepository } from '../../infrastructure/database/repositories/webhook-repository';
+import { WorkspaceRepository } from '../../infrastructure/database/repositories/workspace-repository';
 
 // Controllers
-import { TaskController } from '../../presentation/controllers/task-controller';
-import { ProjectController } from '../../presentation/controllers/project-controller';
-import { WorkspaceController } from '../../presentation/controllers/workspace-controller';
-import { UserController } from '../../presentation/controllers/user-controller';
 import { AuthController } from '../../presentation/controllers/auth-controller';
-import { NotificationController } from '../../presentation/controllers/notification-controller';
-import { WebhookController } from '../../presentation/controllers/webhook-controller';
 import { CalendarController } from '../../presentation/controllers/calendar-controller';
+import { NotificationController } from '../../presentation/controllers/notification-controller';
+import { ProjectController } from '../../presentation/controllers/project-controller';
+import { TaskController } from '../../presentation/controllers/task-controller';
+import { UserController } from '../../presentation/controllers/user-controller';
+import { WebhookController } from '../../presentation/controllers/webhook-controller';
+import { WorkspaceController } from '../../presentation/controllers/workspace-controller';
 
 // Middleware
 import { AuthMiddleware } from '../../presentation/middleware/auth-middleware';
-import { RateLimitMiddleware } from '../../presentation/middleware/rate-limit-middleware';
-import { ValidationMiddleware } from '../../presentation/middleware/validation-middleware';
-import { ErrorHandlerMiddleware } from '../../presentation/middleware/error-handler-middleware';
 import { CorsMiddleware } from '../../presentation/middleware/cors-middleware';
+import { ErrorHandlerMiddleware } from '../../presentation/middleware/error-handler-middleware';
+import { RateLimitMiddleware } from '../../presentation/middleware/rate-limit-middleware';
 import { SecurityMiddleware } from '../../presentation/middleware/security-middleware';
+import { ValidationMiddleware } from '../../presentation/middleware/validation-middleware';
 
 // Event Handling
-import { EventBus } from '../../application/events/event-bus';
-import { DomainEventBus } from '../../application/events/domain-event-bus';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
+import { DomainEventPublisher } from '@monorepo/domain';
 import { ApplicationEventHandlers } from '../../application/events/application-event-handlers';
+import { DomainEventBus } from '../../application/events/domain-event-bus';
+import { EventBus } from '../../application/events/event-bus';
 
 // Migration Services
 import { registerMigrationServices } from '../../infrastructure/migration/migration-service-registration';
@@ -241,7 +243,7 @@ function registerInfrastructure(container: Container): void {
   // Database
   container.registerFactory(
     SERVICE_TOKENS.DATABASE_CONNECTION,
-    (container) => {
+    container => {
       const config = container.resolve<any>(SERVICE_TOKENS.DATABASE_CONFIG);
       return DatabaseConnection.getInstance(config);
     },
@@ -278,7 +280,7 @@ function registerInfrastructure(container: Container): void {
   // Caching
   container.registerFactory(
     SERVICE_TOKENS.CACHE_SERVICE,
-    (container) => {
+    container => {
       const redisConfig = container.resolve<any>(SERVICE_TOKENS.REDIS_CONFIG);
       const redisClient = new RedisClient(redisConfig);
       return new CacheService(redisClient, redisConfig);
@@ -301,92 +303,127 @@ function registerInfrastructure(container: Container): void {
     SERVICE_TOKENS.JWT_CONFIG,
   ]);
 
-  container.registerFactory(SERVICE_TOKENS.PASSWORD_SERVICE, () => {
-    // Create default password config
-    const passwordConfig = {
-      minLength: 8,
-      maxLength: 128,
-      requireUppercase: true,
-      requireLowercase: true,
-      requireNumbers: true,
-      requireSpecialChars: true,
-      preventCommonPasswords: true,
-      hashingOptions: {
-        type: 2, // argon2id
-        memoryCost: 2 ** 16, // 64MB
-        timeCost: 3,
-        parallelism: 1,
-        hashLength: 32,
-      },
-    };
-    return new PasswordService(passwordConfig);
-  }, ServiceLifetime.Singleton);
-
-  container.registerFactory(SERVICE_TOKENS.SESSION_MANAGER, (container) => {
-    const cacheService = container.resolve(SERVICE_TOKENS.CACHE_SERVICE);
-    const loggingService = container.resolve(SERVICE_TOKENS.LOGGING_SERVICE) as LoggingService;
-    return new SessionManager(cacheService as any, loggingService);
-  }, ServiceLifetime.Singleton);
-
-  container.registerFactory(SERVICE_TOKENS.OAUTH_SERVICE, (container) => {
-    const loggingService = container.resolve(SERVICE_TOKENS.LOGGING_SERVICE) as LoggingService;
-    const cacheService = container.resolve(SERVICE_TOKENS.CACHE_SERVICE);
-    
-    const oauthConfig = {
-      providers: {
-        google: {
-          name: 'google',
-          clientId: process.env['GOOGLE_CLIENT_ID'] || 'test-client-id',
-          clientSecret: process.env['GOOGLE_CLIENT_SECRET'] || 'test-client-secret',
-          authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
-          tokenUrl: 'https://oauth2.googleapis.com/token',
-          userInfoUrl: 'https://www.googleapis.com/oauth2/v2/userinfo',
-          scope: ['openid', 'email', 'profile'],
-          redirectUri: process.env['GOOGLE_CALLBACK_URL'] || '/auth/google/callback',
-          responseType: 'code' as const,
-          grantType: 'authorization_code' as const,
-          pkceEnabled: true,
+  container.registerFactory(
+    SERVICE_TOKENS.PASSWORD_SERVICE,
+    () => {
+      // Create default password config
+      const passwordConfig = {
+        minLength: 8,
+        maxLength: 128,
+        requireUppercase: true,
+        requireLowercase: true,
+        requireNumbers: true,
+        requireSpecialChars: true,
+        preventCommonPasswords: true,
+        hashingOptions: {
+          type: 2, // argon2id
+          memoryCost: 2 ** 16, // 64MB
+          timeCost: 3,
+          parallelism: 1,
+          hashLength: 32,
         },
-        github: {
-          name: 'github',
-          clientId: process.env['GITHUB_CLIENT_ID'] || 'test-client-id',
-          clientSecret: process.env['GITHUB_CLIENT_SECRET'] || 'test-client-secret',
-          authorizationUrl: 'https://github.com/login/oauth/authorize',
-          tokenUrl: 'https://github.com/login/oauth/access_token',
-          userInfoUrl: 'https://api.github.com/user',
-          scope: ['user:email'],
-          redirectUri: process.env['GITHUB_CALLBACK_URL'] || '/auth/github/callback',
-          responseType: 'code' as const,
-          grantType: 'authorization_code' as const,
-          pkceEnabled: true,
-        }
-      },
-      stateExpiration: 600, // 10 minutes
-      nonceExpiration: 600, // 10 minutes
-      enablePKCE: true,
-      defaultScopes: ['openid', 'email', 'profile'],
-    };
-    
-    return new OAuthService(loggingService, cacheService as any, oauthConfig);
-  }, ServiceLifetime.Singleton);
+      };
+      return new PasswordService(passwordConfig);
+    },
+    ServiceLifetime.Singleton
+  );
 
-  container.registerFactory(SERVICE_TOKENS.TWO_FACTOR_AUTH_SERVICE, (container) => {
-    const loggingService = container.resolve(SERVICE_TOKENS.LOGGING_SERVICE) as LoggingService;
-    const cacheService = container.resolve(SERVICE_TOKENS.CACHE_SERVICE) as CacheService;
-    const emailService = container.resolve(SERVICE_TOKENS.EMAIL_SERVICE) as EmailService;
-    
-    const twoFactorConfig = {
-      issuer: 'Task Management System',
-      serviceName: 'TaskManagement',
-      tokenWindow: 2,
-      backupCodeCount: 10,
-      backupCodeLength: 8,
-      rateLimitAttempts: 5,
-      rateLimitWindow: 300, // 5 minutes
-    };
-    
-    return new TwoFactorAuthService(loggingService, cacheService, emailService, twoFactorConfig);
-  }, ServiceLifetime.Singleton);
+  container.registerFactory(
+    SERVICE_TOKENS.SESSION_MANAGER,
+    container => {
+      const cacheService = container.resolve(SERVICE_TOKENS.CACHE_SERVICE);
+      const loggingService = container.resolve(
+        SERVICE_TOKENS.LOGGING_SERVICE
+      ) as LoggingService;
+      return new SessionManager(cacheService as any, loggingService);
+    },
+    ServiceLifetime.Singleton
+  );
+
+  container.registerFactory(
+    SERVICE_TOKENS.OAUTH_SERVICE,
+    container => {
+      const loggingService = container.resolve(
+        SERVICE_TOKENS.LOGGING_SERVICE
+      ) as LoggingService;
+      const cacheService = container.resolve(SERVICE_TOKENS.CACHE_SERVICE);
+
+      const oauthConfig = {
+        providers: {
+          google: {
+            name: 'google',
+            clientId: process.env['GOOGLE_CLIENT_ID'] || 'test-client-id',
+            clientSecret:
+              process.env['GOOGLE_CLIENT_SECRET'] || 'test-client-secret',
+            authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+            tokenUrl: 'https://oauth2.googleapis.com/token',
+            userInfoUrl: 'https://www.googleapis.com/oauth2/v2/userinfo',
+            scope: ['openid', 'email', 'profile'],
+            redirectUri:
+              process.env['GOOGLE_CALLBACK_URL'] || '/auth/google/callback',
+            responseType: 'code' as const,
+            grantType: 'authorization_code' as const,
+            pkceEnabled: true,
+          },
+          github: {
+            name: 'github',
+            clientId: process.env['GITHUB_CLIENT_ID'] || 'test-client-id',
+            clientSecret:
+              process.env['GITHUB_CLIENT_SECRET'] || 'test-client-secret',
+            authorizationUrl: 'https://github.com/login/oauth/authorize',
+            tokenUrl: 'https://github.com/login/oauth/access_token',
+            userInfoUrl: 'https://api.github.com/user',
+            scope: ['user:email'],
+            redirectUri:
+              process.env['GITHUB_CALLBACK_URL'] || '/auth/github/callback',
+            responseType: 'code' as const,
+            grantType: 'authorization_code' as const,
+            pkceEnabled: true,
+          },
+        },
+        stateExpiration: 600, // 10 minutes
+        nonceExpiration: 600, // 10 minutes
+        enablePKCE: true,
+        defaultScopes: ['openid', 'email', 'profile'],
+      };
+
+      return new OAuthService(loggingService, cacheService as any, oauthConfig);
+    },
+    ServiceLifetime.Singleton
+  );
+
+  container.registerFactory(
+    SERVICE_TOKENS.TWO_FACTOR_AUTH_SERVICE,
+    container => {
+      const loggingService = container.resolve(
+        SERVICE_TOKENS.LOGGING_SERVICE
+      ) as LoggingService;
+      const cacheService = container.resolve(
+        SERVICE_TOKENS.CACHE_SERVICE
+      ) as CacheService;
+      const emailService = container.resolve(
+        SERVICE_TOKENS.EMAIL_SERVICE
+      ) as EmailService;
+
+      const twoFactorConfig = {
+        issuer: 'Task Management System',
+        serviceName: 'TaskManagement',
+        tokenWindow: 2,
+        backupCodeCount: 10,
+        backupCodeLength: 8,
+        rateLimitAttempts: 5,
+        rateLimitWindow: 300, // 5 minutes
+      };
+
+      return new TwoFactorAuthService(
+        loggingService,
+        cacheService,
+        emailService,
+        twoFactorConfig
+      );
+    },
+    ServiceLifetime.Singleton
+  );
 
   container.registerSingleton(
     SERVICE_TOKENS.RATE_LIMIT_SERVICE,
@@ -397,7 +434,7 @@ function registerInfrastructure(container: Container): void {
   // Monitoring Services
   container.registerFactory(
     SERVICE_TOKENS.LOGGING_SERVICE,
-    (container) => {
+    container => {
       const appConfig = container.resolve<any>(SERVICE_TOKENS.APP_CONFIG);
       return LoggingService.fromAppConfig(appConfig);
     },
@@ -406,7 +443,7 @@ function registerInfrastructure(container: Container): void {
 
   container.registerFactory(
     SERVICE_TOKENS.METRICS_SERVICE,
-    (container) => {
+    container => {
       const appConfig = container.resolve<any>(SERVICE_TOKENS.APP_CONFIG);
       return MetricsService.fromAppConfig(appConfig);
     },
@@ -955,28 +992,33 @@ function registerMiddleware(container: Container): void {
     SERVICE_TOKENS.LOGGING_SERVICE,
   ]);
 
-  container.registerScoped(SERVICE_TOKENS.RATE_LIMIT_MIDDLEWARE, RateLimitMiddleware, [
-    SERVICE_TOKENS.CACHE_SERVICE,
-    SERVICE_TOKENS.LOGGING_SERVICE,
-  ]);
+  container.registerScoped(
+    SERVICE_TOKENS.RATE_LIMIT_MIDDLEWARE,
+    RateLimitMiddleware,
+    [SERVICE_TOKENS.CACHE_SERVICE, SERVICE_TOKENS.LOGGING_SERVICE]
+  );
 
-  container.registerScoped(SERVICE_TOKENS.VALIDATION_MIDDLEWARE, ValidationMiddleware, [
-    SERVICE_TOKENS.LOGGING_SERVICE,
-  ]);
+  container.registerScoped(
+    SERVICE_TOKENS.VALIDATION_MIDDLEWARE,
+    ValidationMiddleware,
+    [SERVICE_TOKENS.LOGGING_SERVICE]
+  );
 
-  container.registerScoped(SERVICE_TOKENS.ERROR_HANDLER_MIDDLEWARE, ErrorHandlerMiddleware, [
-    SERVICE_TOKENS.LOGGING_SERVICE,
-    SERVICE_TOKENS.METRICS_SERVICE,
-  ]);
+  container.registerScoped(
+    SERVICE_TOKENS.ERROR_HANDLER_MIDDLEWARE,
+    ErrorHandlerMiddleware,
+    [SERVICE_TOKENS.LOGGING_SERVICE, SERVICE_TOKENS.METRICS_SERVICE]
+  );
 
   container.registerScoped(SERVICE_TOKENS.CORS_MIDDLEWARE, CorsMiddleware, [
     SERVICE_TOKENS.APP_CONFIG,
   ]);
 
-  container.registerScoped(SERVICE_TOKENS.SECURITY_MIDDLEWARE, SecurityMiddleware, [
-    SERVICE_TOKENS.APP_CONFIG,
-    SERVICE_TOKENS.LOGGING_SERVICE,
-  ]);
+  container.registerScoped(
+    SERVICE_TOKENS.SECURITY_MIDDLEWARE,
+    SecurityMiddleware,
+    [SERVICE_TOKENS.APP_CONFIG, SERVICE_TOKENS.LOGGING_SERVICE]
+  );
 }
 
 function registerEventHandling(container: Container): void {

@@ -1,9 +1,8 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { JWTService } from '../../infrastructure/security/jwt-service';
-import { IUserRepository } from '../../domain/repositories/user-repository';
-import { UserId } from '../../domain/value-objects/user-id';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { IUserRepository, UserId } from '@monorepo/domain';
+import { FastifyReply, FastifyRequest } from 'fastify';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { JWTService } from '../../infrastructure/security/jwt-service';
+import { AuthorizationError } from '../../shared/errors/authorization-error';
 
 export interface AuthenticatedUser {
   id: string;
@@ -177,7 +176,9 @@ export class AuthMiddleware {
         }
 
         // Get user from database
-        const user = await this.userRepository.findById(new UserId(payload.sub));
+        const user = await this.userRepository.findById(
+          new UserId(payload.sub)
+        );
 
         if (!user) {
           throw new AuthorizationError('User not found');
@@ -212,7 +213,10 @@ export class AuthMiddleware {
         }
 
         // Check risk score threshold
-        if (options.maxRiskScore && payload['riskScore'] > options.maxRiskScore) {
+        if (
+          options.maxRiskScore &&
+          payload['riskScore'] > options.maxRiskScore
+        ) {
           this.logger.warn('Authorization failed: High risk score', {
             userId: payload.sub,
             riskScore: payload['riskScore'],
@@ -341,7 +345,8 @@ export class AuthMiddleware {
     return {
       ipAddress: request.ip,
       userAgent: request.headers['user-agent'] || undefined,
-      deviceFingerprint: (request.headers['x-device-fingerprint'] as string) || undefined,
+      deviceFingerprint:
+        (request.headers['x-device-fingerprint'] as string) || undefined,
       requestPath: request.url,
       requestMethod: request.method,
       correlationId:

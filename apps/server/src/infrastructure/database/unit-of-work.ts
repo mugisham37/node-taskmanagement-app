@@ -1,9 +1,8 @@
-import { EnhancedAggregateRoot } from '../../domain/aggregates/enhanced-aggregate-root';
-import { DomainEvent } from '../../domain/events/domain-event';
-import { TransactionManager } from './transaction-manager';
+import { DomainEvent, EnhancedAggregateRoot } from '@monorepo/domain';
 import { EventIntegrationService } from '../events/event-integration-service';
 import { LoggingService } from '../monitoring/logging-service';
 import { MetricsService } from '../monitoring/metrics-service';
+import { TransactionManager } from './transaction-manager';
 
 /**
  * Unit of Work

@@ -1,40 +1,42 @@
 import {
-  eq,
+  Project,
+  ProjectAggregate,
+  ProjectId,
+  ProjectMember,
+  UserId,
+  WorkspaceId,
+} from '@monorepo/domain';
+import {
   and,
-  or,
-  like,
-  gte,
-  lte,
+  asc,
   count,
   desc,
-  asc,
+  eq,
+  gte,
   inArray,
   isNotNull,
+  like,
+  lte,
+  or,
 } from 'drizzle-orm';
-import { getDatabase } from '../connection';
-import { projects, users, projectMembers } from '../schema';
 import {
   IProjectRepository,
+  PaginatedResult,
+  PaginationOptions,
   ProjectFilters,
   ProjectSortOptions,
-  PaginationOptions,
-  PaginatedResult,
 } from '../../../domain/repositories/project-repository';
-import { Project, ProjectMember } from '../../../domain/entities/project';
-import { ProjectAggregate } from '../../../domain/aggregates/project-aggregate';
-import { ProjectId, UserId, WorkspaceId } from '../../../domain/value-objects';
 import { ProjectStatus } from '../../../shared/enums/common.enums';
-import { 
-  DbProjectStatus,
-  DbProjectRole
-} from '../types';
+import { getDatabase } from '../connection';
 import {
-  mapRowToProject,
-  mapProjectToInsert,
-  mapRowToProjectMember,
+  mapDomainStatusToDb,
   mapProjectMemberToInsert,
-  mapDomainStatusToDb
+  mapProjectToInsert,
+  mapRowToProject,
+  mapRowToProjectMember,
 } from '../mappers/project-mapper';
+import { projectMembers, projects, users } from '../schema';
+import { DbProjectRole, DbProjectStatus } from '../types';
 
 export class ProjectRepository implements IProjectRepository {
   private get db() {
@@ -78,7 +80,7 @@ export class ProjectRepository implements IProjectRepository {
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<Project>> {
     const conditions = [eq(projects.workspaceId, workspaceId.value)];
-    
+
     // Apply filters
     if (filters) {
       const filterConditions = this.buildFilterConditions(filters);
@@ -90,9 +92,9 @@ export class ProjectRepository implements IProjectRepository {
 
     // Build the query with all clauses at once
     const baseQuery = this.db.select().from(projects);
-    
+
     let finalQuery;
-    
+
     if (sort?.field) {
       const orderFn = sort.direction === 'DESC' ? desc : asc;
       if (pagination) {
@@ -161,7 +163,7 @@ export class ProjectRepository implements IProjectRepository {
       .from(projects)
       .innerJoin(projectMembers, eq(projects.id, projectMembers.projectId))
       .where(and(...baseConditions));
-    
+
     const total = totalResult[0]?.count ?? 0;
 
     // Build query with join - construct the complete query at once
@@ -171,7 +173,7 @@ export class ProjectRepository implements IProjectRepository {
       .innerJoin(projectMembers, eq(projects.id, projectMembers.projectId));
 
     let finalQuery;
-    
+
     if (sort?.field) {
       const orderFn = sort.direction === 'DESC' ? desc : asc;
       if (pagination) {
@@ -206,7 +208,9 @@ export class ProjectRepository implements IProjectRepository {
     // Load members for each project
     const projectsWithMembers = await Promise.all(
       result.map(async row => {
-        const members = await this.getProjectMembers(ProjectId.create(row.projects.id));
+        const members = await this.getProjectMembers(
+          ProjectId.create(row.projects.id)
+        );
         return mapRowToProject(row.projects, members);
       })
     );
@@ -239,9 +243,9 @@ export class ProjectRepository implements IProjectRepository {
 
     // Build query - construct the complete query at once
     const baseQuery = this.db.select().from(projects);
-    
+
     let finalQuery;
-    
+
     if (sort?.field) {
       const orderFn = sort.direction === 'DESC' ? desc : asc;
       if (pagination) {
@@ -317,9 +321,9 @@ export class ProjectRepository implements IProjectRepository {
 
     // Build query - construct the complete query at once
     const baseQuery = this.db.select().from(projects);
-    
+
     let finalQuery;
-    
+
     if (pagination) {
       const offset = (pagination.page - 1) * pagination.limit;
       finalQuery = baseQuery
@@ -435,7 +439,7 @@ export class ProjectRepository implements IProjectRepository {
       .from(projectMembers)
       .innerJoin(projects, eq(projectMembers.projectId, projects.id))
       .where(eq(projects.workspaceId, workspaceId.value));
-    
+
     const totalMembers = memberResult[0]?.count ?? 0;
     const averageMembersPerProject = total > 0 ? totalMembers / total : 0;
 
@@ -455,7 +459,7 @@ export class ProjectRepository implements IProjectRepository {
           id: users.id,
           email: users.email,
           name: users.name,
-        }
+        },
       })
       .from(projectMembers)
       .innerJoin(users, eq(projectMembers.userId, users.id))
@@ -475,7 +479,7 @@ export class ProjectRepository implements IProjectRepository {
           id: users.id,
           email: users.email,
           name: users.name,
-        }
+        },
       })
       .from(projectMembers)
       .innerJoin(users, eq(projectMembers.userId, users.id))
@@ -634,7 +638,7 @@ export class ProjectRepository implements IProjectRepository {
       .select({ count: count() })
       .from(projects)
       .where(and(...conditions));
-    
+
     return result[0]?.count ?? 0;
   }
 
@@ -655,7 +659,9 @@ export class ProjectRepository implements IProjectRepository {
     status: ProjectStatus,
     workspaceId?: WorkspaceId
   ): Promise<Project[]> {
-    const conditions: any[] = [eq(projects.status, mapDomainStatusToDb(status))];
+    const conditions: any[] = [
+      eq(projects.status, mapDomainStatusToDb(status)),
+    ];
 
     if (workspaceId) {
       conditions.push(eq(projects.workspaceId, workspaceId.value));
@@ -738,19 +744,19 @@ export class ProjectRepository implements IProjectRepository {
     // TODO: Implement project completion history
     return [];
   }
-  
+
   async getUserProjectRoles(_userId: UserId): Promise<any[]> {
     // TODO: Implement user project roles retrieval
     return [];
   }
-  
+
   async getProjectHealthScores(
     _workspaceId: WorkspaceId
   ): Promise<Map<string, number>> {
     // TODO: Implement project health scoring
     return new Map();
   }
-  
+
   async bulkUpdateStatus(
     projectIds: ProjectId[],
     status: ProjectStatus
@@ -761,14 +767,14 @@ export class ProjectRepository implements IProjectRepository {
       .set({ status: mapDomainStatusToDb(status), updatedAt: new Date() })
       .where(inArray(projects.id, idValues));
   }
-  
+
   async getProjectsReadyForArchival(
     _workspaceId?: WorkspaceId
   ): Promise<Project[]> {
     // TODO: Implement logic to find projects ready for archival
     return [];
   }
-  
+
   async getProjectActivitySummary(
     _projectId: ProjectId,
     _fromDate: Date,
@@ -777,7 +783,7 @@ export class ProjectRepository implements IProjectRepository {
     // TODO: Implement project activity summary
     return {};
   }
-  
+
   async userHasAccessToProject(
     projectId: ProjectId,
     userId: UserId
@@ -795,7 +801,7 @@ export class ProjectRepository implements IProjectRepository {
 
     return result.length > 0;
   }
-  
+
   async getUserPermissionLevel(
     projectId: ProjectId,
     userId: UserId
@@ -813,7 +819,7 @@ export class ProjectRepository implements IProjectRepository {
 
     return result.length > 0 ? result[0]?.role || null : null;
   }
-  
+
   async getProjectsWithLowActivity(
     _days: number,
     _workspaceId?: WorkspaceId
@@ -826,7 +832,9 @@ export class ProjectRepository implements IProjectRepository {
     const conditions: any[] = [];
 
     if (filters.status && filters.status.length > 0) {
-      const dbStatuses = filters.status.map(status => mapDomainStatusToDb(status));
+      const dbStatuses = filters.status.map(status =>
+        mapDomainStatusToDb(status)
+      );
       conditions.push(inArray(projects.status, dbStatuses));
     }
 

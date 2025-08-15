@@ -1,7 +1,7 @@
-import { TransactionManager } from './transaction-manager';
+import { DomainEvent } from '@monorepo/domain';
 import { LoggingService } from '../monitoring/logging-service';
 import { MetricsService } from '../monitoring/metrics-service';
-import { DomainEvent } from '../../domain/events/domain-event';
+import { TransactionManager } from './transaction-manager';
 
 /**
  * Transaction Integration Service
@@ -425,7 +425,11 @@ export class TransactionIntegrationService {
   /**
    * Perform health check on transaction service
    */
-  async healthCheck(): Promise<{ isHealthy: boolean; details?: string; metrics?: any }> {
+  async healthCheck(): Promise<{
+    isHealthy: boolean;
+    details?: string;
+    metrics?: any;
+  }> {
     try {
       // Check if transaction manager is available
       if (!this.transactionManager) {
@@ -456,7 +460,10 @@ export class TransactionIntegrationService {
         },
       };
     } catch (error) {
-      this.logger.error('Transaction service health check failed', error as Error);
+      this.logger.error(
+        'Transaction service health check failed',
+        error as Error
+      );
       return {
         isHealthy: false,
         details: `Health check failed: ${(error as Error).message}`,

@@ -3,18 +3,18 @@
  * Comprehensive repository base class with advanced features migrated from older version
  */
 
-import { eq, desc, asc, count, sql, inArray } from 'drizzle-orm';
+import { Entity } from '@monorepo/domain';
+import { asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { Entity } from '../../../domain/base/entity';
 import {
+  IPaginatedResult,
+  IPaginationOptions,
   IRepository,
   ISpecification,
-  IPaginationOptions,
-  IPaginatedResult,
   PaginatedResult,
 } from '../../../domain/base/repository.interface.js';
-import { db } from '../connection';
 import { logger } from '../../monitoring/logging-service';
+import { db } from '../connection';
 import { TransactionContext } from '../transaction-manager';
 
 export abstract class BaseDrizzleRepository<
@@ -60,7 +60,10 @@ export abstract class BaseDrizzleRepository<
 
       return this.toDomain(results[0] as TDrizzleModel);
     } catch (error) {
-      logger.error(`Error finding ${this.modelName} by id`, { id, error } as any);
+      logger.error(`Error finding ${this.modelName} by id`, {
+        id,
+        error,
+      } as any);
       throw error;
     }
   }
@@ -72,17 +75,21 @@ export abstract class BaseDrizzleRepository<
         .from(this.table as any)
         .where(inArray((this.table as any).id, ids));
 
-      return results.map((result: any) => this.toDomain(result as TDrizzleModel));
+      return results.map((result: any) =>
+        this.toDomain(result as TDrizzleModel)
+      );
     } catch (error) {
-      logger.error(`Error finding ${this.modelName} by ids`, { 
+      logger.error(`Error finding ${this.modelName} by ids`, {
         ids: ids,
-        error: error 
+        error: error,
       } as any);
       throw error;
     }
   }
 
-  public async findAll(options?: IPaginationOptions): Promise<PaginatedResult<TEntity>> {
+  public async findAll(
+    options?: IPaginationOptions
+  ): Promise<PaginatedResult<TEntity>> {
     try {
       if (options) {
         return this.findPaginated(undefined, options);
@@ -93,8 +100,10 @@ export abstract class BaseDrizzleRepository<
         .from(this.table as any)
         .orderBy(this.getDefaultOrderBy());
 
-      const items = results.map((result: any) => this.toDomain(result as TDrizzleModel));
-      
+      const items = results.map((result: any) =>
+        this.toDomain(result as TDrizzleModel)
+      );
+
       return {
         items,
         totalCount: items.length,
@@ -105,8 +114,8 @@ export abstract class BaseDrizzleRepository<
         hasPreviousPage: false,
       };
     } catch (error) {
-      logger.error(`Error finding all ${this.modelName}`, { 
-        error: error 
+      logger.error(`Error finding all ${this.modelName}`, {
+        error: error,
       } as any);
       throw error;
     }
@@ -124,7 +133,9 @@ export abstract class BaseDrizzleRepository<
         .where(whereClause)
         .orderBy(this.getDefaultOrderBy());
 
-      return results.map((result: any) => this.toDomain(result as TDrizzleModel));
+      return results.map((result: any) =>
+        this.toDomain(result as TDrizzleModel)
+      );
     } catch (error) {
       logger.error(`Error finding ${this.modelName} with specification`, {
         error: error,
@@ -215,10 +226,10 @@ export abstract class BaseDrizzleRepository<
     try {
       const data = this.toDrizzle(entity);
 
-      const results = await this.database
+      const results = (await this.database
         .insert(this.table as any)
         .values(data)
-        .returning() as any[];
+        .returning()) as any[];
 
       return this.toDomain(results[0] as TDrizzleModel);
     } catch (error) {
@@ -234,12 +245,14 @@ export abstract class BaseDrizzleRepository<
     try {
       const data = entities.map(entity => this.toDrizzle(entity));
 
-      const results = await this.database
+      const results = (await this.database
         .insert(this.table as any)
         .values(data)
-        .returning() as any[];
+        .returning()) as any[];
 
-      return results.map((result: any) => this.toDomain(result as TDrizzleModel));
+      return results.map((result: any) =>
+        this.toDomain(result as TDrizzleModel)
+      );
     } catch (error) {
       logger.error(`Error saving many ${this.modelName}`, {
         count: entities.length,
@@ -253,11 +266,11 @@ export abstract class BaseDrizzleRepository<
     try {
       const data = this.toDrizzle(entity);
 
-      const results = await this.database
+      const results = (await this.database
         .update(this.table as any)
         .set(data)
         .where(eq((this.table as any).id, entity.id))
-        .returning() as any[];
+        .returning()) as any[];
 
       if (results.length === 0) {
         throw new Error(`${this.modelName} with id ${entity.id} not found`);
@@ -281,11 +294,11 @@ export abstract class BaseDrizzleRepository<
       await this.database.transaction(async tx => {
         for (const entity of entities) {
           const data = this.toDrizzle(entity);
-          const updateResults = await tx
+          const updateResults = (await tx
             .update(this.table as any)
             .set(data)
             .where(eq((this.table as any).id, entity.id))
-            .returning() as any[];
+            .returning()) as any[];
 
           if (updateResults.length > 0) {
             results.push(this.toDomain(updateResults[0] as TDrizzleModel));
@@ -309,9 +322,9 @@ export abstract class BaseDrizzleRepository<
         .delete(this.table as any)
         .where(eq((this.table as any).id, id));
     } catch (error) {
-      logger.error(`Error deleting ${this.modelName}`, { 
-        id: id, 
-        error: error 
+      logger.error(`Error deleting ${this.modelName}`, {
+        id: id,
+        error: error,
       } as any);
       throw error;
     }
@@ -323,9 +336,9 @@ export abstract class BaseDrizzleRepository<
         .delete(this.table as any)
         .where(inArray((this.table as any).id, ids));
     } catch (error) {
-      logger.error(`Error deleting many ${this.modelName}`, { 
-        ids: ids, 
-        error: error 
+      logger.error(`Error deleting many ${this.modelName}`, {
+        ids: ids,
+        error: error,
       } as any);
       throw error;
     }
@@ -344,8 +357,8 @@ export abstract class BaseDrizzleRepository<
 
       return results[0]?.count || 0;
     } catch (error) {
-      logger.error(`Error counting ${this.modelName}`, { 
-        error: error 
+      logger.error(`Error counting ${this.modelName}`, {
+        error: error,
       } as any);
       throw error;
     }
@@ -413,16 +426,16 @@ export abstract class BaseDrizzleRepository<
       const whereClause = this.buildWhereClause(specification);
       const data = this.toDrizzle(updates as TEntity);
 
-      const results = await this.database
+      const results = (await this.database
         .update(this.table as any)
         .set(data)
         .where(whereClause)
-        .returning({ id: (this.table as any).id }) as any[];
+        .returning({ id: (this.table as any).id })) as any[];
 
       return results.length;
     } catch (error) {
-      logger.error(`Error bulk updating ${this.modelName}`, { 
-        error: error 
+      logger.error(`Error bulk updating ${this.modelName}`, {
+        error: error,
       } as any);
       throw error;
     }
@@ -434,15 +447,15 @@ export abstract class BaseDrizzleRepository<
     try {
       const whereClause = this.buildWhereClause(specification);
 
-      const results = await this.database
+      const results = (await this.database
         .delete(this.table as any)
         .where(whereClause)
-        .returning({ id: (this.table as any).id }) as any[];
+        .returning({ id: (this.table as any).id })) as any[];
 
       return results.length;
     } catch (error) {
-      logger.error(`Error bulk deleting ${this.modelName}`, { 
-        error: error 
+      logger.error(`Error bulk deleting ${this.modelName}`, {
+        error: error,
       } as any);
       throw error;
     }
@@ -477,15 +490,13 @@ export abstract class BaseDrizzleRepository<
   }
 
   // Advanced query methods
-  public async findWithRawQuery(
-    query: string
-  ): Promise<TEntity[]> {
+  public async findWithRawQuery(query: string): Promise<TEntity[]> {
     try {
       const results = await this.database.execute(sql`${sql.raw(query)}`);
-      const rows = Array.isArray(results) ? results : (results as any).rows || [];
-      return rows.map((result: any) =>
-        this.toDomain(result as TDrizzleModel)
-      );
+      const rows = Array.isArray(results)
+        ? results
+        : (results as any).rows || [];
+      return rows.map((result: any) => this.toDomain(result as TDrizzleModel));
     } catch (error) {
       logger.error(`Error executing raw query for ${this.modelName}`, {
         query: query,
@@ -495,12 +506,12 @@ export abstract class BaseDrizzleRepository<
     }
   }
 
-  public async countWithRawQuery(
-    query: string
-  ): Promise<number> {
+  public async countWithRawQuery(query: string): Promise<number> {
     try {
       const results = await this.database.execute(sql`${sql.raw(query)}`);
-      const rows = Array.isArray(results) ? results : (results as any).rows || [];
+      const rows = Array.isArray(results)
+        ? results
+        : (results as any).rows || [];
       return rows[0]?.count || 0;
     } catch (error) {
       logger.error(`Error executing raw count query for ${this.modelName}`, {
@@ -521,9 +532,9 @@ export abstract class BaseDrizzleRepository<
 
       logger.info(`${this.modelName} soft deleted`, { id } as any);
     } catch (error) {
-      logger.error(`Error soft deleting ${this.modelName}`, { 
-        id: id, 
-        error: error 
+      logger.error(`Error soft deleting ${this.modelName}`, {
+        id: id,
+        error: error,
       } as any);
       throw error;
     }
@@ -538,9 +549,9 @@ export abstract class BaseDrizzleRepository<
 
       logger.info(`${this.modelName} restored`, { id } as any);
     } catch (error) {
-      logger.error(`Error restoring ${this.modelName}`, { 
-        id: id, 
-        error: error 
+      logger.error(`Error restoring ${this.modelName}`, {
+        id: id,
+        error: error,
       } as any);
       throw error;
     }
@@ -562,10 +573,10 @@ export abstract class BaseDrizzleRepository<
         timestamp: new Date(),
       } as any);
     } catch (error) {
-      logger.error('Error recording audit log', { 
-        action: action, 
-        entityId: entityId, 
-        error: error 
+      logger.error('Error recording audit log', {
+        action: action,
+        entityId: entityId,
+        error: error,
       } as any);
       // Don't throw - audit logging shouldn't break business operations
     }

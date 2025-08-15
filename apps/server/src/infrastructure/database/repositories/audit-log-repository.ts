@@ -1,20 +1,19 @@
+import { AuditAction, AuditLog, IAuditLogRepository } from '@monorepo/domain';
 import {
-  eq,
   and,
-  desc,
   asc,
   count,
-  sql,
-  inArray,
+  desc,
+  eq,
   gte,
-  lte,
+  inArray,
   lt,
+  lte,
+  sql,
 } from 'drizzle-orm';
-import { AuditLog, AuditAction } from '../../../domain/entities/audit-log';
-import { IAuditLogRepository } from '../../../domain/repositories/audit-log-repository';
-import { auditLogs } from '../schema/audit-logs';
 import { logger } from '../../monitoring/logging-service';
 import { db } from '../connection';
+import { auditLogs } from '../schema/audit-logs';
 
 // Drizzle model type
 type DrizzleAuditLog = typeof auditLogs.$inferSelect;
@@ -175,7 +174,9 @@ export class AuditLogRepository implements IAuditLogRepository {
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding audit logs by user ID', error as Error, { userId });
+      logger.error('Error finding audit logs by user ID', error as Error, {
+        userId,
+      });
       throw error;
     }
   }
@@ -196,7 +197,9 @@ export class AuditLogRepository implements IAuditLogRepository {
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding audit logs by action', error as Error, { action });
+      logger.error('Error finding audit logs by action', error as Error, {
+        action,
+      });
       throw error;
     }
   }
@@ -279,11 +282,15 @@ export class AuditLogRepository implements IAuditLogRepository {
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding audit logs by entity and action', error as Error, {
-        entityType,
-        entityId,
-        action,
-      });
+      logger.error(
+        'Error finding audit logs by entity and action',
+        error as Error,
+        {
+          entityType,
+          entityId,
+          action,
+        }
+      );
       throw error;
     }
   }
@@ -307,8 +314,11 @@ export class AuditLogRepository implements IAuditLogRepository {
 
       return results.map(result => this.toDomain(result));
     } catch (error) {
-      logger.error('Error finding recent activity', error as Error, 
-        userId ? { userId, entityId: '', timestamp: new Date() } : undefined);
+      logger.error(
+        'Error finding recent activity',
+        error as Error,
+        userId ? { userId, entityId: '', timestamp: new Date() } : undefined
+      );
       throw error;
     }
   }
@@ -333,7 +343,7 @@ export class AuditLogRepository implements IAuditLogRepository {
     } catch (error) {
       logger.error('Error getting audit trail', error as Error, {
         entityId: entityType,
-        userId: entityId, 
+        userId: entityId,
         timestamp: new Date(),
       });
       throw error;
@@ -441,12 +451,17 @@ export class AuditLogRepository implements IAuditLogRepository {
         suspiciousActivity: suspiciousActivityResult[0]?.count || 0,
       };
     } catch (error) {
-      logger.error('Error getting security summary', error as Error, 
-        startDate ? { 
-          entityId: startDate.toISOString(), 
-          userId: endDate?.toISOString() || '',
-          timestamp: new Date(),
-        } : undefined);
+      logger.error(
+        'Error getting security summary',
+        error as Error,
+        startDate
+          ? {
+              entityId: startDate.toISOString(),
+              userId: endDate?.toISOString() || '',
+              timestamp: new Date(),
+            }
+          : undefined
+      );
       throw error;
     }
   }
@@ -509,7 +524,7 @@ export class AuditLogRepository implements IAuditLogRepository {
     try {
       await this.database.delete(auditLogs).where(eq(auditLogs.id, id));
     } catch (error) {
-      logger.error('Error deleting audit log', error as Error, { 
+      logger.error('Error deleting audit log', error as Error, {
         entityId: id,
         userId: '',
         timestamp: new Date(),
@@ -527,11 +542,15 @@ export class AuditLogRepository implements IAuditLogRepository {
 
       return results.length;
     } catch (error) {
-      logger.error('Error deleting audit logs older than date', error as Error, {
-        entityId: date.toISOString(),
-        userId: '',
-        timestamp: new Date(),
-      });
+      logger.error(
+        'Error deleting audit logs older than date',
+        error as Error,
+        {
+          entityId: date.toISOString(),
+          userId: '',
+          timestamp: new Date(),
+        }
+      );
       throw error;
     }
   }

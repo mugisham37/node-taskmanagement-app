@@ -1,6 +1,6 @@
+import { UserId } from '@monorepo/domain';
 import { TaskStatus } from '../constants/task-constants';
 import { Priority } from '../enums/common.enums';
-import { UserId } from '../../domain/value-objects/user-id';
 
 /**
  * Unified task filters interface used across application and domain layers

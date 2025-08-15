@@ -1,7 +1,7 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { Container } from '../shared/container/Container';
+import { User } from '@monorepo/domain';
+import { FastifyReply, FastifyRequest } from 'fastify';
 import { AuthenticationService } from '../application/services/AuthenticationService';
-import { User } from '../domain/entities/User';
+import { Container } from '../shared/container/Container';
 
 export interface CreateContextOptions {
   req: FastifyRequest;

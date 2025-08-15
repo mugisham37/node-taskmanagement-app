@@ -1,4 +1,4 @@
-import { DomainEvent } from '../../domain/events/domain-event';
+import { DomainEvent } from '@monorepo/domain';
 import { DomainEventBus } from '../../application/events/domain-event-bus';
 import { EventBus } from '../../application/events/event-bus';
 import { TransactionManager } from '../database/transaction-manager';
@@ -103,7 +103,9 @@ export class EventIntegrationService {
       });
 
       const duration = timer.end();
-      this.metrics.incrementCounter('events_published_total', { count: events.length.toString() });
+      this.metrics.incrementCounter('events_published_total', {
+        count: events.length.toString(),
+      });
       this.metrics.recordHistogram('event_publishing_duration', duration);
 
       this.logger.info('Domain events published successfully', {
@@ -343,7 +345,7 @@ export class EventIntegrationService {
     return {
       end(): number {
         return Date.now() - start;
-      }
+      },
     };
   }
 }

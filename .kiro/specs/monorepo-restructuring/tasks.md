@@ -33,41 +33,41 @@
   - Create base UseCase and Service interfaces
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-- [ ] 2. Create Domain Package
+- [x] 2. Create Domain Package
   - Create `packages/domain` directory structure with proper organization
   - Move all domain entities, value objects, and aggregates from server
   - Move domain services, specifications, and events
   - Establish domain repository interfaces and domain event system
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-- [ ] 2.1 Set up domain package structure
+- [x] 2.1 Set up domain package structure
   - Create `packages/domain` directory with entities, value-objects, aggregates, services, events, specifications, and repositories subdirectories
   - Configure TypeScript and build tooling for domain package
   - Set up package.json with dependencies on core package
   - _Requirements: 1.1, 7.1, 7.2_
 
-- [ ] 2.2 Move domain entities and value objects
+- [x] 2.2 Move domain entities and value objects
   - Move all entities from `apps/server/src/domain/entities` to `packages/domain/src/entities`
   - Move all value objects from `apps/server/src/domain/value-objects` to `packages/domain/src/value-objects`
   - Update entity implementations to use core base classes
   - Ensure all domain logic remains intact during migration
   - _Requirements: 1.1, 1.2_
 
-- [ ] 2.3 Move domain aggregates and services
+- [x] 2.3 Move domain aggregates and services
   - Move all aggregates from `apps/server/src/domain/aggregates` to `packages/domain/src/aggregates`
   - Move all domain services from `apps/server/src/domain/services` to `packages/domain/src/services`
   - Update aggregate roots to use enhanced base classes from core
   - Ensure domain service interfaces are properly abstracted
   - _Requirements: 1.1, 1.3, 1.4_
 
-- [ ] 2.4 Move domain events and specifications
+- [x] 2.4 Move domain events and specifications
   - Move all domain events from `apps/server/src/domain/events` to `packages/domain/src/events`
   - Move all specifications from `apps/server/src/domain/specifications` to `packages/domain/src/specifications`
   - Update event system to use core event abstractions
   - Ensure specification pattern implementations are consistent
   - _Requirements: 1.2, 1.3, 1.5_
 
-- [ ] 2.5 Move domain repository interfaces
+- [x] 2.5 Move domain repository interfaces
   - Move all repository interfaces from `apps/server/src/domain/repositories` to `packages/domain/src/repositories`
   - Update repository interfaces to extend core base repository interface
   - Ensure repository contracts are properly defined for both client and server use

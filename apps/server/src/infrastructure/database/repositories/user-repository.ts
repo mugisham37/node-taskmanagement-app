@@ -1,29 +1,28 @@
+import { Email, User, UserId, UserStatusVO } from '@monorepo/domain';
 import {
-  eq,
   and,
-  or,
-  like,
-  gte,
-  lte,
+  asc,
   count,
   desc,
-  asc,
+  eq,
+  gte,
   inArray,
   isNull,
+  like,
+  lte,
+  or,
   SQL,
 } from 'drizzle-orm';
-import { getDatabase } from '../connection';
-import { users } from '../schema';
 import {
   IUserRepository,
+  PaginatedResult,
+  PaginationOptions,
   UserFilters,
   UserSortOptions,
-  PaginationOptions,
-  PaginatedResult,
 } from '../../../domain/repositories/user-repository';
-import { User } from '../../../domain/entities/user';
-import { UserId, Email, UserStatusVO } from '../../../domain/value-objects';
 import { UserStatus } from '../../../shared/constants/user-constants';
+import { getDatabase } from '../connection';
+import { users } from '../schema';
 
 export class UserRepository implements IUserRepository {
   private get db() {
@@ -67,11 +66,11 @@ export class UserRepository implements IUserRepository {
   ): Promise<PaginatedResult<User>> {
     // Build conditions
     const conditions = filters ? this.buildFilterConditions(filters) : [];
-    
+
     // Build the full query in one go to avoid type issues
     const db = this.db;
     let result: any[];
-    
+
     if (conditions.length > 0) {
       if (sort?.field && sort?.direction) {
         const sortColumn = this.getSortColumn(sort.field);
@@ -180,9 +179,10 @@ export class UserRepository implements IUserRepository {
 
     // Build additional filter conditions
     const filterConditions = filters ? this.buildFilterConditions(filters) : [];
-    const allConditions = filterConditions.length > 0 
-      ? [searchCondition, ...filterConditions] 
-      : [searchCondition];
+    const allConditions =
+      filterConditions.length > 0
+        ? [searchCondition, ...filterConditions]
+        : [searchCondition];
 
     const db = this.db;
     let result: any[];
@@ -236,7 +236,7 @@ export class UserRepository implements IUserRepository {
     cutoffDate.setDate(cutoffDate.getDate() - inactiveDays);
 
     const conditions = or(
-      lte(users.lastLoginAt, cutoffDate), 
+      lte(users.lastLoginAt, cutoffDate),
       isNull(users.lastLoginAt)
     );
 
@@ -252,10 +252,7 @@ export class UserRepository implements IUserRepository {
         .limit(pagination.limit)
         .offset(offset);
     } else {
-      result = await db
-        .select()
-        .from(users)
-        .where(conditions);
+      result = await db.select().from(users).where(conditions);
     }
 
     // Count total
@@ -275,7 +272,7 @@ export class UserRepository implements IUserRepository {
   }
 
   async getUsersByStatus(
-    status: typeof UserStatus[keyof typeof UserStatus],
+    status: (typeof UserStatus)[keyof typeof UserStatus],
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<User>> {
     return this.findUsers({ status: [status] }, undefined, pagination);
@@ -292,7 +289,7 @@ export class UserRepository implements IUserRepository {
 
   async getUserStatistics(): Promise<{
     total: number;
-    byStatus: Record<typeof UserStatus[keyof typeof UserStatus], number>;
+    byStatus: Record<(typeof UserStatus)[keyof typeof UserStatus], number>;
     registeredThisMonth: number;
     activeThisWeek: number;
     averageLoginFrequency?: number;
@@ -310,10 +307,10 @@ export class UserRepository implements IUserRepository {
       }),
       [UserStatus.PENDING]: await this.count({ status: [UserStatus.PENDING] }),
       [UserStatus.DELETED]: await this.count({ status: [UserStatus.DELETED] }),
-      [UserStatus.PENDING_VERIFICATION]: await this.count({ 
-        status: [UserStatus.PENDING_VERIFICATION] 
+      [UserStatus.PENDING_VERIFICATION]: await this.count({
+        status: [UserStatus.PENDING_VERIFICATION],
       }),
-    } as Record<typeof UserStatus[keyof typeof UserStatus], number>;
+    } as Record<(typeof UserStatus)[keyof typeof UserStatus], number>;
 
     // Get registered this month
     const thisMonth = new Date();
@@ -431,12 +428,12 @@ export class UserRepository implements IUserRepository {
     // Implementation would require joins with tasks, projects, etc.
     // For now, returning basic implementation with user's last login
     const user = await this.findById(userId);
-    
+
     // Note: fromDate and toDate would be used in actual implementation
     // to filter activities within the date range
     void fromDate; // Acknowledge parameter
     void toDate; // Acknowledge parameter
-    
+
     return {
       loginCount: 0, // Would need login history tracking
       tasksCreated: 0, // Would need join with tasks table
@@ -485,7 +482,10 @@ export class UserRepository implements IUserRepository {
       .where(eq(users.id, userId.value));
   }
 
-  async updateStatus(userId: UserId, status: typeof UserStatus[keyof typeof UserStatus]): Promise<void> {
+  async updateStatus(
+    userId: UserId,
+    status: (typeof UserStatus)[keyof typeof UserStatus]
+  ): Promise<void> {
     await this.db
       .update(users)
       .set({
@@ -495,7 +495,10 @@ export class UserRepository implements IUserRepository {
       .where(eq(users.id, userId.value));
   }
 
-  async bulkUpdateStatus(userIds: UserId[], status: typeof UserStatus[keyof typeof UserStatus]): Promise<void> {
+  async bulkUpdateStatus(
+    userIds: UserId[],
+    status: (typeof UserStatus)[keyof typeof UserStatus]
+  ): Promise<void> {
     const idValues = userIds.map(id => id.value);
     await this.db
       .update(users)
@@ -557,10 +560,7 @@ export class UserRepository implements IUserRepository {
         .select({ id: users.id })
         .from(users)
         .where(
-          and(
-            eq(users.email, email.value),
-            eq(users.id, excludeUserId.value)
-          )
+          and(eq(users.email, email.value), eq(users.id, excludeUserId.value))
         );
     }
 
@@ -657,7 +657,9 @@ export class UserRepository implements IUserRepository {
       Email.create(row.email),
       row.name,
       row.hashedPassword,
-      UserStatusVO.create(row.isActive ? UserStatus.ACTIVE : UserStatus.INACTIVE),
+      UserStatusVO.create(
+        row.isActive ? UserStatus.ACTIVE : UserStatus.INACTIVE
+      ),
       row.lastLoginAt,
       row.createdAt,
       row.updatedAt

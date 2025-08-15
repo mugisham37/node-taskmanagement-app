@@ -1,22 +1,18 @@
-import { WebSocketHandler } from './websocket-handler';
-import { RealtimeEventService } from '../../infrastructure/external-services/realtime-event-service';
-import { CollaborationService } from '../../infrastructure/external-services/collaboration-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import {
-  TaskCreatedEvent,
-  TaskAssignedEvent,
-  TaskCompletedEvent,
-  TaskUpdatedEvent,
-} from '../../domain/events/task-events';
 import {
   ProjectCreatedEvent,
   ProjectMemberAddedEvent,
   ProjectUpdatedEvent,
-} from '../../domain/events/project-events';
-import {
+  TaskAssignedEvent,
+  TaskCompletedEvent,
+  TaskCreatedEvent,
+  TaskUpdatedEvent,
   WorkspaceCreatedEvent,
   WorkspaceMemberAddedEvent,
-} from '../../domain/events/workspace-events';
+} from '@monorepo/domain';
+import { CollaborationService } from '../../infrastructure/external-services/collaboration-service';
+import { RealtimeEventService } from '../../infrastructure/external-services/realtime-event-service';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { WebSocketHandler } from './websocket-handler';
 
 /**
  * WebSocket Gateway that bridges domain events with real-time WebSocket communications
