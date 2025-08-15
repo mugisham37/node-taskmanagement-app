@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: taskmanagement-config
+  namespace: taskmanagement
+data:
+  NODE_ENV: "production"
+  SERVER_PORT: "3001"
+  CLIENT_PORT: "3000"
+  CORS_ORIGIN: "https://taskmanagement.example.com"
+  NEXT_PUBLIC_APP_URL: "https://taskmanagement.example.com"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  DATABASE_HOST: "postgres-service"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "taskmanagement"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: taskmanagement-secrets
+  namespace: taskmanagement
+type: Opaque
+data:
+  # Base64 encoded values - replace with actual encoded secrets
+  DATABASE_PASSWORD: cG9zdGdyZXM=  # postgres
+  JWT_SECRET: eW91ci1qd3Qtc2VjcmV0LWtleQ==  # your-jwt-secret-key
+  REDIS_PASSWORD: ""  # empty for no password

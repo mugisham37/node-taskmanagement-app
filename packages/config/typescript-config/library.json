@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true,
+    "paths": {
+      "@taskmanagement/shared": ["../shared/src"],
+      "@taskmanagement/shared/*": ["../shared/src/*"],
+      "@taskmanagement/database": ["../database/src"],
+      "@taskmanagement/database/*": ["../database/src/*"],
+      "@taskmanagement/ui": ["../ui/src"],
+      "@taskmanagement/ui/*": ["../ui/src/*"],
+      "@taskmanagement/config": ["../config/src"],
+      "@taskmanagement/config/*": ["../config/src/*"]
+    }
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "coverage",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx"
+  ]
+}

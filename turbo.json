@@ -5,7 +5,9 @@
     "dev": {
       "cache": false,
       "persistent": true,
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "env": ["NODE_ENV", "PORT", "DATABASE_URL", "REDIS_URL"],
+      "outputLogs": "new-only"
     },
     "build": {
       "dependsOn": ["^build"],

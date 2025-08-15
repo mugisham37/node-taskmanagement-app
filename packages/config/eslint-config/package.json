@@ -1,0 +1,27 @@
+{
+  "name": "@taskmanagement/eslint-config",
+  "version": "1.0.0",
+  "description": "Shared ESLint configuration for the monorepo",
+  "main": "index.js",
+  "private": true,
+  "files": [
+    "index.js",
+    "react.js",
+    "node.js"
+  ],
+  "dependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.11.0",
+    "@typescript-eslint/parser": "^6.11.0",
+    "eslint-config-next": "^15.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-jsx-a11y": "^6.8.0",
+    "eslint-plugin-react": "^7.33.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-unused-imports": "^3.0.0"
+  },
+  "peerDependencies": {
+    "eslint": "^8.0.0 || ^9.0.0",
+    "typescript": "^5.0.0"
+  }
+}
