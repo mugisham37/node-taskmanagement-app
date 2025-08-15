@@ -13,7 +13,8 @@
     "test:watch": "vitest --watch"
   },
   "dependencies": {
-    "zod": "^3.22.4"
+    "zod": "^3.22.4",
+    "lru-cache": "^10.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.19.9",
@@ -40,6 +41,11 @@
       "types": "./dist/utils/index.d.ts",
       "import": "./dist/utils/index.js",
       "require": "./dist/utils/index.js"
+    },
+    "./cache": {
+      "types": "./dist/cache/index.d.ts",
+      "import": "./dist/cache/index.js",
+      "require": "./dist/cache/index.js"
     }
   }
 }

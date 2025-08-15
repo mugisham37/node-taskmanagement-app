@@ -12,3 +12,6 @@ export * from './constants';
 
 // Export all errors
 export * from './errors';
+
+// Export all cache utilities
+export * from './cache';
