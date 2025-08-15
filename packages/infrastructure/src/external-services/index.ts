@@ -1,5 +1,8 @@
 // Interfaces
+export * from './collaboration-service';
+export * from './dashboard-service';
 export * from './interfaces';
+export * from './realtime-service';
 
 // Implementations
 export * from './circuit-breaker';
@@ -10,3 +13,4 @@ export * from './websocket-service';
 export { CircuitBreakerRegistry, DefaultCircuitBreaker, circuitBreakerRegistry } from './circuit-breaker';
 export { NodemailerEmailService } from './email-service';
 export { DefaultWebSocketService } from './websocket-service';
+

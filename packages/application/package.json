@@ -1,0 +1,66 @@
+{
+  "name": "@project/application",
+  "version": "1.0.0",
+  "description": "Application layer with use cases, commands, queries, and application services",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rimraf dist",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix"
+  },
+  "dependencies": {
+    "@project/core": "workspace:*",
+    "@project/domain": "workspace:*",
+    "@project/infrastructure": "workspace:*",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0",
+    "eslint": "^8.0.0",
+    "rimraf": "^5.0.0"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./use-cases": {
+      "import": "./dist/use-cases/index.js",
+      "require": "./dist/use-cases/index.js",
+      "types": "./dist/use-cases/index.d.ts"
+    },
+    "./commands": {
+      "import": "./dist/commands/index.js",
+      "require": "./dist/commands/index.js",
+      "types": "./dist/commands/index.d.ts"
+    },
+    "./queries": {
+      "import": "./dist/queries/index.js",
+      "require": "./dist/queries/index.js",
+      "types": "./dist/queries/index.d.ts"
+    },
+    "./handlers": {
+      "import": "./dist/handlers/index.js",
+      "require": "./dist/handlers/index.js",
+      "types": "./dist/handlers/index.d.ts"
+    },
+    "./services": {
+      "import": "./dist/services/index.js",
+      "require": "./dist/services/index.js",
+      "types": "./dist/services/index.d.ts"
+    },
+    "./dto": {
+      "import": "./dist/dto/index.js",
+      "require": "./dist/dto/index.js",
+      "types": "./dist/dto/index.d.ts"
+    }
+  }
+}
