@@ -1,5 +1,6 @@
 // Base error classes
 export { AppError } from './app-error';
+export { BusinessRuleViolationError } from './business-rule-violation-error';
 
 // Domain errors
 export {
