@@ -1,11 +1,11 @@
-import { Container } from './types';
-import { DIContainer } from './container';
-import { registerServices } from './service-registration';
-import { DependencyValidationService } from './dependency-validation-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { EventIntegrationService } from '../../infrastructure/events/event-integration-service';
-import { TransactionIntegrationService } from '../../infrastructure/database/transaction-integration-service';
+import { TransactionIntegrationService } from '@taskmanagement/database';
 import { EventHandlerLifecycleManager } from '../../application/events/event-handler-lifecycle-manager';
+import { EventIntegrationService } from '../../infrastructure/events/event-integration-service';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { DIContainer } from './container';
+import { DependencyValidationService } from './dependency-validation-service';
+import { registerServices } from './service-registration';
+import { Container } from './types';
 
 /**
  * Container Initialization Service
@@ -58,10 +58,7 @@ export class ContainerInitializationService {
       return this.container;
     } catch (error) {
       this.initializationError = error as Error;
-      console.error(
-        'Failed to initialize dependency injection container:',
-        error
-      );
+      console.error('Failed to initialize dependency injection container:', error);
       throw error;
     }
   }
@@ -110,14 +107,10 @@ export class ContainerInitializationService {
     }
 
     // Get logging service for validation
-    const loggingService =
-      this.container.resolve<LoggingService>('LoggingService');
+    const loggingService = this.container.resolve<LoggingService>('LoggingService');
 
     // Create validation service
-    const validationService = new DependencyValidationService(
-      this.container,
-      loggingService
-    );
+    const validationService = new DependencyValidationService(this.container, loggingService);
 
     // Perform validation
     const validationSummary = await validationService.validateAllDependencies();
@@ -146,16 +139,13 @@ export class ContainerInitializationService {
     try {
       // Initialize event integration service
       const eventIntegrationService =
-        this.container.resolve<EventIntegrationService>(
-          'EventIntegrationService'
-        );
+        this.container.resolve<EventIntegrationService>('EventIntegrationService');
       await eventIntegrationService.initialize();
 
       // Initialize event handler lifecycle manager
-      const eventHandlerLifecycleManager =
-        this.container.resolve<EventHandlerLifecycleManager>(
-          'EventHandlerLifecycleManager'
-        );
+      const eventHandlerLifecycleManager = this.container.resolve<EventHandlerLifecycleManager>(
+        'EventHandlerLifecycleManager'
+      );
       await eventHandlerLifecycleManager.initialize();
 
       console.log('Integration services initialized successfully');
@@ -195,19 +185,17 @@ export class ContainerInitializationService {
       {
         name: 'Event Integration Service',
         check: async () => {
-          const eventService = this.container!.resolve<EventIntegrationService>(
-            'EventIntegrationService'
-          );
+          const eventService =
+            this.container!.resolve<EventIntegrationService>('EventIntegrationService');
           return await eventService.getHealthStatus();
         },
       },
       {
         name: 'Transaction Integration Service',
         check: async () => {
-          const transactionService =
-            this.container!.resolve<TransactionIntegrationService>(
-              'TransactionIntegrationService'
-            );
+          const transactionService = this.container!.resolve<TransactionIntegrationService>(
+            'TransactionIntegrationService'
+          );
           return await transactionService.healthCheck();
         },
       },
@@ -262,15 +250,10 @@ export class ContainerInitializationService {
       if (this.isInitialized) {
         try {
           const eventIntegrationService =
-            this.container.resolve<EventIntegrationService>(
-              'EventIntegrationService'
-            );
+            this.container.resolve<EventIntegrationService>('EventIntegrationService');
           await eventIntegrationService.shutdown();
         } catch (error) {
-          console.error(
-            'Error shutting down event integration service:',
-            error
-          );
+          console.error('Error shutting down event integration service:', error);
         }
       }
 
@@ -326,5 +309,4 @@ export class ContainerInitializationService {
 }
 
 // Export singleton instance
-export const containerInitializationService =
-  new ContainerInitializationService();
+export const containerInitializationService = new ContainerInitializationService();

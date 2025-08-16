@@ -1,52 +1,52 @@
+import { TransactionManager } from '@taskmanagement/database';
 import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { EmailService } from '../../infrastructure/external-services/email-service';
-import { CacheService } from '../../infrastructure/caching/cache-service';
+import { IProjectRepository } from '../../domain/repositories/project-repository';
 import { ITaskRepository } from '../../domain/repositories/task-repository';
 import { IUserRepository } from '../../domain/repositories/user-repository';
-import { IProjectRepository } from '../../domain/repositories/project-repository';
 import { TaskDomainService } from '../../domain/services/task-domain-service';
-import { TransactionManager } from '../../infrastructure/database/transaction-manager';
+import { Priority } from '../../domain/value-objects/priority';
+import { ProjectId } from '../../domain/value-objects/project-id';
+import { TaskId } from '../../domain/value-objects/task-id';
+import { TaskStatus } from '../../domain/value-objects/task-status';
+import { UserId } from '../../domain/value-objects/user-id';
+import { CacheService } from '../../infrastructure/caching/cache-service';
+import { EmailService } from '../../infrastructure/external-services/email-service';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import {
+  AddTaskDependencyCommand,
+  DeleteTaskCommand,
+  RemoveTaskDependencyCommand,
+  UpdateTaskStatusCommand,
+} from '../commands/task-commands';
 import { ICommandBus } from '../cqrs/command';
 import {
-  DeleteTaskCommand,
-  AddTaskDependencyCommand,
-  RemoveTaskDependencyCommand,
-  UpdateTaskStatusCommand
-} from '../commands/task-commands';
-import {
-  CreateTaskUseCase,
-  UpdateTaskUseCase,
-  AssignTaskUseCase,
-  CompleteTaskUseCase,
-  CreateTaskUseCaseInput,
-  UpdateTaskUseCaseInput,
-  AssignTaskUseCaseInput,
-  CompleteTaskUseCaseInput,
-} from '../use-cases/task-use-cases';
-import {
-  GetTaskByIdQueryHandler,
-  GetTasksByProjectQueryHandler,
-  GetTasksByAssigneeQueryHandler,
   GetOverdueTasksQueryHandler,
+  GetTaskByIdQueryHandler,
+  GetTasksByAssigneeQueryHandler,
+  GetTasksByProjectQueryHandler,
   GetTaskStatisticsQueryHandler,
   TaskDto,
   TaskStatisticsDto,
 } from '../handlers/task-query-handlers';
+import { PaginatedResult, PaginationOptions } from '../queries/base-query';
 import {
-  GetTaskByIdQuery,
-  GetTasksByProjectQuery,
-  GetTasksByAssigneeQuery,
   GetOverdueTasksQuery,
+  GetTaskByIdQuery,
+  GetTasksByAssigneeQuery,
+  GetTasksByProjectQuery,
   GetTaskStatisticsQuery,
   TaskFilters,
 } from '../queries/task-queries';
-import { PaginatedResult, PaginationOptions } from '../queries/base-query';
-import { TaskId } from '../../domain/value-objects/task-id';
-import { ProjectId } from '../../domain/value-objects/project-id';
-import { UserId } from '../../domain/value-objects/user-id';
-import { Priority } from '../../domain/value-objects/priority';
-import { TaskStatus } from '../../domain/value-objects/task-status';
+import {
+  AssignTaskUseCase,
+  AssignTaskUseCaseInput,
+  CompleteTaskUseCase,
+  CompleteTaskUseCaseInput,
+  CreateTaskUseCase,
+  CreateTaskUseCaseInput,
+  UpdateTaskUseCase,
+  UpdateTaskUseCaseInput,
+} from '../use-cases/task-use-cases';
 
 export class TaskApplicationService {
   private readonly createTaskUseCase: CreateTaskUseCase;
@@ -184,38 +184,24 @@ export class TaskApplicationService {
     updatedBy: UserId,
     statusNotes?: string
   ): Promise<void> {
-    const command = new UpdateTaskStatusCommand(
-      taskId,
-      status,
-      updatedBy,
-      updatedBy,
-      statusNotes
-    );
+    const command = new UpdateTaskStatusCommand(taskId, status, updatedBy, updatedBy, statusNotes);
     await this.commandBus.send(command);
-    
+
     this.logger.info('Task status updated successfully', {
       taskId: taskId.value,
       status: status.toString(),
-      updatedBy: updatedBy.value
+      updatedBy: updatedBy.value,
     });
   }
 
-  async addTaskDependency(
-    taskId: TaskId,
-    dependsOnTaskId: TaskId,
-    userId: UserId
-  ): Promise<void> {
-    const command = new AddTaskDependencyCommand(
-      taskId,
-      dependsOnTaskId,
-      userId
-    );
+  async addTaskDependency(taskId: TaskId, dependsOnTaskId: TaskId, userId: UserId): Promise<void> {
+    const command = new AddTaskDependencyCommand(taskId, dependsOnTaskId, userId);
     await this.commandBus.send(command);
-    
+
     this.logger.info('Task dependency added successfully', {
       taskId: taskId.value,
       dependsOnTaskId: dependsOnTaskId.value,
-      userId: userId.value
+      userId: userId.value,
     });
   }
 
@@ -224,17 +210,13 @@ export class TaskApplicationService {
     dependsOnTaskId: TaskId,
     userId: UserId
   ): Promise<void> {
-    const command = new RemoveTaskDependencyCommand(
-      taskId,
-      dependsOnTaskId,
-      userId
-    );
+    const command = new RemoveTaskDependencyCommand(taskId, dependsOnTaskId, userId);
     await this.commandBus.send(command);
-    
+
     this.logger.info('Task dependency removed successfully', {
       taskId: taskId.value,
       dependsOnTaskId: dependsOnTaskId.value,
-      userId: userId.value
+      userId: userId.value,
     });
   }
 
@@ -250,12 +232,7 @@ export class TaskApplicationService {
     filters?: TaskFilters,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<TaskDto>> {
-    const query = new GetTasksByProjectQuery(
-      projectId,
-      userId,
-      filters,
-      pagination
-    );
+    const query = new GetTasksByProjectQuery(projectId, userId, filters, pagination);
     return await this.getTasksByProjectHandler.handle(query);
   }
 
@@ -265,12 +242,7 @@ export class TaskApplicationService {
     filters?: TaskFilters,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<TaskDto>> {
-    const query = new GetTasksByAssigneeQuery(
-      assigneeId,
-      userId,
-      filters,
-      pagination
-    );
+    const query = new GetTasksByAssigneeQuery(assigneeId, userId, filters, pagination);
     return await this.getTasksByAssigneeHandler.handle(query);
   }
 
@@ -280,12 +252,7 @@ export class TaskApplicationService {
     assigneeId?: UserId,
     pagination?: PaginationOptions
   ): Promise<PaginatedResult<TaskDto>> {
-    const query = new GetOverdueTasksQuery(
-      userId,
-      projectId,
-      assigneeId,
-      pagination
-    );
+    const query = new GetOverdueTasksQuery(userId, projectId, assigneeId, pagination);
     return await this.getOverdueTasksHandler.handle(query);
   }
 
@@ -295,20 +262,12 @@ export class TaskApplicationService {
     dateFrom?: Date,
     dateTo?: Date
   ): Promise<TaskStatisticsDto> {
-    const query = new GetTaskStatisticsQuery(
-      userId,
-      projectId,
-      dateFrom,
-      dateTo
-    );
+    const query = new GetTaskStatisticsQuery(userId, projectId, dateFrom, dateTo);
     return await this.getTaskStatisticsHandler.handle(query);
   }
 
   // Notification methods
-  private async sendTaskAssignmentNotification(
-    taskId: TaskId,
-    assigneeId: UserId
-  ): Promise<void> {
+  private async sendTaskAssignmentNotification(taskId: TaskId, assigneeId: UserId): Promise<void> {
     try {
       const task = await this.taskRepository.findById(taskId);
       const assignee = await this.userRepository.findById(assigneeId);
@@ -327,29 +286,22 @@ export class TaskApplicationService {
           assigner?.name || 'Unknown User',
           task.dueDate || undefined
         );
-        
+
         this.logger.info('Task assignment notification sent', {
           taskId: taskId.value,
           assigneeId: assigneeId.value,
         });
       }
     } catch (error) {
-      this.logger.error(
-        'Failed to send task assignment notification',
-        error as Error,
-        {
-          taskId: taskId.value,
-          assigneeId: assigneeId.value,
-        }
-      );
+      this.logger.error('Failed to send task assignment notification', error as Error, {
+        taskId: taskId.value,
+        assigneeId: assigneeId.value,
+      });
       // Don't throw - notification failure shouldn't break the main operation
     }
   }
 
-  private async sendTaskCompletionNotification(
-    taskId: TaskId,
-    completedBy: UserId
-  ): Promise<void> {
+  private async sendTaskCompletionNotification(taskId: TaskId, completedBy: UserId): Promise<void> {
     try {
       const task = await this.taskRepository.findById(taskId);
       const completedByUser = await this.userRepository.findById(completedBy);
@@ -366,31 +318,23 @@ export class TaskApplicationService {
           completedByUser.name,
           task.completedAt || new Date()
         );
-        
+
         this.logger.info('Task completion notification sent', {
           taskId: taskId.value,
           completedBy: completedBy.value,
         });
       }
     } catch (error) {
-      this.logger.error(
-        'Failed to send task completion notification',
-        error as Error,
-        {
-          taskId: taskId.value,
-          completedBy: completedBy.value,
-        }
-      );
+      this.logger.error('Failed to send task completion notification', error as Error, {
+        taskId: taskId.value,
+        completedBy: completedBy.value,
+      });
       // Don't throw - notification failure shouldn't break the main operation
     }
   }
 
   // Bulk operations
-  async bulkAssignTasks(
-    taskIds: TaskId[],
-    assigneeId: UserId,
-    assignedBy: UserId
-  ): Promise<void> {
+  async bulkAssignTasks(taskIds: TaskId[], assigneeId: UserId, assignedBy: UserId): Promise<void> {
     this.logger.info('Executing bulk task assignment', {
       taskCount: taskIds.length,
       assigneeId: assigneeId.value,
@@ -400,7 +344,7 @@ export class TaskApplicationService {
       for (const taskId of taskIds) {
         await this.assignTask({ taskId, assigneeId, assignedBy });
       }
-      
+
       // Clear cache for affected tasks
       await this.cacheService.invalidatePattern(`task:*`);
       await this.cacheService.invalidatePattern(`tasks:assignee:${assigneeId.value}:*`);
@@ -426,7 +370,7 @@ export class TaskApplicationService {
       for (const taskId of taskIds) {
         await this.updateTask({ taskId, userId: updatedBy, priority });
       }
-      
+
       // Clear cache for affected tasks
       await this.cacheService.invalidatePattern(`task:*`);
     });
@@ -441,7 +385,7 @@ export class TaskApplicationService {
   async validateTaskAssignment(taskId: TaskId, assigneeId: UserId): Promise<boolean> {
     try {
       const task = await this.taskRepository.findById(taskId);
-      
+
       if (!task) {
         return false;
       }
@@ -490,21 +434,21 @@ export class TaskApplicationService {
   async deleteTask(userId: string, taskId: string): Promise<void> {
     const userIdObj = new UserId(userId);
     const taskIdObj = new TaskId(taskId);
-    
+
     // Use command pattern for task deletion
     const command = new DeleteTaskCommand(taskIdObj, userIdObj, userIdObj);
     await this.commandBus.send(command);
-    
-    this.logger.info('Task deleted successfully', { 
-      taskId, 
-      deletedBy: userId 
+
+    this.logger.info('Task deleted successfully', {
+      taskId,
+      deletedBy: userId,
     });
   }
 
   async unassignTask(userId: string, taskId: string): Promise<void> {
     const userIdObj = new UserId(userId);
     const taskIdObj = new TaskId(taskId);
-    
+
     // Find the task
     const task = await this.taskRepository.findById(taskIdObj);
     if (!task) {
@@ -514,14 +458,14 @@ export class TaskApplicationService {
     // Unassign the task
     task.unassign(userIdObj);
     await this.taskRepository.save(task);
-    
+
     this.logger.info('Task unassigned', { taskId, userId });
   }
 
   async reopenTask(userId: string, taskId: string): Promise<void> {
     const userIdObj = new UserId(userId);
     const taskIdObj = new TaskId(taskId);
-    
+
     // Find the task
     const task = await this.taskRepository.findById(taskIdObj);
     if (!task) {
@@ -531,14 +475,14 @@ export class TaskApplicationService {
     // Reopen the task
     task.reopen(userIdObj);
     await this.taskRepository.save(task);
-    
+
     this.logger.info('Task reopened', { taskId, userId });
   }
 
   async startTask(userId: string, taskId: string): Promise<void> {
     const userIdObj = new UserId(userId);
     const taskIdObj = new TaskId(taskId);
-    
+
     // Find the task
     const task = await this.taskRepository.findById(taskIdObj);
     if (!task) {
@@ -548,14 +492,14 @@ export class TaskApplicationService {
     // Start the task
     task.start(userIdObj);
     await this.taskRepository.save(task);
-    
+
     this.logger.info('Task started', { taskId, userId });
   }
 
   async submitForReview(userId: string, taskId: string): Promise<void> {
     const userIdObj = new UserId(userId);
     const taskIdObj = new TaskId(taskId);
-    
+
     // Find the task
     const task = await this.taskRepository.findById(taskIdObj);
     if (!task) {
@@ -565,14 +509,14 @@ export class TaskApplicationService {
     // Complete task and mark for review (using complete method)
     task.complete(userIdObj);
     await this.taskRepository.save(task);
-    
+
     this.logger.info('Task submitted for review', { taskId, userId });
   }
 
   async cancelTask(userId: string, taskId: string): Promise<void> {
     const userIdObj = new UserId(userId);
     const taskIdObj = new TaskId(taskId);
-    
+
     // Find the task
     const task = await this.taskRepository.findById(taskIdObj);
     if (!task) {
@@ -582,48 +526,75 @@ export class TaskApplicationService {
     // Cancel the task
     task.cancel(userIdObj);
     await this.taskRepository.save(task);
-    
+
     this.logger.info('Task cancelled', { taskId, userId });
   }
 
-  async getTasks(userId: string, filters?: any, page?: number, limit?: number): Promise<PaginatedResult<TaskDto>> {
+  async getTasks(
+    userId: string,
+    filters?: any,
+    page?: number,
+    limit?: number
+  ): Promise<PaginatedResult<TaskDto>> {
     const userIdObj = new UserId(userId);
     const pagination = { page: page || 1, limit: limit || 20 };
-    
+
     // Use existing method
     return await this.getTasksByAssignee(userIdObj, userIdObj, filters, pagination);
   }
 
-  async getProjectTasks(projectId: string, userId: string, filters?: any, page?: number, limit?: number): Promise<PaginatedResult<TaskDto>> {
+  async getProjectTasks(
+    projectId: string,
+    userId: string,
+    filters?: any,
+    page?: number,
+    limit?: number
+  ): Promise<PaginatedResult<TaskDto>> {
     const userIdObj = new UserId(userId);
     const projectIdObj = new ProjectId(projectId);
     const pagination = { page: page || 1, limit: limit || 20 };
-    
+
     return await this.getTasksByProject(projectIdObj, userIdObj, filters, pagination);
   }
 
-  async getMyTasks(userId: string, filters?: any, page?: number, limit?: number): Promise<PaginatedResult<TaskDto>> {
+  async getMyTasks(
+    userId: string,
+    filters?: any,
+    page?: number,
+    limit?: number
+  ): Promise<PaginatedResult<TaskDto>> {
     const userIdObj = new UserId(userId);
     const pagination = { page: page || 1, limit: limit || 20 };
-    
+
     return await this.getTasksByAssignee(userIdObj, userIdObj, filters, pagination);
   }
 
-  async getAssignedTasks(assigneeId: string, userId: string, filters?: any, page?: number, limit?: number): Promise<PaginatedResult<TaskDto>> {
+  async getAssignedTasks(
+    assigneeId: string,
+    userId: string,
+    filters?: any,
+    page?: number,
+    limit?: number
+  ): Promise<PaginatedResult<TaskDto>> {
     const userIdObj = new UserId(userId);
     const assigneeIdObj = new UserId(assigneeId);
     const pagination = { page: page || 1, limit: limit || 20 };
-    
+
     return await this.getTasksByAssignee(assigneeIdObj, userIdObj, filters, pagination);
   }
 
-  async getOverdueTasksForUser(userId: string, filters?: any, page?: number, limit?: number): Promise<PaginatedResult<TaskDto>> {
+  async getOverdueTasksForUser(
+    userId: string,
+    filters?: any,
+    page?: number,
+    limit?: number
+  ): Promise<PaginatedResult<TaskDto>> {
     const userIdObj = new UserId(userId);
     const pagination = { page: page || 1, limit: limit || 20 };
-    
+
     // TODO: Use filters parameter when implementing filtering logic
     void filters;
-    
+
     return await this.getOverdueTasks(userIdObj, undefined, undefined, pagination);
   }
 }

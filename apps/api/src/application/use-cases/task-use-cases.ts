@@ -7,8 +7,8 @@ import {
 } from '@taskmanagement/domain';
 import { ValidationError } from '@taskmanagement/validation';
 // Additional imports from domain package (already imported above)
+import { TransactionManager } from '@taskmanagement/database';
 import { CacheService } from '../../infrastructure/caching/cache-service';
-import { TransactionManager } from '../../infrastructure/database/transaction-manager';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { Priority as PriorityEnum } from '../../shared/enums/common.enums';
 import { AuthorizationError } from '../../shared/errors/authorization-error';

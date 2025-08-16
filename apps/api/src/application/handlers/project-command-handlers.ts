@@ -1,24 +1,24 @@
-import { BaseHandler, ICommandHandler } from './base-handler';
+import { TransactionManager } from '@taskmanagement/database';
 import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { IProjectRepository } from '../../domain/repositories/project-repository';
-import { IWorkspaceRepository } from '../../domain/repositories/workspace-repository';
 import { IUserRepository } from '../../domain/repositories/user-repository';
+import { IWorkspaceRepository } from '../../domain/repositories/workspace-repository';
 import { ProjectDomainService } from '../../domain/services/project-domain-service';
-import { TransactionManager } from '../../infrastructure/database/transaction-manager';
+import { ProjectId } from '../../domain/value-objects/project-id';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { NotFoundError } from '../../shared/errors/not-found-error';
 import {
-  CreateProjectCommand,
-  UpdateProjectCommand,
   AddProjectMemberCommand,
-  RemoveProjectMemberCommand,
-  UpdateProjectMemberRoleCommand,
   ArchiveProjectCommand,
+  CreateProjectCommand,
+  RemoveProjectMemberCommand,
   RestoreProjectCommand,
+  UpdateProjectCommand,
+  UpdateProjectMemberRoleCommand,
   UpdateProjectStatusCommand,
 } from '../commands/project-commands';
-import { ProjectId } from '../../domain/value-objects/project-id';
-import { NotFoundError } from '../../shared/errors/not-found-error';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { BaseHandler, ICommandHandler } from './base-handler';
 
 export class CreateProjectCommandHandler
   extends BaseHandler
@@ -41,13 +41,9 @@ export class CreateProjectCommandHandler
     return await this.transactionManager.executeInTransaction(async () => {
       try {
         // Verify workspace exists and user has permission
-        const workspace = await this.workspaceRepository.findById(
-          command.workspaceId
-        );
+        const workspace = await this.workspaceRepository.findById(command.workspaceId);
         if (!workspace) {
-          throw new NotFoundError(
-            `Workspace with ID ${command.workspaceId.value} not found`
-          );
+          throw new NotFoundError(`Workspace with ID ${command.workspaceId.value} not found`);
         }
 
         if (!workspace.canUserCreateProject(command.userId)) {
@@ -100,24 +96,13 @@ export class UpdateProjectCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const project = await this.projectRepository.findById(
-          command.projectId
-        );
+        const project = await this.projectRepository.findById(command.projectId);
         if (!project) {
-          throw new NotFoundError(
-            `Project with ID ${command.projectId.value} not found`
-          );
+          throw new NotFoundError(`Project with ID ${command.projectId.value} not found`);
         }
 
-        if (
-          !this.projectDomainService.canUserUpdateProject(
-            project,
-            command.userId
-          )
-        ) {
-          throw new AuthorizationError(
-            'User does not have permission to update this project'
-          );
+        if (!this.projectDomainService.canUserUpdateProject(project, command.userId)) {
+          throw new AuthorizationError('User does not have permission to update this project');
         }
 
         // Update project properties
@@ -168,20 +153,14 @@ export class AddProjectMemberCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const project = await this.projectRepository.findById(
-          command.projectId
-        );
+        const project = await this.projectRepository.findById(command.projectId);
         if (!project) {
-          throw new NotFoundError(
-            `Project with ID ${command.projectId.value} not found`
-          );
+          throw new NotFoundError(`Project with ID ${command.projectId.value} not found`);
         }
 
         const member = await this.userRepository.findById(command.memberId);
         if (!member) {
-          throw new NotFoundError(
-            `User with ID ${command.memberId.value} not found`
-          );
+          throw new NotFoundError(`User with ID ${command.memberId.value} not found`);
         }
 
         // Add member through domain service
@@ -229,13 +208,9 @@ export class RemoveProjectMemberCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const project = await this.projectRepository.findById(
-          command.projectId
-        );
+        const project = await this.projectRepository.findById(command.projectId);
         if (!project) {
-          throw new NotFoundError(
-            `Project with ID ${command.projectId.value} not found`
-          );
+          throw new NotFoundError(`Project with ID ${command.projectId.value} not found`);
         }
 
         // Remove member through domain service
@@ -281,13 +256,9 @@ export class UpdateProjectMemberRoleCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const project = await this.projectRepository.findById(
-          command.projectId
-        );
+        const project = await this.projectRepository.findById(command.projectId);
         if (!project) {
-          throw new NotFoundError(
-            `Project with ID ${command.projectId.value} not found`
-          );
+          throw new NotFoundError(`Project with ID ${command.projectId.value} not found`);
         }
 
         // Update member role through domain service
@@ -335,20 +306,13 @@ export class ArchiveProjectCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const project = await this.projectRepository.findById(
-          command.projectId
-        );
+        const project = await this.projectRepository.findById(command.projectId);
         if (!project) {
-          throw new NotFoundError(
-            `Project with ID ${command.projectId.value} not found`
-          );
+          throw new NotFoundError(`Project with ID ${command.projectId.value} not found`);
         }
 
         // Archive project through domain service
-        await this.projectDomainService.archiveProject(
-          project,
-          command.archivedBy
-        );
+        await this.projectDomainService.archiveProject(project, command.archivedBy);
 
         await this.projectRepository.save(project);
         await this.publishEvents();
@@ -383,20 +347,13 @@ export class RestoreProjectCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const project = await this.projectRepository.findById(
-          command.projectId
-        );
+        const project = await this.projectRepository.findById(command.projectId);
         if (!project) {
-          throw new NotFoundError(
-            `Project with ID ${command.projectId.value} not found`
-          );
+          throw new NotFoundError(`Project with ID ${command.projectId.value} not found`);
         }
 
         // Restore project through domain service
-        await this.projectDomainService.restoreProject(
-          project,
-          command.restoredBy
-        );
+        await this.projectDomainService.restoreProject(project, command.restoredBy);
 
         await this.projectRepository.save(project);
         await this.publishEvents();
@@ -431,13 +388,9 @@ export class UpdateProjectStatusCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const project = await this.projectRepository.findById(
-          command.projectId
-        );
+        const project = await this.projectRepository.findById(command.projectId);
         if (!project) {
-          throw new NotFoundError(
-            `Project with ID ${command.projectId.value} not found`
-          );
+          throw new NotFoundError(`Project with ID ${command.projectId.value} not found`);
         }
 
         // Update status through domain service

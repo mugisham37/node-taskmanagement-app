@@ -1,11 +1,11 @@
 import { PasswordService } from '@taskmanagement/auth';
+import { TransactionManager } from '@taskmanagement/database';
 import { ValidationError } from '@taskmanagement/validation';
 import { nanoid } from 'nanoid';
 import { User } from '../../domain/entities/user';
 import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
 import { IUserRepository } from '../../domain/repositories/user-repository';
 import { UserId } from '../../domain/value-objects/user-id';
-import { TransactionManager } from '../../infrastructure/database/transaction-manager';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
 import { NotFoundError } from '../../shared/errors/not-found-error';

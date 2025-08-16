@@ -4,22 +4,22 @@
  * Handles commands for creating, updating, and triggering webhooks
  */
 
-import { BaseHandler, ICommandHandler } from './base-handler';
+import { TransactionManager } from '@taskmanagement/database';
+import * as crypto from 'crypto';
+import { Webhook, WebhookStatus } from '../../domain/entities/webhook';
+import { validateWebhookEvents } from '../../domain/enums/webhook-event';
+import { WorkspaceRoleHelper } from '../../domain/enums/workspace-role';
 import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { IWebhookRepository } from '../../domain/repositories/webhook-repository';
 import { IWorkspaceRepository } from '../../domain/repositories/workspace-repository';
-import { TransactionManager } from '../../infrastructure/database/transaction-manager';
-import { CacheService } from '../../infrastructure/caching/cache-service';
+import { UserId } from '../../domain/value-objects/user-id';
 import { WebhookId } from '../../domain/value-objects/webhook-id';
 import { WorkspaceId } from '../../domain/value-objects/workspace-id';
-import { UserId } from '../../domain/value-objects/user-id';
-import { Webhook, WebhookStatus } from '../../domain/entities/webhook';
-import { NotFoundError } from '../../shared/errors/not-found-error';
+import { CacheService } from '../../infrastructure/caching/cache-service';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { WorkspaceRoleHelper } from '../../domain/enums/workspace-role';
-import { validateWebhookEvents } from '../../domain/enums/webhook-event';
-import * as crypto from 'crypto';
+import { NotFoundError } from '../../shared/errors/not-found-error';
+import { BaseHandler, ICommandHandler } from './base-handler';
 
 // Command interfaces
 export interface CreateWebhookCommand {
@@ -101,23 +101,14 @@ export class CreateWebhookCommandHandler
     return await this.transactionManager.executeInTransaction(async () => {
       try {
         // Verify workspace exists and user has permission
-        const workspace = await this.workspaceRepository.findById(
-          command.workspaceId
-        );
+        const workspace = await this.workspaceRepository.findById(command.workspaceId);
         if (!workspace) {
-          throw new NotFoundError(
-            `Workspace with ID ${command.workspaceId.value} not found`
-          );
+          throw new NotFoundError(`Workspace with ID ${command.workspaceId.value} not found`);
         }
 
-        const canCreate = await this.canUserManageWebhooks(
-          command.createdBy,
-          command.workspaceId
-        );
+        const canCreate = await this.canUserManageWebhooks(command.createdBy, command.workspaceId);
         if (!canCreate) {
-          throw new AuthorizationError(
-            'User does not have permission to create webhooks'
-          );
+          throw new AuthorizationError('User does not have permission to create webhooks');
         }
 
         // Validate URL format
@@ -171,14 +162,8 @@ export class CreateWebhookCommandHandler
     });
   }
 
-  private async canUserManageWebhooks(
-    userId: UserId,
-    workspaceId: WorkspaceId
-  ): Promise<boolean> {
-    const member = await this.workspaceRepository.findMember(
-      workspaceId,
-      userId
-    );
+  private async canUserManageWebhooks(userId: UserId, workspaceId: WorkspaceId): Promise<boolean> {
+    const member = await this.workspaceRepository.findMember(workspaceId, userId);
     return member ? WorkspaceRoleHelper.canManageWebhooks(member.role) : false;
   }
 
@@ -226,13 +211,9 @@ export class UpdateWebhookCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const webhook = await this.webhookRepository.findById(
-          command.webhookId.value
-        );
+        const webhook = await this.webhookRepository.findById(command.webhookId.value);
         if (!webhook) {
-          throw new NotFoundError(
-            `Webhook with ID ${command.webhookId.value} not found`
-          );
+          throw new NotFoundError(`Webhook with ID ${command.webhookId.value} not found`);
         }
 
         // Check permissions
@@ -241,9 +222,7 @@ export class UpdateWebhookCommandHandler
           WorkspaceId.create(webhook.workspaceId)
         );
         if (!canUpdate) {
-          throw new AuthorizationError(
-            'User does not have permission to update webhooks'
-          );
+          throw new AuthorizationError('User does not have permission to update webhooks');
         }
 
         // Update webhook fields
@@ -291,14 +270,8 @@ export class UpdateWebhookCommandHandler
     });
   }
 
-  private async canUserManageWebhooks(
-    userId: UserId,
-    workspaceId: WorkspaceId
-  ): Promise<boolean> {
-    const member = await this.workspaceRepository.findMember(
-      workspaceId,
-      userId
-    );
+  private async canUserManageWebhooks(userId: UserId, workspaceId: WorkspaceId): Promise<boolean> {
+    const member = await this.workspaceRepository.findMember(workspaceId, userId);
     return member ? WorkspaceRoleHelper.canManageWebhooks(member.role) : false;
   }
 
@@ -342,13 +315,9 @@ export class DeleteWebhookCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const webhook = await this.webhookRepository.findById(
-          command.webhookId.value
-        );
+        const webhook = await this.webhookRepository.findById(command.webhookId.value);
         if (!webhook) {
-          throw new NotFoundError(
-            `Webhook with ID ${command.webhookId.value} not found`
-          );
+          throw new NotFoundError(`Webhook with ID ${command.webhookId.value} not found`);
         }
 
         // Check permissions
@@ -357,9 +326,7 @@ export class DeleteWebhookCommandHandler
           WorkspaceId.create(webhook.workspaceId)
         );
         if (!canDelete) {
-          throw new AuthorizationError(
-            'User does not have permission to delete webhooks'
-          );
+          throw new AuthorizationError('User does not have permission to delete webhooks');
         }
 
         await this.webhookRepository.delete(command.webhookId.value);
@@ -379,14 +346,8 @@ export class DeleteWebhookCommandHandler
     });
   }
 
-  private async canUserManageWebhooks(
-    userId: UserId,
-    workspaceId: WorkspaceId
-  ): Promise<boolean> {
-    const member = await this.workspaceRepository.findMember(
-      workspaceId,
-      userId
-    );
+  private async canUserManageWebhooks(userId: UserId, workspaceId: WorkspaceId): Promise<boolean> {
+    const member = await this.workspaceRepository.findMember(workspaceId, userId);
     return member ? WorkspaceRoleHelper.canManageWebhooks(member.role) : false;
   }
 
@@ -421,13 +382,9 @@ export class TriggerWebhookCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const webhook = await this.webhookRepository.findById(
-          command.webhookId.value
-        );
+        const webhook = await this.webhookRepository.findById(command.webhookId.value);
         if (!webhook) {
-          throw new NotFoundError(
-            `Webhook with ID ${command.webhookId.value} not found`
-          );
+          throw new NotFoundError(`Webhook with ID ${command.webhookId.value} not found`);
         }
 
         // Check permissions
@@ -436,9 +393,7 @@ export class TriggerWebhookCommandHandler
           WorkspaceId.create(webhook.workspaceId)
         );
         if (!canTrigger) {
-          throw new AuthorizationError(
-            'User does not have permission to trigger webhooks'
-          );
+          throw new AuthorizationError('User does not have permission to trigger webhooks');
         }
 
         // Check if webhook is active
@@ -449,9 +404,7 @@ export class TriggerWebhookCommandHandler
         // Check if webhook listens to this event type
         const eventAsWebhookEvent = command.eventType as any; // Type assertion for compatibility
         if (!webhook.events.includes(eventAsWebhookEvent)) {
-          throw new Error(
-            `Webhook does not listen to event type: ${command.eventType}`
-          );
+          throw new Error(`Webhook does not listen to event type: ${command.eventType}`);
         }
 
         // Create webhook delivery (simplified for now)
@@ -485,14 +438,8 @@ export class TriggerWebhookCommandHandler
     });
   }
 
-  private async canUserManageWebhooks(
-    userId: UserId,
-    workspaceId: WorkspaceId
-  ): Promise<boolean> {
-    const member = await this.workspaceRepository.findMember(
-      workspaceId,
-      userId
-    );
+  private async canUserManageWebhooks(userId: UserId, workspaceId: WorkspaceId): Promise<boolean> {
+    const member = await this.workspaceRepository.findMember(workspaceId, userId);
     return member ? WorkspaceRoleHelper.canManageWebhooks(member.role) : false;
   }
 
@@ -530,13 +477,9 @@ export class TestWebhookCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const webhook = await this.webhookRepository.findById(
-          command.webhookId.value
-        );
+        const webhook = await this.webhookRepository.findById(command.webhookId.value);
         if (!webhook) {
-          throw new NotFoundError(
-            `Webhook with ID ${command.webhookId.value} not found`
-          );
+          throw new NotFoundError(`Webhook with ID ${command.webhookId.value} not found`);
         }
 
         // Check permissions
@@ -545,9 +488,7 @@ export class TestWebhookCommandHandler
           WorkspaceId.create(webhook.workspaceId)
         );
         if (!canTest) {
-          throw new AuthorizationError(
-            'User does not have permission to test webhooks'
-          );
+          throw new AuthorizationError('User does not have permission to test webhooks');
         }
 
         // Create test payload
@@ -590,14 +531,8 @@ export class TestWebhookCommandHandler
     });
   }
 
-  private async canUserManageWebhooks(
-    userId: UserId,
-    workspaceId: WorkspaceId
-  ): Promise<boolean> {
-    const member = await this.workspaceRepository.findMember(
-      workspaceId,
-      userId
-    );
+  private async canUserManageWebhooks(userId: UserId, workspaceId: WorkspaceId): Promise<boolean> {
+    const member = await this.workspaceRepository.findMember(workspaceId, userId);
     return member ? WorkspaceRoleHelper.canManageWebhooks(member.role) : false;
   }
 

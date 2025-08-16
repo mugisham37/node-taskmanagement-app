@@ -99,7 +99,7 @@
   - Use PowerShell to update auth imports: `(Get-Content -Path "apps/api/src/**/*.ts" -Raw) -replace 'from ["\']\.\.?/.*?/security/', 'from "@taskmanagement/auth"' | Set-Content`
   - _Requirements: 1.3, 1.12, 1.14_
 
-- [ ] 10. Extract Database Package from API Using PowerShell Commands
+- [x] 10. Extract Database Package from API Using PowerShell Commands
   - Use PowerShell: `New-Item -ItemType Directory -Path "packages/database/src" -Force` and create subdirectories for connection/, migrations/, seeds/, schema/, repositories/, mappers/, query-builders/, transactions/, backup-recovery/, monitoring/, indexing/, partitioning/
   - Use PowerShell: `Move-Item "apps/api/src/infrastructure/database/*" "packages/database/src/" -Force` including all migrations and schema files
   - Use PowerShell: `Move-Item "apps/api/drizzle.config.ts" "packages/database/drizzle.config.ts" -Force` and update all path references within the file

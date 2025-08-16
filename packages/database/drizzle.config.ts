@@ -1,11 +1,11 @@
-import type { Config } from 'drizzle-kit';
 import { config } from 'dotenv';
+import type { Config } from 'drizzle-kit';
 
 config();
 
 export default {
-  schema: './src/infrastructure/database/schema/*',
-  out: './src/infrastructure/database/migrations',
+  schema: './src/schema/*',
+  out: './src/migrations',
   driver: 'pg',
   dbCredentials: {
     connectionString:

@@ -1,7 +1,7 @@
-import { HealthService, SystemHealth, HealthCheckResult } from './health-service';
-import { DatabaseHealthChecker } from '../database/health-check';
-import { MetricsService } from './metrics-service';
+import { DatabaseHealthChecker } from '@taskmanagement/database';
+import { HealthCheckResult, HealthService, SystemHealth } from './health-service';
 import { LoggingService } from './logging-service';
+import { MetricsService } from './metrics-service';
 
 export interface HealthCheckServiceConfig {
   enableDatabase: boolean;
@@ -29,7 +29,7 @@ export class HealthCheckService {
     this.databaseHealthChecker = databaseHealthChecker;
     this.metricsService = metricsService;
     this.loggingService = loggingService;
-    
+
     this.setupHealthChecks();
   }
 
@@ -39,30 +39,30 @@ export class HealthCheckService {
   async checkHealth(): Promise<SystemHealth> {
     try {
       const health = await this.healthService.checkHealth();
-      
+
       if (this.metricsService) {
         // Record health metrics
         this.metricsService.setGauge(
           'system_health_status',
           health.status === 'healthy' ? 1 : health.status === 'degraded' ? 0.5 : 0
         );
-        
+
         this.metricsService.setGauge('system_uptime_seconds', health.uptime);
-        
+
         // Record individual check statuses
-        health.checks.forEach(check => {
+        health.checks.forEach((check) => {
           this.metricsService!.setGauge(
             `health_check_${check.name}_status`,
             check.status === 'healthy' ? 1 : check.status === 'degraded' ? 0.5 : 0
           );
-          
+
           this.metricsService!.recordHistogram(
             `health_check_${check.name}_duration_ms`,
             check.duration
           );
         });
       }
-      
+
       return health;
     } catch (error) {
       if (this.loggingService) {
@@ -114,7 +114,7 @@ export class HealthCheckService {
         result.database = {
           status: 'unhealthy',
           error: error instanceof Error ? error.message : 'Database check failed',
-          timestamp: new Date()
+          timestamp: new Date(),
         };
       }
     }
@@ -136,81 +136,80 @@ export class HealthCheckService {
   private setupHealthChecks(): void {
     // Database health check
     if (this.config.enableDatabase && this.databaseHealthChecker) {
-      this.healthService.registerHealthCheck(
-        'database',
-        async (): Promise<HealthCheckResult> => {
-          const startTime = Date.now();
-          try {
-            const dbHealth = await this.databaseHealthChecker!.checkHealth();
-            return {
-              name: 'database',
-              status: dbHealth.status === 'healthy' ? 'healthy' : 
-                     dbHealth.status === 'degraded' ? 'degraded' : 'unhealthy',
-              message: dbHealth.error || 'Database is accessible',
-              timestamp: new Date(),
-              duration: Date.now() - startTime,
-              metadata: {
-                latency: dbHealth.latency,
-                connections: dbHealth.connections
-              }
-            };
-          } catch (error) {
-            return {
-              name: 'database',
-              status: 'unhealthy',
-              message: error instanceof Error ? error.message : 'Database check failed',
-              timestamp: new Date(),
-              duration: Date.now() - startTime
-            };
-          }
+      this.healthService.registerHealthCheck('database', async (): Promise<HealthCheckResult> => {
+        const startTime = Date.now();
+        try {
+          const dbHealth = await this.databaseHealthChecker!.checkHealth();
+          return {
+            name: 'database',
+            status:
+              dbHealth.status === 'healthy'
+                ? 'healthy'
+                : dbHealth.status === 'degraded'
+                  ? 'degraded'
+                  : 'unhealthy',
+            message: dbHealth.error || 'Database is accessible',
+            timestamp: new Date(),
+            duration: Date.now() - startTime,
+            metadata: {
+              latency: dbHealth.latency,
+              connections: dbHealth.connections,
+            },
+          };
+        } catch (error) {
+          return {
+            name: 'database',
+            status: 'unhealthy',
+            message: error instanceof Error ? error.message : 'Database check failed',
+            timestamp: new Date(),
+            duration: Date.now() - startTime,
+          };
         }
-      );
+      });
     }
 
     // Memory health check
     if (this.config.enableMemory) {
-      this.healthService.registerHealthCheck(
-        'memory',
-        async (): Promise<HealthCheckResult> => {
-          const startTime = Date.now();
-          const memUsage = process.memoryUsage();
-          const memoryUsagePercent = (memUsage.heapUsed / memUsage.heapTotal) * 100;
+      this.healthService.registerHealthCheck('memory', async (): Promise<HealthCheckResult> => {
+        const startTime = Date.now();
+        const memUsage = process.memoryUsage();
+        const memoryUsagePercent = (memUsage.heapUsed / memUsage.heapTotal) * 100;
 
-          return {
-            name: 'memory',
-            status: memoryUsagePercent > 90 ? 'unhealthy' : 
-                   memoryUsagePercent > 70 ? 'degraded' : 'healthy',
-            message: `Memory usage: ${memoryUsagePercent.toFixed(2)}%`,
-            timestamp: new Date(),
-            duration: Date.now() - startTime,
-            metadata: { 
-              memoryUsage: memUsage, 
-              usagePercent: memoryUsagePercent 
-            }
-          };
-        }
-      );
+        return {
+          name: 'memory',
+          status:
+            memoryUsagePercent > 90
+              ? 'unhealthy'
+              : memoryUsagePercent > 70
+                ? 'degraded'
+                : 'healthy',
+          message: `Memory usage: ${memoryUsagePercent.toFixed(2)}%`,
+          timestamp: new Date(),
+          duration: Date.now() - startTime,
+          metadata: {
+            memoryUsage: memUsage,
+            usagePercent: memoryUsagePercent,
+          },
+        };
+      });
     }
 
     // Disk health check
     if (this.config.enableDisk) {
-      this.healthService.registerHealthCheck(
-        'disk',
-        async (): Promise<HealthCheckResult> => {
-          const startTime = Date.now();
-          // Simple disk check - in production you'd want to check actual disk usage
-          return {
-            name: 'disk',
-            status: 'healthy',
-            message: 'Disk space is adequate',
-            timestamp: new Date(),
-            duration: Date.now() - startTime,
-            metadata: {
-              path: process.cwd()
-            }
-          };
-        }
-      );
+      this.healthService.registerHealthCheck('disk', async (): Promise<HealthCheckResult> => {
+        const startTime = Date.now();
+        // Simple disk check - in production you'd want to check actual disk usage
+        return {
+          name: 'disk',
+          status: 'healthy',
+          message: 'Disk space is adequate',
+          timestamp: new Date(),
+          duration: Date.now() - startTime,
+          metadata: {
+            path: process.cwd(),
+          },
+        };
+      });
     }
   }
 

@@ -1,22 +1,22 @@
-import { BaseHandler, ICommandHandler } from './base-handler';
+import { TransactionManager } from '@taskmanagement/database';
 import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { IWorkspaceRepository } from '../../domain/repositories/workspace-repository';
 import { IUserRepository } from '../../domain/repositories/user-repository';
+import { IWorkspaceRepository } from '../../domain/repositories/workspace-repository';
 import { WorkspaceDomainService } from '../../domain/services/workspace-domain-service';
-import { TransactionManager } from '../../infrastructure/database/transaction-manager';
+import { WorkspaceId } from '../../domain/value-objects/workspace-id';
 import { EmailService } from '../../infrastructure/external-services/email-service';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { NotFoundError } from '../../shared/errors/not-found-error';
 import {
+  ArchiveWorkspaceCommand,
   CreateWorkspaceCommand,
-  UpdateWorkspaceCommand,
   InviteUserToWorkspaceCommand,
   RemoveUserFromWorkspaceCommand,
   TransferWorkspaceOwnershipCommand,
-  ArchiveWorkspaceCommand,
+  UpdateWorkspaceCommand,
 } from '../commands/workspace-commands';
-import { WorkspaceId } from '../../domain/value-objects/workspace-id';
-import { NotFoundError } from '../../shared/errors/not-found-error';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { BaseHandler, ICommandHandler } from './base-handler';
 
 export class CreateWorkspaceCommandHandler
   extends BaseHandler
@@ -80,24 +80,13 @@ export class UpdateWorkspaceCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const workspace = await this.workspaceRepository.findById(
-          command.workspaceId
-        );
+        const workspace = await this.workspaceRepository.findById(command.workspaceId);
         if (!workspace) {
-          throw new NotFoundError(
-            `Workspace with ID ${command.workspaceId.value} not found`
-          );
+          throw new NotFoundError(`Workspace with ID ${command.workspaceId.value} not found`);
         }
 
-        if (
-          !this.workspaceDomainService.canUserUpdateWorkspace(
-            workspace,
-            command.userId
-          )
-        ) {
-          throw new AuthorizationError(
-            'User does not have permission to update this workspace'
-          );
+        if (!this.workspaceDomainService.canUserUpdateWorkspace(workspace, command.userId)) {
+          throw new AuthorizationError('User does not have permission to update this workspace');
         }
 
         // Update workspace properties
@@ -144,13 +133,9 @@ export class InviteUserToWorkspaceCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const workspace = await this.workspaceRepository.findById(
-          command.workspaceId
-        );
+        const workspace = await this.workspaceRepository.findById(command.workspaceId);
         if (!workspace) {
-          throw new NotFoundError(
-            `Workspace with ID ${command.workspaceId.value} not found`
-          );
+          throw new NotFoundError(`Workspace with ID ${command.workspaceId.value} not found`);
         }
 
         // Invite user through domain service
@@ -204,13 +189,9 @@ export class RemoveUserFromWorkspaceCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const workspace = await this.workspaceRepository.findById(
-          command.workspaceId
-        );
+        const workspace = await this.workspaceRepository.findById(command.workspaceId);
         if (!workspace) {
-          throw new NotFoundError(
-            `Workspace with ID ${command.workspaceId.value} not found`
-          );
+          throw new NotFoundError(`Workspace with ID ${command.workspaceId.value} not found`);
         }
 
         // Remove user through domain service
@@ -257,20 +238,14 @@ export class TransferWorkspaceOwnershipCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const workspace = await this.workspaceRepository.findById(
-          command.workspaceId
-        );
+        const workspace = await this.workspaceRepository.findById(command.workspaceId);
         if (!workspace) {
-          throw new NotFoundError(
-            `Workspace with ID ${command.workspaceId.value} not found`
-          );
+          throw new NotFoundError(`Workspace with ID ${command.workspaceId.value} not found`);
         }
 
         const newOwner = await this.userRepository.findById(command.newOwnerId);
         if (!newOwner) {
-          throw new NotFoundError(
-            `User with ID ${command.newOwnerId.value} not found`
-          );
+          throw new NotFoundError(`User with ID ${command.newOwnerId.value} not found`);
         }
 
         // Transfer ownership through domain service
@@ -288,11 +263,7 @@ export class TransferWorkspaceOwnershipCommandHandler
           newOwnerId: command.newOwnerId.value,
         });
       } catch (error) {
-        this.logError(
-          'Failed to transfer workspace ownership',
-          error as Error,
-          { command }
-        );
+        this.logError('Failed to transfer workspace ownership', error as Error, { command });
         throw error;
       }
     });
@@ -318,20 +289,13 @@ export class ArchiveWorkspaceCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const workspace = await this.workspaceRepository.findById(
-          command.workspaceId
-        );
+        const workspace = await this.workspaceRepository.findById(command.workspaceId);
         if (!workspace) {
-          throw new NotFoundError(
-            `Workspace with ID ${command.workspaceId.value} not found`
-          );
+          throw new NotFoundError(`Workspace with ID ${command.workspaceId.value} not found`);
         }
 
         // Archive workspace through domain service
-        await this.workspaceDomainService.archiveWorkspace(
-          workspace,
-          command.archivedBy
-        );
+        await this.workspaceDomainService.archiveWorkspace(workspace, command.archivedBy);
 
         await this.workspaceRepository.save(workspace);
         await this.publishEvents();

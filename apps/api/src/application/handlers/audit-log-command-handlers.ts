@@ -4,16 +4,16 @@
  * Handles commands for logging audit events and cleanup
  */
 
-import { BaseHandler, ICommandHandler } from './base-handler';
+import { TransactionManager } from '@taskmanagement/database';
+import { AuditAction, AuditLog } from '../../domain/entities/audit-log';
 import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { IAuditLogRepository } from '../../domain/repositories/audit-log-repository';
 import { IUserRepository } from '../../domain/repositories/user-repository';
-import { TransactionManager } from '../../infrastructure/database/transaction-manager';
 import { AuditLogId } from '../../domain/value-objects/audit-log-id';
 import { UserId } from '../../domain/value-objects/user-id';
-import { AuditLog, AuditAction } from '../../domain/entities/audit-log';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { NotFoundError } from '../../shared/errors/not-found-error';
+import { BaseHandler, ICommandHandler } from './base-handler';
 
 // Command interfaces
 export interface LogAuditEventCommand {
@@ -166,7 +166,7 @@ export class BulkLogAuditEventsCommandHandler
 
         this.logInfo('Bulk audit events logged successfully', {
           eventCount: command.events.length,
-          auditLogIds: auditLogIds.map(id => id.value),
+          auditLogIds: auditLogIds.map((id) => id.value),
         });
 
         return auditLogIds;
@@ -319,21 +319,15 @@ export class DeleteAuditLogCommandHandler
     return await this.transactionManager.executeInTransaction(async () => {
       try {
         // Verify audit log exists
-        const auditLog = await this.auditLogRepository.findById(
-          command.auditLogId
-        );
+        const auditLog = await this.auditLogRepository.findById(command.auditLogId);
         if (!auditLog) {
-          throw new NotFoundError(
-            `Audit log with ID ${command.auditLogId.value} not found`
-          );
+          throw new NotFoundError(`Audit log with ID ${command.auditLogId.value} not found`);
         }
 
         // Verify user has permission to delete audit logs (typically admin only)
         const user = await this.userRepository.findById(command.deletedBy);
         if (!user) {
-          throw new NotFoundError(
-            `User with ID ${command.deletedBy.value} not found`
-          );
+          throw new NotFoundError(`User with ID ${command.deletedBy.value} not found`);
         }
 
         // Log the deletion as an audit event before deleting

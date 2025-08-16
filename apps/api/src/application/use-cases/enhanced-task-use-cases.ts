@@ -5,6 +5,7 @@
  * like bulk operations, analytics, automation, and enhanced validation.
  */
 
+import { TransactionManager } from '@taskmanagement/database';
 import {
   IProjectRepository,
   ITaskRepository,
@@ -16,7 +17,6 @@ import {
 } from '@taskmanagement/domain';
 import { UnifiedTaskFilters } from '@taskmanagement/types/common';
 import { CacheService } from '../../infrastructure/caching/cache-service';
-import { TransactionManager } from '../../infrastructure/database/transaction-manager';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { ValidationError } from '../../shared/errors';
 import { NotFoundError } from '../../shared/errors/not-found-error';

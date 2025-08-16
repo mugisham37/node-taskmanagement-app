@@ -1,23 +1,23 @@
-import { BaseHandler, ICommandHandler } from './base-handler';
+import { TransactionManager } from '@taskmanagement/database';
 import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { ITaskRepository } from '../../domain/repositories/task-repository';
 import { IProjectRepository } from '../../domain/repositories/project-repository';
+import { ITaskRepository } from '../../domain/repositories/task-repository';
 import { TaskDomainService } from '../../domain/services/task-domain-service';
-import { TransactionManager } from '../../infrastructure/database/transaction-manager';
+import { Priority, ProjectId, TaskId, TaskStatusVO, UserId } from '../../domain/value-objects';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { NotFoundError } from '../../shared/errors/not-found-error';
 import {
-  CreateTaskCommand,
-  UpdateTaskCommand,
+  AddTaskDependencyCommand,
   AssignTaskCommand,
   CompleteTaskCommand,
-  UpdateTaskStatusCommand,
+  CreateTaskCommand,
   DeleteTaskCommand,
-  AddTaskDependencyCommand,
   RemoveTaskDependencyCommand,
+  UpdateTaskCommand,
+  UpdateTaskStatusCommand,
 } from '../commands/task-commands';
-import { TaskId, Priority, ProjectId, UserId, TaskStatusVO } from '../../domain/value-objects';
-import { NotFoundError } from '../../shared/errors/not-found-error';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { BaseHandler, ICommandHandler } from './base-handler';
 
 export class CreateTaskCommandHandler
   extends BaseHandler
@@ -40,13 +40,9 @@ export class CreateTaskCommandHandler
     return await this.transactionManager.executeInTransaction(async () => {
       try {
         // Verify project exists and user has permission
-        const project = await this.projectRepository.findById(
-          command.projectId
-        );
+        const project = await this.projectRepository.findById(command.projectId);
         if (!project) {
-          throw new NotFoundError(
-            `Project with ID ${command.projectId.value} not found`
-          );
+          throw new NotFoundError(`Project with ID ${command.projectId.value} not found`);
         }
 
         if (!project.canUserCreateTask(command.createdById)) {
@@ -123,16 +119,12 @@ export class UpdateTaskCommandHandler
       try {
         const task = await this.taskRepository.findById(command.taskId);
         if (!task) {
-          throw new NotFoundError(
-            `Task with ID ${command.taskId.value} not found`
-          );
+          throw new NotFoundError(`Task with ID ${command.taskId.value} not found`);
         }
 
         // Check permissions through domain service
         if (!this.taskDomainService.canUserUpdateTask(task, command.userId)) {
-          throw new AuthorizationError(
-            'User does not have permission to update this task'
-          );
+          throw new AuthorizationError('User does not have permission to update this task');
         }
 
         // Update task properties
@@ -185,17 +177,11 @@ export class AssignTaskCommandHandler
       try {
         const task = await this.taskRepository.findById(command.taskId);
         if (!task) {
-          throw new NotFoundError(
-            `Task with ID ${command.taskId.value} not found`
-          );
+          throw new NotFoundError(`Task with ID ${command.taskId.value} not found`);
         }
 
         // Assign task through domain service
-        await this.taskDomainService.assignTask(
-          task,
-          command.assigneeId,
-          command.assignedBy
-        );
+        await this.taskDomainService.assignTask(task, command.assigneeId, command.assignedBy);
 
         await this.taskRepository.save(task);
         await this.publishEvents();
@@ -233,17 +219,11 @@ export class CompleteTaskCommandHandler
       try {
         const task = await this.taskRepository.findById(command.taskId);
         if (!task) {
-          throw new NotFoundError(
-            `Task with ID ${command.taskId.value} not found`
-          );
+          throw new NotFoundError(`Task with ID ${command.taskId.value} not found`);
         }
 
         // Complete task through domain service
-        await this.taskDomainService.completeTask(
-          task,
-          command.completedBy,
-          command.actualHours
-        );
+        await this.taskDomainService.completeTask(task, command.completedBy, command.actualHours);
 
         await this.taskRepository.save(task);
         await this.publishEvents();
@@ -278,9 +258,7 @@ export class UpdateTaskStatusCommandHandler
       try {
         const task = await this.taskRepository.findById(command.taskId);
         if (!task) {
-          throw new NotFoundError(
-            `Task with ID ${command.taskId.value} not found`
-          );
+          throw new NotFoundError(`Task with ID ${command.taskId.value} not found`);
         }
 
         // Update status through domain service
@@ -328,18 +306,12 @@ export class DeleteTaskCommandHandler
       try {
         const task = await this.taskRepository.findById(command.taskId);
         if (!task) {
-          throw new NotFoundError(
-            `Task with ID ${command.taskId.value} not found`
-          );
+          throw new NotFoundError(`Task with ID ${command.taskId.value} not found`);
         }
 
         // Check permissions through domain service
-        if (
-          !this.taskDomainService.canUserDeleteTask(task, command.deletedBy)
-        ) {
-          throw new AuthorizationError(
-            'User does not have permission to delete this task'
-          );
+        if (!this.taskDomainService.canUserDeleteTask(task, command.deletedBy)) {
+          throw new AuthorizationError('User does not have permission to delete this task');
         }
 
         await this.taskRepository.delete(command.taskId);
@@ -378,14 +350,10 @@ export class AddTaskDependencyCommandHandler
         // Load task aggregate for the project
         const task = await this.taskRepository.findById(command.taskId);
         if (!task) {
-          throw new NotFoundError(
-            `Task with ID ${command.taskId.value} not found`
-          );
+          throw new NotFoundError(`Task with ID ${command.taskId.value} not found`);
         }
 
-        const dependsOnTask = await this.taskRepository.findById(
-          command.dependsOnTaskId
-        );
+        const dependsOnTask = await this.taskRepository.findById(command.dependsOnTaskId);
         if (!dependsOnTask) {
           throw new NotFoundError(
             `Dependency task with ID ${command.dependsOnTaskId.value} not found`
@@ -393,10 +361,7 @@ export class AddTaskDependencyCommandHandler
         }
 
         // Add dependency through domain service
-        await this.taskDomainService.addTaskDependency(
-          command.taskId,
-          command.dependsOnTaskId
-        );
+        await this.taskDomainService.addTaskDependency(command.taskId, command.dependsOnTaskId);
 
         await this.publishEvents();
 
@@ -433,10 +398,7 @@ export class RemoveTaskDependencyCommandHandler
     return await this.transactionManager.executeInTransaction(async () => {
       try {
         // Remove dependency through domain service
-        await this.taskDomainService.removeTaskDependency(
-          command.taskId,
-          command.dependsOnTaskId
-        );
+        await this.taskDomainService.removeTaskDependency(command.taskId, command.dependsOnTaskId);
 
         await this.publishEvents();
 

@@ -1,7 +1,7 @@
 import { DomainEvent } from '@monorepo/domain';
+import { TransactionManager } from '@taskmanagement/database';
 import { DomainEventBus } from '../../application/events/domain-event-bus';
 import { EventBus } from '../../application/events/event-bus';
-import { TransactionManager } from '../database/transaction-manager';
 import { LoggingService } from '../monitoring/logging-service';
 import { MetricsService } from '../monitoring/metrics-service';
 

@@ -1,5 +1,5 @@
-// Database
-export * from './database';
+// Database - now exported from @taskmanagement/database package
+// export * from './database';
 
 // Caching
 export * from './caching';
@@ -12,17 +12,17 @@ export * from './security';
 
 // Monitoring (specific exports to avoid conflicts)
 export {
+  ComprehensiveMonitoring,
+  HealthService,
   LoggingService,
   MetricsService,
-  HealthService,
   SystemHealth as MonitoringSystemHealth,
-  ComprehensiveMonitoring,
 } from './monitoring';
 
 // Migration
-export * from './migration/migration.module';
 export * from './migration/fastify-migration.controller';
 export * from './migration/migration-routes';
+export * from './migration/migration.module';
 
 // Integration
 export * from './integration/infrastructure-integration';
@@ -34,25 +34,16 @@ export * from './performance-optimization-service';
 export * from './jobs';
 
 // Enhanced services from migration
-export { BaseDrizzleRepository } from './database/repositories/base-drizzle-repository';
-export {
-  DrizzleTransactionManager,
-  drizzleTransactionManager,
-} from './database/drizzle-transaction-manager';
-export {
-  DrizzleQueryOptimizer,
-  drizzleQueryOptimizer,
-} from './database/drizzle-query-optimizer';
-export {
-  EmailService,
-  EmailConfig,
-  SendEmailData,
-} from './external-services/email-service';
+// Database exports moved to @taskmanagement/database package
+// export { DrizzleQueryOptimizer, drizzleQueryOptimizer } from './database/drizzle-query-optimizer';
+// export { DrizzleTransactionManager, drizzleTransactionManager } from './database/drizzle-transaction-manager';
+// export { BaseDrizzleRepository } from './database/repositories/base-drizzle-repository';
 export {
   CircuitBreaker,
   CircuitBreakerRegistry,
   circuitBreakerRegistry,
 } from './external-services/circuit-breaker';
+export { EmailConfig, EmailService, SendEmailData } from './external-services/email-service';
 export {
   EnhancedMonitoringService,
   enhancedMonitoringService,

@@ -9,24 +9,7 @@ export { UserRepository } from './user-repository';
 export { WebhookRepository } from './webhook-repository';
 export { WorkspaceRepository } from './workspace-repository';
 
-// Re-export repository interfaces for convenience
-export type { IUserRepository, UserFilters, UserSortOptions } from '@taskmanagement/domain';
-
-export type {
-  IAuditLogRepository,
-  ICalendarEventRepository,
-  IFileAttachmentRepository,
-  INotificationRepository,
-  IProjectRepository,
-  ITaskRepository,
-  IWebhookRepository,
-  IWorkspaceRepository,
-  ProjectFilters,
-  ProjectSortOptions,
-  TaskFilters,
-  TaskSortOptions,
-  WorkspaceFilters,
-  WorkspaceSortOptions,
-} from '@taskmanagement/domain';
-
-export type { PaginatedResult, PaginationOptions } from '@taskmanagement/domain';
+// Repository interfaces will be re-exported once domain package is available
+// export type { IUserRepository, UserFilters, UserSortOptions } from '@taskmanagement/domain';
+// export type { IAuditLogRepository, ICalendarEventRepository, ... } from '@taskmanagement/domain';
+// export type { PaginatedResult, PaginationOptions } from '@taskmanagement/domain';

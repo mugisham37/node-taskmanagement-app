@@ -4,19 +4,23 @@
  * Handles commands for creating, updating, and managing calendar events
  */
 
-import { BaseHandler, ICommandHandler } from './base-handler';
+import { TransactionManager } from '@taskmanagement/database';
+import {
+  AttendeeStatus,
+  CalendarEvent,
+  CalendarEventReminder,
+} from '../../domain/entities/calendar-event';
 import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { ICalendarEventRepository } from '../../domain/repositories/calendar-event-repository';
 import { IProjectRepository } from '../../domain/repositories/project-repository';
 import { IUserRepository } from '../../domain/repositories/user-repository';
-import { TransactionManager } from '../../infrastructure/database/transaction-manager';
-import { EmailService } from '../../infrastructure/external-services/email-service';
 import { ProjectId } from '../../domain/value-objects/project-id';
 import { UserId } from '../../domain/value-objects/user-id';
-import { CalendarEvent, AttendeeStatus, CalendarEventReminder } from '../../domain/entities/calendar-event';
-import { NotFoundError } from '../../shared/errors/not-found-error';
+import { EmailService } from '../../infrastructure/external-services/email-service';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { NotFoundError } from '../../shared/errors/not-found-error';
+import { BaseHandler, ICommandHandler } from './base-handler';
 
 // Type aliases for missing value objects
 export type CalendarEventId = string;
@@ -131,20 +135,14 @@ export class CreateCalendarEventCommandHandler
         // Verify creator exists
         const creator = await this.userRepository.findById(command.createdBy);
         if (!creator) {
-          throw new NotFoundError(
-            `Creator with ID ${command.createdBy.value} not found`
-          );
+          throw new NotFoundError(`Creator with ID ${command.createdBy.value} not found`);
         }
 
         // Verify project exists and user has access (if specified)
         if (command.projectId) {
-          const project = await this.projectRepository.findById(
-            command.projectId
-          );
+          const project = await this.projectRepository.findById(command.projectId);
           if (!project) {
-            throw new NotFoundError(
-              `Project with ID ${command.projectId.value} not found`
-            );
+            throw new NotFoundError(`Project with ID ${command.projectId.value} not found`);
           }
 
           const canCreateEvent = await this.canUserCreateEventInProject(
@@ -169,21 +167,24 @@ export class CreateCalendarEventCommandHandler
           for (const attendeeId of command.attendees) {
             const attendee = await this.userRepository.findById(attendeeId);
             if (!attendee) {
-              throw new NotFoundError(
-                `Attendee with ID ${attendeeId.value} not found`
-              );
+              throw new NotFoundError(`Attendee with ID ${attendeeId.value} not found`);
             }
             attendeeIds.push(attendee.id);
           }
         }
 
         // Convert ReminderDto to CalendarEventReminder
-        const eventReminders: CalendarEventReminder[] = (command.reminders || []).map((reminder, index) => ({
-          id: `reminder-${index}`,
-          minutesBefore: reminder.minutesBefore,
-          method: reminder.type === 'popup' ? 'notification' : reminder.type as 'notification' | 'email' | 'sms',
-          sent: false
-        }));
+        const eventReminders: CalendarEventReminder[] = (command.reminders || []).map(
+          (reminder, index) => ({
+            id: `reminder-${index}`,
+            minutesBefore: reminder.minutesBefore,
+            method:
+              reminder.type === 'popup'
+                ? 'notification'
+                : (reminder.type as 'notification' | 'email' | 'sms'),
+            sent: false,
+          })
+        );
 
         // Create calendar event
         const calendarEvent = CalendarEvent.create({
@@ -202,15 +203,17 @@ export class CreateCalendarEventCommandHandler
           projectId: command.projectId?.value,
           taskId: undefined,
           isRecurring: !!command.recurrenceRule,
-          recurrenceRule: command.recurrenceRule ? JSON.stringify(command.recurrenceRule) : undefined,
-          attendees: (command.attendees || []).map(userId => ({
+          recurrenceRule: command.recurrenceRule
+            ? JSON.stringify(command.recurrenceRule)
+            : undefined,
+          attendees: (command.attendees || []).map((userId) => ({
             userId: userId.value,
-            status: AttendeeStatus.PENDING
+            status: AttendeeStatus.PENDING,
           })),
           reminders: eventReminders,
           externalCalendarId: undefined,
           externalEventId: undefined,
-          metadata: { visibility: command.visibility || 'public' }
+          metadata: { visibility: command.visibility || 'public' },
         });
 
         await this.calendarEventRepository.save(calendarEvent);
@@ -251,10 +254,7 @@ export class CreateCalendarEventCommandHandler
     return member !== null;
   }
 
-  private async sendEventInvitations(
-    event: CalendarEvent,
-    attendeeIds: UserId[]
-  ): Promise<void> {
+  private async sendEventInvitations(event: CalendarEvent, attendeeIds: UserId[]): Promise<void> {
     for (const attendeeId of attendeeIds) {
       const attendee = await this.userRepository.findById(attendeeId);
       if (attendee) {
@@ -279,14 +279,8 @@ export class CreateCalendarEventCommandHandler
     });
   }
 
-  private async clearEventCaches(
-    userId: UserId,
-    projectId?: ProjectId
-  ): Promise<void> {
-    const patterns = [
-      `calendar-events:${userId.value}:*`,
-      `calendar-stats:${userId.value}:*`,
-    ];
+  private async clearEventCaches(userId: UserId, projectId?: ProjectId): Promise<void> {
+    const patterns = [`calendar-events:${userId.value}:*`, `calendar-stats:${userId.value}:*`];
 
     if (projectId) {
       patterns.push(`calendar-stats:${userId.value}:${projectId.value}`);
@@ -324,34 +318,22 @@ export class UpdateCalendarEventCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const calendarEvent = await this.calendarEventRepository.findById(
-          command.eventId
-        );
+        const calendarEvent = await this.calendarEventRepository.findById(command.eventId);
         if (!calendarEvent) {
-          throw new NotFoundError(
-            `Calendar event with ID ${command.eventId} not found`
-          );
+          throw new NotFoundError(`Calendar event with ID ${command.eventId} not found`);
         }
 
         // Check permissions
-        const canUpdate = await this.canUserUpdateEvent(
-          command.updatedBy,
-          command.eventId
-        );
+        const canUpdate = await this.canUserUpdateEvent(command.updatedBy, command.eventId);
         if (!canUpdate) {
-          throw new AuthorizationError(
-            'User does not have permission to update this event'
-          );
+          throw new AuthorizationError('User does not have permission to update this event');
         }
 
         // Track changes for notifications
         const changes: string[] = [];
 
         // Update event fields
-        if (
-          command.title !== undefined &&
-          command.title !== calendarEvent.title
-        ) {
+        if (command.title !== undefined && command.title !== calendarEvent.title) {
           calendarEvent.updateTitle(command.title);
           changes.push('title');
         }
@@ -386,12 +368,17 @@ export class UpdateCalendarEventCommandHandler
           changes.push('recurrence');
         }
         if (command.reminders !== undefined) {
-          const eventReminders: CalendarEventReminder[] = command.reminders.map((reminder, index) => ({
-            id: `reminder-${index}`,
-            minutesBefore: reminder.minutesBefore,
-            method: reminder.type === 'popup' ? 'notification' : reminder.type as 'notification' | 'email' | 'sms',
-            sent: false
-          }));
+          const eventReminders: CalendarEventReminder[] = command.reminders.map(
+            (reminder, index) => ({
+              id: `reminder-${index}`,
+              minutesBefore: reminder.minutesBefore,
+              method:
+                reminder.type === 'popup'
+                  ? 'notification'
+                  : (reminder.type as 'notification' | 'email' | 'sms'),
+              sent: false,
+            })
+          );
           calendarEvent.updateReminders(eventReminders);
           changes.push('reminders');
         }
@@ -403,9 +390,7 @@ export class UpdateCalendarEventCommandHandler
         await this.calendarEventRepository.save(calendarEvent);
 
         // Send update notifications to attendees if there were significant changes
-        if (
-          changes.some(change => ['title', 'time', 'location'].includes(change))
-        ) {
+        if (changes.some((change) => ['title', 'time', 'location'].includes(change))) {
           await this.sendEventUpdateNotifications(calendarEvent, changes);
         }
 
@@ -415,7 +400,9 @@ export class UpdateCalendarEventCommandHandler
         }
 
         // Clear cache
-        const projectId = calendarEvent.projectId ? ProjectId.fromString(calendarEvent.projectId) : undefined;
+        const projectId = calendarEvent.projectId
+          ? ProjectId.fromString(calendarEvent.projectId)
+          : undefined;
         await this.clearEventCaches(command.updatedBy, projectId);
 
         this.logInfo('Calendar event updated successfully', {
@@ -431,10 +418,7 @@ export class UpdateCalendarEventCommandHandler
     });
   }
 
-  private async canUserUpdateEvent(
-    userId: UserId,
-    eventId: CalendarEventId
-  ): Promise<boolean> {
+  private async canUserUpdateEvent(userId: UserId, eventId: CalendarEventId): Promise<boolean> {
     const event = await this.calendarEventRepository.findById(eventId);
     if (!event) return false;
 
@@ -447,7 +431,7 @@ export class UpdateCalendarEventCommandHandler
         ProjectId.fromString(event.projectId),
         userId
       );
-      return member ? (member.role.isAdmin() || member.role.isManager()) : false;
+      return member ? member.role.isAdmin() || member.role.isManager() : false;
     }
 
     return false;
@@ -471,14 +455,8 @@ export class UpdateCalendarEventCommandHandler
     });
   }
 
-  private async clearEventCaches(
-    userId: UserId,
-    projectId?: ProjectId
-  ): Promise<void> {
-    const patterns = [
-      `calendar-events:${userId.value}:*`,
-      `calendar-stats:${userId.value}:*`,
-    ];
+  private async clearEventCaches(userId: UserId, projectId?: ProjectId): Promise<void> {
+    const patterns = [`calendar-events:${userId.value}:*`, `calendar-stats:${userId.value}:*`];
 
     if (projectId) {
       patterns.push(`calendar-stats:${userId.value}:${projectId.value}`);
@@ -516,24 +494,15 @@ export class DeleteCalendarEventCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const calendarEvent = await this.calendarEventRepository.findById(
-          command.eventId
-        );
+        const calendarEvent = await this.calendarEventRepository.findById(command.eventId);
         if (!calendarEvent) {
-          throw new NotFoundError(
-            `Calendar event with ID ${command.eventId} not found`
-          );
+          throw new NotFoundError(`Calendar event with ID ${command.eventId} not found`);
         }
 
         // Check permissions
-        const canDelete = await this.canUserDeleteEvent(
-          command.deletedBy,
-          command.eventId
-        );
+        const canDelete = await this.canUserDeleteEvent(command.deletedBy, command.eventId);
         if (!canDelete) {
-          throw new AuthorizationError(
-            'User does not have permission to delete this event'
-          );
+          throw new AuthorizationError('User does not have permission to delete this event');
         }
 
         // Send cancellation notifications to attendees
@@ -545,10 +514,7 @@ export class DeleteCalendarEventCommandHandler
         // Delete the event (or mark as cancelled)
         if (command.deleteRecurring && calendarEvent.recurrenceRule) {
           // Delete all instances of recurring event
-          await this.calendarEventRepository.deleteRecurringEvent(
-            command.eventId,
-            true
-          );
+          await this.calendarEventRepository.deleteRecurringEvent(command.eventId, true);
         } else {
           // Soft delete the event
           calendarEvent.cancel();
@@ -556,7 +522,9 @@ export class DeleteCalendarEventCommandHandler
         }
 
         // Clear cache
-        const projectId = calendarEvent.projectId ? ProjectId.fromString(calendarEvent.projectId) : undefined;
+        const projectId = calendarEvent.projectId
+          ? ProjectId.fromString(calendarEvent.projectId)
+          : undefined;
         await this.clearEventCaches(command.deletedBy, projectId);
 
         this.logInfo('Calendar event deleted successfully', {
@@ -572,10 +540,7 @@ export class DeleteCalendarEventCommandHandler
     });
   }
 
-  private async canUserDeleteEvent(
-    userId: UserId,
-    eventId: CalendarEventId
-  ): Promise<boolean> {
+  private async canUserDeleteEvent(userId: UserId, eventId: CalendarEventId): Promise<boolean> {
     const event = await this.calendarEventRepository.findById(eventId);
     if (!event) return false;
 
@@ -583,9 +548,7 @@ export class DeleteCalendarEventCommandHandler
     return event.createdBy === userId.value;
   }
 
-  private async sendEventCancellationNotifications(
-    event: CalendarEvent
-  ): Promise<void> {
+  private async sendEventCancellationNotifications(event: CalendarEvent): Promise<void> {
     this.logInfo('Event cancellation notifications sent', {
       eventId: event.id,
       attendeeCount: event.attendees.length,
@@ -598,14 +561,8 @@ export class DeleteCalendarEventCommandHandler
     });
   }
 
-  private async clearEventCaches(
-    userId: UserId,
-    projectId?: ProjectId
-  ): Promise<void> {
-    const patterns = [
-      `calendar-events:${userId.value}:*`,
-      `calendar-stats:${userId.value}:*`,
-    ];
+  private async clearEventCaches(userId: UserId, projectId?: ProjectId): Promise<void> {
+    const patterns = [`calendar-events:${userId.value}:*`, `calendar-stats:${userId.value}:*`];
 
     if (projectId) {
       patterns.push(`calendar-stats:${userId.value}:${projectId.value}`);
@@ -645,36 +602,25 @@ export class AddAttendeeCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const calendarEvent = await this.calendarEventRepository.findById(
-          command.eventId
-        );
+        const calendarEvent = await this.calendarEventRepository.findById(command.eventId);
         if (!calendarEvent) {
-          throw new NotFoundError(
-            `Calendar event with ID ${command.eventId} not found`
-          );
+          throw new NotFoundError(`Calendar event with ID ${command.eventId} not found`);
         }
 
         // Check permissions
-        const canUpdate = await this.canUserUpdateEvent(
-          command.addedBy,
-          command.eventId
-        );
+        const canUpdate = await this.canUserUpdateEvent(command.addedBy, command.eventId);
         if (!canUpdate) {
-          throw new AuthorizationError(
-            'User does not have permission to add attendees'
-          );
+          throw new AuthorizationError('User does not have permission to add attendees');
         }
 
         // Verify attendee exists
         const attendee = await this.userRepository.findById(command.attendeeId);
         if (!attendee) {
-          throw new NotFoundError(
-            `Attendee with ID ${command.attendeeId.value} not found`
-          );
+          throw new NotFoundError(`Attendee with ID ${command.attendeeId.value} not found`);
         }
 
         // Check if already an attendee
-        if (calendarEvent.attendees.some(a => a.userId === command.attendeeId.value)) {
+        if (calendarEvent.attendees.some((a) => a.userId === command.attendeeId.value)) {
           throw new Error('User is already an attendee');
         }
 
@@ -698,23 +644,16 @@ export class AddAttendeeCommandHandler
           attendeeId: command.attendeeId.value,
         });
       } catch (error) {
-        this.logError(
-          'Failed to add attendee to calendar event',
-          error as Error,
-          {
-            eventId: command.eventId,
-            attendeeId: command.attendeeId.value,
-          }
-        );
+        this.logError('Failed to add attendee to calendar event', error as Error, {
+          eventId: command.eventId,
+          attendeeId: command.attendeeId.value,
+        });
         throw error;
       }
     });
   }
 
-  private async canUserUpdateEvent(
-    userId: UserId,
-    eventId: CalendarEventId
-  ): Promise<boolean> {
+  private async canUserUpdateEvent(userId: UserId, eventId: CalendarEventId): Promise<boolean> {
     const event = await this.calendarEventRepository.findById(eventId);
     if (!event) return false;
 
@@ -747,17 +686,13 @@ export class RespondToEventCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const calendarEvent = await this.calendarEventRepository.findById(
-          command.eventId
-        );
+        const calendarEvent = await this.calendarEventRepository.findById(command.eventId);
         if (!calendarEvent) {
-          throw new NotFoundError(
-            `Calendar event with ID ${command.eventId} not found`
-          );
+          throw new NotFoundError(`Calendar event with ID ${command.eventId} not found`);
         }
 
         // Check if user is an attendee
-        if (!calendarEvent.attendees.some(a => a.userId === command.userId.value)) {
+        if (!calendarEvent.attendees.some((a) => a.userId === command.userId.value)) {
           throw new AuthorizationError('User is not an attendee of this event');
         }
 

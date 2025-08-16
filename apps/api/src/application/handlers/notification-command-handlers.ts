@@ -4,18 +4,18 @@
  * Handles commands for creating, updating, and managing notifications
  */
 
-import { BaseHandler, ICommandHandler } from './base-handler';
+import { TransactionManager } from '@taskmanagement/database';
+import { Notification } from '../../domain/entities/notification';
 import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { INotificationRepository } from '../../domain/repositories/notification-repository';
 import { IUserRepository } from '../../domain/repositories/user-repository';
-import { TransactionManager } from '../../infrastructure/database/transaction-manager';
-import { CacheService } from '../../infrastructure/caching/cache-service';
 import { NotificationId } from '../../domain/value-objects/notification-id';
 import { UserId } from '../../domain/value-objects/user-id';
-import { Notification } from '../../domain/entities/notification';
-import { NotFoundError } from '../../shared/errors/not-found-error';
+import { CacheService } from '../../infrastructure/caching/cache-service';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { NotFoundError } from '../../shared/errors/not-found-error';
+import { BaseHandler, ICommandHandler } from './base-handler';
 
 // Command interfaces
 export interface CreateNotificationCommand {
@@ -100,9 +100,7 @@ export class CreateNotificationCommandHandler
         // Verify target user exists
         const user = await this.userRepository.findById(command.userId);
         if (!user) {
-          throw new NotFoundError(
-            `User with ID ${command.userId.value} not found`
-          );
+          throw new NotFoundError(`User with ID ${command.userId.value} not found`);
         }
 
         // Create notification
@@ -112,11 +110,11 @@ export class CreateNotificationCommandHandler
           title: command.title,
           message: command.message,
         };
-        
+
         if (command.data) {
           notificationData.data = command.data;
         }
-        
+
         const notification = Notification.create(notificationData);
 
         await this.notificationRepository.save(notification);
@@ -175,16 +173,12 @@ export class MarkNotificationAsReadCommandHandler
           command.notificationId.value
         );
         if (!notification) {
-          throw new NotFoundError(
-            `Notification with ID ${command.notificationId.value} not found`
-          );
+          throw new NotFoundError(`Notification with ID ${command.notificationId.value} not found`);
         }
 
         // Check if user owns this notification
         if (!notification.userId.equals(command.userId)) {
-          throw new AuthorizationError(
-            'User does not have permission to modify this notification'
-          );
+          throw new AuthorizationError('User does not have permission to modify this notification');
         }
 
         // Mark as read
@@ -236,8 +230,9 @@ export class MarkAllNotificationsAsReadCommandHandler
 
     return await this.transactionManager.executeInTransaction(async () => {
       try {
-        const unreadNotifications =
-          await this.notificationRepository.findUnread(command.userId.value);
+        const unreadNotifications = await this.notificationRepository.findUnread(
+          command.userId.value
+        );
 
         for (const notification of unreadNotifications) {
           notification.markAsRead();
@@ -252,13 +247,9 @@ export class MarkAllNotificationsAsReadCommandHandler
           count: unreadNotifications.length,
         });
       } catch (error) {
-        this.logError(
-          'Failed to mark all notifications as read',
-          error as Error,
-          {
-            userId: command.userId.value,
-          }
-        );
+        this.logError('Failed to mark all notifications as read', error as Error, {
+          userId: command.userId.value,
+        });
         throw error;
       }
     });
@@ -297,16 +288,12 @@ export class DeleteNotificationCommandHandler
           command.notificationId.value
         );
         if (!notification) {
-          throw new NotFoundError(
-            `Notification with ID ${command.notificationId.value} not found`
-          );
+          throw new NotFoundError(`Notification with ID ${command.notificationId.value} not found`);
         }
 
         // Check if user owns this notification
         if (!notification.userId.equals(command.userId)) {
-          throw new AuthorizationError(
-            'User does not have permission to delete this notification'
-          );
+          throw new AuthorizationError('User does not have permission to delete this notification');
         }
 
         await this.notificationRepository.delete(command.notificationId.value);
@@ -326,11 +313,11 @@ export class DeleteNotificationCommandHandler
     });
   }
 
-  private async clearNotificationCaches(userId: UserId, notificationId?: NotificationId): Promise<void> {
-    const patterns = [
-      `notifications:${userId.value}:*`,
-      `notification-stats:${userId.value}:*`,
-    ];
+  private async clearNotificationCaches(
+    userId: UserId,
+    notificationId?: NotificationId
+  ): Promise<void> {
+    const patterns = [`notifications:${userId.value}:*`, `notification-stats:${userId.value}:*`];
 
     if (notificationId) {
       patterns.push(`notification:${notificationId.value}`);
@@ -368,20 +355,15 @@ export class UpdateNotificationPreferencesCommandHandler
         // Verify user exists
         const user = await this.userRepository.findById(command.userId);
         if (!user) {
-          throw new NotFoundError(
-            `User with ID ${command.userId.value} not found`
-          );
+          throw new NotFoundError(`User with ID ${command.userId.value} not found`);
         }
 
         // Get existing preferences or create new ones
-        let preferences = await this.notificationRepository.getPreferences(
-          command.userId.value
-        );
+        let preferences = await this.notificationRepository.getPreferences(command.userId.value);
         if (!preferences) {
-          preferences =
-            await this.notificationRepository.createDefaultPreferences(
-              command.userId.value
-            );
+          preferences = await this.notificationRepository.createDefaultPreferences(
+            command.userId.value
+          );
         }
 
         // Update preferences based on command
@@ -394,21 +376,15 @@ export class UpdateNotificationPreferencesCommandHandler
         await this.notificationRepository.savePreferences(preferences);
 
         // Clear preferences cache
-        await this.cacheService.delete(
-          `notification-preferences:${command.userId.value}`
-        );
+        await this.cacheService.delete(`notification-preferences:${command.userId.value}`);
 
         this.logInfo('Notification preferences updated successfully', {
           userId: command.userId.value,
         });
       } catch (error) {
-        this.logError(
-          'Failed to update notification preferences',
-          error as Error,
-          {
-            userId: command.userId.value,
-          }
-        );
+        this.logError('Failed to update notification preferences', error as Error, {
+          userId: command.userId.value,
+        });
         throw error;
       }
     });
@@ -490,8 +466,7 @@ export class BulkDeleteNotificationsCommandHandler
         let deletedCount = 0;
 
         for (const notificationId of command.notificationIds) {
-          const notification =
-            await this.notificationRepository.findById(notificationId.value);
+          const notification = await this.notificationRepository.findById(notificationId.value);
           if (notification && notification.userId.equals(command.userId)) {
             await this.notificationRepository.delete(notificationId.value);
             deletedCount++;

@@ -1,10 +1,10 @@
+import { DatabasePerformanceOptimizer } from '@taskmanagement/database';
+import { InfrastructureError } from '../shared/errors/infrastructure-error';
 import { PerformanceCacheStrategies } from './caching/performance-cache-strategies';
-import { DatabasePerformanceOptimizer } from './database/performance-optimizer';
 import { APIPerformanceMonitor } from './monitoring/api-performance-monitor';
 import { ComprehensiveMonitoring } from './monitoring/comprehensive-monitoring';
-import { MetricsService } from './monitoring/metrics-service';
 import { LoggingService } from './monitoring/logging-service';
-import { InfrastructureError } from '../shared/errors/infrastructure-error';
+import { MetricsService } from './monitoring/metrics-service';
 
 export interface PerformanceOptimizationConfig {
   caching: {
@@ -95,9 +95,7 @@ export class PerformanceOptimizationService {
       this.startDatabaseMaintenance();
     }
 
-    this.loggingService.info(
-      'Performance Optimization Service initialized successfully'
-    );
+    this.loggingService.info('Performance Optimization Service initialized successfully');
   }
 
   /**
@@ -112,7 +110,10 @@ export class PerformanceOptimizationService {
       try {
         await this.runOptimizationCycle();
       } catch (error) {
-        this.loggingService.error('Automated optimization cycle failed', error instanceof Error ? error : new Error(String(error)));
+        this.loggingService.error(
+          'Automated optimization cycle failed',
+          error instanceof Error ? error : new Error(String(error))
+        );
       }
     }, this.config.caching.optimizationInterval);
 
@@ -131,7 +132,10 @@ export class PerformanceOptimizationService {
       try {
         await this.runDatabaseMaintenance();
       } catch (error) {
-        this.loggingService.error('Database maintenance failed', error instanceof Error ? error : new Error(String(error)));
+        this.loggingService.error(
+          'Database maintenance failed',
+          error instanceof Error ? error : new Error(String(error))
+        );
       }
     }, this.config.database.maintenanceInterval);
 
@@ -168,20 +172,17 @@ export class PerformanceOptimizationService {
       });
 
       // Record metrics
-      await this.metricsService.recordMetric(
-        'performance.overall_score',
-        report.overallScore
-      );
-      await this.metricsService.recordMetric(
-        'performance.cache_hit_rate',
-        report.caching.hitRate
-      );
+      await this.metricsService.recordMetric('performance.overall_score', report.overallScore);
+      await this.metricsService.recordMetric('performance.cache_hit_rate', report.caching.hitRate);
       await this.metricsService.recordMetric(
         'performance.api_response_time',
         report.api.averageResponseTime
       );
     } catch (error) {
-      this.loggingService.error('Performance optimization cycle failed', error instanceof Error ? error : new Error(String(error)));
+      this.loggingService.error(
+        'Performance optimization cycle failed',
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw new InfrastructureError(
         `Optimization cycle failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -209,7 +210,10 @@ export class PerformanceOptimizationService {
 
       this.loggingService.debug('Caching optimization completed');
     } catch (error) {
-      this.loggingService.error('Caching optimization failed', error instanceof Error ? error : new Error(String(error)));
+      this.loggingService.error(
+        'Caching optimization failed',
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -236,7 +240,10 @@ export class PerformanceOptimizationService {
 
       this.loggingService.debug('Database optimization completed');
     } catch (error) {
-      this.loggingService.error('Database optimization failed', error instanceof Error ? error : new Error(String(error)));
+      this.loggingService.error(
+        'Database optimization failed',
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -252,22 +259,15 @@ export class PerformanceOptimizationService {
       const systemMetrics = this.apiMonitor.getSystemMetrics();
 
       // Check if optimization is needed
-      if (
-        systemMetrics.averageResponseTime >
-        this.config.api.responseTimeThreshold
-      ) {
-        this.loggingService.warn(
-          'High API response time detected, applying optimizations'
-        );
+      if (systemMetrics.averageResponseTime > this.config.api.responseTimeThreshold) {
+        this.loggingService.warn('High API response time detected, applying optimizations');
 
         // Apply API optimizations (would be implemented based on specific needs)
         await this.applyAPIOptimizations();
       }
 
       if (systemMetrics.errorRate > this.config.api.errorRateThreshold) {
-        this.loggingService.warn(
-          'High API error rate detected, investigating issues'
-        );
+        this.loggingService.warn('High API error rate detected, investigating issues');
 
         // Analyze and address error patterns
         await this.analyzeAPIErrors();
@@ -275,7 +275,10 @@ export class PerformanceOptimizationService {
 
       this.loggingService.debug('API optimization completed');
     } catch (error) {
-      this.loggingService.error('API optimization failed', error instanceof Error ? error : new Error(String(error)));
+      this.loggingService.error(
+        'API optimization failed',
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -290,7 +293,10 @@ export class PerformanceOptimizationService {
       await this.dbOptimizer.runPerformanceMaintenance();
       this.loggingService.info('Database maintenance completed successfully');
     } catch (error) {
-      this.loggingService.error('Database maintenance failed', error instanceof Error ? error : new Error(String(error)));
+      this.loggingService.error(
+        'Database maintenance failed',
+        error instanceof Error ? error : new Error(String(error))
+      );
       throw error;
     }
   }
@@ -334,8 +340,7 @@ export class PerformanceOptimizationService {
       caching: {
         hitRate: cacheMetrics.hitRate,
         memoryUsage: cacheMetrics.memoryUsage,
-        optimizationStatus:
-          cacheMetrics.hitRate > 0.8 ? 'Good' : 'Needs Improvement',
+        optimizationStatus: cacheMetrics.hitRate > 0.8 ? 'Good' : 'Needs Improvement',
       },
       database: {
         connectionPoolHealth:
@@ -352,7 +357,8 @@ export class PerformanceOptimizationService {
       },
       system: {
         cpuUsage: systemHealth.metadata.cpu.user || 0,
-        memoryUsage: (systemHealth.metadata.memory.heapUsed / systemHealth.metadata.memory.heapTotal) * 100,
+        memoryUsage:
+          (systemHealth.metadata.memory.heapUsed / systemHealth.metadata.memory.heapTotal) * 100,
         healthStatus: systemHealth.status,
       },
       recommendations,
@@ -382,9 +388,7 @@ export class PerformanceOptimizationService {
       issues.push('Low cache hit rate');
     }
 
-    if (
-      report.api.averageResponseTime > this.config.api.responseTimeThreshold
-    ) {
+    if (report.api.averageResponseTime > this.config.api.responseTimeThreshold) {
       issues.push('High API response time');
     }
 
@@ -445,11 +449,7 @@ export class PerformanceOptimizationService {
 
     // System health (40% weight)
     const healthScore =
-      metrics.systemHealth === 'healthy'
-        ? 100
-        : metrics.systemHealth === 'degraded'
-          ? 70
-          : 30;
+      metrics.systemHealth === 'healthy' ? 100 : metrics.systemHealth === 'degraded' ? 70 : 30;
     score = score * 0.6 + healthScore * 0.4;
 
     return Math.round(Math.max(0, Math.min(100, score)));
@@ -464,20 +464,13 @@ export class PerformanceOptimizationService {
 
     if (data.cacheMetrics.hitRate < 0.7) {
       recommendations.push('Increase cache TTL for frequently accessed data');
-      recommendations.push(
-        'Implement cache warming strategies for critical data'
-      );
+      recommendations.push('Implement cache warming strategies for critical data');
     }
 
-    if (
-      data.apiMetrics.averageResponseTime >
-      this.config.api.responseTimeThreshold
-    ) {
+    if (data.apiMetrics.averageResponseTime > this.config.api.responseTimeThreshold) {
       recommendations.push('Optimize database queries and add missing indexes');
       recommendations.push('Implement response compression');
-      recommendations.push(
-        'Consider implementing pagination for large datasets'
-      );
+      recommendations.push('Consider implementing pagination for large datasets');
     }
 
     if (data.apiMetrics.errorRate > this.config.api.errorRateThreshold) {
@@ -524,10 +517,7 @@ export class PerformanceOptimizationService {
 
       this.loggingService.debug('API optimizations applied successfully');
     } catch (error) {
-      this.loggingService.error(
-        'Failed to apply API optimizations',
-        error as Error
-      );
+      this.loggingService.error('Failed to apply API optimizations', error as Error);
       throw error;
     }
   }

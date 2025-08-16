@@ -1,7 +1,7 @@
 import { ConfigLoader } from '@taskmanagement/config';
+import { IDatabaseConnection } from '@taskmanagement/database';
 import fastify, { FastifyInstance } from 'fastify';
 import { ICacheService } from './infrastructure/caching/cache-service-interface';
-import { IDatabaseConnection } from './infrastructure/database/database-connection-interface';
 import { HealthService } from './infrastructure/monitoring/health-service';
 import { LoggingService } from './infrastructure/monitoring/logging-service';
 import { setupMiddleware } from './presentation/middleware';

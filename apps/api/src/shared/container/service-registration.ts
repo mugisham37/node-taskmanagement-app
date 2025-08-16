@@ -109,13 +109,15 @@ import {
   SessionManager,
   TwoFactorAuthService,
 } from '@taskmanagement/auth';
+import {
+  DatabaseConnection,
+  TransactionIntegrationService,
+  TransactionManager,
+  UnitOfWorkFactory,
+} from '@taskmanagement/database';
 import { EventHandlerLifecycleManager } from '../../application/events/event-handler-lifecycle-manager';
 import { CacheService } from '../../infrastructure/caching/cache-service';
 import { RedisClient } from '../../infrastructure/caching/redis-client';
-import { DatabaseConnection } from '../../infrastructure/database/connection';
-import { TransactionIntegrationService } from '../../infrastructure/database/transaction-integration-service';
-import { TransactionManager } from '../../infrastructure/database/transaction-manager';
-import { UnitOfWorkFactory } from '../../infrastructure/database/unit-of-work';
 import { EventIntegrationService } from '../../infrastructure/events/event-integration-service';
 import { EmailService } from '../../infrastructure/external-services/email-service';
 import { WebSocketService } from '../../infrastructure/external-services/websocket-service';
@@ -124,18 +126,18 @@ import { LoggingService } from '../../infrastructure/monitoring/logging-service'
 import { MetricsService } from '../../infrastructure/monitoring/metrics-service';
 
 // Repositories
-import { AuditLogRepository } from '../../infrastructure/database/repositories/audit-log-repository';
-import { CalendarEventRepository } from '../../infrastructure/database/repositories/calendar-event-repository';
-import { FileAttachmentRepository } from '../../infrastructure/database/repositories/file-attachment-repository';
 import {
+  AuditLogRepository,
+  CalendarEventRepository,
+  FileAttachmentRepository,
   NotificationPreferencesRepository,
   NotificationRepository,
-} from '../../infrastructure/database/repositories/notification-repository';
-import { ProjectRepository } from '../../infrastructure/database/repositories/project-repository';
-import { TaskRepository } from '../../infrastructure/database/repositories/task-repository';
-import { UserRepository } from '../../infrastructure/database/repositories/user-repository';
-import { WebhookRepository } from '../../infrastructure/database/repositories/webhook-repository';
-import { WorkspaceRepository } from '../../infrastructure/database/repositories/workspace-repository';
+  ProjectRepository,
+  TaskRepository,
+  UserRepository,
+  WebhookRepository,
+  WorkspaceRepository,
+} from '@taskmanagement/database';
 
 // Controllers
 import { AuthController } from '../../presentation/controllers/auth-controller';
