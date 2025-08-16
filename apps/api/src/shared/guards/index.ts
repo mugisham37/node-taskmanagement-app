@@ -1,2 +1,2 @@
 // Export all guards
-export * from './validation.guards';
+export * from '@taskmanagement/validation/guards';

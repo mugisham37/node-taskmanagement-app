@@ -1,15 +1,11 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { ZodSchema, ZodError } from 'zod';
+import { ValidationError } from '@taskmanagement/validation';
+import { FastifyReply, FastifyRequest } from 'fastify';
+import { ZodError, ZodSchema } from 'zod';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { AppError } from '../../shared/errors/app-error';
-import { ValidationError } from '../../shared/errors/validation-error';
-import { NotFoundError } from '../../shared/errors/not-found-error';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
-import {
-  ErrorResponseDto,
-  ValidationErrorResponseDto,
-  PaginatedResponseDto,
-} from '../dto';
+import { NotFoundError } from '../../shared/errors/not-found-error';
+import { ErrorResponseDto, PaginatedResponseDto, ValidationErrorResponseDto } from '../dto';
 
 export abstract class BaseController {
   constructor(protected readonly logger: LoggingService) {}
@@ -32,7 +28,7 @@ export abstract class BaseController {
       return schema.parse(body);
     } catch (error) {
       if (error instanceof ZodError) {
-        const validationErrors = error.errors.map(err => ({
+        const validationErrors = error.errors.map((err) => ({
           field: err.path.join('.'),
           message: err.message,
           value: (err as any).received,
@@ -48,7 +44,7 @@ export abstract class BaseController {
       return schema.parse(query);
     } catch (error) {
       if (error instanceof ZodError) {
-        const validationErrors = error.errors.map(err => ({
+        const validationErrors = error.errors.map((err) => ({
           field: err.path.join('.'),
           message: err.message,
           value: (err as any).received,
@@ -64,7 +60,7 @@ export abstract class BaseController {
       return schema.parse(params);
     } catch (error) {
       if (error instanceof ZodError) {
-        const validationErrors = error.errors.map(err => ({
+        const validationErrors = error.errors.map((err) => ({
           field: err.path.join('.'),
           message: err.message,
           value: (err as any).received,
@@ -205,11 +201,7 @@ export abstract class BaseController {
     await reply.status(403).send(response);
   }
 
-  private async sendAppError(
-    reply: FastifyReply,
-    error: AppError,
-    path: string
-  ): Promise<void> {
+  private async sendAppError(reply: FastifyReply, error: AppError, path: string): Promise<void> {
     const response: ErrorResponseDto = {
       error: {
         code: error.errorCode || 'APP_ERROR',
@@ -222,11 +214,7 @@ export abstract class BaseController {
     await reply.status(error.statusCode || 500).send(response);
   }
 
-  private async sendInternalError(
-    reply: FastifyReply,
-    _error: Error,
-    path: string
-  ): Promise<void> {
+  private async sendInternalError(reply: FastifyReply, _error: Error, path: string): Promise<void> {
     const response: ErrorResponseDto = {
       error: {
         code: 'INTERNAL_ERROR',

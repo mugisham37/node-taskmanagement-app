@@ -1,4 +1,4 @@
 // Export all decorators
-export * from './logging.decorator';
-export * from './validation.decorator';
+export * from '@taskmanagement/validation/decorators';
 export * from './injectable.decorator';
+export * from './logging.decorator';

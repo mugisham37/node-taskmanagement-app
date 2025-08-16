@@ -1,10 +1,9 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { ZodSchema, ZodError } from 'zod';
-import { ValidationError } from '../../shared/errors/validation-error';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { FastifyReply, FastifyRequest } from 'fastify';
+import { ZodError, ZodSchema } from 'zod';
+import { ValidationError } from '../validation-error';
 
 export class ValidationMiddleware {
-  constructor(private readonly logger: LoggingService) {}
+  constructor(private readonly logger?: any) {}
 
   validateBody = <T>(schema: ZodSchema<T>) => {
     return async (
@@ -22,7 +21,7 @@ export class ValidationMiddleware {
             value: (err as any).received || undefined,
           }));
 
-          this.logger.warn('Request body validation failed', {
+          this.logger?.warn('Request body validation failed', {
             url: request.url,
             method: request.method,
             validationErrors,
@@ -51,7 +50,7 @@ export class ValidationMiddleware {
             value: (err as any).received || undefined,
           }));
 
-          this.logger.warn('Query parameters validation failed', {
+          this.logger?.warn('Query parameters validation failed', {
             url: request.url,
             method: request.method,
             validationErrors,
@@ -80,7 +79,7 @@ export class ValidationMiddleware {
             value: (err as any).received || undefined,
           }));
 
-          this.logger.warn('Path parameters validation failed', {
+          this.logger?.warn('Path parameters validation failed', {
             url: request.url,
             method: request.method,
             validationErrors,

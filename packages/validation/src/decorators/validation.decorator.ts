@@ -3,7 +3,7 @@
  * Enhanced with comprehensive validation capabilities
  */
 
-import { ValidationUtils } from '../utils/validation-utils';
+import { ValidationUtils } from '../validation-utils';
 
 // Simple validator interface for decorators
 interface SimpleValidator {

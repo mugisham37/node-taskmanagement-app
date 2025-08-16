@@ -5,14 +5,14 @@
  * Supports backup codes and recovery options
  */
 
-import * as speakeasy from 'speakeasy';
+import { ValidationError } from '@taskmanagement/validation';
 import * as qrcode from 'qrcode';
-import { LoggingService } from '../monitoring/logging-service';
+import * as speakeasy from 'speakeasy';
+import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { InfrastructureError } from '../../shared/errors/infrastructure-error';
 import { CacheService } from '../caching/cache-service';
 import { EmailService } from '../external-services/email-service';
-import { InfrastructureError } from '../../shared/errors/infrastructure-error';
-import { ValidationError } from '../../shared/errors/validation-error';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { LoggingService } from '../monitoring/logging-service';
 
 export interface TwoFactorConfig {
   issuer: string;
@@ -88,10 +88,7 @@ export class TwoFactorAuthService {
   /**
    * Generate 2FA setup for a user
    */
-  async generateSetup(
-    userId: string,
-    userEmail: string
-  ): Promise<TwoFactorSetup> {
+  async generateSetup(userId: string, userEmail: string): Promise<TwoFactorSetup> {
     try {
       const finalConfig = { ...this.defaultConfig, ...this.config };
 
@@ -311,10 +308,7 @@ export class TwoFactorAuthService {
   /**
    * Disable 2FA for a user
    */
-  async disableTwoFactor(
-    userId: string,
-    verificationToken: string
-  ): Promise<void> {
+  async disableTwoFactor(userId: string, verificationToken: string): Promise<void> {
     try {
       // Verify current token before disabling
       const verification = await this.verifyToken(userId, verificationToken);
@@ -346,10 +340,7 @@ export class TwoFactorAuthService {
   /**
    * Generate new backup codes
    */
-  async generateNewBackupCodes(
-    userId: string,
-    verificationToken: string
-  ): Promise<string[]> {
+  async generateNewBackupCodes(userId: string, verificationToken: string): Promise<string[]> {
     try {
       // Verify current token before generating new codes
       const verification = await this.verifyToken(userId, verificationToken);
@@ -384,10 +375,7 @@ export class TwoFactorAuthService {
         userId,
       });
 
-      if (
-        error instanceof AuthorizationError ||
-        error instanceof ValidationError
-      ) {
+      if (error instanceof AuthorizationError || error instanceof ValidationError) {
         throw error;
       }
 
@@ -412,8 +400,7 @@ export class TwoFactorAuthService {
         };
       }
 
-      const remainingCodes =
-        config.backupCodes.length - config.usedBackupCodes.length;
+      const remainingCodes = config.backupCodes.length - config.usedBackupCodes.length;
 
       return {
         isEnabled: true,
@@ -473,11 +460,7 @@ export class TwoFactorAuthService {
       await this.storeEmailCode(request.userId, code);
 
       // Send email
-      await this.emailService.sendTwoFactorCode(
-        request.email,
-        code,
-        5
-      );
+      await this.emailService.sendTwoFactorCode(request.email, code, 5);
 
       this.logger.info('Email verification code sent', {
         userId: request.userId,
@@ -526,10 +509,7 @@ export class TwoFactorAuthService {
     return /^[A-Z0-9]{8}$/.test(token.toUpperCase());
   }
 
-  private async verifyBackupCode(
-    userId: string,
-    code: string
-  ): Promise<TwoFactorVerification> {
+  private async verifyBackupCode(userId: string, code: string): Promise<TwoFactorVerification> {
     const config = await this.get2FAConfig(userId);
     if (!config) {
       return { isValid: false };
@@ -546,8 +526,7 @@ export class TwoFactorAuthService {
     config.usedBackupCodes.push(normalizedCode);
     await this.store2FAConfig(userId, config);
 
-    const remainingCodes =
-      config.backupCodes.length - config.usedBackupCodes.length;
+    const remainingCodes = config.backupCodes.length - config.usedBackupCodes.length;
 
     return {
       isValid: true,

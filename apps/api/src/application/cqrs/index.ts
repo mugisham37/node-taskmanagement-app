@@ -6,49 +6,45 @@
 
 // Core CQRS interfaces and classes
 export * from './command';
-export * from './query';
 export * from './command-bus';
+export * from './query';
 export * from './query-bus';
 
 // Validation infrastructure
-export * from './validation/command-validator';
-export * from './validation/query-validator';
+export * from '@taskmanagement/validation';
 
 // Factory and configuration
 export * from './cqrs-factory';
 
 // Re-export commonly used types
 export type {
-  ICommand,
-  ICommandHandler,
-  ICommandBus,
-  CommandValidationError,
-  CommandHandlerNotFoundError,
   CommandExecutionError,
+  CommandHandlerNotFoundError,
+  CommandValidationError,
+  ICommand,
+  ICommandBus,
+  ICommandHandler,
 } from './command';
 
 export type {
-  IQuery,
-  IQueryHandler,
-  IQueryBus,
-  PaginationQuery,
-  PaginatedResult,
   FilterQuery,
-  SortOptions,
+  IQuery,
+  IQueryBus,
+  IQueryHandler,
+  PaginatedResult,
+  PaginationQuery,
+  QueryExecutionError,
+  QueryHandlerNotFoundError,
   QueryOptions,
   QueryValidationError,
-  QueryHandlerNotFoundError,
-  QueryExecutionError,
+  SortOptions,
 } from './query';
 
 export type {
   ICommandValidator,
+  IQueryValidator,
   ValidationResult,
   ValidationRule,
-} from './validation/command-validator';
+} from '@taskmanagement/validation';
 
-export type {
-  IQueryValidator,
-} from './validation/query-validator';
-
-export type { CQRSConfiguration, CQRSComponents } from './cqrs-factory';
+export type { CQRSComponents, CQRSConfiguration } from './cqrs-factory';

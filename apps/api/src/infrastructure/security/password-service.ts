@@ -1,6 +1,6 @@
+import { ValidationError } from '@taskmanagement/validation';
 import * as argon2 from 'argon2';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
-import { ValidationError } from '../../shared/errors/validation-error';
 
 export interface PasswordConfig {
   minLength: number;
@@ -78,10 +78,12 @@ export class PasswordService {
       // Validate password before hashing
       const strength = this.checkPasswordStrength(password);
       if (!strength.isValid) {
-        throw new ValidationError([{
-          field: 'password',
-          message: `Password validation failed: ${strength.feedback.join(', ')}`
-        }]);
+        throw new ValidationError([
+          {
+            field: 'password',
+            message: `Password validation failed: ${strength.feedback.join(', ')}`,
+          },
+        ]);
       }
 
       const hash = await argon2.hash(password, {
@@ -190,17 +192,13 @@ export class PasswordService {
 
     // Length check
     if (password.length < this.config.minLength) {
-      feedback.push(
-        `Password must be at least ${this.config.minLength} characters long`
-      );
+      feedback.push(`Password must be at least ${this.config.minLength} characters long`);
     } else if (password.length >= this.config.minLength) {
       score += 20;
     }
 
     if (password.length > this.config.maxLength) {
-      feedback.push(
-        `Password must not exceed ${this.config.maxLength} characters`
-      );
+      feedback.push(`Password must not exceed ${this.config.maxLength} characters`);
     }
 
     // Character type checks
@@ -222,10 +220,7 @@ export class PasswordService {
       score += 15;
     }
 
-    if (
-      this.config.requireSpecialChars &&
-      !/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password)
-    ) {
+    if (this.config.requireSpecialChars && !/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password)) {
       feedback.push('Password must contain at least one special character');
     } else if (/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password)) {
       score += 15;
@@ -233,9 +228,7 @@ export class PasswordService {
 
     // Common password check
     if (this.config.preventCommonPasswords && this.isCommonPassword(password)) {
-      feedback.push(
-        'Password is too common, please choose a more unique password'
-      );
+      feedback.push('Password is too common, please choose a more unique password');
       score = Math.max(0, score - 30);
     }
 
@@ -303,8 +296,7 @@ export class PasswordService {
    * Generate password reset token (simple random string)
    */
   generateResetToken(length: number = 32): string {
-    const charset =
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let token = '';
 
     for (let i = 0; i < length; i++) {
@@ -405,21 +397,15 @@ export class PasswordService {
    */
   private validateConfig(): void {
     if (this.config.minLength < 1) {
-      throw new InfrastructureError(
-        'Minimum password length must be at least 1'
-      );
+      throw new InfrastructureError('Minimum password length must be at least 1');
     }
 
     if (this.config.maxLength < this.config.minLength) {
-      throw new InfrastructureError(
-        'Maximum password length must be greater than minimum length'
-      );
+      throw new InfrastructureError('Maximum password length must be greater than minimum length');
     }
 
     if (this.config.hashingOptions.memoryCost < 1024) {
-      throw new InfrastructureError(
-        'Argon2 memory cost must be at least 1024 KB'
-      );
+      throw new InfrastructureError('Argon2 memory cost must be at least 1024 KB');
     }
 
     if (this.config.hashingOptions.timeCost < 1) {
@@ -431,9 +417,7 @@ export class PasswordService {
     }
 
     if (this.config.hashingOptions.hashLength < 16) {
-      throw new InfrastructureError(
-        'Argon2 hash length must be at least 16 bytes'
-      );
+      throw new InfrastructureError('Argon2 hash length must be at least 16 bytes');
     }
   }
 }

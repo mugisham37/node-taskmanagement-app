@@ -43,15 +43,7 @@ export const TASK_PRIORITY_WEIGHTS: Record<Priority, number> = {
 /**
  * Task validation constants
  */
-export const TASK_VALIDATION = {
-  TITLE_MIN_LENGTH: 1,
-  TITLE_MAX_LENGTH: 255,
-  DESCRIPTION_MAX_LENGTH: 5000,
-  MIN_ESTIMATED_HOURS: 0.25, // 15 minutes
-  MAX_ESTIMATED_HOURS: 999,
-  MIN_ACTUAL_HOURS: 0,
-  MAX_ACTUAL_HOURS: 999,
-} as const;
+
 
 /**
  * Task business rules
@@ -61,3 +53,4 @@ export const TASK_BUSINESS_RULES = {
   MAX_TASKS_PER_PROJECT: 1000,
   OVERDUE_THRESHOLD_DAYS: 1,
 } as const;
+

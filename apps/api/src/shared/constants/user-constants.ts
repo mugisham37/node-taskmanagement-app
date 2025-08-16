@@ -11,13 +11,7 @@ export { UserRole };
 /**
  * User validation constants
  */
-export const USER_VALIDATION = {
-  NAME_MIN_LENGTH: 1,
-  NAME_MAX_LENGTH: 255,
-  EMAIL_MAX_LENGTH: 255,
-  PASSWORD_MIN_LENGTH: 8,
-  PASSWORD_MAX_LENGTH: 128,
-} as const;
+
 
 /**
  * User business rules
@@ -63,3 +57,4 @@ export const USER_ROLE_PERMISSIONS = {
     'VIEW_OWN_ANALYTICS',
   ],
 } as const;
+

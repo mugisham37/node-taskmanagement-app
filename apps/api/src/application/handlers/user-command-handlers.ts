@@ -1,22 +1,22 @@
-import { BaseHandler, ICommandHandler } from './base-handler';
+import { ValidationError } from '@taskmanagement/validation';
+import { nanoid } from 'nanoid';
+import { User } from '../../domain/entities/user';
 import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { IUserRepository } from '../../domain/repositories/user-repository';
-import { PasswordService } from '../../infrastructure/security/password-service';
+import { UserId } from '../../domain/value-objects/user-id';
 import { TransactionManager } from '../../infrastructure/database/transaction-manager';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { PasswordService } from '../../infrastructure/security/password-service';
+import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { NotFoundError } from '../../shared/errors/not-found-error';
 import {
+  ActivateUserCommand,
+  ChangePasswordCommand,
+  DeactivateUserCommand,
   RegisterUserCommand,
   UpdateUserProfileCommand,
-  ChangePasswordCommand,
-  ActivateUserCommand,
-  DeactivateUserCommand,
 } from '../commands/user-commands';
-import { User } from '../../domain/entities/user';
-import { UserId } from '../../domain/value-objects/user-id';
-import { NotFoundError } from '../../shared/errors/not-found-error';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { ValidationError } from '../../shared/errors/validation-error';
-import { nanoid } from 'nanoid';
+import { BaseHandler, ICommandHandler } from './base-handler';
 
 export class RegisterUserCommandHandler
   extends BaseHandler
@@ -38,9 +38,7 @@ export class RegisterUserCommandHandler
     return await this.transactionManager.executeInTransaction(async () => {
       try {
         // Check if user already exists
-        const existingUser = await this.userRepository.findByEmail(
-          command.email
-        );
+        const existingUser = await this.userRepository.findByEmail(command.email);
         if (existingUser) {
           throw ValidationError.forField(
             'email',
@@ -50,9 +48,7 @@ export class RegisterUserCommandHandler
         }
 
         // Hash password
-        const hashedPassword = await this.passwordService.hashPassword(
-          command.password
-        );
+        const hashedPassword = await this.passwordService.hashPassword(command.password);
 
         // Create user
         const user = User.create(
@@ -97,24 +93,18 @@ export class UpdateUserProfileCommandHandler
       try {
         const user = await this.userRepository.findById(command.targetUserId);
         if (!user) {
-          throw new NotFoundError(
-            `User with ID ${command.targetUserId.value} not found`
-          );
+          throw new NotFoundError(`User with ID ${command.targetUserId.value} not found`);
         }
 
         // Check if user can update this profile (self or admin)
         if (!command.targetUserId.equals(command.userId)) {
           // In a real implementation, you'd check if the requesting user is an admin
-          throw new AuthorizationError(
-            'User can only update their own profile'
-          );
+          throw new AuthorizationError('User can only update their own profile');
         }
 
         // Check if email is already taken by another user
         if (command.email) {
-          const existingUser = await this.userRepository.findByEmail(
-            command.email
-          );
+          const existingUser = await this.userRepository.findByEmail(command.email);
           if (existingUser && !existingUser.id.equals(command.targetUserId)) {
             throw ValidationError.forField(
               'email',
@@ -126,10 +116,7 @@ export class UpdateUserProfileCommandHandler
 
         // Update profile
         if (command.name !== undefined || command.email !== undefined) {
-          user.updateProfile(
-            command.name || user.name,
-            command.email || user.email
-          );
+          user.updateProfile(command.name || user.name, command.email || user.email);
         }
 
         await this.userRepository.save(user);
@@ -171,35 +158,25 @@ export class ChangePasswordCommandHandler
       try {
         const user = await this.userRepository.findById(command.targetUserId);
         if (!user) {
-          throw new NotFoundError(
-            `User with ID ${command.targetUserId.value} not found`
-          );
+          throw new NotFoundError(`User with ID ${command.targetUserId.value} not found`);
         }
 
         // Check if user can change this password (self only)
         if (!command.targetUserId.equals(command.userId)) {
-          throw new AuthorizationError(
-            'User can only change their own password'
-          );
+          throw new AuthorizationError('User can only change their own password');
         }
 
         // Verify current password
-        const isCurrentPasswordValid =
-          await this.passwordService.verifyPassword(
-            command.currentPassword,
-            user.hashedPassword
-          );
+        const isCurrentPasswordValid = await this.passwordService.verifyPassword(
+          command.currentPassword,
+          user.hashedPassword
+        );
         if (!isCurrentPasswordValid) {
-          throw ValidationError.forField(
-            'currentPassword',
-            'Current password is incorrect'
-          );
+          throw ValidationError.forField('currentPassword', 'Current password is incorrect');
         }
 
         // Hash new password
-        const newHashedPassword = await this.passwordService.hashPassword(
-          command.newPassword
-        );
+        const newHashedPassword = await this.passwordService.hashPassword(command.newPassword);
 
         // Update password
         user.changePassword(newHashedPassword);
@@ -240,9 +217,7 @@ export class ActivateUserCommandHandler
       try {
         const user = await this.userRepository.findById(command.targetUserId);
         if (!user) {
-          throw new NotFoundError(
-            `User with ID ${command.targetUserId.value} not found`
-          );
+          throw new NotFoundError(`User with ID ${command.targetUserId.value} not found`);
         }
 
         // In a real implementation, you'd check if the activating user has admin permissions
@@ -282,9 +257,7 @@ export class DeactivateUserCommandHandler
       try {
         const user = await this.userRepository.findById(command.targetUserId);
         if (!user) {
-          throw new NotFoundError(
-            `User with ID ${command.targetUserId.value} not found`
-          );
+          throw new NotFoundError(`User with ID ${command.targetUserId.value} not found`);
         }
 
         // In a real implementation, you'd check if the deactivating user has admin permissions

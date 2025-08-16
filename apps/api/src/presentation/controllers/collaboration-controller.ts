@@ -1,8 +1,11 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { CollaborationService, OperationType } from '../../infrastructure/external-services/collaboration-service';
+import { ValidationError } from '@taskmanagement/validation';
+import { FastifyReply, FastifyRequest } from 'fastify';
+import {
+  CollaborationService,
+  OperationType,
+} from '../../infrastructure/external-services/collaboration-service';
 import { RealtimeEventService } from '../../infrastructure/external-services/realtime-event-service';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { ValidationError } from '../../shared/errors/validation-error';
 import { NotFoundError } from '../../shared/errors/not-found-error';
 
 export class CollaborationController {
@@ -14,10 +17,7 @@ export class CollaborationController {
   ) {}
 
   // Document operations
-  async createDocument(
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> {
+  async createDocument(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { documentId, type, entityId, initialContent } = request.body as {
         documentId: string;
@@ -28,17 +28,21 @@ export class CollaborationController {
 
       const userId = (request as any).user?.id;
       if (!userId) {
-        throw new ValidationError([{
-          field: 'userId',
-          message: 'User ID is required'
-        }]);
+        throw new ValidationError([
+          {
+            field: 'userId',
+            message: 'User ID is required',
+          },
+        ]);
       }
 
       if (!documentId || !type || !entityId) {
-        throw new ValidationError([{
-          field: 'request',
-          message: 'Document ID, type, and entity ID are required'
-        }]);
+        throw new ValidationError([
+          {
+            field: 'request',
+            message: 'Document ID, type, and entity ID are required',
+          },
+        ]);
       }
 
       const document = await this.collaborationService.createDocument(
@@ -78,19 +82,18 @@ export class CollaborationController {
     }
   }
 
-  async getDocument(
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> {
+  async getDocument(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { documentId } = request.params as { documentId: string };
       const userId = (request as any).user?.id;
 
       if (!userId) {
-        throw new ValidationError([{
-          field: 'userId',
-          message: 'User ID is required'
-        }]);
+        throw new ValidationError([
+          {
+            field: 'userId',
+            message: 'User ID is required',
+          },
+        ]);
       }
 
       const document = await this.collaborationService.getDocument(documentId);
@@ -131,10 +134,7 @@ export class CollaborationController {
     }
   }
 
-  async applyOperation(
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> {
+  async applyOperation(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { documentId } = request.params as { documentId: string };
       const { type, position, content, length, version } = request.body as {
@@ -147,30 +147,34 @@ export class CollaborationController {
 
       const userId = (request as any).user?.id;
       if (!userId) {
-        throw new ValidationError([{
-          field: 'userId',
-          message: 'User ID is required'
-        }]);
+        throw new ValidationError([
+          {
+            field: 'userId',
+            message: 'User ID is required',
+          },
+        ]);
       }
 
       if (!type || position === undefined || version === undefined) {
-        throw new ValidationError([{
-          field: 'operation',
-          message: 'Operation type, position, and version are required'
-        }]);
+        throw new ValidationError([
+          {
+            field: 'operation',
+            message: 'Operation type, position, and version are required',
+          },
+        ]);
       }
 
       const result = await this.collaborationService.applyOperation(
         documentId,
-        { 
+        {
           documentId,
-          type: type as OperationType, 
-          position, 
-          content: content || '', 
-          length: length || 0, 
-          version, 
+          type: type as OperationType,
+          position,
+          content: content || '',
+          length: length || 0,
+          version,
           userId,
-          userEmail: 'user@example.com' // TODO: Get actual user email from request/auth
+          userEmail: 'user@example.com', // TODO: Get actual user email from request/auth
         },
         userId
       );
@@ -207,33 +211,31 @@ export class CollaborationController {
     }
   }
 
-  async addCollaborator(
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> {
+  async addCollaborator(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { documentId } = request.params as { documentId: string };
       const { collaboratorId } = request.body as { collaboratorId: string };
 
       const userId = (request as any).user?.id;
       if (!userId) {
-        throw new ValidationError([{
-          field: 'userId',
-          message: 'User ID is required'
-        }]);
+        throw new ValidationError([
+          {
+            field: 'userId',
+            message: 'User ID is required',
+          },
+        ]);
       }
 
       if (!collaboratorId) {
-        throw new ValidationError([{
-          field: 'collaboratorId',
-          message: 'Collaborator ID is required'
-        }]);
+        throw new ValidationError([
+          {
+            field: 'collaboratorId',
+            message: 'Collaborator ID is required',
+          },
+        ]);
       }
 
-      const success = await this.collaborationService.addCollaborator(
-        documentId,
-        collaboratorId
-      );
+      const success = await this.collaborationService.addCollaborator(documentId, collaboratorId);
 
       if (!success) {
         throw new NotFoundError('Document not found');
@@ -263,10 +265,7 @@ export class CollaborationController {
   }
 
   // Comments
-  async addComment(
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> {
+  async addComment(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { documentId } = request.params as { documentId: string };
       const { content, position, parentId } = request.body as {
@@ -279,17 +278,21 @@ export class CollaborationController {
       const userEmail = (request as any).user?.email;
 
       if (!userId || !userEmail) {
-        throw new ValidationError([{
-          field: 'authentication',
-          message: 'User authentication required'
-        }]);
+        throw new ValidationError([
+          {
+            field: 'authentication',
+            message: 'User authentication required',
+          },
+        ]);
       }
 
       if (!content || content.trim().length === 0) {
-        throw new ValidationError([{
-          field: 'content',
-          message: 'Comment content is required'
-        }]);
+        throw new ValidationError([
+          {
+            field: 'content',
+            message: 'Comment content is required',
+          },
+        ]);
       }
 
       const comment = await this.collaborationService.addComment(
@@ -323,10 +326,7 @@ export class CollaborationController {
     }
   }
 
-  async updateComment(
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> {
+  async updateComment(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { documentId, commentId } = request.params as {
         documentId: string;
@@ -336,17 +336,21 @@ export class CollaborationController {
 
       const userId = (request as any).user?.id;
       if (!userId) {
-        throw new ValidationError([{
-          field: 'userId',
-          message: 'User ID is required'
-        }]);
+        throw new ValidationError([
+          {
+            field: 'userId',
+            message: 'User ID is required',
+          },
+        ]);
       }
 
       if (!content || content.trim().length === 0) {
-        throw new ValidationError([{
-          field: 'content',
-          message: 'Comment content is required'
-        }]);
+        throw new ValidationError([
+          {
+            field: 'content',
+            message: 'Comment content is required',
+          },
+        ]);
       }
 
       const comment = await this.collaborationService.updateComment(
@@ -383,10 +387,7 @@ export class CollaborationController {
     }
   }
 
-  async deleteComment(
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> {
+  async deleteComment(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { documentId, commentId } = request.params as {
         documentId: string;
@@ -395,17 +396,15 @@ export class CollaborationController {
 
       const userId = (request as any).user?.id;
       if (!userId) {
-        throw new ValidationError([{
-          field: 'userId',
-          message: 'User ID is required'
-        }]);
+        throw new ValidationError([
+          {
+            field: 'userId',
+            message: 'User ID is required',
+          },
+        ]);
       }
 
-      const success = await this.collaborationService.deleteComment(
-        commentId,
-        documentId,
-        userId
-      );
+      const success = await this.collaborationService.deleteComment(commentId, documentId, userId);
 
       if (!success) {
         throw new NotFoundError('Comment not found or access denied');
@@ -434,19 +433,18 @@ export class CollaborationController {
     }
   }
 
-  async getComments(
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> {
+  async getComments(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { documentId } = request.params as { documentId: string };
 
       const userId = (request as any).user?.id;
       if (!userId) {
-        throw new ValidationError([{
-          field: 'userId',
-          message: 'User ID is required'
-        }]);
+        throw new ValidationError([
+          {
+            field: 'userId',
+            message: 'User ID is required',
+          },
+        ]);
       }
 
       const comments = this.collaborationService.getComments(documentId);
@@ -468,25 +466,21 @@ export class CollaborationController {
   }
 
   // Document locking
-  async acquireLock(
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> {
+  async acquireLock(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { documentId } = request.params as { documentId: string };
 
       const userId = (request as any).user?.id;
       if (!userId) {
-        throw new ValidationError([{
-          field: 'userId',
-          message: 'User ID is required'
-        }]);
+        throw new ValidationError([
+          {
+            field: 'userId',
+            message: 'User ID is required',
+          },
+        ]);
       }
 
-      const success = await this.collaborationService.acquireLock(
-        documentId,
-        userId
-      );
+      const success = await this.collaborationService.acquireLock(documentId, userId);
 
       if (!success) {
         reply.code(409).send({
@@ -512,25 +506,21 @@ export class CollaborationController {
     }
   }
 
-  async releaseLock(
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> {
+  async releaseLock(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { documentId } = request.params as { documentId: string };
 
       const userId = (request as any).user?.id;
       if (!userId) {
-        throw new ValidationError([{
-          field: 'userId',
-          message: 'User ID is required'
-        }]);
+        throw new ValidationError([
+          {
+            field: 'userId',
+            message: 'User ID is required',
+          },
+        ]);
       }
 
-      const success = await this.collaborationService.releaseLock(
-        documentId,
-        userId
-      );
+      const success = await this.collaborationService.releaseLock(documentId, userId);
 
       if (!success) {
         reply.code(400).send({
@@ -554,10 +544,7 @@ export class CollaborationController {
     }
   }
 
-  async getLockStatus(
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> {
+  async getLockStatus(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { documentId } = request.params as { documentId: string };
 
@@ -574,15 +561,11 @@ export class CollaborationController {
   }
 
   // Typing indicators
-  async getTypingIndicators(
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> {
+  async getTypingIndicators(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { documentId } = request.params as { documentId: string };
 
-      const indicators =
-        this.collaborationService.getTypingIndicators(documentId);
+      const indicators = this.collaborationService.getTypingIndicators(documentId);
 
       reply.send({
         success: true,

@@ -1,3 +1,3 @@
 // Export all shared services
-export * from './validation-service';
+export { ValidationService } from '@taskmanagement/validation';
 export * from './business-rules-service';

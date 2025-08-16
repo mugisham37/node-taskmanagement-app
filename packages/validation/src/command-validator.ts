@@ -4,9 +4,7 @@
  * This module provides comprehensive validation capabilities for commands before they are processed.
  */
 
-import { ICommand } from '../command';
-import { injectable } from '../../../shared/decorators/injectable.decorator';
-import { LoggingService } from '../../../infrastructure/monitoring/logging-service';
+import { ICommand, injectable } from '@taskmanagement/core';
 
 export interface ICommandValidator {
   validate(command: ICommand): Promise<ValidationResult>;
@@ -36,7 +34,7 @@ export interface ValidationRule<T extends ICommand> {
 export class CommandValidator implements ICommandValidator {
   private rules = new Map<string, ValidationRule<any>[]>();
 
-  constructor(private readonly logger: LoggingService) {}
+  constructor(private readonly logger?: any) {}
 
   async validate(command: ICommand): Promise<ValidationResult> {
     const commandType = command.constructor.name;
@@ -50,7 +48,7 @@ export class CommandValidator implements ICommandValidator {
     const errors: Record<string, string[]> = {};
     const warnings: Record<string, string[]> = {};
 
-    this.logger.debug('Validating command', {
+    this.logger?.debug('Validating command', {
       commandType,
       commandId: command.commandId,
       rulesCount: sortedRules.length,
@@ -65,7 +63,7 @@ export class CommandValidator implements ICommandValidator {
             errors[ruleName] = ruleErrors;
           }
         } catch (error) {
-          this.logger.error('Validation rule failed', error as Error, {
+          this.logger?.error('Validation rule failed', error as Error, {
             commandType,
             commandId: command.commandId,
             ruleName: rule.constructor.name,
@@ -81,7 +79,7 @@ export class CommandValidator implements ICommandValidator {
 
     const isValid = Object.keys(errors).length === 0;
 
-    this.logger.debug('Command validation completed', {
+    this.logger?.debug('Command validation completed', {
       commandType,
       commandId: command.commandId,
       isValid,
@@ -110,7 +108,7 @@ export class CommandValidator implements ICommandValidator {
     }
     this.rules.get(commandType)!.push(rule);
 
-    this.logger.debug('Validation rule added', {
+    this.logger?.debug('Validation rule added', {
       commandType,
       ruleName: rule.constructor.name,
       priority: rule.priority || 0,
@@ -126,7 +124,7 @@ export class CommandValidator implements ICommandValidator {
       const index = rules.indexOf(rule);
       if (index > -1) {
         rules.splice(index, 1);
-        this.logger.debug('Validation rule removed', {
+        this.logger?.debug('Validation rule removed', {
           commandType,
           ruleName: rule.constructor.name,
         });
@@ -137,12 +135,12 @@ export class CommandValidator implements ICommandValidator {
   clearRules(commandType?: string): void {
     if (commandType) {
       this.rules.delete(commandType);
-      this.logger.debug('Validation rules cleared for command type', {
+      this.logger?.debug('Validation rules cleared for command type', {
         commandType,
       });
     } else {
       this.rules.clear();
-      this.logger.debug('All validation rules cleared');
+      this.logger?.debug('All validation rules cleared');
     }
   }
 

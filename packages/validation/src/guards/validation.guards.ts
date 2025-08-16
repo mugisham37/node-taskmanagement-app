@@ -1,4 +1,4 @@
-import { DomainError } from '../errors/domain-error';
+import { DomainError } from '@taskmanagement/core';
 
 /**
  * Validation guards for domain logic

@@ -70,11 +70,7 @@ export const PROJECT_ROLE_PERMISSIONS: Record<ProjectRole, readonly ProjectPermi
 /**
  * Project validation constants
  */
-export const PROJECT_VALIDATION = {
-  NAME_MIN_LENGTH: 1,
-  NAME_MAX_LENGTH: 255,
-  DESCRIPTION_MAX_LENGTH: 2000,
-} as const;
+
 
 /**
  * Project business rules
@@ -84,3 +80,4 @@ export const PROJECT_BUSINESS_RULES = {
   MAX_PROJECTS_PER_WORKSPACE: 50,
   MIN_MANAGERS_PER_PROJECT: 1,
 } as const;
+

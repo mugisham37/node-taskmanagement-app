@@ -6,9 +6,9 @@
  */
 
 import { AuthenticatedRequest, SecurityContext } from '@taskmanagement/types/auth';
+import { ValidationError } from '@taskmanagement/validation';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { ValidationError } from '../../shared/errors/validation-error';
 import { LoggingService } from '../monitoring/logging-service';
 import { AuditLogger } from './audit-logger';
 import { InputSanitizer } from './input-sanitizer';

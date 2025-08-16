@@ -4,9 +4,7 @@
  * This module provides comprehensive validation capabilities for queries before they are processed.
  */
 
-import { IQuery } from '../query';
-import { injectable } from '../../../shared/decorators/injectable.decorator';
-import { LoggingService } from '../../../infrastructure/monitoring/logging-service';
+import { injectable, IQuery } from '@taskmanagement/core';
 
 export interface IQueryValidator {
   validate(query: IQuery): Promise<ValidationResult>;
@@ -33,7 +31,7 @@ export interface ValidationRule<T extends IQuery> {
 export class QueryValidator implements IQueryValidator {
   private rules = new Map<string, ValidationRule<any>[]>();
 
-  constructor(private readonly logger: LoggingService) {}
+  constructor(private readonly logger?: any) {}
 
   async validate(query: IQuery): Promise<ValidationResult> {
     const queryType = query.constructor.name;
@@ -47,7 +45,7 @@ export class QueryValidator implements IQueryValidator {
     const errors: Record<string, string[]> = {};
     const warnings: Record<string, string[]> = {};
 
-    this.logger.debug('Validating query', {
+    this.logger?.debug('Validating query', {
       queryType,
       queryId: query.queryId,
       rulesCount: sortedRules.length,
@@ -62,7 +60,7 @@ export class QueryValidator implements IQueryValidator {
             errors[ruleName] = ruleErrors;
           }
         } catch (error) {
-          this.logger.error('Validation rule failed', error as Error, {
+          this.logger?.error('Validation rule failed', error as Error, {
             queryType,
             queryId: query.queryId,
             ruleName: rule.constructor.name,
@@ -78,7 +76,7 @@ export class QueryValidator implements IQueryValidator {
 
     const isValid = Object.keys(errors).length === 0;
 
-    this.logger.debug('Query validation completed', {
+    this.logger?.debug('Query validation completed', {
       queryType,
       queryId: query.queryId,
       isValid,
@@ -104,7 +102,7 @@ export class QueryValidator implements IQueryValidator {
     }
     this.rules.get(queryType)!.push(rule);
 
-    this.logger.debug('Validation rule added', {
+    this.logger?.debug('Validation rule added', {
       queryType,
       ruleName: rule.constructor.name,
       priority: rule.priority || 0,
@@ -120,7 +118,7 @@ export class QueryValidator implements IQueryValidator {
       const index = rules.indexOf(rule);
       if (index > -1) {
         rules.splice(index, 1);
-        this.logger.debug('Validation rule removed', {
+        this.logger?.debug('Validation rule removed', {
           queryType,
           ruleName: rule.constructor.name,
         });
@@ -131,12 +129,12 @@ export class QueryValidator implements IQueryValidator {
   clearRules(queryType?: string): void {
     if (queryType) {
       this.rules.delete(queryType);
-      this.logger.debug('Validation rules cleared for query type', {
+      this.logger?.debug('Validation rules cleared for query type', {
         queryType,
       });
     } else {
       this.rules.clear();
-      this.logger.debug('All validation rules cleared');
+      this.logger?.debug('All validation rules cleared');
     }
   }
 

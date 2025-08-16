@@ -1,30 +1,27 @@
+import { ValidationError } from '@taskmanagement/validation';
 import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { ITaskRepository } from '../../domain/repositories/task-repository';
 import { IProjectRepository } from '../../domain/repositories/project-repository';
+import { ITaskRepository } from '../../domain/repositories/task-repository';
 import { TaskDomainService } from '../../domain/services/task-domain-service';
-import { TransactionManager } from '../../infrastructure/database/transaction-manager';
-import { CacheService } from '../../infrastructure/caching/cache-service';
-import { TaskId } from '../../domain/value-objects/task-id';
-import { ProjectId } from '../../domain/value-objects/project-id';
-import { UserId } from '../../domain/value-objects/user-id';
 import { Priority } from '../../domain/value-objects/priority';
-import { NotFoundError } from '../../shared/errors/not-found-error';
+import { ProjectId } from '../../domain/value-objects/project-id';
+import { TaskId } from '../../domain/value-objects/task-id';
+import { UserId } from '../../domain/value-objects/user-id';
+import { CacheService } from '../../infrastructure/caching/cache-service';
+import { TransactionManager } from '../../infrastructure/database/transaction-manager';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { Priority as PriorityEnum } from '../../shared/enums/common.enums';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { NotFoundError } from '../../shared/errors/not-found-error';
+import { CreateTaskCommand, UpdateTaskCommand } from '../commands/task-commands';
 import { ICommandBus, IQueryBus } from '../cqrs';
-import {
-  CreateTaskCommand,
-  UpdateTaskCommand,
-} from '../commands/task-commands';
 import { GetTaskByIdQuery, GetTasksQuery } from '../queries/task-queries';
 import {
   BaseApplicationService,
-  ValidationRule,
-  RequiredFieldValidationRule,
   LengthValidationRule,
+  RequiredFieldValidationRule,
+  ValidationRule,
 } from '../services/base-application-service';
-import { ValidationError } from '../../shared/errors/validation-error';
-import { Priority as PriorityEnum } from '../../shared/enums/common.enums';
 
 export interface CreateTaskUseCaseInput {
   title: string;
@@ -151,9 +148,7 @@ export class CreateTaskUseCase {
         // Verify project exists and user has permission
         const project = await this.projectRepository.findById(input.projectId);
         if (!project) {
-          throw new NotFoundError(
-            `Project with ID ${input.projectId.value} not found`
-          );
+          throw new NotFoundError(`Project with ID ${input.projectId.value} not found`);
         }
 
         if (!project.canUserCreateTask(input.createdById)) {
@@ -194,10 +189,7 @@ export class CreateTaskUseCase {
     });
   }
 
-  private async invalidateTaskCaches(
-    projectId: ProjectId,
-    assigneeId?: UserId
-  ): Promise<void> {
+  private async invalidateTaskCaches(projectId: ProjectId, assigneeId?: UserId): Promise<void> {
     const patterns = [`tasks:project:${projectId.value}:*`, 'task-stats:*'];
 
     if (assigneeId) {
@@ -227,16 +219,12 @@ export class UpdateTaskUseCase {
       try {
         const task = await this.taskRepository.findById(input.taskId);
         if (!task) {
-          throw new NotFoundError(
-            `Task with ID ${input.taskId.value} not found`
-          );
+          throw new NotFoundError(`Task with ID ${input.taskId.value} not found`);
         }
 
         // Check permissions through domain service
         if (!this.taskDomainService.canUserUpdateTask(task, input.userId)) {
-          throw new AuthorizationError(
-            'User does not have permission to update this task'
-          );
+          throw new AuthorizationError('User does not have permission to update this task');
         }
 
         // Update task properties
@@ -259,11 +247,7 @@ export class UpdateTaskUseCase {
         await this.taskRepository.save(task);
 
         // Invalidate caches
-        await this.invalidateTaskCaches(
-          input.taskId,
-          task.projectId,
-          task.assigneeId || undefined
-        );
+        await this.invalidateTaskCaches(input.taskId, task.projectId, task.assigneeId || undefined);
 
         await this.eventPublisher.publishAll();
 
@@ -282,11 +266,7 @@ export class UpdateTaskUseCase {
     projectId: ProjectId,
     assigneeId?: UserId
   ): Promise<void> {
-    const patterns = [
-      `task:${taskId.value}`,
-      `tasks:project:${projectId.value}:*`,
-      'task-stats:*',
-    ];
+    const patterns = [`task:${taskId.value}`, `tasks:project:${projectId.value}:*`, 'task-stats:*'];
 
     if (assigneeId) {
       patterns.push(`tasks:assignee:${assigneeId.value}:*`);
@@ -315,26 +295,16 @@ export class AssignTaskUseCase {
       try {
         const task = await this.taskRepository.findById(input.taskId);
         if (!task) {
-          throw new NotFoundError(
-            `Task with ID ${input.taskId.value} not found`
-          );
+          throw new NotFoundError(`Task with ID ${input.taskId.value} not found`);
         }
 
         // Assign task through domain service
-        await this.taskDomainService.assignTask(
-          task,
-          input.assigneeId,
-          input.assignedBy
-        );
+        await this.taskDomainService.assignTask(task, input.assigneeId, input.assignedBy);
 
         await this.taskRepository.save(task);
 
         // Invalidate caches
-        await this.invalidateTaskCaches(
-          input.taskId,
-          task.projectId,
-          input.assigneeId
-        );
+        await this.invalidateTaskCaches(input.taskId, task.projectId, input.assigneeId);
 
         await this.eventPublisher.publishAll();
 
@@ -384,26 +354,16 @@ export class CompleteTaskUseCase {
       try {
         const task = await this.taskRepository.findById(input.taskId);
         if (!task) {
-          throw new NotFoundError(
-            `Task with ID ${input.taskId.value} not found`
-          );
+          throw new NotFoundError(`Task with ID ${input.taskId.value} not found`);
         }
 
         // Complete task through domain service
-        await this.taskDomainService.completeTask(
-          task,
-          input.completedBy,
-          input.actualHours
-        );
+        await this.taskDomainService.completeTask(task, input.completedBy, input.actualHours);
 
         await this.taskRepository.save(task);
 
         // Invalidate caches
-        await this.invalidateTaskCaches(
-          input.taskId,
-          task.projectId,
-          task.assigneeId || undefined
-        );
+        await this.invalidateTaskCaches(input.taskId, task.projectId, task.assigneeId || undefined);
 
         await this.eventPublisher.publishAll();
 
@@ -474,15 +434,14 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
         });
 
         // Validate input
-        const validationResult = this.validateInput(
-          request,
-          this.getCreateTaskValidationRules()
-        );
+        const validationResult = this.validateInput(request, this.getCreateTaskValidationRules());
         if (!validationResult.isValid) {
-          throw new ValidationError([{
-            field: 'request',
-            message: `Task creation validation failed: ${validationResult.errors.join(', ')}`
-          }]);
+          throw new ValidationError([
+            {
+              field: 'request',
+              message: `Task creation validation failed: ${validationResult.errors.join(', ')}`,
+            },
+          ]);
         }
 
         // Validate business rules
@@ -499,7 +458,9 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
           const command = new CreateTaskCommand(
             request.title,
             request.description || '',
-            request.priority ? new Priority(request.priority as any) : new Priority(PriorityEnum.MEDIUM),
+            request.priority
+              ? new Priority(request.priority as any)
+              : new Priority(PriorityEnum.MEDIUM),
             new ProjectId(request.projectId || 'default-project'),
             userId,
             userId,
@@ -511,20 +472,15 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
           const taskId = await this.commandBus.send<TaskId>(command);
 
           // Get detailed task information
-          const taskDetails = await this.queryBus.send(
-            new GetTaskByIdQuery(taskId, userId)
-          );
+          const taskDetails = await this.queryBus.send(new GetTaskByIdQuery(taskId, userId));
 
           // Post-creation orchestration
           await this.orchestrateTaskCreation(taskDetails, request, userId);
 
-          this.logInfo(
-            'Task created successfully with enhanced orchestration',
-            {
-              taskId: taskId.value,
-              userId: userId.value,
-            }
-          );
+          this.logInfo('Task created successfully with enhanced orchestration', {
+            taskId: taskId.value,
+            userId: userId.value,
+          });
 
           return taskDetails;
         });
@@ -547,22 +503,19 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
         });
 
         // Validate input
-        const validationResult = this.validateInput(
-          request,
-          this.getUpdateTaskValidationRules()
-        );
+        const validationResult = this.validateInput(request, this.getUpdateTaskValidationRules());
         if (!validationResult.isValid) {
-          throw new ValidationError([{
-            field: 'request',
-            message: `Task update validation failed: ${validationResult.errors.join(', ')}`
-          }]);
+          throw new ValidationError([
+            {
+              field: 'request',
+              message: `Task update validation failed: ${validationResult.errors.join(', ')}`,
+            },
+          ]);
         }
 
         // Get current task state for comparison
         const taskId = new TaskId(request.taskId);
-        const currentTask = await this.queryBus.send(
-          new GetTaskByIdQuery(taskId, userId)
-        );
+        const currentTask = await this.queryBus.send(new GetTaskByIdQuery(taskId, userId));
 
         // Validate business rules for updates
         await this.validateTaskUpdate(request, currentTask, userId);
@@ -583,25 +536,15 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
           await this.commandBus.send(command);
 
           // Get updated task details
-          const taskDetails = await this.queryBus.send(
-            new GetTaskByIdQuery(taskId, userId)
-          );
+          const taskDetails = await this.queryBus.send(new GetTaskByIdQuery(taskId, userId));
 
           // Post-update orchestration
-          await this.orchestrateTaskUpdate(
-            currentTask,
-            taskDetails,
-            request,
-            userId
-          );
+          await this.orchestrateTaskUpdate(currentTask, taskDetails, request, userId);
 
-          this.logInfo(
-            'Task updated successfully with enhanced orchestration',
-            {
-              taskId: taskId.value,
-              userId: userId.value,
-            }
-          );
+          this.logInfo('Task updated successfully with enhanced orchestration', {
+            taskId: taskId.value,
+            userId: userId.value,
+          });
 
           return taskDetails;
         });
@@ -613,10 +556,7 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
   /**
    * Manages task workflow transitions with enhanced validation
    */
-  async manageTaskWorkflow(
-    request: TaskWorkflowRequest,
-    userId: UserId
-  ): Promise<any> {
+  async manageTaskWorkflow(request: TaskWorkflowRequest, userId: UserId): Promise<any> {
     return this.executeWithMonitoring(
       'manageTaskWorkflow',
       async () => {
@@ -627,45 +567,32 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
         });
 
         const taskId = new TaskId(request.taskId);
-        const currentTask = await this.queryBus.send(
-          new GetTaskByIdQuery(taskId, userId)
-        );
+        const currentTask = await this.queryBus.send(new GetTaskByIdQuery(taskId, userId));
 
         // Validate workflow transition
-        await this.validateWorkflowTransition(
-          currentTask,
-          request.action,
-          userId
-        );
+        await this.validateWorkflowTransition(currentTask, request.action, userId);
 
         // Execute within transaction
         return this.executeInTransaction(async () => {
           switch (request.action) {
             case 'start':
             case 'complete':
-              await this.commandBus.send(
-                new UpdateTaskCommand(taskId, userId)
-              );
+              await this.commandBus.send(new UpdateTaskCommand(taskId, userId));
               break;
             default:
-              throw new ValidationError([{
-                field: 'action',
-                message: `Invalid workflow action: ${request.action}`
-              }]);
+              throw new ValidationError([
+                {
+                  field: 'action',
+                  message: `Invalid workflow action: ${request.action}`,
+                },
+              ]);
           }
 
           // Get updated task details
-          const taskDetails = await this.queryBus.send(
-            new GetTaskByIdQuery(taskId, userId)
-          );
+          const taskDetails = await this.queryBus.send(new GetTaskByIdQuery(taskId, userId));
 
           // Post-workflow orchestration
-          await this.orchestrateWorkflowTransition(
-            currentTask,
-            taskDetails,
-            request,
-            userId
-          );
+          await this.orchestrateWorkflowTransition(currentTask, taskDetails, request, userId);
 
           return taskDetails;
         });
@@ -677,10 +604,7 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
   /**
    * Gets comprehensive task insights with analytics
    */
-  async getTaskInsights(
-    filters: any = {},
-    userId: UserId
-  ): Promise<TaskInsightsResponse> {
+  async getTaskInsights(filters: any = {}, userId: UserId): Promise<TaskInsightsResponse> {
     return this.executeWithMonitoring(
       'getTaskInsights',
       async () => {
@@ -691,11 +615,7 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
 
         // Get tasks with filters
         const tasks = await this.queryBus.send(
-          new GetTasksQuery(
-            userId,
-            filters,
-            { page: 1, limit: 100 }
-          )
+          new GetTasksQuery(userId, filters, { page: 1, limit: 100 })
         );
 
         // Calculate stats
@@ -705,11 +625,7 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
         const trends = await this.generateTaskTrends(tasks as any[], userId);
 
         // Generate recommendations
-        const recommendations = await this.generateTaskRecommendations(
-          stats,
-          trends,
-          userId
-        );
+        const recommendations = await this.generateTaskRecommendations(stats, trends, userId);
 
         return {
           stats,
@@ -726,12 +642,7 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
     return [
       new RequiredFieldValidationRule('title', 'Task title'),
       new LengthValidationRule('title', 1, 200, 'Task title'),
-      new LengthValidationRule(
-        'description',
-        undefined,
-        2000,
-        'Task description'
-      ),
+      new LengthValidationRule('description', undefined, 2000, 'Task description'),
     ];
   }
 
@@ -743,10 +654,7 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
   }
 
   // Private helper methods for orchestration
-  private async validateTaskCreation(
-    request: CreateTaskRequest,
-    userId: UserId
-  ): Promise<void> {
+  private async validateTaskCreation(request: CreateTaskRequest, userId: UserId): Promise<void> {
     // Validate project exists if specified
     if (request.projectId) {
       this.logDebug('Validating project access', {
@@ -783,11 +691,7 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
     });
 
     // Send notifications
-    if (
-      request.notifyAssignee &&
-      task.assigneeId &&
-      task.assigneeId !== userId.value
-    ) {
+    if (request.notifyAssignee && task.assigneeId && task.assigneeId !== userId.value) {
       this.logDebug('Sending task assignment notification', {
         assigneeId: task.assigneeId,
         taskId: task.id,
@@ -809,13 +713,8 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
     userId: UserId
   ): Promise<void> {
     // Check permissions
-    if (
-      currentTask.creatorId !== userId.value &&
-      currentTask.assigneeId !== userId.value
-    ) {
-      throw new AuthorizationError(
-        'You do not have permission to update this task'
-      );
+    if (currentTask.creatorId !== userId.value && currentTask.assigneeId !== userId.value) {
+      throw new AuthorizationError('You do not have permission to update this task');
     }
 
     // Validate specific updates
@@ -845,20 +744,14 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
 
     // Send notifications for significant changes
     if (request.notifyChanges) {
-      if (
-        request.updates.assigneeId &&
-        request.updates.assigneeId !== currentTask.assigneeId
-      ) {
+      if (request.updates.assigneeId && request.updates.assigneeId !== currentTask.assigneeId) {
         this.logDebug('Sending task reassignment notification', {
           newAssigneeId: request.updates.assigneeId,
           taskId: updatedTask.id,
         });
       }
 
-      if (
-        request.updates.status &&
-        request.updates.status !== currentTask.status
-      ) {
+      if (request.updates.status && request.updates.status !== currentTask.status) {
         this.logDebug('Sending task status change notification', {
           taskId: updatedTask.id,
           fromStatus: currentTask.status,
@@ -875,9 +768,7 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
   ): Promise<void> {
     // Check permissions
     if (task.assigneeId !== userId.value && task.creatorId !== userId.value) {
-      throw new AuthorizationError(
-        'You do not have permission to manage this task workflow'
-      );
+      throw new AuthorizationError('You do not have permission to manage this task workflow');
     }
 
     // Validate state transitions
@@ -891,10 +782,12 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
 
     const allowedFromStates = validTransitions[action];
     if (allowedFromStates && !allowedFromStates.includes(task.status)) {
-      throw new ValidationError([{
-        field: 'status',
-        message: `Cannot ${action} task from ${task.status} status`
-      }]);
+      throw new ValidationError([
+        {
+          field: 'status',
+          message: `Cannot ${action} task from ${task.status} status`,
+        },
+      ]);
     }
   }
 
@@ -922,12 +815,12 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
 
   private calculateTaskStats(tasks: any[]): TaskInsightsResponse['stats'] {
     const total = tasks.length;
-    const completed = tasks.filter(t => t.status === 'DONE').length;
+    const completed = tasks.filter((t) => t.status === 'DONE').length;
     const overdue = tasks.filter(
-      t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'DONE'
+      (t) => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'DONE'
     ).length;
     const highPriority = tasks.filter(
-      t => t.priority === 'HIGH' || t.priority === 'URGENT'
+      (t) => t.priority === 'HIGH' || t.priority === 'URGENT'
     ).length;
     const completionRate = total > 0 ? completed / total : 0;
 
@@ -957,9 +850,7 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
     const recommendations: string[] = [];
 
     if (stats.overdue > 0) {
-      recommendations.push(
-        `You have ${stats.overdue} overdue tasks that need attention`
-      );
+      recommendations.push(`You have ${stats.overdue} overdue tasks that need attention`);
     }
 
     if (stats.highPriority > stats.total * 0.5) {

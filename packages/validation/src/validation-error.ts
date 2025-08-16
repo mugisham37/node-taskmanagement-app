@@ -1,4 +1,4 @@
-import { AppError } from './app-error';
+import { AppError } from '@taskmanagement/core';
 
 /**
  * Interface for validation error details

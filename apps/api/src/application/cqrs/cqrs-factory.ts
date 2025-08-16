@@ -5,16 +5,17 @@
  * with all handlers, validators, and buses properly configured for the current architecture.
  */
 
-import { CommandBus } from './command-bus';
-import { QueryBus } from './query-bus';
 import {
   CommandValidator,
   ICommandValidator,
-} from './validation/command-validator';
-import { QueryValidator, IQueryValidator } from './validation/query-validator';
-import { ICommandBus } from './command';
-import { IQueryBus } from './query';
+  IQueryValidator,
+  QueryValidator,
+} from '@taskmanagement/validation';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { ICommandBus } from './command';
+import { CommandBus } from './command-bus';
+import { IQueryBus } from './query';
+import { QueryBus } from './query-bus';
 
 export interface CQRSConfiguration {
   enableValidation?: boolean;
@@ -31,10 +32,7 @@ export interface CQRSComponents {
 }
 
 export class CQRSFactory {
-  static create(
-    logger: LoggingService,
-    config: CQRSConfiguration = {}
-  ): CQRSComponents {
+  static create(logger: LoggingService, config: CQRSConfiguration = {}): CQRSComponents {
     // Create buses
     const commandBus = new CommandBus(logger);
     const queryBus = new QueryBus(logger);
@@ -73,14 +71,14 @@ export class CQRSFactory {
   ): void {
     // Register command handlers
     if (handlers.commandHandlers) {
-      handlers.commandHandlers.forEach(handler => {
+      handlers.commandHandlers.forEach((handler) => {
         commandBus.register(handler);
       });
     }
 
     // Register query handlers
     if (handlers.queryHandlers) {
-      handlers.queryHandlers.forEach(handler => {
+      handlers.queryHandlers.forEach((handler) => {
         queryBus.register(handler);
       });
     }
@@ -110,26 +108,16 @@ export class CQRSFactory {
     });
   }
 
-  static getPerformanceMetrics(
-    components: CQRSComponents
-  ): Record<string, any> {
-    const commandMetrics = (
-      components.commandBus as CommandBus
-    ).getPerformanceMetrics();
-    const queryMetrics = (
-      components.queryBus as QueryBus
-    ).getPerformanceMetrics();
+  static getPerformanceMetrics(components: CQRSComponents): Record<string, any> {
+    const commandMetrics = (components.commandBus as CommandBus).getPerformanceMetrics();
+    const queryMetrics = (components.queryBus as QueryBus).getPerformanceMetrics();
 
     return {
       commands: commandMetrics,
       queries: queryMetrics,
       validation: {
-        commandRules: (
-          components.commandValidator as CommandValidator
-        ).getRulesCount(),
-        queryRules: (
-          components.queryValidator as QueryValidator
-        ).getRulesCount(),
+        commandRules: (components.commandValidator as CommandValidator).getRulesCount(),
+        queryRules: (components.queryValidator as QueryValidator).getRulesCount(),
       },
     };
   }

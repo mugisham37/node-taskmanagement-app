@@ -1,9 +1,9 @@
-import { FastifyRequest, FastifyReply, FastifyError } from 'fastify';
+import { ValidationError } from '@taskmanagement/validation';
+import { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { AppError } from '../../shared/errors/app-error';
-import { ValidationError } from '../../shared/errors/validation-error';
-import { NotFoundError } from '../../shared/errors/not-found-error';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { NotFoundError } from '../../shared/errors/not-found-error';
 import { ErrorResponseDto, ValidationErrorResponseDto } from '../dto/error-dto';
 
 export class ErrorHandlerMiddleware {

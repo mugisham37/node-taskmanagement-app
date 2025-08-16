@@ -3,25 +3,22 @@ export { AppError } from './app-error';
 
 // Domain errors
 export {
-  DomainError,
   BusinessRuleViolationError,
-  InvariantViolationError,
+  DomainError,
   InvalidStateTransitionError,
+  InvariantViolationError,
   OperationNotAllowedError,
 } from './domain-error';
 
 // Validation errors
-export {
-  ValidationError,
-  type ValidationErrorDetail,
-} from './validation-error';
+export { ValidationError, type ValidationErrorDetail } from '@taskmanagement/validation';
 
 // Not found errors
 export {
   NotFoundError,
-  UserNotFoundError,
-  TaskNotFoundError,
   ProjectNotFoundError,
+  TaskNotFoundError,
+  UserNotFoundError,
   WorkspaceNotFoundError,
 } from './not-found-error';
 
@@ -31,21 +28,21 @@ export {
   AuthorizationError,
   InsufficientPermissionsError,
   InvalidTokenError,
-  TokenExpiredError,
   MissingTokenError,
+  TokenExpiredError,
 } from './authorization-error';
 
 // Infrastructure errors
 export {
-  InfrastructureError,
-  DatabaseError,
-  DatabaseConnectionError,
-  TransactionError,
-  ExternalServiceError,
   CacheError,
-  EmailError,
-  FileSystemError,
   ConfigurationError,
+  DatabaseConnectionError,
+  DatabaseError,
+  EmailError,
+  ExternalServiceError,
+  FileSystemError,
+  InfrastructureError,
+  TransactionError,
 } from './infrastructure-error';
 
 // Import AppError for type guards

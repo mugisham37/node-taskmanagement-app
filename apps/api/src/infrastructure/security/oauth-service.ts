@@ -5,11 +5,11 @@
  * Supports OAuth 2.0 and OpenID Connect flows
  */
 
-import { LoggingService } from '../monitoring/logging-service';
-import { CacheService } from '../caching/cache-service';
-import { InfrastructureError } from '../../shared/errors/infrastructure-error';
+import { ValidationError } from '@taskmanagement/validation';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { ValidationError } from '../../shared/errors/validation-error';
+import { InfrastructureError } from '../../shared/errors/infrastructure-error';
+import { CacheService } from '../caching/cache-service';
+import { LoggingService } from '../monitoring/logging-service';
 
 export interface OAuthProvider {
   name: string;
@@ -195,13 +195,9 @@ export class OAuthService {
 
       return result;
     } catch (error) {
-      this.logger.error(
-        'Failed to generate authorization URL',
-        error as Error,
-        {
-          provider: request.provider,
-        }
-      );
+      this.logger.error('Failed to generate authorization URL', error as Error, {
+        provider: request.provider,
+      });
       throw new InfrastructureError(
         `Failed to generate authorization URL: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -211,9 +207,7 @@ export class OAuthService {
   /**
    * Exchange authorization code for access token
    */
-  async exchangeCodeForToken(
-    request: TokenExchangeRequest
-  ): Promise<TokenResponse> {
+  async exchangeCodeForToken(request: TokenExchangeRequest): Promise<TokenResponse> {
     try {
       const provider = this.getProvider(request.provider);
 
@@ -253,12 +247,10 @@ export class OAuthService {
 
       if (!response.ok) {
         const errorData = await response.text();
-        throw new AuthorizationError(
-          `Token exchange failed: ${response.status} ${errorData}`
-        );
+        throw new AuthorizationError(`Token exchange failed: ${response.status} ${errorData}`);
       }
 
-      const tokenData = await response.json() as OAuthTokenData;
+      const tokenData = (await response.json()) as OAuthTokenData;
 
       // Clean up state
       await this.removeState(request.state);
@@ -310,9 +302,7 @@ export class OAuthService {
       });
 
       if (!response.ok) {
-        throw new AuthorizationError(
-          `Failed to fetch user info: ${response.status}`
-        );
+        throw new AuthorizationError(`Failed to fetch user info: ${response.status}`);
       }
 
       const userData = await response.json();
@@ -343,10 +333,7 @@ export class OAuthService {
   /**
    * Refresh access token using refresh token
    */
-  async refreshToken(
-    provider: string,
-    refreshToken: string
-  ): Promise<TokenResponse> {
+  async refreshToken(provider: string, refreshToken: string): Promise<TokenResponse> {
     try {
       const providerConfig = this.getProvider(provider);
 
@@ -368,12 +355,10 @@ export class OAuthService {
 
       if (!response.ok) {
         const errorData = await response.text();
-        throw new AuthorizationError(
-          `Token refresh failed: ${response.status} ${errorData}`
-        );
+        throw new AuthorizationError(`Token refresh failed: ${response.status} ${errorData}`);
       }
 
-      const tokenData = await response.json() as OAuthTokenData;
+      const tokenData = (await response.json()) as OAuthTokenData;
 
       const tokenResponse: TokenResponse = {
         accessToken: tokenData.access_token,
@@ -522,24 +507,17 @@ export class OAuthService {
   // Private helper methods
 
   private validateConfig(): void {
-    if (
-      !this.config.providers ||
-      Object.keys(this.config.providers).length === 0
-    ) {
+    if (!this.config.providers || Object.keys(this.config.providers).length === 0) {
       throw new InfrastructureError('No OAuth providers configured');
     }
 
     for (const [name, provider] of Object.entries(this.config.providers)) {
       if (!provider.clientId || !provider.clientSecret) {
-        throw new InfrastructureError(
-          `OAuth provider ${name} missing client credentials`
-        );
+        throw new InfrastructureError(`OAuth provider ${name} missing client credentials`);
       }
 
       if (!provider.authorizationUrl || !provider.tokenUrl) {
-        throw new InfrastructureError(
-          `OAuth provider ${name} missing required URLs`
-        );
+        throw new InfrastructureError(`OAuth provider ${name} missing required URLs`);
       }
     }
   }
@@ -553,15 +531,15 @@ export class OAuthService {
   }
 
   private generateState(): string {
-    return Buffer.from(
-      `${Date.now()}_${Math.random().toString(36).substring(2)}`
-    ).toString('base64url');
+    return Buffer.from(`${Date.now()}_${Math.random().toString(36).substring(2)}`).toString(
+      'base64url'
+    );
   }
 
   private generateNonce(): string {
-    return Buffer.from(
-      `${Date.now()}_${Math.random().toString(36).substring(2)}`
-    ).toString('base64url');
+    return Buffer.from(`${Date.now()}_${Math.random().toString(36).substring(2)}`).toString(
+      'base64url'
+    );
   }
 
   private generateCodeVerifier(): string {
@@ -579,8 +557,7 @@ export class OAuthService {
 
   private async storeState(state: string, data: OAuthState): Promise<void> {
     const key = `oauth-state:${state}`;
-    const ttl =
-      this.config.stateExpiration || this.defaultConfig.stateExpiration!;
+    const ttl = this.config.stateExpiration || this.defaultConfig.stateExpiration!;
     await this.cacheService.set(key, data, { ttl });
   }
 
@@ -695,8 +672,7 @@ export const OAUTH_PROVIDERS = {
   },
 
   microsoft: {
-    authorizationUrl:
-      'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+    authorizationUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
     tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
     userInfoUrl: 'https://graph.microsoft.com/v1.0/me',
     scope: ['openid', 'profile', 'email'],

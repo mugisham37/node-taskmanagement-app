@@ -1,6 +1,6 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyReply, FastifyRequest } from 'fastify';
 import { z, ZodError, ZodSchema } from 'zod';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+// Removed LoggingService import as it will be injected
 
 export interface ValidationOptions {
   sanitize?: boolean;
@@ -10,7 +10,7 @@ export interface ValidationOptions {
 }
 
 export class ComprehensiveValidationMiddleware {
-  constructor(private readonly logger: LoggingService) {}
+  constructor(private readonly logger?: any) {}
 
   /**
    * Create validation middleware for request body
@@ -251,7 +251,7 @@ export class ComprehensiveValidationMiddleware {
           }
         }
       } catch (error) {
-        this.logger.error('File validation error', { error: error.message });
+        this.logger?.error('File validation error', { error: error.message });
         return reply.status(500).send({
           error: {
             code: 'INTERNAL_ERROR',
@@ -298,7 +298,7 @@ export class ComprehensiveValidationMiddleware {
           }
         }
       } catch (error) {
-        this.logger.error('Business rule validation error', {
+        this.logger?.error('Business rule validation error', {
           error: error.message,
         });
         return reply.status(500).send({
@@ -365,7 +365,7 @@ export class ComprehensiveValidationMiddleware {
     reply: FastifyReply,
     source: string
   ): Promise<void> {
-    this.logger.warn('Validation error', {
+    this.logger?.warn('Validation error', {
       source,
       error: error.message,
       issues: error instanceof ZodError ? error.issues : undefined,

@@ -60,11 +60,7 @@ export const WORKSPACE_ROLE_PERMISSIONS = {
 /**
  * Workspace validation constants
  */
-export const WORKSPACE_VALIDATION = {
-  NAME_MIN_LENGTH: 1,
-  NAME_MAX_LENGTH: 255,
-  DESCRIPTION_MAX_LENGTH: 1000,
-} as const;
+
 
 /**
  * Workspace business rules
@@ -75,3 +71,4 @@ export const WORKSPACE_BUSINESS_RULES = {
   MIN_OWNERS_PER_WORKSPACE: 1,
   MAX_OWNERS_PER_WORKSPACE: 5,
 } as const;
+

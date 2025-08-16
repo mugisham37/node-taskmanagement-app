@@ -70,10 +70,7 @@ import {
 } from '../../application/handlers/calendar-command-handlers';
 
 // Query Handlers
-import {
-  GetTaskHandler,
-  ListTasksHandler,
-} from '../../application/handlers/task-query-handlers';
+import { GetTaskHandler, ListTasksHandler } from '../../application/handlers/task-query-handlers';
 
 import {
   GetProjectHandler,
@@ -149,12 +146,12 @@ import { WebhookController } from '../../presentation/controllers/webhook-contro
 import { WorkspaceController } from '../../presentation/controllers/workspace-controller';
 
 // Middleware
+import { ValidationMiddleware } from '@taskmanagement/validation/middleware';
 import { AuthMiddleware } from '../../presentation/middleware/auth-middleware';
 import { CorsMiddleware } from '../../presentation/middleware/cors-middleware';
 import { ErrorHandlerMiddleware } from '../../presentation/middleware/error-handler-middleware';
 import { RateLimitMiddleware } from '../../presentation/middleware/rate-limit-middleware';
 import { SecurityMiddleware } from '../../presentation/middleware/security-middleware';
-import { ValidationMiddleware } from '../../presentation/middleware/validation-middleware';
 
 // Event Handling
 import { DomainEventPublisher } from '@monorepo/domain';
@@ -243,18 +240,16 @@ function registerInfrastructure(container: Container): void {
   // Database
   container.registerFactory(
     SERVICE_TOKENS.DATABASE_CONNECTION,
-    container => {
+    (container) => {
       const config = container.resolve<any>(SERVICE_TOKENS.DATABASE_CONFIG);
       return DatabaseConnection.getInstance(config);
     },
     ServiceLifetime.Singleton
   );
 
-  container.registerScoped(
-    SERVICE_TOKENS.TRANSACTION_MANAGER,
-    TransactionManager,
-    [SERVICE_TOKENS.DATABASE_CONNECTION]
-  );
+  container.registerScoped(SERVICE_TOKENS.TRANSACTION_MANAGER, TransactionManager, [
+    SERVICE_TOKENS.DATABASE_CONNECTION,
+  ]);
 
   container.registerScoped(
     SERVICE_TOKENS.TRANSACTION_INTEGRATION_SERVICE,
@@ -266,21 +261,17 @@ function registerInfrastructure(container: Container): void {
     ]
   );
 
-  container.registerScoped(
-    SERVICE_TOKENS.UNIT_OF_WORK_FACTORY,
-    UnitOfWorkFactory,
-    [
-      SERVICE_TOKENS.TRANSACTION_MANAGER,
-      SERVICE_TOKENS.EVENT_INTEGRATION_SERVICE,
-      SERVICE_TOKENS.LOGGING_SERVICE,
-      SERVICE_TOKENS.METRICS_SERVICE,
-    ]
-  );
+  container.registerScoped(SERVICE_TOKENS.UNIT_OF_WORK_FACTORY, UnitOfWorkFactory, [
+    SERVICE_TOKENS.TRANSACTION_MANAGER,
+    SERVICE_TOKENS.EVENT_INTEGRATION_SERVICE,
+    SERVICE_TOKENS.LOGGING_SERVICE,
+    SERVICE_TOKENS.METRICS_SERVICE,
+  ]);
 
   // Caching
   container.registerFactory(
     SERVICE_TOKENS.CACHE_SERVICE,
-    container => {
+    (container) => {
       const redisConfig = container.resolve<any>(SERVICE_TOKENS.REDIS_CONFIG);
       const redisClient = new RedisClient(redisConfig);
       return new CacheService(redisClient, redisConfig);
@@ -293,15 +284,10 @@ function registerInfrastructure(container: Container): void {
     SERVICE_TOKENS.EMAIL_CONFIG,
   ]);
 
-  container.registerSingleton(
-    SERVICE_TOKENS.WEBSOCKET_SERVICE,
-    WebSocketService
-  );
+  container.registerSingleton(SERVICE_TOKENS.WEBSOCKET_SERVICE, WebSocketService);
 
   // Security Services
-  container.registerSingleton(SERVICE_TOKENS.JWT_SERVICE, JWTService, [
-    SERVICE_TOKENS.JWT_CONFIG,
-  ]);
+  container.registerSingleton(SERVICE_TOKENS.JWT_SERVICE, JWTService, [SERVICE_TOKENS.JWT_CONFIG]);
 
   container.registerFactory(
     SERVICE_TOKENS.PASSWORD_SERVICE,
@@ -330,11 +316,9 @@ function registerInfrastructure(container: Container): void {
 
   container.registerFactory(
     SERVICE_TOKENS.SESSION_MANAGER,
-    container => {
+    (container) => {
       const cacheService = container.resolve(SERVICE_TOKENS.CACHE_SERVICE);
-      const loggingService = container.resolve(
-        SERVICE_TOKENS.LOGGING_SERVICE
-      ) as LoggingService;
+      const loggingService = container.resolve(SERVICE_TOKENS.LOGGING_SERVICE) as LoggingService;
       return new SessionManager(cacheService as any, loggingService);
     },
     ServiceLifetime.Singleton
@@ -342,10 +326,8 @@ function registerInfrastructure(container: Container): void {
 
   container.registerFactory(
     SERVICE_TOKENS.OAUTH_SERVICE,
-    container => {
-      const loggingService = container.resolve(
-        SERVICE_TOKENS.LOGGING_SERVICE
-      ) as LoggingService;
+    (container) => {
+      const loggingService = container.resolve(SERVICE_TOKENS.LOGGING_SERVICE) as LoggingService;
       const cacheService = container.resolve(SERVICE_TOKENS.CACHE_SERVICE);
 
       const oauthConfig = {
@@ -353,14 +335,12 @@ function registerInfrastructure(container: Container): void {
           google: {
             name: 'google',
             clientId: process.env['GOOGLE_CLIENT_ID'] || 'test-client-id',
-            clientSecret:
-              process.env['GOOGLE_CLIENT_SECRET'] || 'test-client-secret',
+            clientSecret: process.env['GOOGLE_CLIENT_SECRET'] || 'test-client-secret',
             authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
             tokenUrl: 'https://oauth2.googleapis.com/token',
             userInfoUrl: 'https://www.googleapis.com/oauth2/v2/userinfo',
             scope: ['openid', 'email', 'profile'],
-            redirectUri:
-              process.env['GOOGLE_CALLBACK_URL'] || '/auth/google/callback',
+            redirectUri: process.env['GOOGLE_CALLBACK_URL'] || '/auth/google/callback',
             responseType: 'code' as const,
             grantType: 'authorization_code' as const,
             pkceEnabled: true,
@@ -368,14 +348,12 @@ function registerInfrastructure(container: Container): void {
           github: {
             name: 'github',
             clientId: process.env['GITHUB_CLIENT_ID'] || 'test-client-id',
-            clientSecret:
-              process.env['GITHUB_CLIENT_SECRET'] || 'test-client-secret',
+            clientSecret: process.env['GITHUB_CLIENT_SECRET'] || 'test-client-secret',
             authorizationUrl: 'https://github.com/login/oauth/authorize',
             tokenUrl: 'https://github.com/login/oauth/access_token',
             userInfoUrl: 'https://api.github.com/user',
             scope: ['user:email'],
-            redirectUri:
-              process.env['GITHUB_CALLBACK_URL'] || '/auth/github/callback',
+            redirectUri: process.env['GITHUB_CALLBACK_URL'] || '/auth/github/callback',
             responseType: 'code' as const,
             grantType: 'authorization_code' as const,
             pkceEnabled: true,
@@ -394,16 +372,10 @@ function registerInfrastructure(container: Container): void {
 
   container.registerFactory(
     SERVICE_TOKENS.TWO_FACTOR_AUTH_SERVICE,
-    container => {
-      const loggingService = container.resolve(
-        SERVICE_TOKENS.LOGGING_SERVICE
-      ) as LoggingService;
-      const cacheService = container.resolve(
-        SERVICE_TOKENS.CACHE_SERVICE
-      ) as CacheService;
-      const emailService = container.resolve(
-        SERVICE_TOKENS.EMAIL_SERVICE
-      ) as EmailService;
+    (container) => {
+      const loggingService = container.resolve(SERVICE_TOKENS.LOGGING_SERVICE) as LoggingService;
+      const cacheService = container.resolve(SERVICE_TOKENS.CACHE_SERVICE) as CacheService;
+      const emailService = container.resolve(SERVICE_TOKENS.EMAIL_SERVICE) as EmailService;
 
       const twoFactorConfig = {
         issuer: 'Task Management System',
@@ -415,26 +387,19 @@ function registerInfrastructure(container: Container): void {
         rateLimitWindow: 300, // 5 minutes
       };
 
-      return new TwoFactorAuthService(
-        loggingService,
-        cacheService,
-        emailService,
-        twoFactorConfig
-      );
+      return new TwoFactorAuthService(loggingService, cacheService, emailService, twoFactorConfig);
     },
     ServiceLifetime.Singleton
   );
 
-  container.registerSingleton(
-    SERVICE_TOKENS.RATE_LIMIT_SERVICE,
-    RateLimitService,
-    [SERVICE_TOKENS.CACHE_SERVICE]
-  );
+  container.registerSingleton(SERVICE_TOKENS.RATE_LIMIT_SERVICE, RateLimitService, [
+    SERVICE_TOKENS.CACHE_SERVICE,
+  ]);
 
   // Monitoring Services
   container.registerFactory(
     SERVICE_TOKENS.LOGGING_SERVICE,
-    container => {
+    (container) => {
       const appConfig = container.resolve<any>(SERVICE_TOKENS.APP_CONFIG);
       return LoggingService.fromAppConfig(appConfig);
     },
@@ -443,7 +408,7 @@ function registerInfrastructure(container: Container): void {
 
   container.registerFactory(
     SERVICE_TOKENS.METRICS_SERVICE,
-    container => {
+    (container) => {
       const appConfig = container.resolve<any>(SERVICE_TOKENS.APP_CONFIG);
       return MetricsService.fromAppConfig(appConfig);
     },
@@ -461,27 +426,21 @@ function registerRepositories(container: Container): void {
     SERVICE_TOKENS.DATABASE_CONNECTION,
   ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.PROJECT_REPOSITORY,
-    ProjectRepository,
-    [SERVICE_TOKENS.DATABASE_CONNECTION]
-  );
+  container.registerScoped(SERVICE_TOKENS.PROJECT_REPOSITORY, ProjectRepository, [
+    SERVICE_TOKENS.DATABASE_CONNECTION,
+  ]);
 
   container.registerScoped(SERVICE_TOKENS.USER_REPOSITORY, UserRepository, [
     SERVICE_TOKENS.DATABASE_CONNECTION,
   ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.WORKSPACE_REPOSITORY,
-    WorkspaceRepository,
-    [SERVICE_TOKENS.DATABASE_CONNECTION]
-  );
+  container.registerScoped(SERVICE_TOKENS.WORKSPACE_REPOSITORY, WorkspaceRepository, [
+    SERVICE_TOKENS.DATABASE_CONNECTION,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.NOTIFICATION_REPOSITORY,
-    NotificationRepository,
-    [SERVICE_TOKENS.DATABASE_CONNECTION]
-  );
+  container.registerScoped(SERVICE_TOKENS.NOTIFICATION_REPOSITORY, NotificationRepository, [
+    SERVICE_TOKENS.DATABASE_CONNECTION,
+  ]);
 
   container.registerScoped(
     SERVICE_TOKENS.NOTIFICATION_PREFERENCES_REPOSITORY,
@@ -489,96 +448,70 @@ function registerRepositories(container: Container): void {
     [SERVICE_TOKENS.DATABASE_CONNECTION]
   );
 
-  container.registerScoped(
-    SERVICE_TOKENS.AUDIT_LOG_REPOSITORY,
-    AuditLogRepository,
-    [SERVICE_TOKENS.DATABASE_CONNECTION]
-  );
+  container.registerScoped(SERVICE_TOKENS.AUDIT_LOG_REPOSITORY, AuditLogRepository, [
+    SERVICE_TOKENS.DATABASE_CONNECTION,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.WEBHOOK_REPOSITORY,
-    WebhookRepository,
-    [SERVICE_TOKENS.DATABASE_CONNECTION]
-  );
+  container.registerScoped(SERVICE_TOKENS.WEBHOOK_REPOSITORY, WebhookRepository, [
+    SERVICE_TOKENS.DATABASE_CONNECTION,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.CALENDAR_EVENT_REPOSITORY,
-    CalendarEventRepository,
-    [SERVICE_TOKENS.DATABASE_CONNECTION]
-  );
+  container.registerScoped(SERVICE_TOKENS.CALENDAR_EVENT_REPOSITORY, CalendarEventRepository, [
+    SERVICE_TOKENS.DATABASE_CONNECTION,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.FILE_ATTACHMENT_REPOSITORY,
-    FileAttachmentRepository,
-    [SERVICE_TOKENS.DATABASE_CONNECTION]
-  );
+  container.registerScoped(SERVICE_TOKENS.FILE_ATTACHMENT_REPOSITORY, FileAttachmentRepository, [
+    SERVICE_TOKENS.DATABASE_CONNECTION,
+  ]);
 }
 
 function registerDomainServices(container: Container): void {
-  container.registerScoped(
-    SERVICE_TOKENS.TASK_DOMAIN_SERVICE,
-    TaskDomainService,
-    [SERVICE_TOKENS.TASK_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.TASK_DOMAIN_SERVICE, TaskDomainService, [
+    SERVICE_TOKENS.TASK_REPOSITORY,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.PROJECT_DOMAIN_SERVICE,
-    ProjectDomainService,
-    [SERVICE_TOKENS.PROJECT_REPOSITORY, SERVICE_TOKENS.USER_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.PROJECT_DOMAIN_SERVICE, ProjectDomainService, [
+    SERVICE_TOKENS.PROJECT_REPOSITORY,
+    SERVICE_TOKENS.USER_REPOSITORY,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.WORKSPACE_DOMAIN_SERVICE,
-    WorkspaceDomainService,
-    [SERVICE_TOKENS.WORKSPACE_REPOSITORY, SERVICE_TOKENS.USER_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.WORKSPACE_DOMAIN_SERVICE, WorkspaceDomainService, [
+    SERVICE_TOKENS.WORKSPACE_REPOSITORY,
+    SERVICE_TOKENS.USER_REPOSITORY,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.NOTIFICATION_DOMAIN_SERVICE,
-    NotificationDomainService,
-    [SERVICE_TOKENS.NOTIFICATION_REPOSITORY, SERVICE_TOKENS.USER_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.NOTIFICATION_DOMAIN_SERVICE, NotificationDomainService, [
+    SERVICE_TOKENS.NOTIFICATION_REPOSITORY,
+    SERVICE_TOKENS.USER_REPOSITORY,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.AUDIT_DOMAIN_SERVICE,
-    AuditDomainService,
-    [SERVICE_TOKENS.AUDIT_LOG_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.AUDIT_DOMAIN_SERVICE, AuditDomainService, [
+    SERVICE_TOKENS.AUDIT_LOG_REPOSITORY,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.WEBHOOK_DOMAIN_SERVICE,
-    WebhookDomainService,
-    [SERVICE_TOKENS.WEBHOOK_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.WEBHOOK_DOMAIN_SERVICE, WebhookDomainService, [
+    SERVICE_TOKENS.WEBHOOK_REPOSITORY,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.CALENDAR_DOMAIN_SERVICE,
-    CalendarDomainService,
-    [SERVICE_TOKENS.CALENDAR_EVENT_REPOSITORY, SERVICE_TOKENS.USER_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.CALENDAR_DOMAIN_SERVICE, CalendarDomainService, [
+    SERVICE_TOKENS.CALENDAR_EVENT_REPOSITORY,
+    SERVICE_TOKENS.USER_REPOSITORY,
+  ]);
 }
 
 function registerApplicationServices(container: Container): void {
-  container.registerScoped(
-    SERVICE_TOKENS.TASK_APPLICATION_SERVICE,
-    TaskApplicationService,
-    [
-      SERVICE_TOKENS.TASK_REPOSITORY,
-      SERVICE_TOKENS.TASK_DOMAIN_SERVICE,
-      SERVICE_TOKENS.DOMAIN_EVENT_PUBLISHER,
-    ]
-  );
+  container.registerScoped(SERVICE_TOKENS.TASK_APPLICATION_SERVICE, TaskApplicationService, [
+    SERVICE_TOKENS.TASK_REPOSITORY,
+    SERVICE_TOKENS.TASK_DOMAIN_SERVICE,
+    SERVICE_TOKENS.DOMAIN_EVENT_PUBLISHER,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.PROJECT_APPLICATION_SERVICE,
-    ProjectApplicationService,
-    [
-      SERVICE_TOKENS.PROJECT_REPOSITORY,
-      SERVICE_TOKENS.PROJECT_DOMAIN_SERVICE,
-      SERVICE_TOKENS.USER_REPOSITORY,
-      SERVICE_TOKENS.DOMAIN_EVENT_PUBLISHER,
-    ]
-  );
+  container.registerScoped(SERVICE_TOKENS.PROJECT_APPLICATION_SERVICE, ProjectApplicationService, [
+    SERVICE_TOKENS.PROJECT_REPOSITORY,
+    SERVICE_TOKENS.PROJECT_DOMAIN_SERVICE,
+    SERVICE_TOKENS.USER_REPOSITORY,
+    SERVICE_TOKENS.DOMAIN_EVENT_PUBLISHER,
+  ]);
 
   container.registerScoped(
     SERVICE_TOKENS.WORKSPACE_APPLICATION_SERVICE,
@@ -606,32 +539,24 @@ function registerApplicationServices(container: Container): void {
     ]
   );
 
-  container.registerScoped(
-    SERVICE_TOKENS.AUTH_APPLICATION_SERVICE,
-    AuthApplicationService,
-    [
-      SERVICE_TOKENS.LOGGING_SERVICE,
-      SERVICE_TOKENS.DOMAIN_EVENT_PUBLISHER,
-      SERVICE_TOKENS.USER_REPOSITORY,
-      SERVICE_TOKENS.JWT_SERVICE,
-      SERVICE_TOKENS.PASSWORD_SERVICE,
-      SERVICE_TOKENS.SESSION_MANAGER,
-      SERVICE_TOKENS.OAUTH_SERVICE,
-      SERVICE_TOKENS.TWO_FACTOR_AUTH_SERVICE,
-      SERVICE_TOKENS.CACHE_SERVICE,
-      SERVICE_TOKENS.EMAIL_SERVICE,
-    ]
-  );
+  container.registerScoped(SERVICE_TOKENS.AUTH_APPLICATION_SERVICE, AuthApplicationService, [
+    SERVICE_TOKENS.LOGGING_SERVICE,
+    SERVICE_TOKENS.DOMAIN_EVENT_PUBLISHER,
+    SERVICE_TOKENS.USER_REPOSITORY,
+    SERVICE_TOKENS.JWT_SERVICE,
+    SERVICE_TOKENS.PASSWORD_SERVICE,
+    SERVICE_TOKENS.SESSION_MANAGER,
+    SERVICE_TOKENS.OAUTH_SERVICE,
+    SERVICE_TOKENS.TWO_FACTOR_AUTH_SERVICE,
+    SERVICE_TOKENS.CACHE_SERVICE,
+    SERVICE_TOKENS.EMAIL_SERVICE,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.WEBHOOK_APPLICATION_SERVICE,
-    WebhookApplicationService,
-    [
-      SERVICE_TOKENS.WEBHOOK_REPOSITORY,
-      SERVICE_TOKENS.WEBHOOK_DOMAIN_SERVICE,
-      SERVICE_TOKENS.DOMAIN_EVENT_PUBLISHER,
-    ]
-  );
+  container.registerScoped(SERVICE_TOKENS.WEBHOOK_APPLICATION_SERVICE, WebhookApplicationService, [
+    SERVICE_TOKENS.WEBHOOK_REPOSITORY,
+    SERVICE_TOKENS.WEBHOOK_DOMAIN_SERVICE,
+    SERVICE_TOKENS.DOMAIN_EVENT_PUBLISHER,
+  ]);
 
   container.registerScoped(
     SERVICE_TOKENS.CALENDAR_APPLICATION_SERVICE,
@@ -650,48 +575,37 @@ function registerApplicationServices(container: Container): void {
 
 function registerCommandHandlers(container: Container): void {
   // Task Command Handlers
-  container.registerScoped(
-    SERVICE_TOKENS.CREATE_TASK_HANDLER,
-    CreateTaskHandler,
-    [SERVICE_TOKENS.TASK_APPLICATION_SERVICE]
-  );
+  container.registerScoped(SERVICE_TOKENS.CREATE_TASK_HANDLER, CreateTaskHandler, [
+    SERVICE_TOKENS.TASK_APPLICATION_SERVICE,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.UPDATE_TASK_HANDLER,
-    UpdateTaskHandler,
-    [SERVICE_TOKENS.TASK_APPLICATION_SERVICE]
-  );
+  container.registerScoped(SERVICE_TOKENS.UPDATE_TASK_HANDLER, UpdateTaskHandler, [
+    SERVICE_TOKENS.TASK_APPLICATION_SERVICE,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.ASSIGN_TASK_HANDLER,
-    AssignTaskHandler,
-    [SERVICE_TOKENS.TASK_APPLICATION_SERVICE]
-  );
+  container.registerScoped(SERVICE_TOKENS.ASSIGN_TASK_HANDLER, AssignTaskHandler, [
+    SERVICE_TOKENS.TASK_APPLICATION_SERVICE,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.COMPLETE_TASK_HANDLER,
-    CompleteTaskHandler,
-    [SERVICE_TOKENS.TASK_APPLICATION_SERVICE]
-  );
+  container.registerScoped(SERVICE_TOKENS.COMPLETE_TASK_HANDLER, CompleteTaskHandler, [
+    SERVICE_TOKENS.TASK_APPLICATION_SERVICE,
+  ]);
 
   // Project Command Handlers
-  container.registerScoped(
-    SERVICE_TOKENS.CREATE_PROJECT_HANDLER,
-    CreateProjectHandler,
-    [SERVICE_TOKENS.PROJECT_REPOSITORY, SERVICE_TOKENS.PROJECT_DOMAIN_SERVICE]
-  );
+  container.registerScoped(SERVICE_TOKENS.CREATE_PROJECT_HANDLER, CreateProjectHandler, [
+    SERVICE_TOKENS.PROJECT_REPOSITORY,
+    SERVICE_TOKENS.PROJECT_DOMAIN_SERVICE,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.UPDATE_PROJECT_HANDLER,
-    UpdateProjectHandler,
-    [SERVICE_TOKENS.PROJECT_REPOSITORY, SERVICE_TOKENS.PROJECT_DOMAIN_SERVICE]
-  );
+  container.registerScoped(SERVICE_TOKENS.UPDATE_PROJECT_HANDLER, UpdateProjectHandler, [
+    SERVICE_TOKENS.PROJECT_REPOSITORY,
+    SERVICE_TOKENS.PROJECT_DOMAIN_SERVICE,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.ADD_PROJECT_MEMBER_HANDLER,
-    AddProjectMemberHandler,
-    [SERVICE_TOKENS.PROJECT_REPOSITORY, SERVICE_TOKENS.USER_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.ADD_PROJECT_MEMBER_HANDLER, AddProjectMemberHandler, [
+    SERVICE_TOKENS.PROJECT_REPOSITORY,
+    SERVICE_TOKENS.USER_REPOSITORY,
+  ]);
 
   container.registerScoped(
     SERVICE_TOKENS.REMOVE_PROJECT_MEMBER_HANDLER,
@@ -700,54 +614,36 @@ function registerCommandHandlers(container: Container): void {
   );
 
   // Workspace Command Handlers
-  container.registerScoped(
-    SERVICE_TOKENS.CREATE_WORKSPACE_HANDLER,
-    CreateWorkspaceHandler,
-    [
-      SERVICE_TOKENS.WORKSPACE_REPOSITORY,
-      SERVICE_TOKENS.WORKSPACE_DOMAIN_SERVICE,
-    ]
-  );
+  container.registerScoped(SERVICE_TOKENS.CREATE_WORKSPACE_HANDLER, CreateWorkspaceHandler, [
+    SERVICE_TOKENS.WORKSPACE_REPOSITORY,
+    SERVICE_TOKENS.WORKSPACE_DOMAIN_SERVICE,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.INVITE_USER_HANDLER,
-    InviteUserHandler,
-    [
-      SERVICE_TOKENS.WORKSPACE_REPOSITORY,
-      SERVICE_TOKENS.USER_REPOSITORY,
-      SERVICE_TOKENS.EMAIL_SERVICE,
-    ]
-  );
+  container.registerScoped(SERVICE_TOKENS.INVITE_USER_HANDLER, InviteUserHandler, [
+    SERVICE_TOKENS.WORKSPACE_REPOSITORY,
+    SERVICE_TOKENS.USER_REPOSITORY,
+    SERVICE_TOKENS.EMAIL_SERVICE,
+  ]);
 
   // User Command Handlers
-  container.registerScoped(
-    SERVICE_TOKENS.REGISTER_USER_HANDLER,
-    RegisterUserHandler,
-    [
-      SERVICE_TOKENS.USER_REPOSITORY,
-      SERVICE_TOKENS.PASSWORD_SERVICE,
-      SERVICE_TOKENS.EMAIL_SERVICE,
-    ]
-  );
+  container.registerScoped(SERVICE_TOKENS.REGISTER_USER_HANDLER, RegisterUserHandler, [
+    SERVICE_TOKENS.USER_REPOSITORY,
+    SERVICE_TOKENS.PASSWORD_SERVICE,
+    SERVICE_TOKENS.EMAIL_SERVICE,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.UPDATE_USER_PROFILE_HANDLER,
-    UpdateUserProfileHandler,
-    [SERVICE_TOKENS.USER_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.UPDATE_USER_PROFILE_HANDLER, UpdateUserProfileHandler, [
+    SERVICE_TOKENS.USER_REPOSITORY,
+  ]);
 
   // Notification Command Handlers
-  container.registerScoped(
-    SERVICE_TOKENS.CREATE_NOTIFICATION_HANDLER,
-    CreateNotificationHandler,
-    [SERVICE_TOKENS.NOTIFICATION_APPLICATION_SERVICE]
-  );
+  container.registerScoped(SERVICE_TOKENS.CREATE_NOTIFICATION_HANDLER, CreateNotificationHandler, [
+    SERVICE_TOKENS.NOTIFICATION_APPLICATION_SERVICE,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.UPDATE_NOTIFICATION_HANDLER,
-    UpdateNotificationHandler,
-    [SERVICE_TOKENS.NOTIFICATION_APPLICATION_SERVICE]
-  );
+  container.registerScoped(SERVICE_TOKENS.UPDATE_NOTIFICATION_HANDLER, UpdateNotificationHandler, [
+    SERVICE_TOKENS.NOTIFICATION_APPLICATION_SERVICE,
+  ]);
 
   container.registerScoped(
     SERVICE_TOKENS.MARK_NOTIFICATION_READ_HANDLER,
@@ -756,36 +652,26 @@ function registerCommandHandlers(container: Container): void {
   );
 
   // Audit Log Command Handlers
-  container.registerScoped(
-    SERVICE_TOKENS.CREATE_AUDIT_LOG_HANDLER,
-    CreateAuditLogHandler,
-    [SERVICE_TOKENS.AUDIT_LOG_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.CREATE_AUDIT_LOG_HANDLER, CreateAuditLogHandler, [
+    SERVICE_TOKENS.AUDIT_LOG_REPOSITORY,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.CLEANUP_AUDIT_LOGS_HANDLER,
-    CleanupAuditLogsHandler,
-    [SERVICE_TOKENS.AUDIT_LOG_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.CLEANUP_AUDIT_LOGS_HANDLER, CleanupAuditLogsHandler, [
+    SERVICE_TOKENS.AUDIT_LOG_REPOSITORY,
+  ]);
 
   // Webhook Command Handlers
-  container.registerScoped(
-    SERVICE_TOKENS.CREATE_WEBHOOK_HANDLER,
-    CreateWebhookHandler,
-    [SERVICE_TOKENS.WEBHOOK_APPLICATION_SERVICE]
-  );
+  container.registerScoped(SERVICE_TOKENS.CREATE_WEBHOOK_HANDLER, CreateWebhookHandler, [
+    SERVICE_TOKENS.WEBHOOK_APPLICATION_SERVICE,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.UPDATE_WEBHOOK_HANDLER,
-    UpdateWebhookHandler,
-    [SERVICE_TOKENS.WEBHOOK_APPLICATION_SERVICE]
-  );
+  container.registerScoped(SERVICE_TOKENS.UPDATE_WEBHOOK_HANDLER, UpdateWebhookHandler, [
+    SERVICE_TOKENS.WEBHOOK_APPLICATION_SERVICE,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.TRIGGER_WEBHOOK_HANDLER,
-    TriggerWebhookHandler,
-    [SERVICE_TOKENS.WEBHOOK_APPLICATION_SERVICE]
-  );
+  container.registerScoped(SERVICE_TOKENS.TRIGGER_WEBHOOK_HANDLER, TriggerWebhookHandler, [
+    SERVICE_TOKENS.WEBHOOK_APPLICATION_SERVICE,
+  ]);
 
   // Calendar Command Handlers
   container.registerScoped(
@@ -813,80 +699,57 @@ function registerQueryHandlers(container: Container): void {
     SERVICE_TOKENS.TASK_REPOSITORY,
   ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.LIST_TASKS_HANDLER,
-    ListTasksHandler,
-    [SERVICE_TOKENS.TASK_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.LIST_TASKS_HANDLER, ListTasksHandler, [
+    SERVICE_TOKENS.TASK_REPOSITORY,
+  ]);
 
   // Project Query Handlers
-  container.registerScoped(
-    SERVICE_TOKENS.GET_PROJECT_HANDLER,
-    GetProjectHandler,
-    [SERVICE_TOKENS.PROJECT_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.GET_PROJECT_HANDLER, GetProjectHandler, [
+    SERVICE_TOKENS.PROJECT_REPOSITORY,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.LIST_PROJECTS_HANDLER,
-    ListProjectsHandler,
-    [SERVICE_TOKENS.PROJECT_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.LIST_PROJECTS_HANDLER, ListProjectsHandler, [
+    SERVICE_TOKENS.PROJECT_REPOSITORY,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.GET_PROJECT_MEMBERS_HANDLER,
-    GetProjectMembersHandler,
-    [SERVICE_TOKENS.PROJECT_REPOSITORY, SERVICE_TOKENS.USER_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.GET_PROJECT_MEMBERS_HANDLER, GetProjectMembersHandler, [
+    SERVICE_TOKENS.PROJECT_REPOSITORY,
+    SERVICE_TOKENS.USER_REPOSITORY,
+  ]);
 
   // Workspace Query Handlers
-  container.registerScoped(
-    SERVICE_TOKENS.GET_WORKSPACE_HANDLER,
-    GetWorkspaceHandler,
-    [SERVICE_TOKENS.WORKSPACE_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.GET_WORKSPACE_HANDLER, GetWorkspaceHandler, [
+    SERVICE_TOKENS.WORKSPACE_REPOSITORY,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.LIST_WORKSPACES_HANDLER,
-    ListWorkspacesHandler,
-    [SERVICE_TOKENS.WORKSPACE_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.LIST_WORKSPACES_HANDLER, ListWorkspacesHandler, [
+    SERVICE_TOKENS.WORKSPACE_REPOSITORY,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.GET_WORKSPACE_STATS_HANDLER,
-    GetWorkspaceStatsHandler,
-    [
-      SERVICE_TOKENS.WORKSPACE_REPOSITORY,
-      SERVICE_TOKENS.PROJECT_REPOSITORY,
-      SERVICE_TOKENS.TASK_REPOSITORY,
-    ]
-  );
+  container.registerScoped(SERVICE_TOKENS.GET_WORKSPACE_STATS_HANDLER, GetWorkspaceStatsHandler, [
+    SERVICE_TOKENS.WORKSPACE_REPOSITORY,
+    SERVICE_TOKENS.PROJECT_REPOSITORY,
+    SERVICE_TOKENS.TASK_REPOSITORY,
+  ]);
 
   // User Query Handlers
   container.registerScoped(SERVICE_TOKENS.GET_USER_HANDLER, GetUserHandler, [
     SERVICE_TOKENS.USER_REPOSITORY,
   ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.LIST_USERS_HANDLER,
-    ListUsersHandler,
-    [SERVICE_TOKENS.USER_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.LIST_USERS_HANDLER, ListUsersHandler, [
+    SERVICE_TOKENS.USER_REPOSITORY,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.GET_USER_PREFERENCES_HANDLER,
-    GetUserPreferencesHandler,
-    [
-      SERVICE_TOKENS.USER_REPOSITORY,
-      SERVICE_TOKENS.NOTIFICATION_PREFERENCES_REPOSITORY,
-    ]
-  );
+  container.registerScoped(SERVICE_TOKENS.GET_USER_PREFERENCES_HANDLER, GetUserPreferencesHandler, [
+    SERVICE_TOKENS.USER_REPOSITORY,
+    SERVICE_TOKENS.NOTIFICATION_PREFERENCES_REPOSITORY,
+  ]);
 
   // Notification Query Handlers
-  container.registerScoped(
-    SERVICE_TOKENS.GET_NOTIFICATIONS_HANDLER,
-    GetNotificationsHandler,
-    [SERVICE_TOKENS.NOTIFICATION_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.GET_NOTIFICATIONS_HANDLER, GetNotificationsHandler, [
+    SERVICE_TOKENS.NOTIFICATION_REPOSITORY,
+  ]);
 
   container.registerScoped(
     SERVICE_TOKENS.GET_NOTIFICATION_PREFERENCES_HANDLER,
@@ -895,11 +758,9 @@ function registerQueryHandlers(container: Container): void {
   );
 
   // Webhook Query Handlers
-  container.registerScoped(
-    SERVICE_TOKENS.GET_WEBHOOKS_HANDLER,
-    GetWebhooksHandler,
-    [SERVICE_TOKENS.WEBHOOK_REPOSITORY]
-  );
+  container.registerScoped(SERVICE_TOKENS.GET_WEBHOOKS_HANDLER, GetWebhooksHandler, [
+    SERVICE_TOKENS.WEBHOOK_REPOSITORY,
+  ]);
 
   container.registerScoped(
     SERVICE_TOKENS.GET_WEBHOOK_DELIVERIES_HANDLER,
@@ -918,25 +779,17 @@ function registerControllers(container: Container): void {
     SERVICE_TOKENS.LIST_TASKS_HANDLER,
   ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.PROJECT_CONTROLLER,
-    ProjectController,
-    [
-      SERVICE_TOKENS.CREATE_PROJECT_HANDLER,
-      SERVICE_TOKENS.UPDATE_PROJECT_HANDLER,
-      SERVICE_TOKENS.ADD_PROJECT_MEMBER_HANDLER,
-      SERVICE_TOKENS.REMOVE_PROJECT_MEMBER_HANDLER,
-    ]
-  );
+  container.registerScoped(SERVICE_TOKENS.PROJECT_CONTROLLER, ProjectController, [
+    SERVICE_TOKENS.CREATE_PROJECT_HANDLER,
+    SERVICE_TOKENS.UPDATE_PROJECT_HANDLER,
+    SERVICE_TOKENS.ADD_PROJECT_MEMBER_HANDLER,
+    SERVICE_TOKENS.REMOVE_PROJECT_MEMBER_HANDLER,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.WORKSPACE_CONTROLLER,
-    WorkspaceController,
-    [
-      SERVICE_TOKENS.CREATE_WORKSPACE_HANDLER,
-      SERVICE_TOKENS.INVITE_USER_HANDLER,
-    ]
-  );
+  container.registerScoped(SERVICE_TOKENS.WORKSPACE_CONTROLLER, WorkspaceController, [
+    SERVICE_TOKENS.CREATE_WORKSPACE_HANDLER,
+    SERVICE_TOKENS.INVITE_USER_HANDLER,
+  ]);
 
   container.registerScoped(SERVICE_TOKENS.USER_CONTROLLER, UserController, [
     SERVICE_TOKENS.UPDATE_USER_PROFILE_HANDLER,
@@ -950,39 +803,27 @@ function registerControllers(container: Container): void {
     SERVICE_TOKENS.USER_REPOSITORY,
   ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.NOTIFICATION_CONTROLLER,
-    NotificationController,
-    [
-      SERVICE_TOKENS.GET_NOTIFICATIONS_HANDLER,
-      SERVICE_TOKENS.CREATE_NOTIFICATION_HANDLER,
-      SERVICE_TOKENS.UPDATE_NOTIFICATION_HANDLER,
-      SERVICE_TOKENS.MARK_NOTIFICATION_READ_HANDLER,
-      SERVICE_TOKENS.GET_NOTIFICATION_PREFERENCES_HANDLER,
-    ]
-  );
+  container.registerScoped(SERVICE_TOKENS.NOTIFICATION_CONTROLLER, NotificationController, [
+    SERVICE_TOKENS.GET_NOTIFICATIONS_HANDLER,
+    SERVICE_TOKENS.CREATE_NOTIFICATION_HANDLER,
+    SERVICE_TOKENS.UPDATE_NOTIFICATION_HANDLER,
+    SERVICE_TOKENS.MARK_NOTIFICATION_READ_HANDLER,
+    SERVICE_TOKENS.GET_NOTIFICATION_PREFERENCES_HANDLER,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.WEBHOOK_CONTROLLER,
-    WebhookController,
-    [
-      SERVICE_TOKENS.GET_WEBHOOKS_HANDLER,
-      SERVICE_TOKENS.CREATE_WEBHOOK_HANDLER,
-      SERVICE_TOKENS.UPDATE_WEBHOOK_HANDLER,
-      SERVICE_TOKENS.TRIGGER_WEBHOOK_HANDLER,
-      SERVICE_TOKENS.GET_WEBHOOK_DELIVERIES_HANDLER,
-    ]
-  );
+  container.registerScoped(SERVICE_TOKENS.WEBHOOK_CONTROLLER, WebhookController, [
+    SERVICE_TOKENS.GET_WEBHOOKS_HANDLER,
+    SERVICE_TOKENS.CREATE_WEBHOOK_HANDLER,
+    SERVICE_TOKENS.UPDATE_WEBHOOK_HANDLER,
+    SERVICE_TOKENS.TRIGGER_WEBHOOK_HANDLER,
+    SERVICE_TOKENS.GET_WEBHOOK_DELIVERIES_HANDLER,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.CALENDAR_CONTROLLER,
-    CalendarController,
-    [
-      SERVICE_TOKENS.CREATE_CALENDAR_EVENT_HANDLER,
-      SERVICE_TOKENS.UPDATE_CALENDAR_EVENT_HANDLER,
-      SERVICE_TOKENS.SCHEDULE_CALENDAR_EVENT_HANDLER,
-    ]
-  );
+  container.registerScoped(SERVICE_TOKENS.CALENDAR_CONTROLLER, CalendarController, [
+    SERVICE_TOKENS.CREATE_CALENDAR_EVENT_HANDLER,
+    SERVICE_TOKENS.UPDATE_CALENDAR_EVENT_HANDLER,
+    SERVICE_TOKENS.SCHEDULE_CALENDAR_EVENT_HANDLER,
+  ]);
 }
 
 function registerMiddleware(container: Container): void {
@@ -992,39 +833,32 @@ function registerMiddleware(container: Container): void {
     SERVICE_TOKENS.LOGGING_SERVICE,
   ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.RATE_LIMIT_MIDDLEWARE,
-    RateLimitMiddleware,
-    [SERVICE_TOKENS.CACHE_SERVICE, SERVICE_TOKENS.LOGGING_SERVICE]
-  );
+  container.registerScoped(SERVICE_TOKENS.RATE_LIMIT_MIDDLEWARE, RateLimitMiddleware, [
+    SERVICE_TOKENS.CACHE_SERVICE,
+    SERVICE_TOKENS.LOGGING_SERVICE,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.VALIDATION_MIDDLEWARE,
-    ValidationMiddleware,
-    [SERVICE_TOKENS.LOGGING_SERVICE]
-  );
+  container.registerScoped(SERVICE_TOKENS.VALIDATION_MIDDLEWARE, ValidationMiddleware, [
+    SERVICE_TOKENS.LOGGING_SERVICE,
+  ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.ERROR_HANDLER_MIDDLEWARE,
-    ErrorHandlerMiddleware,
-    [SERVICE_TOKENS.LOGGING_SERVICE, SERVICE_TOKENS.METRICS_SERVICE]
-  );
+  container.registerScoped(SERVICE_TOKENS.ERROR_HANDLER_MIDDLEWARE, ErrorHandlerMiddleware, [
+    SERVICE_TOKENS.LOGGING_SERVICE,
+    SERVICE_TOKENS.METRICS_SERVICE,
+  ]);
 
   container.registerScoped(SERVICE_TOKENS.CORS_MIDDLEWARE, CorsMiddleware, [
     SERVICE_TOKENS.APP_CONFIG,
   ]);
 
-  container.registerScoped(
-    SERVICE_TOKENS.SECURITY_MIDDLEWARE,
-    SecurityMiddleware,
-    [SERVICE_TOKENS.APP_CONFIG, SERVICE_TOKENS.LOGGING_SERVICE]
-  );
+  container.registerScoped(SERVICE_TOKENS.SECURITY_MIDDLEWARE, SecurityMiddleware, [
+    SERVICE_TOKENS.APP_CONFIG,
+    SERVICE_TOKENS.LOGGING_SERVICE,
+  ]);
 }
 
 function registerEventHandling(container: Container): void {
-  container.registerSingleton(SERVICE_TOKENS.EVENT_BUS, EventBus, [
-    SERVICE_TOKENS.LOGGING_SERVICE,
-  ]);
+  container.registerSingleton(SERVICE_TOKENS.EVENT_BUS, EventBus, [SERVICE_TOKENS.LOGGING_SERVICE]);
 
   container.registerSingleton(SERVICE_TOKENS.DOMAIN_EVENT_BUS, DomainEventBus, [
     SERVICE_TOKENS.LOGGING_SERVICE,
@@ -1036,27 +870,19 @@ function registerEventHandling(container: Container): void {
     ServiceLifetime.Singleton
   );
 
-  container.registerSingleton(
-    SERVICE_TOKENS.APPLICATION_EVENT_HANDLERS,
-    ApplicationEventHandlers,
-    [
-      SERVICE_TOKENS.DOMAIN_EVENT_BUS,
-      SERVICE_TOKENS.NOTIFICATION_APPLICATION_SERVICE,
-      SERVICE_TOKENS.AUDIT_LOG_REPOSITORY,
-    ]
-  );
+  container.registerSingleton(SERVICE_TOKENS.APPLICATION_EVENT_HANDLERS, ApplicationEventHandlers, [
+    SERVICE_TOKENS.DOMAIN_EVENT_BUS,
+    SERVICE_TOKENS.NOTIFICATION_APPLICATION_SERVICE,
+    SERVICE_TOKENS.AUDIT_LOG_REPOSITORY,
+  ]);
 
-  container.registerSingleton(
-    SERVICE_TOKENS.EVENT_INTEGRATION_SERVICE,
-    EventIntegrationService,
-    [
-      SERVICE_TOKENS.DOMAIN_EVENT_BUS,
-      SERVICE_TOKENS.EVENT_BUS,
-      SERVICE_TOKENS.TRANSACTION_MANAGER,
-      SERVICE_TOKENS.LOGGING_SERVICE,
-      SERVICE_TOKENS.METRICS_SERVICE,
-    ]
-  );
+  container.registerSingleton(SERVICE_TOKENS.EVENT_INTEGRATION_SERVICE, EventIntegrationService, [
+    SERVICE_TOKENS.DOMAIN_EVENT_BUS,
+    SERVICE_TOKENS.EVENT_BUS,
+    SERVICE_TOKENS.TRANSACTION_MANAGER,
+    SERVICE_TOKENS.LOGGING_SERVICE,
+    SERVICE_TOKENS.METRICS_SERVICE,
+  ]);
 
   container.registerSingleton(
     SERVICE_TOKENS.EVENT_HANDLER_LIFECYCLE_MANAGER,

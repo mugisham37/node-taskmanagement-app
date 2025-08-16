@@ -71,6 +71,7 @@
     "@taskmanagement/database": "workspace:*",
     "@taskmanagement/config": "workspace:*",
     "@taskmanagement/types": "workspace:*",
+    "@taskmanagement/validation": "workspace:*",
     "@trpc/server": "^10.45.0",
     "@fastify/cors": "^8.4.0",
     "@fastify/helmet": "^11.1.1",

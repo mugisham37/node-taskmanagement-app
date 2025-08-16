@@ -4,14 +4,14 @@
  */
 
 import {
-  TASK_VALIDATION,
-  PROJECT_VALIDATION,
-  USER_VALIDATION,
-  WORKSPACE_VALIDATION,
-  VALIDATION_ERROR_CODES,
-  ERROR_SEVERITY
-} from '../constants';
-import { ValidationError } from '../errors/validation-error';
+    ERROR_SEVERITY,
+    PROJECT_VALIDATION,
+    TASK_VALIDATION,
+    USER_VALIDATION,
+    VALIDATION_ERROR_CODES,
+    WORKSPACE_VALIDATION
+} from './constants';
+import { ValidationError } from './validation-error';
 
 export interface ServiceValidationResult {
   isValid: boolean;

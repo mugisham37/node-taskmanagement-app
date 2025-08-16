@@ -1,17 +1,14 @@
+import { ComprehensiveValidationMiddleware } from '@taskmanagement/validation/middleware';
 import { FastifyInstance } from 'fastify';
-import { DIContainer } from '../shared/container';
 import { LoggingService } from '../infrastructure/monitoring/logging-service';
-import { ComprehensiveValidationMiddleware } from './middleware/comprehensive-validation-middleware';
-import { StandardizedResponseMiddleware } from './middleware/standardized-response-middleware';
+import { DIContainer } from '../shared/container';
 import { setupAPIDocumentation } from './documentation/setup-api-docs';
+import { StandardizedResponseMiddleware } from './middleware/standardized-response-middleware';
 
 /**
  * Setup Phase 7 API completeness features
  */
-export async function setupPhase7API(
-  app: FastifyInstance,
-  container: DIContainer
-): Promise<void> {
+export async function setupPhase7API(app: FastifyInstance, container: DIContainer): Promise<void> {
   const logger = container.resolve('LOGGING_SERVICE') as LoggingService;
 
   logger.info('Setting up Phase 7 API completeness features...');
@@ -195,10 +192,7 @@ async function setupAdditionalAPIFeatures(
 /**
  * Setup API versioning
  */
-async function setupAPIVersioning(
-  app: FastifyInstance,
-  logger: LoggingService
-): Promise<void> {
+async function setupAPIVersioning(app: FastifyInstance, logger: LoggingService): Promise<void> {
   // Add version header to all responses
   app.addHook('onSend', async (_request, reply, payload) => {
     reply.header('API-Version', process.env.API_VERSION || '1.0.0');
@@ -232,16 +226,11 @@ async function setupAPIVersioning(
   ];
 
   app.addHook('preHandler', async (request, reply) => {
-    const isDeprecated = deprecatedEndpoints.some(endpoint =>
-      request.url.startsWith(endpoint)
-    );
+    const isDeprecated = deprecatedEndpoints.some((endpoint) => request.url.startsWith(endpoint));
 
     if (isDeprecated) {
       reply.header('Deprecation', 'true');
-      reply.header(
-        'Sunset',
-        new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
-      );
+      reply.header('Sunset', new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString());
 
       logger.warn('Deprecated endpoint accessed', {
         path: request.url,
@@ -276,8 +265,7 @@ async function setupAPIMonitoring(
   });
 
   app.addHook('onResponse', async (request, reply) => {
-    const responseTime =
-      Date.now() - ((request as any).startTime || Date.now());
+    const responseTime = Date.now() - ((request as any).startTime || Date.now());
 
     logger.info('API request completed', {
       method: request.method,
@@ -312,8 +300,7 @@ async function setupAPIMonitoring(
 
   // Performance monitoring
   app.addHook('onSend', async (request, _reply, payload) => {
-    const responseTime =
-      Date.now() - ((request as any).startTime || Date.now());
+    const responseTime = Date.now() - ((request as any).startTime || Date.now());
 
     // Log slow requests
     if (responseTime > 1000) {
@@ -326,9 +313,7 @@ async function setupAPIMonitoring(
     }
 
     // Track response sizes
-    const responseSize = Buffer.isBuffer(payload)
-      ? payload.length
-      : JSON.stringify(payload).length;
+    const responseSize = Buffer.isBuffer(payload) ? payload.length : JSON.stringify(payload).length;
 
     if (responseSize > 1024 * 1024) {
       // 1MB
@@ -387,9 +372,7 @@ export async function setupAPISecurityEnhancements(
 
   if (allowedIPs.length > 0) {
     app.addHook('preHandler', async (request, reply) => {
-      const isAdminEndpoint = adminEndpoints.some(endpoint =>
-        request.url.startsWith(endpoint)
-      );
+      const isAdminEndpoint = adminEndpoints.some((endpoint) => request.url.startsWith(endpoint));
 
       if (isAdminEndpoint && !allowedIPs.includes(request.ip)) {
         logger.warn('Unauthorized admin access attempt', {
