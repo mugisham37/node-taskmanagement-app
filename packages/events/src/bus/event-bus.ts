@@ -1,5 +1,5 @@
-import { DomainEvent } from '../../domain/events/domain-event';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/core';
+import { DomainEvent } from '@taskmanagement/domain';
 
 export interface IEventHandler<T extends DomainEvent> {
   handle(event: T): Promise<void>;

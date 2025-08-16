@@ -1,9 +1,8 @@
-import { DomainEvent } from '@monorepo/domain';
+import { LoggingService, MetricsService } from '@taskmanagement/core';
 import { TransactionManager } from '@taskmanagement/database';
-import { DomainEventBus } from '../../application/events/domain-event-bus';
-import { EventBus } from '../../application/events/event-bus';
-import { LoggingService } from '../monitoring/logging-service';
-import { MetricsService } from '../monitoring/metrics-service';
+import { DomainEvent } from '@taskmanagement/domain';
+import { DomainEventBus } from '../bus/domain-event-bus';
+import { EventBus } from '../bus/event-bus';
 
 /**
  * Timer interface for measuring operation duration

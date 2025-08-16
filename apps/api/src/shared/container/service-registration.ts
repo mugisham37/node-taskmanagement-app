@@ -116,8 +116,7 @@ import {
   TransactionManager,
   UnitOfWorkFactory,
 } from '@taskmanagement/database';
-import { EventHandlerLifecycleManager } from '../../application/events/event-handler-lifecycle-manager';
-import { EventIntegrationService } from '../../infrastructure/events/event-integration-service';
+import { EventHandlerLifecycleManager, EventIntegrationService } from '@taskmanagement/events';
 import { EmailService } from '../../infrastructure/external-services/email-service';
 import { WebSocketService } from '../../infrastructure/external-services/websocket-service';
 import { HealthService } from '../../infrastructure/monitoring/health-service';
@@ -158,9 +157,7 @@ import { SecurityMiddleware } from '../../presentation/middleware/security-middl
 
 // Event Handling
 import { DomainEventPublisher } from '@monorepo/domain';
-import { ApplicationEventHandlers } from '../../application/events/application-event-handlers';
-import { DomainEventBus } from '../../application/events/domain-event-bus';
-import { EventBus } from '../../application/events/event-bus';
+import { ApplicationEventHandlers, DomainEventBus, EventBus } from '@taskmanagement/events';
 
 // Migration Services
 import { registerMigrationServices } from '../../infrastructure/migration/migration-service-registration';

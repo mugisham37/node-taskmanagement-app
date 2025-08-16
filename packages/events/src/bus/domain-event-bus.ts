@@ -5,10 +5,9 @@
  * advanced features like error handling, retry mechanisms, and performance monitoring.
  */
 
+import { injectable, LoggingService } from '@taskmanagement/core';
+import { DomainEvent } from '@taskmanagement/domain';
 import { PerformanceMonitor } from '@taskmanagement/utils';
-import { DomainEvent } from '../../domain/events/domain-event';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { injectable } from '../../shared/decorators/injectable.decorator';
 
 export interface EventHandler<T extends DomainEvent = DomainEvent> {
   handle(event: T): Promise<void>;

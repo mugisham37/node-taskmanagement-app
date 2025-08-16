@@ -119,7 +119,7 @@
   - Use PowerShell to update cache imports: `(Get-Content -Path "apps/api/src/**/*.ts" -Raw) -replace 'from ["\']\.\.?/.*?/caching/', 'from "@taskmanagement/cache"' | Set-Content`
   - _Requirements: 1.4, 1.12, 1.14_
 
-- [ ] 12. Extract Events Package from API Using PowerShell Commands
+- [x] 12. Extract Events Package from API Using PowerShell Commands
 
   - Use PowerShell: `New-Item -ItemType Directory -Path "packages/events/src" -Force` and create subdirectories for bus/, handlers/, publishers/, subscribers/, middleware/, serializers/, storage/, replay/, sagas/
   - Use PowerShell: `Move-Item "apps/api/src/infrastructure/events/*" "packages/events/src/" -Force`

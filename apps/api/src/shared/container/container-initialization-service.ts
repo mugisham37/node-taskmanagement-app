@@ -1,6 +1,5 @@
 import { TransactionIntegrationService } from '@taskmanagement/database';
-import { EventHandlerLifecycleManager } from '../../application/events/event-handler-lifecycle-manager';
-import { EventIntegrationService } from '../../infrastructure/events/event-integration-service';
+import { EventHandlerLifecycleManager, EventIntegrationService } from '@taskmanagement/events';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { DIContainer } from './container';
 import { DependencyValidationService } from './dependency-validation-service';

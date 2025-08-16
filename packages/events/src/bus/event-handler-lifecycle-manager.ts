@@ -1,7 +1,6 @@
-import { DomainEvent } from '../../domain/events/domain-event';
+import { LoggingService, MetricsService } from '@taskmanagement/core';
+import { DomainEvent } from '@taskmanagement/domain';
 import { DomainEventBus, EventHandler } from './domain-event-bus';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { MetricsService } from '../../infrastructure/monitoring/metrics-service';
 
 /**
  * Event Handler Lifecycle Manager

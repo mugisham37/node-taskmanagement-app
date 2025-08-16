@@ -1,24 +1,12 @@
+import { CacheService } from '@taskmanagement/cache';
+import { LoggingService } from '@taskmanagement/core';
+import {
+    IProjectRepository, ITaskRepository, IUserRepository, ProjectCreatedEvent,
+    ProjectMemberAddedEvent, TaskAssignedEvent,
+    TaskCompletedEvent, TaskCreatedEvent, TaskStartedEvent, UserActivatedEvent, UserCreatedEvent
+} from '@taskmanagement/domain';
+import { EmailService } from '@taskmanagement/integrations';
 import { IEventHandler } from './event-bus';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { EmailService } from '../../infrastructure/external-services/email-service';
-import { CacheService } from '../../infrastructure/caching/cache-service';
-import { IUserRepository } from '../../domain/repositories/user-repository';
-import { ITaskRepository } from '../../domain/repositories/task-repository';
-import { IProjectRepository } from '../../domain/repositories/project-repository';
-import {
-  TaskCreatedEvent,
-  TaskAssignedEvent,
-  TaskCompletedEvent,
-  TaskStartedEvent,
-} from '../../domain/events/task-events';
-import {
-  ProjectCreatedEvent,
-  ProjectMemberAddedEvent,
-} from '../../domain/events/project-events';
-import {
-  UserCreatedEvent,
-  UserActivatedEvent,
-} from '../../domain/events/user-events';
 
 export class TaskCreatedEventHandler
   implements IEventHandler<TaskCreatedEvent>

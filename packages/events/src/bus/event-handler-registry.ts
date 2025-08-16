@@ -5,10 +5,9 @@
  * enabling automatic registration and discovery of handlers for different event types.
  */
 
+import { injectable, LoggingService } from '@taskmanagement/core';
 import { IDomainEventBus } from './domain-event-bus';
 import { IEventBus } from './event-bus';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { injectable } from '../../shared/decorators/injectable.decorator';
 
 export interface EventHandlerRegistryConfig {
   enableDomainEventHandlers?: boolean;
@@ -404,28 +403,28 @@ export class EventHandlerRegistry {
       // Dynamically import event classes based on type
       switch (eventType) {
         case 'TaskCreated':
-          const { TaskCreatedEvent } = await import('../../domain/events/task-events');
+          const { TaskCreatedEvent } = await import('@taskmanagement/domain');
           return TaskCreatedEvent;
         case 'TaskAssigned':
-          const { TaskAssignedEvent } = await import('../../domain/events/task-events');
+          const { TaskAssignedEvent } = await import('@taskmanagement/domain');
           return TaskAssignedEvent;
         case 'TaskCompleted':
-          const { TaskCompletedEvent } = await import('../../domain/events/task-events');
+          const { TaskCompletedEvent } = await import('@taskmanagement/domain');
           return TaskCompletedEvent;
         case 'TaskStarted':
-          const { TaskStartedEvent } = await import('../../domain/events/task-events');
+          const { TaskStartedEvent } = await import('@taskmanagement/domain');
           return TaskStartedEvent;
         case 'UserCreated':
-          const { UserCreatedEvent } = await import('../../domain/events/user-events');
+          const { UserCreatedEvent } = await import('@taskmanagement/domain');
           return UserCreatedEvent;
         case 'UserActivated':
-          const { UserActivatedEvent } = await import('../../domain/events/user-events');
+          const { UserActivatedEvent } = await import('@taskmanagement/domain');
           return UserActivatedEvent;
         case 'ProjectCreated':
-          const { ProjectCreatedEvent } = await import('../../domain/events/project-events');
+          const { ProjectCreatedEvent } = await import('@taskmanagement/domain');
           return ProjectCreatedEvent;
         case 'ProjectMemberAdded':
-          const { ProjectMemberAddedEvent } = await import('../../domain/events/project-events');
+          const { ProjectMemberAddedEvent } = await import('@taskmanagement/domain');
           return ProjectMemberAddedEvent;
         default:
           return undefined;
