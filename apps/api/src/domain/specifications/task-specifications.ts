@@ -1,4 +1,4 @@
-import { TaskStatus } from '@monorepo/core';
+import { TaskStatus } from '@taskmanagement/core';
 import { Task } from '../entities/task';
 import { User } from '../entities/user';
 import { UserId } from '../value-objects';
@@ -357,3 +357,4 @@ export class TasksNeedingAssignmentSpecification extends Specification<Task> {
     return canBeAssigned.and(isNotAssigned).isSatisfiedBy(task);
   }
 }
+

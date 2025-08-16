@@ -1,4 +1,4 @@
-import { ValidationError } from '@monorepo/core';
+import { ValidationError } from '@taskmanagement/core';
 import { ValueObject } from './value-object';
 
 /**
@@ -10,19 +10,11 @@ export class WebhookId extends ValueObject<string> {
 
   protected validate(value: string): void {
     if (!value) {
-      throw ValidationError.forField(
-        'webhookId',
-        'Webhook ID cannot be empty',
-        value
-      );
+      throw ValidationError.forField('webhookId', 'Webhook ID cannot be empty', value);
     }
 
     if (typeof value !== 'string') {
-      throw ValidationError.forField(
-        'webhookId',
-        'Webhook ID must be a string',
-        value
-      );
+      throw ValidationError.forField('webhookId', 'Webhook ID must be a string', value);
     }
 
     if (!WebhookId.ID_PATTERN.test(value)) {

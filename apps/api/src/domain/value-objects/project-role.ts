@@ -1,8 +1,8 @@
-import { PROJECT_ROLE_PERMISSIONS, ProjectPermission, ProjectRole, ValidationError } from '@monorepo/core';
+import { PROJECT_ROLE_PERMISSIONS, ProjectPermission, ProjectRole, ValidationError } from '@taskmanagement/core';
 import { ValueObject } from './value-object';
 
 // Re-export the enum for convenience
-export { ProjectRole } from '@monorepo/core';
+export { ProjectRole } from '@taskmanagement/core';
 
 /**
  * Project Role value object
@@ -187,3 +187,4 @@ export class ProjectRoleVO extends ValueObject<ProjectRole> {
     }
   }
 }
+

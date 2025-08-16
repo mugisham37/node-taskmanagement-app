@@ -1,4 +1,4 @@
-import { IdGenerator, ValidationError } from '@monorepo/core';
+import { IdGenerator, ValidationError } from '@taskmanagement/core';
 import { ValueObject } from './value-object';
 
 /**
@@ -60,3 +60,4 @@ export class NotificationId extends ValueObject<string> {
     }
   }
 }
+

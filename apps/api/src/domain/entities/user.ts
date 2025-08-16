@@ -1,4 +1,4 @@
-import { DomainError, USER_VALIDATION, UserStatus, ValidationError } from '@monorepo/core';
+import { DomainError, USER_VALIDATION, UserStatus, ValidationError } from '@taskmanagement/core';
 import { Email, UserId, UserStatusVO } from '../value-objects';
 import { BaseEntity } from './base-entity';
 
@@ -412,3 +412,4 @@ export class User extends BaseEntity<UserId> {
     );
   }
 }
+

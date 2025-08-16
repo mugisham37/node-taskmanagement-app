@@ -1,4 +1,4 @@
-import { ProjectStatus } from '@monorepo/core';
+import { ProjectStatus } from '@taskmanagement/core';
 import { Project } from '../entities/project';
 import { Task } from '../entities/task';
 import { User } from '../entities/user';
@@ -418,3 +418,4 @@ export class ProjectsNeedingManagementAttentionSpecification extends Specificati
     );
   }
 }
+

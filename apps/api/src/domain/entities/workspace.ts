@@ -1,4 +1,4 @@
-import { DomainError, ValidationError } from '@monorepo/core';
+import { DomainError, ValidationError } from '@taskmanagement/core';
 import { ProjectId, UserId, WorkspaceId } from '../value-objects';
 import { WorkspacePlan } from '../value-objects/workspace-plan';
 import { BaseEntity } from './base-entity';
@@ -611,3 +611,4 @@ export class Workspace extends BaseEntity<WorkspaceId> {
 }
 
 export { WorkspaceMember } from './workspace-member';
+

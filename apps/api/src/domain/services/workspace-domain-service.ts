@@ -1,4 +1,4 @@
-import { DomainError } from '@monorepo/core';
+import { DomainError } from '@taskmanagement/core';
 import { Project } from '../entities/project';
 import { Workspace, WorkspaceMember, WorkspaceSettings } from '../entities/workspace';
 import { UserId, WorkspaceId } from '../value-objects';
@@ -692,3 +692,4 @@ export class WorkspaceDomainService {
     }).length;
   }
 }
+

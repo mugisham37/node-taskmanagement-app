@@ -1,4 +1,4 @@
-import { ValidationError } from '@monorepo/core';
+import { ValidationError } from '@taskmanagement/core';
 import { ValueObject } from './value-object';
 
 /**
@@ -53,3 +53,4 @@ export class AccountId extends ValueObject<string> {
     }
   }
 }
+

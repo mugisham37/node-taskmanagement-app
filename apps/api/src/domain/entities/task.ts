@@ -1,4 +1,4 @@
-import { DomainError, TASK_VALIDATION, TaskStatus, ValidationError } from '@monorepo/core';
+import { DomainError, TASK_VALIDATION, TaskStatus, ValidationError } from '@taskmanagement/core';
 import {
     Priority,
     ProjectId,
@@ -627,3 +627,4 @@ export class Task extends BaseEntity<TaskId> {
     );
   }
 }
+

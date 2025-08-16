@@ -1,4 +1,4 @@
-import { Status } from '@monorepo/core';
+import { Status } from '@taskmanagement/core';
 import { User } from '../entities/user';
 import { Email, UserId } from '../value-objects';
 
@@ -322,3 +322,4 @@ export interface IUserRepository {
    */
   getUserPreferences(userId: UserId): Promise<any>;
 }
+

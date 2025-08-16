@@ -1,4 +1,4 @@
-import { TaskStatus } from '@monorepo/core';
+import { TaskStatus } from '@taskmanagement/core';
 import { TaskDependency } from '../aggregates/task-aggregate';
 import { Task } from '../entities/task';
 import {
@@ -531,3 +531,4 @@ export class TaskDomainService {
     return false;
   }
 }
+

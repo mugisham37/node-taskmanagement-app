@@ -1,4 +1,4 @@
-import { DomainError } from '@monorepo/core';
+import { DomainError } from '@taskmanagement/core';
 import { CalendarEventId } from '../value-objects/calendar-event-id';
 import { ProjectId } from '../value-objects/project-id';
 import { RecurrenceRule } from '../value-objects/recurrence-rule';
@@ -346,3 +346,4 @@ export class CalendarEvent extends BaseEntity<CalendarEventId> {
     return new CalendarEvent(id, props);
   }
 }
+

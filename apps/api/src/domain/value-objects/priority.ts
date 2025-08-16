@@ -1,4 +1,4 @@
-import { TASK_PRIORITY_WEIGHTS, Priority as TaskPriority, ValidationError } from '@monorepo/core';
+import { TASK_PRIORITY_WEIGHTS, Priority as TaskPriority, ValidationError } from '@taskmanagement/core';
 import { ValueObject } from './value-object';
 
 /**
@@ -152,3 +152,4 @@ export class Priority extends ValueObject<TaskPriority> {
     }
   }
 }
+

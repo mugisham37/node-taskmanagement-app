@@ -1,4 +1,4 @@
-import { ValidationError } from '@monorepo/core';
+import { ValidationError } from '@taskmanagement/core';
 import {
     NotificationId,
     ProjectId,
@@ -551,3 +551,4 @@ export class NotificationPreferences extends BaseEntity<NotificationId> {
     return [];
   }
 }
+

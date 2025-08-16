@@ -1,4 +1,4 @@
-import { ProjectStatus } from '@monorepo/core';
+import { ProjectStatus } from '@taskmanagement/core';
 import { ProjectAggregate } from '../aggregates/project-aggregate';
 import { Project, ProjectMember } from '../entities/project';
 import { ProjectId, UserId, WorkspaceId } from '../value-objects';
@@ -334,3 +334,4 @@ export interface IProjectRepository {
     workspaceId?: WorkspaceId
   ): Promise<Project[]>;
 }
+

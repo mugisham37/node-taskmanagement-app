@@ -1,8 +1,8 @@
-import { PROJECT_STATUS_TRANSITIONS, ProjectStatus, ValidationError } from '@monorepo/core';
+import { PROJECT_STATUS_TRANSITIONS, ProjectStatus, ValidationError } from '@taskmanagement/core';
 import { ValueObject } from './value-object';
 
 // Re-export the enum for convenience
-export { ProjectStatus } from '@monorepo/core';
+export { ProjectStatus } from '@taskmanagement/core';
 
 /**
  * Project Status value object
@@ -160,3 +160,4 @@ export class ProjectStatusVO extends ValueObject<ProjectStatus> {
     }
   }
 }
+

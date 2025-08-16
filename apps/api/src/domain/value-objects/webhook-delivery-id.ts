@@ -1,4 +1,4 @@
-import { ValidationError } from '@monorepo/core';
+import { ValidationError } from '@taskmanagement/core';
 import { nanoid } from 'nanoid';
 import { ValueObject } from './value-object';
 

@@ -1,8 +1,8 @@
-import { TASK_STATUS_TRANSITIONS, TaskStatus, ValidationError } from '@monorepo/core';
+import { TASK_STATUS_TRANSITIONS, TaskStatus, ValidationError } from '@taskmanagement/core';
 import { ValueObject } from './value-object';
 
 // Re-export the enum for convenience
-export { TaskStatus } from '@monorepo/core';
+export { TaskStatus } from '@taskmanagement/core';
 
 /**
  * Task Status value object
@@ -11,11 +11,7 @@ export { TaskStatus } from '@monorepo/core';
 export class TaskStatusVO extends ValueObject<TaskStatus> {
   protected validate(value: TaskStatus): void {
     if (!value) {
-      throw ValidationError.forField(
-        'taskStatus',
-        'Task status cannot be empty',
-        value
-      );
+      throw ValidationError.forField('taskStatus', 'Task status cannot be empty', value);
     }
 
     if (!Object.values(TaskStatus).includes(value)) {

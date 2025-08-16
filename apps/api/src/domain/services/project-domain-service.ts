@@ -1,4 +1,4 @@
-import { IdGenerator, ProjectRole, ProjectStatus } from '@monorepo/core';
+import { IdGenerator, ProjectRole, ProjectStatus } from '@taskmanagement/core';
 import { Project, ProjectMember } from '../entities/project';
 import { Task } from '../entities/task';
 import {
@@ -669,3 +669,4 @@ export class ProjectDomainService {
     });
   }
 }
+

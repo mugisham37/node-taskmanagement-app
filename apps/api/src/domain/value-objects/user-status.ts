@@ -1,4 +1,8 @@
-import { USER_STATUS_TRANSITIONS, Status as UserStatus, ValidationError } from '@monorepo/core';
+import {
+  USER_STATUS_TRANSITIONS,
+  Status as UserStatus,
+  ValidationError,
+} from '@taskmanagement/core';
 import { ValueObject } from './value-object';
 
 /**
@@ -8,11 +12,7 @@ import { ValueObject } from './value-object';
 export class UserStatusVO extends ValueObject<UserStatus> {
   protected validate(value: UserStatus): void {
     if (!value) {
-      throw ValidationError.forField(
-        'userStatus',
-        'User status cannot be empty',
-        value
-      );
+      throw ValidationError.forField('userStatus', 'User status cannot be empty', value);
     }
 
     if (!Object.values(UserStatus).includes(value)) {

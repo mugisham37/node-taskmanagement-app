@@ -1,4 +1,4 @@
-import { USER_VALIDATION, ValidationError } from '@monorepo/core';
+import { USER_VALIDATION, ValidationError } from '@taskmanagement/core';
 import { ValueObject } from './value-object';
 
 /**
@@ -109,3 +109,4 @@ export class Email extends ValueObject<string> {
     return `${local[0]}${'*'.repeat(local.length - 2)}${local[local.length - 1]}@${domain}`;
   }
 }
+

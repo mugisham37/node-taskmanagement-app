@@ -1,4 +1,4 @@
-import { Priority, TaskStatus, UnifiedTaskFilters } from '@monorepo/core';
+import { Priority, TaskStatus, UnifiedTaskFilters } from '@taskmanagement/core';
 import { TaskAggregate, TaskDependency } from '../aggregates/task-aggregate';
 import { Task } from '../entities/task';
 import { ProjectId, TaskId, UserId } from '../value-objects';
@@ -249,3 +249,4 @@ export interface ITaskRepository {
     assigneeId?: UserId
   ): Promise<Task[]>;
 }
+

@@ -1,4 +1,4 @@
-import { DomainError, PROJECT_BUSINESS_RULES, PROJECT_VALIDATION, ProjectRole, ProjectStatus, ValidationError } from '@monorepo/core';
+import { DomainError, PROJECT_BUSINESS_RULES, PROJECT_VALIDATION, ProjectRole, ProjectStatus, ValidationError } from '@taskmanagement/core';
 import { ProjectMemberAddedEvent } from '../events/project-events';
 import {
     ProjectId,
@@ -687,3 +687,4 @@ export class Project extends BaseEntity<ProjectId> {
     return project;
   }
 }
+
