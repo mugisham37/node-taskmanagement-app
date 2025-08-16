@@ -1,9 +1,9 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { JWTService } from './jwt-service';
-import { RateLimitService } from './rate-limit-service';
+import { AuthenticatedRequest } from '@taskmanagement/types/auth';
+import { FastifyReply, FastifyRequest } from 'fastify';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
-import { AuthenticatedRequest } from '../../shared/types/auth-types';
+import { JWTService } from './jwt-service';
+import { RateLimitService } from './rate-limit-service';
 
 export interface AuthMiddlewareConfig {
   jwtService: JWTService;
@@ -47,14 +47,10 @@ export class AuthMiddleware {
         // Apply rate limiting if configured
         if (this.config.rateLimitService) {
           const clientId = this.getClientIdentifier(request);
-          const rateLimitResult = await this.config.rateLimitService.checkLimit(
-            clientId,
-            'auth',
-            {
-              windowMs: 60000, // 1 minute
-              maxRequests: 100, // 100 auth requests per minute
-            }
-          );
+          const rateLimitResult = await this.config.rateLimitService.checkLimit(clientId, 'auth', {
+            windowMs: 60000, // 1 minute
+            maxRequests: 100, // 100 auth requests per minute
+          });
 
           if (!rateLimitResult.allowed) {
             reply.code(429).send({
@@ -119,9 +115,7 @@ export class AuthMiddleware {
 
         // Check if user has required roles
         if (config.requiredRoles && config.requiredRoles.length > 0) {
-          const hasRequiredRole = config.requiredRoles.some(role =>
-            user.roles.includes(role)
-          );
+          const hasRequiredRole = config.requiredRoles.some((role) => user.roles.includes(role));
 
           if (!hasRequiredRole) {
             throw new AuthorizationError(
@@ -131,12 +125,9 @@ export class AuthMiddleware {
         }
 
         // Check if user has required permissions
-        if (
-          config.requiredPermissions &&
-          config.requiredPermissions.length > 0
-        ) {
-          const hasRequiredPermission = config.requiredPermissions.some(
-            permission => user.permissions.includes(permission)
+        if (config.requiredPermissions && config.requiredPermissions.length > 0) {
+          const hasRequiredPermission = config.requiredPermissions.some((permission) =>
+            user.permissions.includes(permission)
           );
 
           if (!hasRequiredPermission) {
@@ -148,24 +139,16 @@ export class AuthMiddleware {
 
         // Check resource-specific permissions
         const resourcePermission = `${config.resource}:${config.action}`;
-        if (
-          !user.permissions.includes(resourcePermission) &&
-          !user.permissions.includes('*:*')
-        ) {
+        if (!user.permissions.includes(resourcePermission) && !user.permissions.includes('*:*')) {
           // Check if user is owner and owner access is allowed
           if (config.allowOwner) {
             const resourceId = this.extractResourceId(request, config.resource);
-            if (
-              resourceId &&
-              (await this.isResourceOwner(user.id, config.resource, resourceId))
-            ) {
+            if (resourceId && (await this.isResourceOwner(user.id, config.resource, resourceId))) {
               return; // Allow access for owner
             }
           }
 
-          throw new AuthorizationError(
-            `Access denied. Missing permission: ${resourcePermission}`
-          );
+          throw new AuthorizationError(`Access denied. Missing permission: ${resourcePermission}`);
         }
       } catch (error) {
         if (error instanceof AuthorizationError) {
@@ -199,9 +182,7 @@ export class AuthMiddleware {
           throw new AuthorizationError('User not authenticated');
         }
 
-        const hasRequiredRole = requiredRoles.some(role =>
-          user.roles.includes(role)
-        );
+        const hasRequiredRole = requiredRoles.some((role) => user.roles.includes(role));
 
         if (!hasRequiredRole) {
           throw new AuthorizationError(
@@ -230,9 +211,7 @@ export class AuthMiddleware {
    * Permission-based authorization middleware
    */
   requirePermission(permissions: string | string[]) {
-    const requiredPermissions = Array.isArray(permissions)
-      ? permissions
-      : [permissions];
+    const requiredPermissions = Array.isArray(permissions) ? permissions : [permissions];
 
     return async (request: FastifyRequest, reply: FastifyReply) => {
       try {
@@ -247,7 +226,7 @@ export class AuthMiddleware {
           return;
         }
 
-        const hasRequiredPermission = requiredPermissions.some(permission =>
+        const hasRequiredPermission = requiredPermissions.some((permission) =>
           user.permissions.includes(permission)
         );
 
@@ -297,16 +276,10 @@ export class AuthMiddleware {
           throw new AuthorizationError('Resource ID not found');
         }
 
-        const isOwner = await this.isResourceOwner(
-          user.id,
-          resource,
-          resourceId
-        );
+        const isOwner = await this.isResourceOwner(user.id, resource, resourceId);
 
         if (!isOwner) {
-          throw new AuthorizationError(
-            'Access denied. You must be the owner of this resource'
-          );
+          throw new AuthorizationError('Access denied. You must be the owner of this resource');
         }
       } catch (error) {
         if (error instanceof AuthorizationError) {
@@ -329,10 +302,7 @@ export class AuthMiddleware {
   /**
    * Rate limiting middleware
    */
-  rateLimit(
-    action: string,
-    config?: { windowMs?: number; maxRequests?: number }
-  ) {
+  rateLimit(action: string, config?: { windowMs?: number; maxRequests?: number }) {
     if (!this.config.rateLimitService) {
       throw new InfrastructureError('Rate limit service not configured');
     }
@@ -397,7 +367,7 @@ export class AuthMiddleware {
       return false;
     }
 
-    return this.config.skipPaths.some(skipPath => {
+    return this.config.skipPaths.some((skipPath) => {
       if (skipPath.includes('*')) {
         const regex = new RegExp(skipPath.replace(/\*/g, '.*'));
         return regex.test(path);
@@ -411,7 +381,7 @@ export class AuthMiddleware {
       return false;
     }
 
-    return this.config.optionalPaths.some(optionalPath => {
+    return this.config.optionalPaths.some((optionalPath) => {
       if (optionalPath.includes('*')) {
         const regex = new RegExp(optionalPath.replace(/\*/g, '.*'));
         return regex.test(path);
@@ -431,10 +401,7 @@ export class AuthMiddleware {
     return `ip:${request.ip}`;
   }
 
-  private extractResourceId(
-    request: FastifyRequest,
-    resource: string
-  ): string | null {
+  private extractResourceId(request: FastifyRequest, resource: string): string | null {
     // Try to extract resource ID from URL parameters
     const params = request.params as any;
 
@@ -472,9 +439,7 @@ export class AuthMiddleware {
     // - For projects: check if user is the manager or member
     // - For workspaces: check if user is the owner
 
-    console.log(
-      `Checking ownership: user ${userId} for ${resource} ${resourceId}`
-    );
+    console.log(`Checking ownership: user ${userId} for ${resource} ${resourceId}`);
     return false;
   }
 }

@@ -1,12 +1,9 @@
-import { CachedTaskApplicationService } from './CachedTaskApplicationService';
-import { RealtimeIntegrationService } from './RealtimeIntegrationService';
+import { Result } from '@taskmanagement/types/common';
 import { Task } from '../../domain/entities/Task';
 import { User } from '../../domain/entities/User';
-import { Result } from '../../shared/types/Result';
-import {
-  CacheEvict,
-  CachePut,
-} from '../../infrastructure/caching/cache-decorators';
+import { CacheEvict, CachePut } from '../../infrastructure/caching/cache-decorators';
+import { CachedTaskApplicationService } from './CachedTaskApplicationService';
+import { RealtimeIntegrationService } from './RealtimeIntegrationService';
 
 /**
  * Enhanced TaskApplicationService with both caching and real-time capabilities
@@ -41,17 +38,12 @@ export class EnhancedTaskApplicationService extends CachedTaskApplicationService
       // Broadcast real-time update
       const createdByUser = await this.getUserById(params.createdBy);
       if (createdByUser) {
-        await this.realtimeService.broadcastTaskCreated(
-          result.data,
-          createdByUser
-        );
+        await this.realtimeService.broadcastTaskCreated(result.data, createdByUser);
       }
 
       // Invalidate related caches
       await this.cache.invalidateByTag('tasks');
-      await this.cache.invalidateByPattern(
-        `tasks:project:${params.projectId}:*`
-      );
+      await this.cache.invalidateByPattern(`tasks:project:${params.projectId}:*`);
     }
 
     return result;
@@ -90,9 +82,7 @@ export class EnhancedTaskApplicationService extends CachedTaskApplicationService
 
       // Invalidate project-related caches if project changed
       if (params.updates.projectId) {
-        await this.cache.invalidateByPattern(
-          `tasks:project:${params.updates.projectId}:*`
-        );
+        await this.cache.invalidateByPattern(`tasks:project:${params.updates.projectId}:*`);
       }
     }
 
@@ -106,20 +96,14 @@ export class EnhancedTaskApplicationService extends CachedTaskApplicationService
     },
     patterns: ['tasks:list:*', 'tasks:project:*'],
   })
-  async deleteTask(params: {
-    taskId: string;
-    userId: string;
-  }): Promise<Result<void>> {
+  async deleteTask(params: { taskId: string; userId: string }): Promise<Result<void>> {
     const result = await super.deleteTask(params);
 
     if (result.isSuccess) {
       // Broadcast real-time update
       const deletedByUser = await this.getUserById(params.userId);
       if (deletedByUser) {
-        await this.realtimeService.broadcastTaskDeleted(
-          params.taskId,
-          deletedByUser
-        );
+        await this.realtimeService.broadcastTaskDeleted(params.taskId, deletedByUser);
       }
     }
 
@@ -149,12 +133,7 @@ export class EnhancedTaskApplicationService extends CachedTaskApplicationService
 
     const result = await super.updateTaskStatus(params);
 
-    if (
-      result.isSuccess &&
-      result.data &&
-      currentTaskResult.isSuccess &&
-      currentTaskResult.data
-    ) {
+    if (result.isSuccess && result.data && currentTaskResult.isSuccess && currentTaskResult.data) {
       // Broadcast real-time update
       const changedByUser = await this.getUserById(params.userId);
       if (changedByUser) {
@@ -198,9 +177,7 @@ export class EnhancedTaskApplicationService extends CachedTaskApplicationService
       }
 
       // Invalidate assignee-related caches
-      await this.cache.invalidateByPattern(
-        `tasks:*:user:${params.assigneeId}:*`
-      );
+      await this.cache.invalidateByPattern(`tasks:*:user:${params.assigneeId}:*`);
     }
 
     return result;
@@ -265,7 +242,7 @@ export class EnhancedTaskApplicationService extends CachedTaskApplicationService
       });
 
       if (tasksResult.isSuccess && tasksResult.data) {
-        const cachePromises = tasksResult.data.map(task =>
+        const cachePromises = tasksResult.data.map((task) =>
           this.getTaskById({ taskId: task.id, userId })
         );
         await Promise.allSettled(cachePromises);

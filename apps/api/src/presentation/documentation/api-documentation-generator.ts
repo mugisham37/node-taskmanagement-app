@@ -1,12 +1,11 @@
+import {
+  EnvironmentUtils,
+  PostmanOperation,
+  isPostmanOperation,
+} from '@taskmanagement/types/common';
 import { FastifyInstance } from 'fastify';
 import { ZodSchema } from 'zod';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { EnvironmentUtils } from '../../shared/types/environment';
-import { 
-  PostmanOperation,
-  isPostmanOperation 
-} from '../../shared/types/documentation';
-import '../../shared/types/environment';
 
 export interface APIEndpoint {
   method: string;
@@ -343,14 +342,7 @@ export class APIDocumentationGenerator {
           hasNext: { type: 'boolean' },
           hasPrevious: { type: 'boolean' },
         },
-        required: [
-          'page',
-          'limit',
-          'total',
-          'totalPages',
-          'hasNext',
-          'hasPrevious',
-        ],
+        required: ['page', 'limit', 'total', 'totalPages', 'hasNext', 'hasPrevious'],
       },
       PerformanceMeta: {
         type: 'object',
@@ -909,8 +901,7 @@ export class APIDocumentationGenerator {
         name: spec.info.title,
         description: spec.info.description,
         version: spec.info.version,
-        schema:
-          'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
+        schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
       },
       auth: {
         type: 'bearer',
@@ -954,7 +945,7 @@ export class APIDocumentationGenerator {
         }
 
         const operation = operationData as PostmanOperation;
-        
+
         const item = {
           name: operation.summary || `${method.toUpperCase()} ${path}`,
           request: {
@@ -979,8 +970,7 @@ export class APIDocumentationGenerator {
 
         // Add request body if present
         if (operation.requestBody) {
-          const jsonContent =
-            operation.requestBody.content?.['application/json'];
+          const jsonContent = operation.requestBody.content?.['application/json'];
           if (jsonContent?.example) {
             item.request.body = {
               mode: 'raw',

@@ -1,12 +1,8 @@
-import { TaskApplicationService } from './TaskApplicationService';
-import { MultiLayerCache } from '../../infrastructure/caching/multi-layer-cache';
-import {
-  Cacheable,
-  CacheEvict,
-  CachePut,
-} from '../../infrastructure/caching/cache-decorators';
+import { Result } from '@taskmanagement/types/common';
 import { Task } from '../../domain/entities/Task';
-import { Result } from '../../shared/types/Result';
+import { Cacheable, CacheEvict, CachePut } from '../../infrastructure/caching/cache-decorators';
+import { MultiLayerCache } from '../../infrastructure/caching/multi-layer-cache';
+import { TaskApplicationService } from './TaskApplicationService';
 
 /**
  * Enhanced TaskApplicationService with caching capabilities
@@ -44,10 +40,7 @@ export class CachedTaskApplicationService extends TaskApplicationService {
       return `task:${params.taskId}:user:${params.userId}`;
     },
   })
-  async getTaskById(params: {
-    taskId: string;
-    userId: string;
-  }): Promise<Result<Task>> {
+  async getTaskById(params: { taskId: string; userId: string }): Promise<Result<Task>> {
     return super.getTaskById(params);
   }
 
@@ -82,10 +75,7 @@ export class CachedTaskApplicationService extends TaskApplicationService {
     },
     patterns: ['tasks:list:*'], // Invalidate all task lists
   })
-  async deleteTask(params: {
-    taskId: string;
-    userId: string;
-  }): Promise<Result<void>> {
+  async deleteTask(params: { taskId: string; userId: string }): Promise<Result<void>> {
     return super.deleteTask(params);
   }
 
@@ -135,7 +125,7 @@ export class CachedTaskApplicationService extends TaskApplicationService {
 
       if (recentTasksResult.isSuccess && recentTasksResult.data) {
         // Cache each task individually
-        const cachePromises = recentTasksResult.data.map(async task => {
+        const cachePromises = recentTasksResult.data.map(async (task) => {
           const key = `task:${task.id}:user:${userId}`;
           await this.cache.set(key, task, {
             ttl: 600,

@@ -1,8 +1,8 @@
+import '@taskmanagement/types/common';
+import { EnvironmentUtils } from '@taskmanagement/types/common';
 import { FastifyInstance } from 'fastify';
-import { APIDocumentationGenerator } from './api-documentation-generator';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { EnvironmentUtils } from '../../shared/types/environment';
-import '../../shared/types/environment';
+import { APIDocumentationGenerator } from './api-documentation-generator';
 
 /**
  * Setup comprehensive API documentation
@@ -52,10 +52,7 @@ export async function setupAPIDocumentation(
 
     const fs = require('fs');
     const postmanCollection = docGenerator.generatePostmanCollection();
-    fs.writeFileSync(
-      './docs/postman-collection.json',
-      JSON.stringify(postmanCollection, null, 2)
-    );
+    fs.writeFileSync('./docs/postman-collection.json', JSON.stringify(postmanCollection, null, 2));
   }
 
   logger.info('API documentation setup completed');
@@ -179,9 +176,7 @@ function registerTaskEndpoints(docGenerator: APIDocumentationGenerator): void {
     summary: 'Update a task',
     description: 'Update an existing task by ID',
     tags: ['Tasks'],
-    parameters: [
-      { $ref: '#/components/parameters/IdParam' }
-    ],
+    parameters: [{ $ref: '#/components/parameters/IdParam' }],
     requestBody: {
       required: true,
       content: {
@@ -206,9 +201,7 @@ function registerTaskEndpoints(docGenerator: APIDocumentationGenerator): void {
     summary: 'Delete a task',
     description: 'Delete a task by ID',
     tags: ['Tasks'],
-    parameters: [
-      { $ref: '#/components/parameters/IdParam' }
-    ],
+    parameters: [{ $ref: '#/components/parameters/IdParam' }],
     responses: {
       '204': { $ref: '#/components/responses/NoContent' },
       '401': { $ref: '#/components/responses/Unauthorized' },
@@ -221,9 +214,7 @@ function registerTaskEndpoints(docGenerator: APIDocumentationGenerator): void {
 /**
  * Register project endpoints
  */
-function registerProjectEndpoints(
-  docGenerator: APIDocumentationGenerator
-): void {
+function registerProjectEndpoints(docGenerator: APIDocumentationGenerator): void {
   docGenerator.registerEndpoint({
     method: 'POST',
     path: '/api/v1/projects',
@@ -281,9 +272,7 @@ function registerProjectEndpoints(
     summary: 'Get project by ID',
     description: 'Retrieve a specific project by its ID',
     tags: ['Projects'],
-    parameters: [
-      { $ref: '#/components/parameters/IdParam' }
-    ],
+    parameters: [{ $ref: '#/components/parameters/IdParam' }],
     responses: {
       '200': { $ref: '#/components/responses/Success' },
       '401': { $ref: '#/components/responses/Unauthorized' },
@@ -352,9 +341,7 @@ function registerUserEndpoints(docGenerator: APIDocumentationGenerator): void {
     summary: 'Update user',
     description: 'Update user information',
     tags: ['Users'],
-    parameters: [
-      { $ref: '#/components/parameters/IdParam' }
-    ],
+    parameters: [{ $ref: '#/components/parameters/IdParam' }],
     requestBody: {
       required: true,
       content: {
@@ -376,9 +363,7 @@ function registerUserEndpoints(docGenerator: APIDocumentationGenerator): void {
 /**
  * Register workspace endpoints
  */
-function registerWorkspaceEndpoints(
-  docGenerator: APIDocumentationGenerator
-): void {
+function registerWorkspaceEndpoints(docGenerator: APIDocumentationGenerator): void {
   docGenerator.registerEndpoint({
     method: 'GET',
     path: '/api/v1/workspaces',
@@ -422,9 +407,7 @@ function registerWorkspaceEndpoints(
 /**
  * Register notification endpoints
  */
-function registerNotificationEndpoints(
-  docGenerator: APIDocumentationGenerator
-): void {
+function registerNotificationEndpoints(docGenerator: APIDocumentationGenerator): void {
   docGenerator.registerEndpoint({
     method: 'GET',
     path: '/api/v1/notifications',
@@ -485,9 +468,7 @@ function registerNotificationEndpoints(
     summary: 'Mark notification as read',
     description: 'Mark a specific notification as read',
     tags: ['Notifications'],
-    parameters: [
-      { $ref: '#/components/parameters/IdParam' }
-    ],
+    parameters: [{ $ref: '#/components/parameters/IdParam' }],
     responses: {
       '200': { $ref: '#/components/responses/Success' },
       '401': { $ref: '#/components/responses/Unauthorized' },
@@ -500,9 +481,7 @@ function registerNotificationEndpoints(
 /**
  * Register webhook endpoints
  */
-function registerWebhookEndpoints(
-  docGenerator: APIDocumentationGenerator
-): void {
+function registerWebhookEndpoints(docGenerator: APIDocumentationGenerator): void {
   docGenerator.registerEndpoint({
     method: 'POST',
     path: '/api/v1/webhooks',
@@ -546,9 +525,7 @@ function registerWebhookEndpoints(
 /**
  * Register analytics endpoints
  */
-function registerAnalyticsEndpoints(
-  docGenerator: APIDocumentationGenerator
-): void {
+function registerAnalyticsEndpoints(docGenerator: APIDocumentationGenerator): void {
   docGenerator.registerEndpoint({
     method: 'GET',
     path: '/api/v1/analytics/dashboard',
@@ -596,9 +573,7 @@ function registerAnalyticsEndpoints(
 /**
  * Register calendar endpoints
  */
-function registerCalendarEndpoints(
-  docGenerator: APIDocumentationGenerator
-): void {
+function registerCalendarEndpoints(docGenerator: APIDocumentationGenerator): void {
   docGenerator.registerEndpoint({
     method: 'GET',
     path: '/api/v1/calendar/events',
@@ -669,9 +644,7 @@ function registerFileEndpoints(docGenerator: APIDocumentationGenerator): void {
     summary: 'Download file',
     description: 'Download a file by ID',
     tags: ['Files'],
-    parameters: [
-      { $ref: '#/components/parameters/IdParam' }
-    ],
+    parameters: [{ $ref: '#/components/parameters/IdParam' }],
     responses: {
       '200': {
         description: 'File content',
@@ -691,9 +664,7 @@ function registerFileEndpoints(docGenerator: APIDocumentationGenerator): void {
 /**
  * Register search endpoints
  */
-function registerSearchEndpoints(
-  docGenerator: APIDocumentationGenerator
-): void {
+function registerSearchEndpoints(docGenerator: APIDocumentationGenerator): void {
   docGenerator.registerEndpoint({
     method: 'GET',
     path: '/api/v1/search',
@@ -728,9 +699,7 @@ function registerSearchEndpoints(
 /**
  * Register collaboration endpoints
  */
-function registerCollaborationEndpoints(
-  docGenerator: APIDocumentationGenerator
-): void {
+function registerCollaborationEndpoints(docGenerator: APIDocumentationGenerator): void {
   docGenerator.registerEndpoint({
     method: 'POST',
     path: '/api/v1/collaboration/comments',
@@ -791,9 +760,7 @@ function registerCollaborationEndpoints(
 /**
  * Register monitoring endpoints
  */
-function registerMonitoringEndpoints(
-  docGenerator: APIDocumentationGenerator
-): void {
+function registerMonitoringEndpoints(docGenerator: APIDocumentationGenerator): void {
   docGenerator.registerEndpoint({
     method: 'GET',
     path: '/api/v1/health',
@@ -846,9 +813,7 @@ function registerMonitoringEndpoints(
 /**
  * Register bulk operation endpoints
  */
-function registerBulkOperationEndpoints(
-  docGenerator: APIDocumentationGenerator
-): void {
+function registerBulkOperationEndpoints(docGenerator: APIDocumentationGenerator): void {
   docGenerator.registerEndpoint({
     method: 'POST',
     path: '/api/v1/bulk/tasks',
@@ -1087,15 +1052,7 @@ function registerCommonSchemas(docGenerator: APIDocumentationGenerator): void {
       createdAt: { type: 'string', format: 'date-time' },
       updatedAt: { type: 'string', format: 'date-time' },
     },
-    required: [
-      'id',
-      'name',
-      'status',
-      'workspaceId',
-      'ownerId',
-      'createdAt',
-      'updatedAt',
-    ],
+    required: ['id', 'name', 'status', 'workspaceId', 'ownerId', 'createdAt', 'updatedAt'],
   });
 
   // User schema
@@ -1120,16 +1077,7 @@ function registerCommonSchemas(docGenerator: APIDocumentationGenerator): void {
       createdAt: { type: 'string', format: 'date-time' },
       updatedAt: { type: 'string', format: 'date-time' },
     },
-    required: [
-      'id',
-      'email',
-      'firstName',
-      'lastName',
-      'role',
-      'status',
-      'createdAt',
-      'updatedAt',
-    ],
+    required: ['id', 'email', 'firstName', 'lastName', 'role', 'status', 'createdAt', 'updatedAt'],
   });
 
   // Notification schema
@@ -1146,15 +1094,7 @@ function registerCommonSchemas(docGenerator: APIDocumentationGenerator): void {
       readAt: { type: 'string', format: 'date-time' },
       createdAt: { type: 'string', format: 'date-time' },
     },
-    required: [
-      'id',
-      'userId',
-      'type',
-      'title',
-      'message',
-      'isRead',
-      'createdAt',
-    ],
+    required: ['id', 'userId', 'type', 'title', 'message', 'isRead', 'createdAt'],
   });
 
   // Request schemas
@@ -1249,7 +1189,13 @@ function registerCommonSchemas(docGenerator: APIDocumentationGenerator): void {
         type: 'array',
         items: {
           type: 'string',
-          enum: ['task.created', 'task.updated', 'task.deleted', 'project.created', 'project.updated'],
+          enum: [
+            'task.created',
+            'task.updated',
+            'task.deleted',
+            'project.created',
+            'project.updated',
+          ],
         },
       },
       secret: { type: 'string' },

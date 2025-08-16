@@ -1,18 +1,18 @@
-import { UserId } from '../../domain/value-objects/user-id';
+import { UserQuery } from '@taskmanagement/types/dto';
 import { User } from '../../domain/entities/user';
 import { IUserRepository } from '../../domain/repositories/user-repository';
+import { UserId } from '../../domain/value-objects/user-id';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { ValidationError } from '../../shared/errors/validation-error';
-import { NotFoundError } from '../../shared/errors/not-found-error';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { UserDto } from './auth-application-service';
-import { UserQuery } from '../../presentation/dto/user-dto';
-import { ICommandBus } from '../cqrs/command';
+import { NotFoundError } from '../../shared/errors/not-found-error';
+import { ValidationError } from '../../shared/errors/validation-error';
 import {
-  UpdateUserProfileCommand,
   ActivateUserCommand,
-  DeactivateUserCommand
+  DeactivateUserCommand,
+  UpdateUserProfileCommand,
 } from '../commands/user-commands';
+import { ICommandBus } from '../cqrs/command';
+import { UserDto } from './auth-application-service';
 
 export interface UpdateUserRequest {
   firstName?: string;
@@ -50,7 +50,10 @@ export class UserApplicationService {
       // Check if current user can view this user's details
       if (currentUserId !== userId) {
         // You might want to add permission checks here
-        this.logger.info('User accessed another user profile', { currentUserId, targetUserId: userId });
+        this.logger.info('User accessed another user profile', {
+          currentUserId,
+          targetUserId: userId,
+        });
       }
 
       return this.mapUserToDto(user);
@@ -71,15 +74,16 @@ export class UserApplicationService {
 
       // Check authorization - users can only update their own profile
       if (currentUserId !== userId) {
-        throw new AuthorizationError('Cannot update another user\'s profile');
+        throw new AuthorizationError("Cannot update another user's profile");
       }
 
       // Use command pattern for user profile update
       const command = new UpdateUserProfileCommand(
         targetUserIdObj,
         currentUserIdObj,
-        updateData.firstName || updateData.lastName ? 
-          `${updateData.firstName || ''} ${updateData.lastName || ''}`.trim() : undefined,
+        updateData.firstName || updateData.lastName
+          ? `${updateData.firstName || ''} ${updateData.lastName || ''}`.trim()
+          : undefined,
         undefined // email not updated in this method
       );
 
@@ -111,7 +115,7 @@ export class UserApplicationService {
         search?: string;
         isActive?: boolean;
       } = {};
-      
+
       if (query.search !== undefined) {
         filters.search = query.search;
       }
@@ -119,10 +123,10 @@ export class UserApplicationService {
         filters.isActive = query.isActive;
       }
 
-      const { users, total } = await this.userRepository.findWithFilters(
-        filters,
-        { offset, limit }
-      );
+      const { users, total } = await this.userRepository.findWithFilters(filters, {
+        offset,
+        limit,
+      });
 
       const userDtos = users.map((user: User) => this.mapUserToDto(user));
 
@@ -198,11 +202,7 @@ export class UserApplicationService {
       const currentUserIdObj = new UserId(currentUserId);
 
       // Use command pattern for user activation
-      const command = new ActivateUserCommand(
-        targetUserIdObj,
-        currentUserIdObj,
-        currentUserIdObj
-      );
+      const command = new ActivateUserCommand(targetUserIdObj, currentUserIdObj, currentUserIdObj);
 
       await this.commandBus.send(command);
 
@@ -223,7 +223,7 @@ export class UserApplicationService {
         search?: string;
         isActive?: boolean;
       } = {};
-      
+
       if (query.search !== undefined) {
         filters.search = query.search;
       }
@@ -231,10 +231,10 @@ export class UserApplicationService {
         filters.isActive = query.isActive;
       }
 
-      const { users, total } = await this.userRepository.findWithFilters(
-        filters,
-        { offset, limit }
-      );
+      const { users, total } = await this.userRepository.findWithFilters(filters, {
+        offset,
+        limit,
+      });
 
       const userDtos = users.map((user: User) => this.mapUserToDto(user));
 
@@ -265,7 +265,10 @@ export class UserApplicationService {
       // Check if current user can view this user's stats
       if (currentUserId !== userId) {
         // You might want to add permission checks here
-        this.logger.info('User accessed another user stats', { currentUserId, targetUserId: userId });
+        this.logger.info('User accessed another user stats', {
+          currentUserId,
+          targetUserId: userId,
+        });
       }
 
       // Return basic user stats (you can extend this based on your requirements)

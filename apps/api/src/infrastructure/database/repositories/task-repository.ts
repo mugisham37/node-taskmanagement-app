@@ -8,6 +8,7 @@ import {
   TaskStatusVO,
   UserId,
 } from '@monorepo/domain';
+import { UnifiedTaskFilters } from '@taskmanagement/types/common';
 import {
   and,
   asc,
@@ -29,7 +30,6 @@ import {
   TaskSortOptions,
 } from '../../../domain/repositories/task-repository';
 import { TaskStatus } from '../../../shared/constants/task-constants';
-import { UnifiedTaskFilters } from '../../../shared/types/task-filters';
 import { getDatabase } from '../connection';
 import { taskDependencies, tasks } from '../schema';
 
@@ -39,23 +39,16 @@ export class TaskRepository implements ITaskRepository {
   }
 
   async findById(id: TaskId): Promise<Task | null> {
-    const result = await this.db
-      .select()
-      .from(tasks)
-      .where(eq(tasks.id, id.value))
-      .limit(1);
+    const result = await this.db.select().from(tasks).where(eq(tasks.id, id.value)).limit(1);
 
     return result.length > 0 ? this.mapToEntity(result[0]) : null;
   }
 
   async findByIds(ids: TaskId[]): Promise<Task[]> {
-    const idValues = ids.map(id => id.value);
-    const result = await this.db
-      .select()
-      .from(tasks)
-      .where(inArray(tasks.id, idValues));
+    const idValues = ids.map((id) => id.value);
+    const result = await this.db.select().from(tasks).where(inArray(tasks.id, idValues));
 
-    return result.map(row => this.mapToEntity(row));
+    return result.map((row) => this.mapToEntity(row));
   }
 
   async findAll(
@@ -73,8 +66,7 @@ export class TaskRepository implements ITaskRepository {
 
     // Build base query components
     const selectClause = this.db.select().from(tasks);
-    const whereClause =
-      whereConditions.length > 0 ? and(...whereConditions) : undefined;
+    const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
     const orderByClause = sort
       ? sort.direction === 'DESC'
         ? desc(tasks[sort.field])
@@ -95,15 +87,12 @@ export class TaskRepository implements ITaskRepository {
     }
 
     // Count total
-    const totalResult = await this.db
-      .select({ count: count() })
-      .from(tasks)
-      .where(whereClause);
+    const totalResult = await this.db.select({ count: count() }).from(tasks).where(whereClause);
 
     const total = totalResult[0]?.count || 0;
 
     return {
-      items: result.map(row => this.mapToEntity(row)),
+      items: result.map((row) => this.mapToEntity(row)),
       total,
       page: pagination?.page || 1,
       limit: pagination?.limit || result.length,
@@ -150,7 +139,7 @@ export class TaskRepository implements ITaskRepository {
     const total = await this.count(projectId, filters);
 
     return {
-      items: result.map(row => this.mapToEntity(row)),
+      items: result.map((row) => this.mapToEntity(row)),
       total,
       page: pagination?.page || 1,
       limit: pagination?.limit || result.length,
@@ -195,15 +184,12 @@ export class TaskRepository implements ITaskRepository {
     }
 
     // Count total
-    const totalResult = await this.db
-      .select({ count: count() })
-      .from(tasks)
-      .where(whereClause);
+    const totalResult = await this.db.select({ count: count() }).from(tasks).where(whereClause);
 
     const total = totalResult[0]?.count || 0;
 
     return {
-      items: result.map(row => this.mapToEntity(row)),
+      items: result.map((row) => this.mapToEntity(row)),
       total,
       page: pagination?.page || 1,
       limit: pagination?.limit || result.length,
@@ -248,15 +234,12 @@ export class TaskRepository implements ITaskRepository {
     }
 
     // Count total
-    const totalResult = await this.db
-      .select({ count: count() })
-      .from(tasks)
-      .where(whereClause);
+    const totalResult = await this.db.select({ count: count() }).from(tasks).where(whereClause);
 
     const total = totalResult[0]?.count || 0;
 
     return {
-      items: result.map(row => this.mapToEntity(row)),
+      items: result.map((row) => this.mapToEntity(row)),
       total,
       page: pagination?.page || 1,
       limit: pagination?.limit || result.length,
@@ -292,23 +275,17 @@ export class TaskRepository implements ITaskRepository {
     let result;
     if (pagination) {
       const offset = (pagination.page - 1) * pagination.limit;
-      result = await selectClause
-        .where(whereClause)
-        .limit(pagination.limit)
-        .offset(offset);
+      result = await selectClause.where(whereClause).limit(pagination.limit).offset(offset);
     } else {
       result = await selectClause.where(whereClause);
     }
 
     // Count total
-    const totalResult = await this.db
-      .select({ count: count() })
-      .from(tasks)
-      .where(whereClause);
+    const totalResult = await this.db.select({ count: count() }).from(tasks).where(whereClause);
     const total = totalResult[0]?.count || 0;
 
     return {
-      items: result.map(row => this.mapToEntity(row)),
+      items: result.map((row) => this.mapToEntity(row)),
       total,
       page: pagination?.page || 1,
       limit: pagination?.limit || result.length,
@@ -347,23 +324,17 @@ export class TaskRepository implements ITaskRepository {
     let result;
     if (pagination) {
       const offset = (pagination.page - 1) * pagination.limit;
-      result = await selectClause
-        .where(whereClause)
-        .limit(pagination.limit)
-        .offset(offset);
+      result = await selectClause.where(whereClause).limit(pagination.limit).offset(offset);
     } else {
       result = await selectClause.where(whereClause);
     }
 
     // Count total
-    const totalResult = await this.db
-      .select({ count: count() })
-      .from(tasks)
-      .where(whereClause);
+    const totalResult = await this.db.select({ count: count() }).from(tasks).where(whereClause);
     const total = totalResult[0]?.count || 0;
 
     return {
-      items: result.map(row => this.mapToEntity(row)),
+      items: result.map((row) => this.mapToEntity(row)),
       total,
       page: pagination?.page || 1,
       limit: pagination?.limit || result.length,
@@ -401,23 +372,17 @@ export class TaskRepository implements ITaskRepository {
     let result;
     if (pagination) {
       const offset = (pagination.page - 1) * pagination.limit;
-      result = await selectClause
-        .where(whereClause)
-        .limit(pagination.limit)
-        .offset(offset);
+      result = await selectClause.where(whereClause).limit(pagination.limit).offset(offset);
     } else {
       result = await selectClause.where(whereClause);
     }
 
     // Count total
-    const totalResult = await this.db
-      .select({ count: count() })
-      .from(tasks)
-      .where(whereClause);
+    const totalResult = await this.db.select({ count: count() }).from(tasks).where(whereClause);
     const total = totalResult[0]?.count || 0;
 
     return {
-      items: result.map(row => this.mapToEntity(row)),
+      items: result.map((row) => this.mapToEntity(row)),
       total,
       page: pagination?.page || 1,
       limit: pagination?.limit || result.length,
@@ -484,9 +449,7 @@ export class TaskRepository implements ITaskRepository {
     const completedResult = await this.db
       .select({ count: count() })
       .from(tasks)
-      .where(
-        and(eq(tasks.projectId, projectId.value), eq(tasks.status, 'COMPLETED'))
-      );
+      .where(and(eq(tasks.projectId, projectId.value), eq(tasks.status, 'COMPLETED')));
     const completed = completedResult[0]?.count || 0;
 
     return {
@@ -504,7 +467,7 @@ export class TaskRepository implements ITaskRepository {
       .from(taskDependencies)
       .where(eq(taskDependencies.taskId, taskId.value));
 
-    return result.map(row => ({
+    return result.map((row) => ({
       taskId: TaskId.create(row.taskId),
       dependsOnId: TaskId.create(row.dependsOnId),
       createdAt: row.createdAt,
@@ -518,7 +481,7 @@ export class TaskRepository implements ITaskRepository {
       .innerJoin(taskDependencies, eq(tasks.id, taskDependencies.taskId))
       .where(eq(taskDependencies.dependsOnId, taskId.value));
 
-    return result.map(row => this.mapToEntity(row.tasks));
+    return result.map((row) => this.mapToEntity(row.tasks));
   }
 
   async save(task: Task): Promise<void> {
@@ -547,7 +510,7 @@ export class TaskRepository implements ITaskRepository {
   async saveMany(taskList: Task[]): Promise<void> {
     if (taskList.length === 0) return;
 
-    const data = taskList.map(task => this.mapFromEntity(task));
+    const data = taskList.map((task) => this.mapFromEntity(task));
 
     await this.db
       .insert(tasks)
@@ -564,19 +527,14 @@ export class TaskRepository implements ITaskRepository {
     // Delete dependencies first
     await this.db
       .delete(taskDependencies)
-      .where(
-        or(
-          eq(taskDependencies.taskId, id.value),
-          eq(taskDependencies.dependsOnId, id.value)
-        )
-      );
+      .where(or(eq(taskDependencies.taskId, id.value), eq(taskDependencies.dependsOnId, id.value)));
 
     // Delete task
     await this.db.delete(tasks).where(eq(tasks.id, id.value));
   }
 
   async deleteMany(ids: TaskId[]): Promise<void> {
-    const idValues = ids.map(id => id.value);
+    const idValues = ids.map((id) => id.value);
 
     // Delete dependencies first
     await this.db
@@ -602,10 +560,7 @@ export class TaskRepository implements ITaskRepository {
     return result.length > 0;
   }
 
-  async count(
-    projectId?: ProjectId,
-    filters?: UnifiedTaskFilters
-  ): Promise<number> {
+  async count(projectId?: ProjectId, filters?: UnifiedTaskFilters): Promise<number> {
     const conditions: any[] = [];
 
     if (projectId) {
@@ -648,10 +603,7 @@ export class TaskRepository implements ITaskRepository {
     });
   }
 
-  async removeTaskDependency(
-    taskId: TaskId,
-    dependsOnId: TaskId
-  ): Promise<void> {
+  async removeTaskDependency(taskId: TaskId, dependsOnId: TaskId): Promise<void> {
     await this.db
       .delete(taskDependencies)
       .where(
@@ -667,14 +619,9 @@ export class TaskRepository implements ITaskRepository {
       .select()
       .from(tasks)
       .leftJoin(taskDependencies, eq(tasks.id, taskDependencies.taskId))
-      .where(
-        and(
-          eq(tasks.projectId, projectId.value),
-          isNull(taskDependencies.taskId)
-        )
-      );
+      .where(and(eq(tasks.projectId, projectId.value), isNull(taskDependencies.taskId)));
 
-    return result.map(row => this.mapToEntity(row.tasks));
+    return result.map((row) => this.mapToEntity(row.tasks));
   }
 
   // Additional placeholder methods
@@ -687,7 +634,7 @@ export class TaskRepository implements ITaskRepository {
   }
 
   async bulkUpdateStatus(taskIds: TaskId[], status: TaskStatus): Promise<void> {
-    const idValues = taskIds.map(id => id.value);
+    const idValues = taskIds.map((id) => id.value);
     await this.db
       .update(tasks)
       .set({ status: status as any, updatedAt: new Date() })
@@ -695,7 +642,7 @@ export class TaskRepository implements ITaskRepository {
   }
 
   async bulkAssignTasks(taskIds: TaskId[], assigneeId: UserId): Promise<void> {
-    const idValues = taskIds.map(id => id.value);
+    const idValues = taskIds.map((id) => id.value);
     await this.db
       .update(tasks)
       .set({ assigneeId: assigneeId.value, updatedAt: new Date() })
@@ -755,10 +702,7 @@ export class TaskRepository implements ITaskRepository {
 
     if (filters.search) {
       conditions.push(
-        or(
-          like(tasks.title, `%${filters.search}%`),
-          like(tasks.description, `%${filters.search}%`)
-        )
+        or(like(tasks.title, `%${filters.search}%`), like(tasks.description, `%${filters.search}%`))
       );
     }
 

@@ -5,20 +5,20 @@
  * like bulk operations, analytics, automation, and enhanced validation.
  */
 
-import { TaskId } from '../../domain/value-objects/task-id';
-import { ProjectId } from '../../domain/value-objects/project-id';
-import { UserId } from '../../domain/value-objects/user-id';
-import { ITaskRepository } from '../../domain/repositories/task-repository';
+import { UnifiedTaskFilters } from '@taskmanagement/types/common';
+import { Task } from '../../domain/entities/task';
 import { IProjectRepository } from '../../domain/repositories/project-repository';
+import { ITaskRepository } from '../../domain/repositories/task-repository';
 import { TaskDomainService } from '../../domain/services/task-domain-service';
+import { ProjectId } from '../../domain/value-objects/project-id';
+import { TaskId } from '../../domain/value-objects/task-id';
+import { UserId } from '../../domain/value-objects/user-id';
+import { CacheService } from '../../infrastructure/caching/cache-service';
 import { TransactionManager } from '../../infrastructure/database/transaction-manager';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { CacheService } from '../../infrastructure/caching/cache-service';
-import { BaseApplicationService } from '../services/base-application-service';
-import { Task } from '../../domain/entities/task';
-import { UnifiedTaskFilters } from '../../shared/types/task-filters';
 import { ValidationError } from '../../shared/errors';
 import { NotFoundError } from '../../shared/errors/not-found-error';
+import { BaseApplicationService } from '../services/base-application-service';
 
 export interface BulkTaskOperation {
   taskIds: TaskId[];
@@ -67,24 +67,24 @@ export class EnhancedTaskUseCases extends BaseApplicationService {
     userId: UserId
   ): Promise<{ success: TaskId[]; failed: TaskId[] }> {
     const timer = this.performanceMonitor.startTimer('bulk_task_operation');
-    
+
     try {
       this.logger.info('Executing bulk task operation', {
         operation: operation.operation,
         taskCount: operation.taskIds.length,
-        userId: userId.value
+        userId: userId.value,
       });
 
       const results = {
         success: [] as TaskId[],
-        failed: [] as TaskId[]
+        failed: [] as TaskId[],
       };
 
       // Process tasks in batches to avoid overwhelming the system
       const batchSize = 10;
       for (let i = 0; i < operation.taskIds.length; i += batchSize) {
         const batch = operation.taskIds.slice(i, i + batchSize);
-        
+
         await this.executeInTransaction(async () => {
           for (const taskId of batch) {
             try {
@@ -93,7 +93,7 @@ export class EnhancedTaskUseCases extends BaseApplicationService {
             } catch (error) {
               this.logger.error('Failed to execute operation on task', error as Error, {
                 taskId: taskId.value,
-                operation: operation.operation
+                operation: operation.operation,
               });
               results.failed.push(taskId);
             }
@@ -110,16 +110,13 @@ export class EnhancedTaskUseCases extends BaseApplicationService {
   /**
    * Get task analytics - simplified implementation
    */
-  async getTaskAnalytics(
-    _filters: UnifiedTaskFilters,
-    userId: UserId
-  ): Promise<TaskAnalytics> {
+  async getTaskAnalytics(_filters: UnifiedTaskFilters, userId: UserId): Promise<TaskAnalytics> {
     const timer = this.performanceMonitor.startTimer('task_analytics');
-    
+
     try {
       const cacheKey = `task_analytics:${userId.value}`;
       const cached = await this.cacheService.get<TaskAnalytics>(cacheKey);
-      
+
       if (cached) {
         return cached;
       }
@@ -132,12 +129,12 @@ export class EnhancedTaskUseCases extends BaseApplicationService {
         tasksByPriority: {},
         tasksByStatus: {},
         averageCompletionTime: 0,
-        productivityTrends: []
+        productivityTrends: [],
       };
 
       // Cache for 15 minutes
       await this.cacheService.set(cacheKey, analytics, 900);
-      
+
       return analytics;
     } finally {
       timer.end();
@@ -147,11 +144,9 @@ export class EnhancedTaskUseCases extends BaseApplicationService {
   /**
    * Auto-assign tasks based on workload and skills
    */
-  async autoAssignTasks(
-    projectId: ProjectId
-  ): Promise<{ assigned: TaskId[]; skipped: TaskId[] }> {
+  async autoAssignTasks(projectId: ProjectId): Promise<{ assigned: TaskId[]; skipped: TaskId[] }> {
     const timer = this.performanceMonitor.startTimer('auto_assign_tasks');
-    
+
     try {
       // Get project
       const project = await this.projectRepository.findById(projectId);
@@ -161,7 +156,7 @@ export class EnhancedTaskUseCases extends BaseApplicationService {
 
       const results = {
         assigned: [] as TaskId[],
-        skipped: [] as TaskId[]
+        skipped: [] as TaskId[],
       };
 
       // Simplified implementation
@@ -174,11 +169,9 @@ export class EnhancedTaskUseCases extends BaseApplicationService {
   /**
    * Generate task recommendations
    */
-  async generateTaskRecommendations(
-    limit: number = 10
-  ): Promise<Task[]> {
+  async generateTaskRecommendations(limit: number = 10): Promise<Task[]> {
     const timer = this.performanceMonitor.startTimer('task_recommendations');
-    
+
     try {
       // Simplified implementation - return empty array for now
       // Use limit parameter
@@ -213,18 +206,22 @@ export class EnhancedTaskUseCases extends BaseApplicationService {
         break;
       case 'reassign':
         if (!operation.data?.assigneeId) {
-          throw new ValidationError([{
-            field: 'assigneeId',
-            message: 'Assignee ID is required for reassign operation'
-          }]);
+          throw new ValidationError([
+            {
+              field: 'assigneeId',
+              message: 'Assignee ID is required for reassign operation',
+            },
+          ]);
         }
         await this.taskDomainService.assignTask(task, operation.data.assigneeId, userId);
         break;
       default:
-        throw new ValidationError([{
-          field: 'operation',
-          message: `Unsupported operation: ${operation.operation}`
-        }]);
+        throw new ValidationError([
+          {
+            field: 'operation',
+            message: `Unsupported operation: ${operation.operation}`,
+          },
+        ]);
     }
   }
 }

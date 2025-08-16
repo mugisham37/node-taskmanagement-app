@@ -70,6 +70,7 @@
     "@taskmanagement/shared": "workspace:*",
     "@taskmanagement/database": "workspace:*",
     "@taskmanagement/config": "workspace:*",
+    "@taskmanagement/types": "workspace:*",
     "@trpc/server": "^10.45.0",
     "@fastify/cors": "^8.4.0",
     "@fastify/helmet": "^11.1.1",

@@ -1,8 +1,8 @@
-import { BaseQuery, PaginationOptions } from './base-query';
-import { TaskId } from '../../domain/value-objects/task-id';
+import { UnifiedTaskFilters } from '@taskmanagement/types/common';
 import { ProjectId } from '../../domain/value-objects/project-id';
+import { TaskId } from '../../domain/value-objects/task-id';
 import { UserId } from '../../domain/value-objects/user-id';
-import { UnifiedTaskFilters } from '../../shared/types/task-filters';
+import { BaseQuery, PaginationOptions } from './base-query';
 
 export type TaskFilters = UnifiedTaskFilters;
 

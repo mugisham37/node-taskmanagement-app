@@ -10,7 +10,13 @@
     "clean": "rimraf dist",
     "type-check": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
-    "lint:fix": "eslint src --ext .ts --fix"
+    "lint:fix": "eslint src --ext .ts --fix",
+    "generate:api": "tsx scripts/generate-api-types.ts",
+    "generate:db": "tsx scripts/generate-db-types.ts",
+    "generate:all": "npm run generate:api && npm run generate:db",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "types",
@@ -30,7 +36,10 @@
     "rimraf": "^5.0.5",
     "eslint": "^8.55.0",
     "@typescript-eslint/eslint-plugin": "^6.14.0",
-    "@typescript-eslint/parser": "^6.14.0"
+    "@typescript-eslint/parser": "^6.14.0",
+    "tsx": "^4.1.4",
+    "vitest": "^1.0.0",
+    "@vitest/coverage-v8": "^1.0.0"
   },
   "files": [
     "dist",

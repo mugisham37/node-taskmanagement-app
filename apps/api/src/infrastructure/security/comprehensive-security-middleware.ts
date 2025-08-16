@@ -5,20 +5,17 @@
  * CSRF protection, CORS configuration, and security audit logging
  */
 
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { LoggingService } from '../monitoring/logging-service';
-import { RateLimitService } from './rate-limit-service';
-import { InputSanitizer } from './input-sanitizer';
-import { AuditLogger } from './audit-logger';
-import { SessionManager } from './session-manager';
-import { JWTService } from './jwt-service';
-import { RBACService } from './rbac-service';
+import { AuthenticatedRequest, SecurityContext } from '@taskmanagement/types/auth';
+import { FastifyReply, FastifyRequest } from 'fastify';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
 import { ValidationError } from '../../shared/errors/validation-error';
-import {
-  AuthenticatedRequest,
-  SecurityContext,
-} from '../../shared/types/auth-types';
+import { LoggingService } from '../monitoring/logging-service';
+import { AuditLogger } from './audit-logger';
+import { InputSanitizer } from './input-sanitizer';
+import { JWTService } from './jwt-service';
+import { RateLimitService } from './rate-limit-service';
+import { RBACService } from './rbac-service';
+import { SessionManager } from './session-manager';
 
 export interface SecurityConfig {
   // Rate limiting
@@ -141,11 +138,7 @@ export class ComprehensiveSecurityMiddleware {
         'X-CSRF-Token',
         'X-API-Key',
       ],
-      exposedHeaders: [
-        'X-RateLimit-Limit',
-        'X-RateLimit-Remaining',
-        'X-RateLimit-Reset',
-      ],
+      exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
       credentials: true,
       maxAge: 86400, // 24 hours
     },
@@ -191,10 +184,7 @@ export class ComprehensiveSecurityMiddleware {
   /**
    * Main security middleware handler
    */
-  handle = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  handle = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     const finalConfig = { ...this.defaultConfig, ...this.config };
     const securityContext = this.createSecurityContext(request);
 
@@ -219,19 +209,12 @@ export class ComprehensiveSecurityMiddleware {
 
       // 4. Input Sanitization
       if (finalConfig.inputSanitization.enabled) {
-        await this.handleInputSanitization(
-          request,
-          finalConfig.inputSanitization
-        );
+        await this.handleInputSanitization(request, finalConfig.inputSanitization);
       }
 
       // 5. CSRF Protection (for state-changing operations)
       if (finalConfig.csrfProtection.enabled) {
-        await this.handleCSRFProtection(
-          request,
-          reply,
-          finalConfig.csrfProtection
-        );
+        await this.handleCSRFProtection(request, reply, finalConfig.csrfProtection);
       }
 
       // 6. Authentication (if token present)
@@ -284,10 +267,7 @@ export class ComprehensiveSecurityMiddleware {
    * Authorization middleware for protected routes
    */
   requireAuth = () => {
-    return async (
-      request: FastifyRequest,
-      _reply: FastifyReply
-    ): Promise<void> => {
+    return async (request: FastifyRequest, _reply: FastifyReply): Promise<void> => {
       const authRequest = request as AuthenticatedRequest;
 
       if (!authRequest.user) {
@@ -305,10 +285,7 @@ export class ComprehensiveSecurityMiddleware {
    * Permission-based authorization middleware
    */
   requirePermission = (resource: string, action: string) => {
-    return async (
-      request: FastifyRequest,
-      _reply: FastifyReply
-    ): Promise<void> => {
+    return async (request: FastifyRequest, _reply: FastifyReply): Promise<void> => {
       const authRequest = request as AuthenticatedRequest;
 
       if (!authRequest.user) {
@@ -369,19 +346,14 @@ export class ComprehensiveSecurityMiddleware {
   requireRole = (roles: string | string[]) => {
     const requiredRoles = Array.isArray(roles) ? roles : [roles];
 
-    return async (
-      request: FastifyRequest,
-      _reply: FastifyReply
-    ): Promise<void> => {
+    return async (request: FastifyRequest, _reply: FastifyReply): Promise<void> => {
       const authRequest = request as AuthenticatedRequest;
 
       if (!authRequest.user) {
         throw new AuthorizationError('Authentication required');
       }
 
-      const hasRequiredRole = requiredRoles.some(role =>
-        authRequest.user!.roles.includes(role)
-      );
+      const hasRequiredRole = requiredRoles.some((role) => authRequest.user!.roles.includes(role));
 
       if (!hasRequiredRole) {
         this.auditLogger.logPermissionDenied({
@@ -394,9 +366,7 @@ export class ComprehensiveSecurityMiddleware {
           requestId: authRequest.securityContext.requestId,
         });
 
-        throw new AuthorizationError(
-          `Access denied. Required roles: ${requiredRoles.join(', ')}`
-        );
+        throw new AuthorizationError(`Access denied. Required roles: ${requiredRoles.join(', ')}`);
       }
 
       this.logger.debug('Role check passed', {
@@ -427,10 +397,7 @@ export class ComprehensiveSecurityMiddleware {
     };
   }
 
-  private setSecurityHeaders(
-    reply: FastifyReply,
-    config: SecurityConfig['securityHeaders']
-  ): void {
+  private setSecurityHeaders(reply: FastifyReply, config: SecurityConfig['securityHeaders']): void {
     if (config.contentSecurityPolicy !== false) {
       reply.header('Content-Security-Policy', config.contentSecurityPolicy);
     }
@@ -476,10 +443,7 @@ export class ComprehensiveSecurityMiddleware {
     // Handle preflight requests
     if (request.method === 'OPTIONS') {
       reply.header('Access-Control-Allow-Methods', config.methods.join(', '));
-      reply.header(
-        'Access-Control-Allow-Headers',
-        config.allowedHeaders.join(', ')
-      );
+      reply.header('Access-Control-Allow-Headers', config.allowedHeaders.join(', '));
       reply.header('Access-Control-Max-Age', config.maxAge.toString());
 
       if (this.isOriginAllowed(origin, config.origin)) {
@@ -502,10 +466,7 @@ export class ComprehensiveSecurityMiddleware {
     }
 
     if (config.exposedHeaders.length > 0) {
-      reply.header(
-        'Access-Control-Expose-Headers',
-        config.exposedHeaders.join(', ')
-      );
+      reply.header('Access-Control-Expose-Headers', config.exposedHeaders.join(', '));
     }
   }
 
@@ -520,11 +481,7 @@ export class ComprehensiveSecurityMiddleware {
     // Check endpoint-specific rate limit
     const endpointConfig = config.perEndpoint[endpoint];
     if (endpointConfig) {
-      const result = await this.rateLimitService.checkLimit(
-        clientId,
-        endpoint,
-        endpointConfig
-      );
+      const result = await this.rateLimitService.checkLimit(clientId, endpoint, endpointConfig);
 
       if (!result.allowed) {
         this.setRateLimitHeaders(reply, result);
@@ -533,11 +490,7 @@ export class ComprehensiveSecurityMiddleware {
     }
 
     // Check global rate limit
-    const globalResult = await this.rateLimitService.checkLimit(
-      clientId,
-      'global',
-      config.global
-    );
+    const globalResult = await this.rateLimitService.checkLimit(clientId, 'global', config.global);
 
     if (!globalResult.allowed) {
       this.setRateLimitHeaders(reply, globalResult);
@@ -562,8 +515,7 @@ export class ComprehensiveSecurityMiddleware {
       if (result.wasModified) {
         request.body = result.sanitized;
         this.logger.warn('Request body was sanitized', {
-          requestId: (request as AuthenticatedRequest).securityContext
-            .requestId,
+          requestId: (request as AuthenticatedRequest).securityContext.requestId,
           wasModified: result.wasModified,
         });
       }
@@ -578,8 +530,7 @@ export class ComprehensiveSecurityMiddleware {
       if (result.wasModified) {
         request.query = result.sanitized;
         this.logger.warn('Query parameters were sanitized', {
-          requestId: (request as AuthenticatedRequest).securityContext
-            .requestId,
+          requestId: (request as AuthenticatedRequest).securityContext.requestId,
         });
       }
     }
@@ -627,9 +578,7 @@ export class ComprehensiveSecurityMiddleware {
       const payload = this.jwtService.verifyAccessToken(token);
 
       // Validate session
-      const sessionResult = await this.sessionManager.validateSession(
-        payload.sessionId
-      );
+      const sessionResult = await this.sessionManager.validateSession(payload.sessionId);
 
       if (!sessionResult.isValid || !sessionResult.session) {
         throw new AuthorizationError('Invalid session');
@@ -648,8 +597,7 @@ export class ComprehensiveSecurityMiddleware {
 
       // Update security context
       (request as AuthenticatedRequest).securityContext.userId = payload.userId;
-      (request as AuthenticatedRequest).securityContext.sessionId =
-        payload.sessionId;
+      (request as AuthenticatedRequest).securityContext.sessionId = payload.sessionId;
     } catch (error) {
       if (error instanceof AuthorizationError) {
         throw error;
@@ -709,18 +657,14 @@ export class ComprehensiveSecurityMiddleware {
     if (allowedOrigins === true) return true;
     if (allowedOrigins === false) return false;
     if (typeof allowedOrigins === 'string') return origin === allowedOrigins;
-    if (Array.isArray(allowedOrigins))
-      return allowedOrigins.includes(origin || '');
+    if (Array.isArray(allowedOrigins)) return allowedOrigins.includes(origin || '');
     return false;
   }
 
   private setRateLimitHeaders(reply: FastifyReply, result: any): void {
     reply.header('X-RateLimit-Limit', result.maxRequests || 100);
     reply.header('X-RateLimit-Remaining', result.remaining || 0);
-    reply.header(
-      'X-RateLimit-Reset',
-      result.resetTime?.getTime() || Date.now()
-    );
+    reply.header('X-RateLimit-Reset', result.resetTime?.getTime() || Date.now());
   }
 
   private extractCSRFToken(
@@ -763,9 +707,9 @@ export class ComprehensiveSecurityMiddleware {
   }
 
   private generateCSRFToken(): string {
-    return Buffer.from(
-      `${Date.now()}_${Math.random().toString(36).substring(2)}`
-    ).toString('base64url');
+    return Buffer.from(`${Date.now()}_${Math.random().toString(36).substring(2)}`).toString(
+      'base64url'
+    );
   }
 
   private setCSRFCookie(
