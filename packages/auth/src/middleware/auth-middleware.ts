@@ -1,9 +1,8 @@
-import { AuthenticatedRequest } from '@taskmanagement/types/auth';
+import { AuthorizationError, InfrastructureError } from '@taskmanagement/core';
+import { AuthenticatedRequest } from '@taskmanagement/types';
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { InfrastructureError } from '../../shared/errors/infrastructure-error';
-import { JWTService } from './jwt-service';
-import { RateLimitService } from './rate-limit-service';
+import { RateLimitService } from '../rate-limit-service';
+import { JWTService } from '../tokens/jwt-service';
 
 export interface AuthMiddlewareConfig {
   jwtService: JWTService;

@@ -1,10 +1,6 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
+import { AuditContext, AuditLogger, InputSanitizer } from '@taskmanagement/auth';
+import { FastifyReply, FastifyRequest } from 'fastify';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { InputSanitizer } from '../../infrastructure/security/input-sanitizer';
-import {
-  AuditLogger,
-  AuditContext,
-} from '../../infrastructure/security/audit-logger';
 
 export interface SecurityOptions {
   contentSecurityPolicy?: string | false;
@@ -49,10 +45,7 @@ export class SecurityMiddleware {
     this.auditLogger = new AuditLogger(logger);
   }
 
-  handle = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  handle = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     const config = { ...this.defaultOptions, ...this.options };
     const auditContext = this.getAuditContext(request);
 
@@ -168,10 +161,7 @@ export class SecurityMiddleware {
     this.checkForXSSInHeaders(request, auditContext);
   }
 
-  private checkForXSSInHeaders(
-    request: FastifyRequest,
-    auditContext: AuditContext
-  ): void {
+  private checkForXSSInHeaders(request: FastifyRequest, auditContext: AuditContext): void {
     const suspiciousPatterns = [
       /<script[^>]*>.*?<\/script>/gi,
       /javascript:/gi,
@@ -185,11 +175,7 @@ export class SecurityMiddleware {
       if (typeof headerValue === 'string') {
         for (const pattern of suspiciousPatterns) {
           if (pattern.test(headerValue)) {
-            this.auditLogger.logXSSAttempt(
-              auditContext,
-              headerValue,
-              `header:${headerName}`
-            );
+            this.auditLogger.logXSSAttempt(auditContext, headerValue, `header:${headerName}`);
             break;
           }
         }

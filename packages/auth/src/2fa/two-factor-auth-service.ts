@@ -5,14 +5,11 @@
  * Supports backup codes and recovery options
  */
 
+import { CacheService } from '@taskmanagement/cache';
+import { AuthorizationError, EmailService, InfrastructureError, LoggingService } from '@taskmanagement/core';
 import { ValidationError } from '@taskmanagement/validation';
 import * as qrcode from 'qrcode';
 import * as speakeasy from 'speakeasy';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { InfrastructureError } from '../../shared/errors/infrastructure-error';
-import { CacheService } from '../caching/cache-service';
-import { EmailService } from '../external-services/email-service';
-import { LoggingService } from '../monitoring/logging-service';
 
 export interface TwoFactorConfig {
   issuer: string;

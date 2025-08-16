@@ -1,6 +1,6 @@
+import { InfrastructureError } from '@taskmanagement/core';
 import { ValidationError } from '@taskmanagement/validation';
 import * as argon2 from 'argon2';
-import { InfrastructureError } from '../../shared/errors/infrastructure-error';
 
 export interface PasswordConfig {
   minLength: number;

@@ -101,6 +101,14 @@ import {
 } from '../../application/handlers/webhook-query-handlers';
 
 // Infrastructure Services
+import {
+  JWTService,
+  OAuthService,
+  PasswordService,
+  RateLimitService,
+  SessionManager,
+  TwoFactorAuthService,
+} from '@taskmanagement/auth';
 import { EventHandlerLifecycleManager } from '../../application/events/event-handler-lifecycle-manager';
 import { CacheService } from '../../infrastructure/caching/cache-service';
 import { RedisClient } from '../../infrastructure/caching/redis-client';
@@ -114,12 +122,6 @@ import { WebSocketService } from '../../infrastructure/external-services/websock
 import { HealthService } from '../../infrastructure/monitoring/health-service';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { MetricsService } from '../../infrastructure/monitoring/metrics-service';
-import { JWTService } from '../../infrastructure/security/jwt-service';
-import { OAuthService } from '../../infrastructure/security/oauth-service';
-import { PasswordService } from '../../infrastructure/security/password-service';
-import { RateLimitService } from '../../infrastructure/security/rate-limit-service';
-import { SessionManager } from '../../infrastructure/security/session-manager';
-import { TwoFactorAuthService } from '../../infrastructure/security/two-factor-auth-service';
 
 // Repositories
 import { AuditLogRepository } from '../../infrastructure/database/repositories/audit-log-repository';

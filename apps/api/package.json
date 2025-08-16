@@ -66,6 +66,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@taskmanagement/auth": "workspace:*",
     "@taskmanagement/core": "workspace:*",
     "@taskmanagement/domain": "workspace:*",
     "@taskmanagement/shared": "workspace:*",

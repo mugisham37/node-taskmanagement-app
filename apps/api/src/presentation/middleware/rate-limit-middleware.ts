@@ -1,9 +1,9 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { RateLimitService } from '../../infrastructure/security/rate-limit-service';
+import { RateLimitService } from '@taskmanagement/auth';
+import { FastifyReply, FastifyRequest } from 'fastify';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { RATE_LIMIT, RATE_LIMITS } from '../../shared/constants';
 import { AppError } from '../../shared/errors/app-error';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { RATE_LIMITS, RATE_LIMIT } from '../../shared/constants';
 
 export interface RateLimitOptions {
   windowMs: number; // Time window in milliseconds
@@ -56,10 +56,7 @@ export class RateLimitMiddleware {
   }
 
   createRateLimit = (options: RateLimitOptions) => {
-    return async (
-      request: FastifyRequest,
-      reply: FastifyReply
-    ): Promise<void> => {
+    return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
       const key = options.keyGenerator
         ? options.keyGenerator(request)
         : this.getDefaultKey(request);
@@ -69,9 +66,7 @@ export class RateLimitMiddleware {
         const localResult = this.checkLocalRateLimit(key, options);
 
         if (localResult.blocked) {
-          const retryAfter = Math.ceil(
-            (localResult.resetTime - Date.now()) / 1000
-          );
+          const retryAfter = Math.ceil((localResult.resetTime - Date.now()) / 1000);
 
           if (options.onLimitReached) {
             options.onLimitReached(request, reply);
@@ -91,10 +86,7 @@ export class RateLimitMiddleware {
           // Add rate limit headers
           reply.header('X-RateLimit-Limit', options.maxRequests);
           reply.header('X-RateLimit-Remaining', '0');
-          reply.header(
-            'X-RateLimit-Reset',
-            new Date(localResult.resetTime).toISOString()
-          );
+          reply.header('X-RateLimit-Reset', new Date(localResult.resetTime).toISOString());
           reply.header('Retry-After', retryAfter.toString());
 
           throw new InfrastructureError(
@@ -106,14 +98,10 @@ export class RateLimitMiddleware {
 
         // Fallback to distributed rate limit service if available
         if (this.rateLimitService) {
-          const result = await this.rateLimitService.checkLimit(
-            key,
-            'request',
-            {
-              maxRequests: options.maxRequests,
-              windowMs: options.windowMs
-            }
-          );
+          const result = await this.rateLimitService.checkLimit(key, 'request', {
+            maxRequests: options.maxRequests,
+            windowMs: options.windowMs,
+          });
 
           // Add rate limit headers
           reply.header('X-RateLimit-Limit', options.maxRequests);
@@ -121,10 +109,7 @@ export class RateLimitMiddleware {
             'X-RateLimit-Remaining',
             Math.max(0, options.maxRequests - result.totalRequests)
           );
-          reply.header(
-            'X-RateLimit-Reset',
-            new Date(result.resetTime).toISOString()
-          );
+          reply.header('X-RateLimit-Reset', new Date(result.resetTime).toISOString());
 
           if (!result.allowed) {
             this.logger.warn('Rate limit exceeded (distributed)', {
@@ -153,10 +138,7 @@ export class RateLimitMiddleware {
             'X-RateLimit-Remaining',
             Math.max(0, options.maxRequests - localResult.count)
           );
-          reply.header(
-            'X-RateLimit-Reset',
-            new Date(localResult.resetTime).toISOString()
-          );
+          reply.header('X-RateLimit-Reset', new Date(localResult.resetTime).toISOString());
         }
 
         this.logger.debug('Rate limit check passed', {
@@ -187,8 +169,7 @@ export class RateLimitMiddleware {
    */
   globalRateLimit() {
     if (!this.config?.global) {
-      return (_req: FastifyRequest, _res: FastifyReply, next: () => void) =>
-        next();
+      return (_req: FastifyRequest, _res: FastifyReply, next: () => void) => next();
     }
 
     return this.createRateLimiter(this.config.global, 'global');
@@ -199,8 +180,7 @@ export class RateLimitMiddleware {
    */
   perIPRateLimit() {
     if (!this.config?.perIP) {
-      return (_req: FastifyRequest, _res: FastifyReply, next: () => void) =>
-        next();
+      return (_req: FastifyRequest, _res: FastifyReply, next: () => void) => next();
     }
 
     const rule = {
@@ -216,8 +196,7 @@ export class RateLimitMiddleware {
    */
   perUserRateLimit() {
     if (!this.config?.perUser) {
-      return (_req: FastifyRequest, _res: FastifyReply, next: () => void) =>
-        next();
+      return (_req: FastifyRequest, _res: FastifyReply, next: () => void) => next();
     }
 
     const rule = {
@@ -245,22 +224,20 @@ export class RateLimitMiddleware {
 
       const enhancedRule = {
         ...rule,
-        keyGenerator: (req: FastifyRequest) =>
-          `endpoint:${endpoint}:${this.getClientIP(req)}`,
+        keyGenerator: (req: FastifyRequest) => `endpoint:${endpoint}:${this.getClientIP(req)}`,
       };
 
-      return this.createRateLimiter(enhancedRule, 'per-endpoint')(
-        req,
-        res,
-        next
-      );
+      return this.createRateLimiter(enhancedRule, 'per-endpoint')(req, res, next);
     };
   }
 
   /**
    * Authentication rate limiting (for login attempts)
    */
-  authRateLimit(maxAttempts: number = RATE_LIMITS.AUTH_ATTEMPTS_PER_MINUTE, windowMs: number = 15 * 60 * 1000) {
+  authRateLimit(
+    maxAttempts: number = RATE_LIMITS.AUTH_ATTEMPTS_PER_MINUTE,
+    windowMs: number = 15 * 60 * 1000
+  ) {
     const rule: RateLimitRule = {
       windowMs,
       maxRequests: maxAttempts,
@@ -341,8 +318,7 @@ export class RateLimitMiddleware {
       const rule: RateLimitRule = {
         windowMs,
         maxRequests,
-        keyGenerator: (req: FastifyRequest) =>
-          `adaptive:${this.getClientIP(req)}`,
+        keyGenerator: (req: FastifyRequest) => `adaptive:${this.getClientIP(req)}`,
         message: 'Server is under high load. Please try again later.',
       };
 
@@ -375,15 +351,9 @@ export class RateLimitMiddleware {
    * Create a rate limiter middleware with the given rule
    */
   private createRateLimiter(rule: RateLimitRule, type: string) {
-    return async (
-      req: FastifyRequest,
-      res: FastifyReply,
-      next?: () => void
-    ) => {
+    return async (req: FastifyRequest, res: FastifyReply, next?: () => void) => {
       try {
-        const key = rule.keyGenerator
-          ? rule.keyGenerator(req)
-          : this.getClientIP(req);
+        const key = rule.keyGenerator ? rule.keyGenerator(req) : this.getClientIP(req);
         const result = this.checkLocalRateLimit(key, rule);
 
         if (result.blocked) {
@@ -496,10 +466,7 @@ export class RateLimitMiddleware {
   private getEndpointKey(req: FastifyRequest): string {
     // Normalize endpoint path (remove IDs and query params)
     const path = req.url
-      .replace(
-        /\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
-        '/:id'
-      )
+      .replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '/:id')
       .replace(/\/\d+/g, '/:id')
       .split('?')[0]; // Remove query parameters
 

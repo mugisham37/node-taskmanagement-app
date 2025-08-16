@@ -5,34 +5,28 @@
  */
 
 import {
-  BaseApplicationService,
-  ValidationResult,
-  RequiredFieldValidationRule,
-  LengthValidationRule,
-} from './base-application-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { IUserRepository } from '../../domain/repositories/user-repository';
-import {
-  JWTService
-} from '../../infrastructure/security/jwt-service';
-import { PasswordService } from '../../infrastructure/security/password-service';
-import {
-  SessionManager
-} from '../../infrastructure/security/session-manager';
-import {
-  OAuthService
-} from '../../infrastructure/security/oauth-service';
-import {
+  JWTService,
+  OAuthService,
+  PasswordService,
+  SessionManager,
   TwoFactorAuthService,
   TwoFactorSetup,
-} from '../../infrastructure/security/two-factor-auth-service';
+} from '@taskmanagement/auth';
+import { User } from '../../domain/entities/user';
+import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
+import { IUserRepository } from '../../domain/repositories/user-repository';
+import { Email } from '../../domain/value-objects/email';
+import { UserId } from '../../domain/value-objects/user-id';
 import { CacheService } from '../../infrastructure/caching/cache-service';
 import { EmailService } from '../../infrastructure/external-services/email-service';
-import { UserId } from '../../domain/value-objects/user-id';
-import { Email } from '../../domain/value-objects/email';
-import { User } from '../../domain/entities/user';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { injectable } from '../../shared/decorators/injectable.decorator';
+import {
+  BaseApplicationService,
+  LengthValidationRule,
+  RequiredFieldValidationRule,
+  ValidationResult,
+} from './base-application-service';
 
 export interface LoginRequest {
   email: string;
@@ -120,11 +114,7 @@ export class AuthApplicationService extends BaseApplicationService {
   /**
    * Authenticate user with email and password
    */
-  async login(
-    request: LoginRequest,
-    ipAddress: string,
-    userAgent: string
-  ): Promise<AuthResponse> {
+  async login(request: LoginRequest, ipAddress: string, userAgent: string): Promise<AuthResponse> {
     return await this.executeWithMonitoring('login', async () => {
       // Validate input
       const validation = this.validateLoginRequest(request);
@@ -163,9 +153,7 @@ export class AuthApplicationService extends BaseApplicationService {
       await this.clearFailedLoginAttempts(email);
 
       // Check if 2FA is enabled
-      const twoFactorStatus = await this.twoFactorService.getTwoFactorStatus(
-        user.id.value
-      );
+      const twoFactorStatus = await this.twoFactorService.getTwoFactorStatus(user.id.value);
 
       if (twoFactorStatus.isEnabled) {
         // Generate temporary token for 2FA verification
@@ -218,9 +206,7 @@ export class AuthApplicationService extends BaseApplicationService {
         accessToken: tokenPair.accessToken,
         refreshToken: tokenPair.refreshToken,
         user: this.mapUserToDto(user),
-        expiresIn: Math.floor(
-          (tokenPair.expiresAt.getTime() - Date.now()) / 1000
-        ),
+        expiresIn: Math.floor((tokenPair.expiresAt.getTime() - Date.now()) / 1000),
         sessionId: session.sessionId,
       };
     });
@@ -292,9 +278,7 @@ export class AuthApplicationService extends BaseApplicationService {
         accessToken: tokenPair.accessToken,
         refreshToken: tokenPair.refreshToken,
         user: this.mapUserToDto(user),
-        expiresIn: Math.floor(
-          (tokenPair.expiresAt.getTime() - Date.now()) / 1000
-        ),
+        expiresIn: Math.floor((tokenPair.expiresAt.getTime() - Date.now()) / 1000),
         sessionId: session.sessionId,
       };
     });
@@ -309,17 +293,13 @@ export class AuthApplicationService extends BaseApplicationService {
       const payload = this.jwtService.verifyRefreshToken(refreshToken);
 
       // Validate session
-      const sessionResult = await this.sessionManager.validateSession(
-        payload.sessionId
-      );
+      const sessionResult = await this.sessionManager.validateSession(payload.sessionId);
       if (!sessionResult.isValid || !sessionResult.session) {
         throw new Error('Invalid session');
       }
 
       // Get user
-      const user = await this.userRepository.findById(
-        new UserId(payload.userId)
-      );
+      const user = await this.userRepository.findById(new UserId(payload.userId));
       if (!user || !user.isActive) {
         throw new Error('User not found or inactive');
       }
@@ -371,27 +351,23 @@ export class AuthApplicationService extends BaseApplicationService {
    * Send email verification
    */
   async sendEmailVerification(user: User): Promise<void> {
-    return await this.executeWithMonitoring(
-      'sendEmailVerification',
-      async () => {
-        const verificationToken =
-          await this.jwtService.generateEmailVerificationToken(
-            user.id.value,
-            user.email.value
-          );
+    return await this.executeWithMonitoring('sendEmailVerification', async () => {
+      const verificationToken = await this.jwtService.generateEmailVerificationToken(
+        user.id.value,
+        user.email.value
+      );
 
-        await this.emailService.sendEmailVerification({
-          recipientEmail: user.email.value,
-          recipientName: `${user.firstName} ${user.lastName}`,
-          verificationUrl: `${process.env['APP_URL']}/auth/verify-email?token=${verificationToken}`,
-        });
+      await this.emailService.sendEmailVerification({
+        recipientEmail: user.email.value,
+        recipientName: `${user.firstName} ${user.lastName}`,
+        verificationUrl: `${process.env['APP_URL']}/auth/verify-email?token=${verificationToken}`,
+      });
 
-        this.logInfo('Email verification sent', {
-          userId: user.id.value,
-          email: user.email.value,
-        });
-      }
-    );
+      this.logInfo('Email verification sent', {
+        userId: user.id.value,
+        email: user.email.value,
+      });
+    });
   }
 
   /**
@@ -401,9 +377,7 @@ export class AuthApplicationService extends BaseApplicationService {
     return await this.executeWithMonitoring('verifyEmail', async () => {
       const payload = await this.jwtService.verifyEmailVerificationToken(token);
 
-      const user = await this.userRepository.findById(
-        new UserId(payload.userId)
-      );
+      const user = await this.userRepository.findById(new UserId(payload.userId));
       if (!user) {
         throw new Error('User not found');
       }
@@ -463,9 +437,7 @@ export class AuthApplicationService extends BaseApplicationService {
     return await this.executeWithMonitoring('resetPassword', async () => {
       const payload = await this.jwtService.verifyPasswordResetToken(token);
 
-      const user = await this.userRepository.findById(
-        new UserId(payload.userId)
-      );
+      const user = await this.userRepository.findById(new UserId(payload.userId));
       if (!user) {
         throw new Error('User not found');
       }
@@ -473,9 +445,7 @@ export class AuthApplicationService extends BaseApplicationService {
       // Validate new password
       const validation = this.validatePassword(newPassword);
       if (!validation.isValid) {
-        throw new Error(
-          `Password validation failed: ${validation.errors.join(', ')}`
-        );
+        throw new Error(`Password validation failed: ${validation.errors.join(', ')}`);
       }
 
       // Hash new password
@@ -497,10 +467,8 @@ export class AuthApplicationService extends BaseApplicationService {
    * Get user sessions
    */
   async getUserSessions(userId: UserId): Promise<SessionInfo[]> {
-    const sessions = await this.sessionManager.getActiveUserSessions(
-      userId.value
-    );
-    return sessions.map(session => ({
+    const sessions = await this.sessionManager.getActiveUserSessions(userId.value);
+    return sessions.map((session) => ({
       userId: session.userId,
       sessionId: session.sessionId,
       ipAddress: session.ipAddress,
@@ -557,15 +525,10 @@ export class AuthApplicationService extends BaseApplicationService {
       });
 
       // Get user info from provider
-      const userInfo = await this.oauthService.getUserInfo(
-        provider,
-        tokenResponse.accessToken
-      );
+      const userInfo = await this.oauthService.getUserInfo(provider, tokenResponse.accessToken);
 
       // Find or create user
-      let user = await this.userRepository.findByEmail(
-        new Email(userInfo.email)
-      );
+      let user = await this.userRepository.findByEmail(new Email(userInfo.email));
 
       if (!user) {
         // Create new user from OAuth data
@@ -575,9 +538,7 @@ export class AuthApplicationService extends BaseApplicationService {
           userInfo.name,
           '', // OAuth users don't have passwords
           userInfo.firstName || userInfo.name.split(' ')[0] || '',
-          userInfo.lastName ||
-            userInfo.name.split(' ').slice(1).join(' ') ||
-            ''
+          userInfo.lastName || userInfo.name.split(' ').slice(1).join(' ') || ''
         );
 
         user.verifyEmail(); // OAuth users are automatically verified // OAuth emails are typically verified
@@ -618,9 +579,7 @@ export class AuthApplicationService extends BaseApplicationService {
         accessToken: tokenPair.accessToken,
         refreshToken: tokenPair.refreshToken,
         user: this.mapUserToDto(user),
-        expiresIn: Math.floor(
-          (tokenPair.expiresAt.getTime() - Date.now()) / 1000
-        ),
+        expiresIn: Math.floor((tokenPair.expiresAt.getTime() - Date.now()) / 1000),
         sessionId: session.sessionId,
       };
     });
@@ -631,10 +590,7 @@ export class AuthApplicationService extends BaseApplicationService {
    */
   async setup2FA(userId: string, userEmail: string): Promise<TwoFactorSetup> {
     return await this.executeWithMonitoring('setup2FA', async () => {
-      const setup = await this.twoFactorService.generateSetup(
-        userId,
-        userEmail
-      );
+      const setup = await this.twoFactorService.generateSetup(userId, userEmail);
 
       this.logInfo('2FA setup initiated', {
         userId,
@@ -654,11 +610,7 @@ export class AuthApplicationService extends BaseApplicationService {
     method: '2fa' | 'sms' | 'email' = '2fa'
   ): Promise<{ backupCodes: string[] }> {
     return await this.executeWithMonitoring('enable2FA', async () => {
-      const result = await this.twoFactorService.enableTwoFactor(
-        userId,
-        token,
-        method
-      );
+      const result = await this.twoFactorService.enableTwoFactor(userId, token, method);
 
       this.logInfo('2FA enabled successfully', {
         userId,
@@ -682,11 +634,7 @@ export class AuthApplicationService extends BaseApplicationService {
     remainingBackupCodes?: number;
   }> {
     return await this.executeWithMonitoring('verify2FA', async () => {
-      const result = await this.twoFactorService.verifyToken(
-        userId,
-        token,
-        allowBackupCode
-      );
+      const result = await this.twoFactorService.verifyToken(userId, token, allowBackupCode);
 
       if (result.isValid) {
         this.logInfo('2FA verification successful', {
@@ -720,26 +668,17 @@ export class AuthApplicationService extends BaseApplicationService {
   /**
    * Generate new backup codes
    */
-  async generateNewBackupCodes(
-    userId: string,
-    verificationToken: string
-  ): Promise<string[]> {
-    return await this.executeWithMonitoring(
-      'generateNewBackupCodes',
-      async () => {
-        const codes = await this.twoFactorService.generateNewBackupCodes(
-          userId,
-          verificationToken
-        );
+  async generateNewBackupCodes(userId: string, verificationToken: string): Promise<string[]> {
+    return await this.executeWithMonitoring('generateNewBackupCodes', async () => {
+      const codes = await this.twoFactorService.generateNewBackupCodes(userId, verificationToken);
 
-        this.logInfo('New backup codes generated', {
-          userId,
-          codeCount: codes.length,
-        });
+      this.logInfo('New backup codes generated', {
+        userId,
+        codeCount: codes.length,
+      });
 
-        return codes;
-      }
-    );
+      return codes;
+    });
   }
 
   /**
@@ -841,33 +780,20 @@ export class AuthApplicationService extends BaseApplicationService {
 
   private async checkAccountLockout(email: Email): Promise<void> {
     const lockoutKey = `lockout:${email.value}`;
-    const lockoutInfo = await this.cacheService.get<{ lockedUntil: number }>(
-      lockoutKey
-    );
+    const lockoutInfo = await this.cacheService.get<{ lockedUntil: number }>(lockoutKey);
 
     if (lockoutInfo && Date.now() < lockoutInfo.lockedUntil) {
-      const remainingTime = Math.ceil(
-        (lockoutInfo.lockedUntil - Date.now()) / 1000 / 60
-      );
-      throw new Error(
-        `Account is locked. Try again in ${remainingTime} minutes.`
-      );
+      const remainingTime = Math.ceil((lockoutInfo.lockedUntil - Date.now()) / 1000 / 60);
+      throw new Error(`Account is locked. Try again in ${remainingTime} minutes.`);
     }
   }
 
-  private async recordFailedLoginAttempt(
-    email: Email,
-    ipAddress: string
-  ): Promise<void> {
+  private async recordFailedLoginAttempt(email: Email, ipAddress: string): Promise<void> {
     const attemptsKey = `login-attempts:${email.value}`;
     const attempts = (await this.cacheService.get<number>(attemptsKey)) || 0;
     const newAttempts = attempts + 1;
 
-    await this.cacheService.set(
-      attemptsKey,
-      newAttempts,
-      this.LOCKOUT_DURATION / 1000
-    );
+    await this.cacheService.set(attemptsKey, newAttempts, this.LOCKOUT_DURATION / 1000);
 
     if (newAttempts >= this.MAX_LOGIN_ATTEMPTS) {
       const lockoutKey = `lockout:${email.value}`;
@@ -912,10 +838,7 @@ export class AuthApplicationService extends BaseApplicationService {
       }
 
       // Verify 2FA code
-      const verification = await this.twoFactorService.verifyToken(
-        userId,
-        verificationCode
-      );
+      const verification = await this.twoFactorService.verifyToken(userId, verificationCode);
       if (!verification.isValid) {
         throw new Error('Invalid 2FA verification code');
       }
@@ -960,24 +883,19 @@ export class AuthApplicationService extends BaseApplicationService {
         accessToken: tokenPair.accessToken,
         refreshToken: tokenPair.refreshToken,
         user: this.mapUserToDto(user),
-        expiresIn: Math.floor(
-          (tokenPair.expiresAt.getTime() - Date.now()) / 1000
-        ),
+        expiresIn: Math.floor((tokenPair.expiresAt.getTime() - Date.now()) / 1000),
         sessionId: session.sessionId,
       };
     });
   }
 
   private generateTwoFactorToken(userId: string): string {
-    return Buffer.from(
-      `${userId}_${Date.now()}_${Math.random().toString(36)}`
-    ).toString('base64url');
+    return Buffer.from(`${userId}_${Date.now()}_${Math.random().toString(36)}`).toString(
+      'base64url'
+    );
   }
 
-  private async storeTwoFactorToken(
-    userId: string,
-    token: string
-  ): Promise<void> {
+  private async storeTwoFactorToken(userId: string, token: string): Promise<void> {
     const key = `2fa-login-token:${token}`;
     await this.cacheService.set(key, userId, { ttl: 300 }); // 5 minutes
   }
@@ -1030,9 +948,10 @@ export class AuthApplicationService extends BaseApplicationService {
       }
 
       // Update user profile
-      const newName = `${updateData.firstName || user.firstName} ${updateData.lastName || user.lastName}`.trim();
+      const newName =
+        `${updateData.firstName || user.firstName} ${updateData.lastName || user.lastName}`.trim();
       const newEmail = updateData.email ? new Email(updateData.email) : undefined;
-      
+
       user.updateProfile(newName, newEmail);
 
       await this.userRepository.save(user);
@@ -1043,7 +962,11 @@ export class AuthApplicationService extends BaseApplicationService {
   /**
    * Change user password
    */
-  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string
+  ): Promise<void> {
     return await this.executeWithMonitoring('changePassword', async () => {
       const userIdObj = new UserId(userId);
       const user = await this.userRepository.findById(userIdObj);
@@ -1101,6 +1024,185 @@ export class AuthApplicationService extends BaseApplicationService {
       user.activate();
       await this.userRepository.save(user);
     });
+  }
+
+  /**
+   * Authenticate user (alias for login)
+   */
+  async authenticate(credentials: { email: string; password: string }): Promise<{
+    isSuccess: boolean;
+    data?: { user: UserDto; token: string; refreshToken: string };
+    error?: string;
+  }> {
+    try {
+      const result = await this.login(
+        {
+          email: credentials.email,
+          password: credentials.password,
+        },
+        '127.0.0.1', // Default IP
+        'API' // Default user agent
+      );
+
+      return {
+        isSuccess: true,
+        data: {
+          user: result.user,
+          token: result.accessToken,
+          refreshToken: result.refreshToken,
+        },
+      };
+    } catch (error) {
+      return {
+        isSuccess: false,
+        error: error instanceof Error ? error.message : 'Authentication failed',
+      };
+    }
+  }
+
+  /**
+   * Validate JWT token
+   */
+  async validateToken(token: string): Promise<{
+    isSuccess: boolean;
+    data?: { user: UserDto };
+    error?: string;
+  }> {
+    try {
+      const payload = this.jwtService.verifyAccessToken(token);
+
+      if (!payload.userId) {
+        return {
+          isSuccess: false,
+          error: 'Invalid token payload',
+        };
+      }
+
+      const userIdObj = new UserId(payload.userId);
+      const user = await this.userRepository.findById(userIdObj);
+
+      if (!user) {
+        return {
+          isSuccess: false,
+          error: 'User not found',
+        };
+      }
+
+      return {
+        isSuccess: true,
+        data: {
+          user: this.mapUserToDto(user),
+        },
+      };
+    } catch (error) {
+      return {
+        isSuccess: false,
+        error: error instanceof Error ? error.message : 'Token validation failed',
+      };
+    }
+  }
+
+  // API compatibility methods - these provide the interface expected by the API layer
+
+  /**
+   * Change password (API wrapper)
+   */
+  async changePasswordAPI(request: {
+    userId: string;
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<{
+    isSuccess: boolean;
+    error?: string;
+  }> {
+    try {
+      await this.changePassword(request.userId, request.currentPassword, request.newPassword);
+      return { isSuccess: true };
+    } catch (error) {
+      return {
+        isSuccess: false,
+        error: error instanceof Error ? error.message : 'Password change failed',
+      };
+    }
+  }
+
+  /**
+   * Reset password (API wrapper)
+   */
+  async resetPassword(request: { email: string }): Promise<{
+    isSuccess: boolean;
+    error?: string;
+  }> {
+    try {
+      await this.sendPasswordReset(request.email);
+      return { isSuccess: true };
+    } catch (error) {
+      return {
+        isSuccess: false,
+        error: error instanceof Error ? error.message : 'Password reset failed',
+      };
+    }
+  }
+
+  /**
+   * Verify email (API wrapper)
+   */
+  async verifyEmailAPI(request: { token: string }): Promise<{
+    isSuccess: boolean;
+    error?: string;
+  }> {
+    try {
+      await this.verifyEmail(request.token);
+      return { isSuccess: true };
+    } catch (error) {
+      return {
+        isSuccess: false,
+        error: error instanceof Error ? error.message : 'Email verification failed',
+      };
+    }
+  }
+
+  /**
+   * Refresh token (API wrapper)
+   */
+  async refreshTokenAPI(request: { refreshToken: string }): Promise<{
+    isSuccess: boolean;
+    data?: { token: string; refreshToken: string };
+    error?: string;
+  }> {
+    try {
+      const result = await this.refreshToken(request.refreshToken);
+      return {
+        isSuccess: true,
+        data: {
+          token: result.accessToken,
+          refreshToken: result.refreshToken,
+        },
+      };
+    } catch (error) {
+      return {
+        isSuccess: false,
+        error: error instanceof Error ? error.message : 'Token refresh failed',
+      };
+    }
+  }
+
+  /**
+   * Logout (API wrapper)
+   */
+  async logoutAPI(request: { userId: string }): Promise<{
+    isSuccess: boolean;
+    error?: string;
+  }> {
+    try {
+      await this.logoutAll(new UserId(request.userId));
+      return { isSuccess: true };
+    } catch (error) {
+      return {
+        isSuccess: false,
+        error: error instanceof Error ? error.message : 'Logout failed',
+      };
+    }
   }
 
   private mapUserToDto(user: User): UserDto {

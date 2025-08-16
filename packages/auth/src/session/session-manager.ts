@@ -5,10 +5,8 @@
  * session validation, and security features like session rotation
  */
 
-import { CacheService } from '../caching/cache-service';
-import { LoggingService } from '../monitoring/logging-service';
-import { InfrastructureError } from '../../shared/errors/infrastructure-error';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { CacheService } from '@taskmanagement/cache';
+import { AuthorizationError, InfrastructureError, LoggingService } from '@taskmanagement/core';
 
 export interface SessionData {
   sessionId: string;

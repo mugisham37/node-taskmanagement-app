@@ -5,10 +5,9 @@
  * resource-level permissions, and workspace-level tenant isolation
  */
 
+import { CacheService } from '@taskmanagement/cache';
+import { InfrastructureError, LoggingService } from '@taskmanagement/core';
 import { ValidationError } from '@taskmanagement/validation';
-import { InfrastructureError } from '../../shared/errors/infrastructure-error';
-import { CacheService } from '../caching/cache-service';
-import { LoggingService } from '../monitoring/logging-service';
 
 export interface Role {
   id: string;

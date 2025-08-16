@@ -1,15 +1,15 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { BaseController } from './base-controller';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { FastifyReply, FastifyRequest } from 'fastify';
+import { z } from 'zod';
 import { AuthApplicationService } from '../../application/services/auth-application-service';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import {
+  ChangePasswordSchema,
   LoginSchema,
   RefreshTokenSchema,
-  ChangePasswordSchema,
   RegisterSchema,
   UpdateUserSchema,
 } from '../dto/user-dto';
-import { z } from 'zod';
+import { BaseController } from './base-controller';
 
 const ParamsSchema = z.object({
   id: z.string(),
@@ -23,10 +23,7 @@ export class AuthController extends BaseController {
     super(logger);
   }
 
-  register = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  register = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const registerData = this.validateBody(request.body, RegisterSchema);
 
@@ -36,10 +33,7 @@ export class AuthController extends BaseController {
     });
   };
 
-  login = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  login = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const loginData = this.validateBody(request.body, LoginSchema);
       const ipAddress = request.ip || '0.0.0.0';
@@ -51,25 +45,17 @@ export class AuthController extends BaseController {
     });
   };
 
-  refreshToken = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  refreshToken = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const refreshData = this.validateBody(request.body, RefreshTokenSchema);
 
-      const result = await this.authService.refreshToken(
-        refreshData.refreshToken
-      );
+      const result = await this.authService.refreshToken(refreshData.refreshToken);
 
       return result;
     });
   };
 
-  logout = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  logout = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
 
@@ -79,10 +65,7 @@ export class AuthController extends BaseController {
     });
   };
 
-  getProfile = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  getProfile = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
 
@@ -92,16 +75,10 @@ export class AuthController extends BaseController {
     });
   };
 
-  updateProfile = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  updateProfile = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
-      const updateData = this.validateBody(
-        request.body,
-        UpdateUserSchema
-      );
+      const updateData = this.validateBody(request.body, UpdateUserSchema);
 
       // Filter out undefined values for the service call
       const filteredUpdateData: Partial<{
@@ -109,7 +86,7 @@ export class AuthController extends BaseController {
         lastName: string;
         email: string;
       }> = {};
-      
+
       if (updateData.firstName !== undefined) {
         filteredUpdateData.firstName = updateData.firstName;
       }
@@ -120,25 +97,16 @@ export class AuthController extends BaseController {
         filteredUpdateData.email = updateData.email;
       }
 
-      const updatedProfile = await this.authService.updateProfile(
-        userId,
-        filteredUpdateData
-      );
+      const updatedProfile = await this.authService.updateProfile(userId, filteredUpdateData);
 
       return updatedProfile;
     });
   };
 
-  changePassword = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  changePassword = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
-      const passwordData = this.validateBody(
-        request.body,
-        ChangePasswordSchema
-      );
+      const passwordData = this.validateBody(request.body, ChangePasswordSchema);
 
       await this.authService.changePassword(
         userId,
@@ -150,10 +118,7 @@ export class AuthController extends BaseController {
     });
   };
 
-  deactivateAccount = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  deactivateAccount = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
 
@@ -163,10 +128,7 @@ export class AuthController extends BaseController {
     });
   };
 
-  activateAccount = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  activateAccount = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const { id } = this.validateParams(request.params, ParamsSchema);
 

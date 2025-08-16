@@ -1,6 +1,5 @@
 import { User } from '@monorepo/domain';
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { AuthenticationService } from '../application/services/AuthenticationService';
 import { Container } from '../shared/container/Container';
 
 export interface CreateContextOptions {
@@ -21,8 +20,8 @@ export async function createContext({
   res,
   container,
 }: CreateContextOptions): Promise<Context> {
-  const authService = container.resolve<AuthenticationService>(
-    'AuthenticationService'
+  const authService = container.resolve<AuthApplicationService>(
+    SERVICE_TOKENS.AUTH_APPLICATION_SERVICE
   );
 
   let user: User | undefined;

@@ -5,11 +5,9 @@
  * Supports OAuth 2.0 and OpenID Connect flows
  */
 
+import { CacheService } from '@taskmanagement/cache';
+import { AuthorizationError, InfrastructureError, LoggingService } from '@taskmanagement/core';
 import { ValidationError } from '@taskmanagement/validation';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { InfrastructureError } from '../../shared/errors/infrastructure-error';
-import { CacheService } from '../caching/cache-service';
-import { LoggingService } from '../monitoring/logging-service';
 
 export interface OAuthProvider {
   name: string;

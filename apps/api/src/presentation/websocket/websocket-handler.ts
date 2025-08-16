@@ -1,10 +1,10 @@
+import { JWTService } from '@taskmanagement/auth';
 import { FastifyInstance, FastifyRequest } from 'fastify';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { JWTService } from '../../infrastructure/security/jwt-service';
-import { WebSocketService } from '../../infrastructure/external-services/websocket-service';
-import { RealtimeEventService } from '../../infrastructure/external-services/realtime-event-service';
-import { WEBSOCKET_EVENTS } from '../../shared/constants';
 import { nanoid } from 'nanoid';
+import { RealtimeEventService } from '../../infrastructure/external-services/realtime-event-service';
+import { WebSocketService } from '../../infrastructure/external-services/websocket-service';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { WEBSOCKET_EVENTS } from '../../shared/constants';
 
 // Define WebSocket connection type
 export interface SocketConnection {
@@ -97,7 +97,7 @@ export class WebSocketHandler {
     await server.register(require('@fastify/websocket'));
 
     // Main WebSocket endpoint
-    server.register(async fastify => {
+    server.register(async (fastify) => {
       fastify.get('/ws', { websocket: true }, (connection: any, request: any) => {
         try {
           // Simplified connection handling
@@ -138,7 +138,7 @@ export class WebSocketHandler {
 
   private handleSimpleConnection(connection: any, request: any): void {
     const connectionId = this.generateConnectionId();
-    
+
     this.logger.info('WebSocket connection established', {
       connectionId,
       ip: request.ip,
@@ -149,13 +149,15 @@ export class WebSocketHandler {
       try {
         const data = JSON.parse(message.toString());
         this.logger.debug('WebSocket message received', { data });
-        
+
         // Echo back for now
-        connection.socket.send(JSON.stringify({
-          type: 'echo',
-          data,
-          timestamp: new Date().toISOString(),
-        }));
+        connection.socket.send(
+          JSON.stringify({
+            type: 'echo',
+            data,
+            timestamp: new Date().toISOString(),
+          })
+        );
       } catch (error) {
         this.logger.error('WebSocket message error', error as Error);
       }
@@ -170,10 +172,7 @@ export class WebSocketHandler {
     });
   }
 
-  async handleConnection(
-    connection: any,
-    request: FastifyRequest
-  ): Promise<void> {
+  async handleConnection(connection: any, request: FastifyRequest): Promise<void> {
     const startTime = Date.now();
     const clientIp = request.ip;
     const userAgent = request.headers['user-agent'] || 'unknown';
@@ -186,13 +185,10 @@ export class WebSocketHandler {
     try {
       // Check connection limits
       if (this.connections.size >= this.config.maxConnections) {
-        this.logger.warn(
-          'WebSocket connection rejected: max connections reached',
-          {
-            ip: clientIp,
-            maxConnections: this.config.maxConnections,
-          }
-        );
+        this.logger.warn('WebSocket connection rejected: max connections reached', {
+          ip: clientIp,
+          maxConnections: this.config.maxConnections,
+        });
         connection.socket.close(1013, 'Server overloaded');
         return;
       }
@@ -270,14 +266,11 @@ export class WebSocketHandler {
     }
   }
 
-  private async authenticateConnection(
-    request: FastifyRequest
-  ): Promise<WebSocketUser | null> {
+  private async authenticateConnection(request: FastifyRequest): Promise<WebSocketUser | null> {
     try {
       // Extract token from query params or headers
       const token =
-        (request.query as any)?.token ||
-        request.headers.authorization?.replace('Bearer ', '');
+        (request.query as any)?.token || request.headers.authorization?.replace('Bearer ', '');
 
       if (!token) {
         return null;
@@ -318,9 +311,7 @@ export class WebSocketHandler {
     });
   }
 
-  private setupConnectionLifecycle(
-    connectionInfo: WebSocketConnectionInfo
-  ): void {
+  private setupConnectionLifecycle(connectionInfo: WebSocketConnectionInfo): void {
     connectionInfo.socket.socket.on('close', (code: number, reason: Buffer) => {
       this.logger.info('WebSocket connection closed', {
         userId: connectionInfo.user.id,
@@ -476,10 +467,7 @@ export class WebSocketHandler {
         break;
 
       case 'mark_notification_read':
-        await this.handleMarkNotificationRead(
-          connectionInfo,
-          data.data || data.payload
-        );
+        await this.handleMarkNotificationRead(connectionInfo, data.data || data.payload);
         break;
 
       default:
@@ -540,9 +528,7 @@ export class WebSocketHandler {
 
     // Remove from workspace index
     if (user.workspaceId) {
-      const workspaceConnections = this.connectionsByWorkspace.get(
-        user.workspaceId
-      );
+      const workspaceConnections = this.connectionsByWorkspace.get(user.workspaceId);
       if (workspaceConnections) {
         workspaceConnections.delete(connectionId);
         if (workspaceConnections.size === 0) {
@@ -569,9 +555,7 @@ export class WebSocketHandler {
     });
   }
 
-  private subscribeToDefaultChannels(
-    connectionInfo: WebSocketConnectionInfo
-  ): void {
+  private subscribeToDefaultChannels(connectionInfo: WebSocketConnectionInfo): void {
     const { user } = connectionInfo;
 
     // Subscribe to user-specific channel
@@ -579,10 +563,7 @@ export class WebSocketHandler {
 
     // Subscribe to workspace channel if user has workspace
     if (user.workspaceId) {
-      this.subscribeToChannel(
-        connectionInfo.id,
-        `workspace:${user.workspaceId}`
-      );
+      this.subscribeToChannel(connectionInfo.id, `workspace:${user.workspaceId}`);
     }
 
     // Subscribe to role-based channels
@@ -635,10 +616,7 @@ export class WebSocketHandler {
     });
   }
 
-  private unsubscribeFromProject(
-    connectionId: string,
-    projectId: string
-  ): void {
+  private unsubscribeFromProject(connectionId: string, projectId: string): void {
     const connectionInfo = this.connections.get(connectionId);
     if (!connectionInfo) {
       return;
@@ -663,10 +641,7 @@ export class WebSocketHandler {
     });
   }
 
-  private handlePresenceUpdate(
-    connectionInfo: WebSocketConnectionInfo,
-    presence: any
-  ): void {
+  private handlePresenceUpdate(connectionInfo: WebSocketConnectionInfo, presence: any): void {
     // Broadcast presence update to workspace
     if (connectionInfo.user.workspaceId) {
       this.broadcastToWorkspace(
@@ -686,10 +661,7 @@ export class WebSocketHandler {
     }
   }
 
-  private handleGetNotifications(
-    connectionInfo: WebSocketConnectionInfo,
-    payload: any
-  ): void {
+  private handleGetNotifications(connectionInfo: WebSocketConnectionInfo, payload: any): void {
     if (!connectionInfo.user.id) return;
 
     const notifications = this.realtimeEventService.getUserNotifications(
@@ -727,23 +699,16 @@ export class WebSocketHandler {
     });
   }
 
-  private sendToConnection(
-    connectionId: string,
-    message: WebSocketMessage
-  ): void {
+  private sendToConnection(connectionId: string, message: WebSocketMessage): void {
     const connectionInfo = this.connections.get(connectionId);
     if (connectionInfo && connectionInfo.socket.socket.readyState === 1) {
       try {
         connectionInfo.socket.socket.send(JSON.stringify(message));
         this.metrics.messagesSent++;
       } catch (error) {
-        this.logger.error(
-          'Failed to send message to connection',
-          error as Error,
-          {
-            connectionId,
-          }
-        );
+        this.logger.error('Failed to send message to connection', error as Error, {
+          connectionId,
+        });
         this.metrics.errors++;
       }
     }
@@ -756,10 +721,7 @@ export class WebSocketHandler {
   ): void {
     let sentCount = 0;
     for (const [connectionId, connectionInfo] of this.connections) {
-      if (
-        connectionId !== excludeConnectionId &&
-        connectionInfo.subscriptions.has(channel)
-      ) {
+      if (connectionId !== excludeConnectionId && connectionInfo.subscriptions.has(channel)) {
         this.sendToConnection(connectionId, message);
         sentCount++;
       }
@@ -778,11 +740,7 @@ export class WebSocketHandler {
     message: WebSocketMessage,
     excludeConnectionId?: string
   ): void {
-    this.broadcastToChannel(
-      `workspace:${workspaceId}`,
-      message,
-      excludeConnectionId
-    );
+    this.broadcastToChannel(`workspace:${workspaceId}`, message, excludeConnectionId);
   }
 
   broadcastToProject(
@@ -790,11 +748,7 @@ export class WebSocketHandler {
     message: WebSocketMessage,
     excludeConnectionId?: string
   ): void {
-    this.broadcastToChannel(
-      `project:${projectId}`,
-      message,
-      excludeConnectionId
-    );
+    this.broadcastToChannel(`project:${projectId}`, message, excludeConnectionId);
   }
 
   broadcastToUser(userId: string, message: WebSocketMessage): boolean {
@@ -846,9 +800,7 @@ export class WebSocketHandler {
       connections: {
         total: this.connections.size,
         byWorkspace: Object.fromEntries(
-          Array.from(this.connectionsByWorkspace.entries()).map(
-            ([id, conns]) => [id, conns.size]
-          )
+          Array.from(this.connectionsByWorkspace.entries()).map(([id, conns]) => [id, conns.size])
         ),
       },
       metrics: this.metrics,
@@ -871,16 +823,10 @@ export class WebSocketHandler {
       totalConnections: this.connections.size,
       activeConnections: this.connections.size,
       connectionsByWorkspace: Object.fromEntries(
-        Array.from(this.connectionsByWorkspace.entries()).map(([id, conns]) => [
-          id,
-          conns.size,
-        ])
+        Array.from(this.connectionsByWorkspace.entries()).map(([id, conns]) => [id, conns.size])
       ),
       connectionsByUser: Object.fromEntries(
-        Array.from(this.connectionsByUser.entries()).map(([id, conns]) => [
-          id,
-          conns.size,
-        ])
+        Array.from(this.connectionsByUser.entries()).map(([id, conns]) => [id, conns.size])
       ),
     };
   }

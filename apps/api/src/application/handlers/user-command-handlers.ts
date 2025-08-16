@@ -1,3 +1,4 @@
+import { PasswordService } from '@taskmanagement/auth';
 import { ValidationError } from '@taskmanagement/validation';
 import { nanoid } from 'nanoid';
 import { User } from '../../domain/entities/user';
@@ -6,7 +7,6 @@ import { IUserRepository } from '../../domain/repositories/user-repository';
 import { UserId } from '../../domain/value-objects/user-id';
 import { TransactionManager } from '../../infrastructure/database/transaction-manager';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { PasswordService } from '../../infrastructure/security/password-service';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
 import { NotFoundError } from '../../shared/errors/not-found-error';
 import {

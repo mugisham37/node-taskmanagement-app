@@ -5,17 +5,16 @@
  * CSRF protection, CORS configuration, and security audit logging
  */
 
-import { AuthenticatedRequest, SecurityContext } from '@taskmanagement/types/auth';
+import { AuthorizationError, LoggingService } from '@taskmanagement/core';
+import { AuthenticatedRequest, SecurityContext } from '@taskmanagement/types';
 import { ValidationError } from '@taskmanagement/validation';
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { LoggingService } from '../monitoring/logging-service';
-import { AuditLogger } from './audit-logger';
-import { InputSanitizer } from './input-sanitizer';
-import { JWTService } from './jwt-service';
-import { RateLimitService } from './rate-limit-service';
-import { RBACService } from './rbac-service';
-import { SessionManager } from './session-manager';
+import { AuditLogger } from '../audit-logger';
+import { InputSanitizer } from '../input-sanitizer';
+import { RateLimitService } from '../rate-limit-service';
+import { RBACService } from '../rbac/rbac-service';
+import { SessionManager } from '../session/session-manager';
+import { JWTService } from '../tokens/jwt-service';
 
 export interface SecurityConfig {
   // Rate limiting

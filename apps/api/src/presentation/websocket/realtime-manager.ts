@@ -7,8 +7,8 @@ import {
   UserLeftEvent,
 } from '@taskmanagement/shared/types';
 import { WebSocket } from 'ws';
-import { AuthenticationService } from '../../application/services/AuthenticationService';
 import { Container } from '../../shared/container/Container';
+import { SERVICE_TOKENS } from '../../shared/container/types';
 
 export interface AuthenticatedWebSocket extends WebSocket {
   user?: User;
@@ -21,18 +21,15 @@ export class RealtimeManager {
 
   constructor(private container: Container) {}
 
-  async handleConnection(
-    ws: AuthenticatedWebSocket,
-    request: any
-  ): Promise<void> {
+  async handleConnection(ws: AuthenticatedWebSocket, request: any): Promise<void> {
     const connectionId = this.generateConnectionId();
     ws.rooms = new Set();
 
     // Authenticate the connection
     const token = this.extractTokenFromRequest(request);
     if (token) {
-      const authService = this.container.resolve<AuthenticationService>(
-        'AuthenticationService'
+      const authService = this.container.resolve<AuthApplicationService>(
+        SERVICE_TOKENS.AUTH_APPLICATION_SERVICE
       );
       try {
         const authResult = await authService.validateToken(token);
@@ -46,7 +43,7 @@ export class RealtimeManager {
 
     this.connections.set(connectionId, ws);
 
-    ws.on('message', data => {
+    ws.on('message', (data) => {
       this.handleMessage(connectionId, data);
     });
 
@@ -54,7 +51,7 @@ export class RealtimeManager {
       this.handleDisconnection(connectionId);
     });
 
-    ws.on('error', error => {
+    ws.on('error', (error) => {
       console.error('WebSocket error:', error);
       this.handleDisconnection(connectionId);
     });
@@ -99,7 +96,7 @@ export class RealtimeManager {
     if (!ws) return;
 
     // Leave all rooms
-    ws.rooms.forEach(roomId => {
+    ws.rooms.forEach((roomId) => {
       this.leaveRoom(connectionId, roomId);
     });
 
@@ -232,17 +229,14 @@ export class RealtimeManager {
     const room = this.rooms.get(roomId);
     if (!room) return;
 
-    room.forEach(connectionId => {
+    room.forEach((connectionId) => {
       if (connectionId !== excludeConnectionId) {
         this.sendToConnection(connectionId, event);
       }
     });
   }
 
-  private broadcastToAll(
-    event: RealtimeEvent,
-    excludeConnectionId?: string
-  ): void {
+  private broadcastToAll(event: RealtimeEvent, excludeConnectionId?: string): void {
     this.connections.forEach((ws, connectionId) => {
       if (connectionId !== excludeConnectionId) {
         this.sendToConnection(connectionId, event);
@@ -298,7 +292,7 @@ export class RealtimeManager {
     if (!room) return [];
 
     const users: User[] = [];
-    room.forEach(connectionId => {
+    room.forEach((connectionId) => {
       const ws = this.connections.get(connectionId);
       if (ws?.user) {
         users.push(ws.user);
@@ -307,7 +301,7 @@ export class RealtimeManager {
 
     // Remove duplicate users (same user might have multiple connections)
     const uniqueUsers = users.filter(
-      (user, index, self) => index === self.findIndex(u => u.id === user.id)
+      (user, index, self) => index === self.findIndex((u) => u.id === user.id)
     );
 
     return uniqueUsers;

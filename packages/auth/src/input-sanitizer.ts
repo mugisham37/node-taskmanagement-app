@@ -1,5 +1,5 @@
+import { LoggingService } from '@taskmanagement/core';
 import DOMPurify from 'isomorphic-dompurify';
-import { LoggingService } from '../monitoring/logging-service';
 
 export interface SanitizationOptions {
   allowHtml?: boolean;

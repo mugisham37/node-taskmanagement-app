@@ -1,5 +1,5 @@
-import { CacheService } from '../caching/cache-service';
-import { InfrastructureError } from '../../shared/errors/infrastructure-error';
+import { CacheService } from '@taskmanagement/cache';
+import { InfrastructureError } from '@taskmanagement/core';
 
 export interface RateLimitConfig {
   windowMs: number; // Time window in milliseconds

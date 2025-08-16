@@ -1,7 +1,7 @@
 import { IUserRepository, UserId } from '@monorepo/domain';
+import { JWTService } from '@taskmanagement/auth';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { JWTService } from '../../infrastructure/security/jwt-service';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
 
 export interface AuthenticatedUser {
@@ -68,10 +68,7 @@ export class AuthMiddleware {
     private readonly logger: LoggingService
   ) {}
 
-  authenticate = async (
-    request: FastifyRequest,
-    _reply: FastifyReply
-  ): Promise<void> => {
+  authenticate = async (request: FastifyRequest, _reply: FastifyReply): Promise<void> => {
     try {
       const authHeader = request.headers.authorization;
 
@@ -176,9 +173,7 @@ export class AuthMiddleware {
         }
 
         // Get user from database
-        const user = await this.userRepository.findById(
-          new UserId(payload.sub)
-        );
+        const user = await this.userRepository.findById(new UserId(payload.sub));
 
         if (!user) {
           throw new AuthorizationError('User not found');
@@ -189,10 +184,7 @@ export class AuthMiddleware {
         }
 
         // Check role restrictions
-        if (
-          options.allowedRoles &&
-          !options.allowedRoles.includes(payload['role'])
-        ) {
+        if (options.allowedRoles && !options.allowedRoles.includes(payload['role'])) {
           this.logger.warn('Authorization failed: Insufficient role', {
             userId: payload.sub,
             userRole: payload['role'],
@@ -213,10 +205,7 @@ export class AuthMiddleware {
         }
 
         // Check risk score threshold
-        if (
-          options.maxRiskScore &&
-          payload['riskScore'] > options.maxRiskScore
-        ) {
+        if (options.maxRiskScore && payload['riskScore'] > options.maxRiskScore) {
           this.logger.warn('Authorization failed: High risk score', {
             userId: payload.sub,
             riskScore: payload['riskScore'],
@@ -227,18 +216,15 @@ export class AuthMiddleware {
         }
 
         // Check permissions
-        if (
-          options.requiredPermissions &&
-          options.requiredPermissions.length > 0
-        ) {
+        if (options.requiredPermissions && options.requiredPermissions.length > 0) {
           const userPermissions = payload.permissions || [];
-          const hasAllPermissions = options.requiredPermissions.every(
-            permission => userPermissions.includes(permission)
+          const hasAllPermissions = options.requiredPermissions.every((permission) =>
+            userPermissions.includes(permission)
           );
 
           if (!hasAllPermissions) {
             const missingPermissions = options.requiredPermissions.filter(
-              permission => !userPermissions.includes(permission)
+              (permission) => !userPermissions.includes(permission)
             );
 
             this.logger.warn('Authorization failed: Missing permissions', {
@@ -273,8 +259,7 @@ export class AuthMiddleware {
             workspaceId: payload['workspaceId'],
             workspaceName: payload['workspaceName'] || '',
             role: payload['workspaceRole'] || payload['role'],
-            permissions:
-              payload['workspacePermissions'] || payload.permissions || [],
+            permissions: payload['workspacePermissions'] || payload.permissions || [],
           };
         } else if (options.requireWorkspace) {
           throw new AuthorizationError('Workspace context required');
@@ -293,10 +278,7 @@ export class AuthMiddleware {
   };
 
   // Optional authentication - doesn't throw if no token provided
-  optionalAuthenticate = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  optionalAuthenticate = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     try {
       await this.authenticate(request, reply);
     } catch (error) {
@@ -310,9 +292,7 @@ export class AuthMiddleware {
   };
 
   requirePermissions = (permissions: string | string[]) => {
-    const requiredPermissions = Array.isArray(permissions)
-      ? permissions
-      : [permissions];
+    const requiredPermissions = Array.isArray(permissions) ? permissions : [permissions];
     return this.authenticateWithOptions({ requiredPermissions });
   };
 
@@ -345,13 +325,11 @@ export class AuthMiddleware {
     return {
       ipAddress: request.ip,
       userAgent: request.headers['user-agent'] || undefined,
-      deviceFingerprint:
-        (request.headers['x-device-fingerprint'] as string) || undefined,
+      deviceFingerprint: (request.headers['x-device-fingerprint'] as string) || undefined,
       requestPath: request.url,
       requestMethod: request.method,
       correlationId:
-        (request.headers['x-correlation-id'] as string) ||
-        this.generateCorrelationId(),
+        (request.headers['x-correlation-id'] as string) || this.generateCorrelationId(),
     };
   }
 
@@ -379,10 +357,7 @@ export class AuthMiddleware {
     reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
 
     if (riskScore > 0.5) {
-      reply.header(
-        'Strict-Transport-Security',
-        'max-age=31536000; includeSubDomains; preload'
-      );
+      reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
     }
 
     // Add risk score header for debugging (remove in production)

@@ -88,7 +88,7 @@
   - Use PowerShell to update domain imports: `(Get-Content -Path "apps/api/src/**/*.ts" -Raw) -replace 'from ["\']\.\.?/.*?/domain/', 'from "@taskmanagement/domain"' | Set-Content`
   - _Requirements: 1.2, 1.12, 1.14_
 
-- [ ] 9. Extract Authentication Package from API Using PowerShell Commands
+- [x] 9. Extract Authentication Package from API Using PowerShell Commands
 
   - Use PowerShell: `New-Item -ItemType Directory -Path "packages/auth/src" -Force` and create subdirectories for strategies/, providers/, middleware/, guards/, 2fa/, webauthn/, rbac/, encryption/, session/, tokens/
   - Use PowerShell: `Move-Item "apps/api/src/infrastructure/security/*" "packages/auth/src/" -Force`

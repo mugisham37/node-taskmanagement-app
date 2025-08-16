@@ -1,4 +1,4 @@
-import { LoggingService } from '../monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/core';
 
 export enum AuditEventType {
   // Authentication events

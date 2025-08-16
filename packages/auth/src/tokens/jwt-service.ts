@@ -1,7 +1,5 @@
+import { AuthorizationError, InfrastructureError, JWT } from '@taskmanagement/core';
 import jwt, { JwtPayload, SignOptions, VerifyOptions } from 'jsonwebtoken';
-import { InfrastructureError } from '../../shared/errors/infrastructure-error';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { JWT } from '../../shared/constants';
 
 export interface JWTConfig {
   accessTokenSecret: string;
