@@ -77,7 +77,7 @@
   - Use PowerShell to update i18n imports: `(Get-Content -Path "apps/api/src/**/*.ts" -Raw) -replace 'from ["\']\.\.?/.*?/localization/', 'from "@taskmanagement/i18n"' | Set-Content`
   - _Requirements: 1.8, 1.12, 1.14_
 
-- [ ] 8. Extract Domain Package from API Using PowerShell Commands
+- [x] 8. Extract Domain Package from API Using PowerShell Commands
 
   - Use PowerShell: `New-Item -ItemType Directory -Path "packages/domain/src" -Force` and create subdirectories for aggregates/, entities/, value-objects/, events/, services/, specifications/, repositories/, factories/, policies/, base/
   - Use PowerShell: `Move-Item "apps/api/src/domain/*" "packages/domain/src/" -Force` preserving all business logic and relationships

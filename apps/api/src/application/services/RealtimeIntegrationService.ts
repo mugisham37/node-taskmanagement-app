@@ -1,8 +1,6 @@
-import { Container } from '../../shared/container/Container';
+import { Project, Task, User } from '@taskmanagement/domain';
 import { RealtimeManager } from '../../presentation/websocket/realtime-manager';
-import { Task } from '../../domain/entities/Task';
-import { Project } from '../../domain/entities/Project';
-import { User } from '../../domain/entities/User';
+import { Container } from '../../shared/container/Container';
 
 /**
  * Service to integrate real-time updates with application services
@@ -11,8 +9,7 @@ export class RealtimeIntegrationService {
   private realtimeManager: RealtimeManager;
 
   constructor(private container: Container) {
-    this.realtimeManager =
-      container.resolve<RealtimeManager>('RealtimeManager');
+    this.realtimeManager = container.resolve<RealtimeManager>('RealtimeManager');
   }
 
   // Task-related real-time updates
@@ -61,11 +58,7 @@ export class RealtimeIntegrationService {
     });
   }
 
-  async broadcastTaskAssigned(
-    taskId: string,
-    assignee: User,
-    assignedBy: User
-  ): Promise<void> {
+  async broadcastTaskAssigned(taskId: string, assignee: User, assignedBy: User): Promise<void> {
     await this.realtimeManager.broadcastTaskUpdate(taskId, {
       type: 'assigned',
       assignee,
@@ -75,10 +68,7 @@ export class RealtimeIntegrationService {
   }
 
   // Project-related real-time updates
-  async broadcastProjectCreated(
-    project: Project,
-    createdBy: User
-  ): Promise<void> {
+  async broadcastProjectCreated(project: Project, createdBy: User): Promise<void> {
     await this.realtimeManager.broadcastProjectUpdate(project.id, {
       type: 'created',
       project,
@@ -100,10 +90,7 @@ export class RealtimeIntegrationService {
     });
   }
 
-  async broadcastProjectDeleted(
-    projectId: string,
-    deletedBy: User
-  ): Promise<void> {
+  async broadcastProjectDeleted(projectId: string, deletedBy: User): Promise<void> {
     await this.realtimeManager.broadcastProjectUpdate(projectId, {
       type: 'deleted',
       deletedBy,
@@ -111,11 +98,7 @@ export class RealtimeIntegrationService {
     });
   }
 
-  async broadcastProjectMemberAdded(
-    projectId: string,
-    member: User,
-    addedBy: User
-  ): Promise<void> {
+  async broadcastProjectMemberAdded(projectId: string, member: User, addedBy: User): Promise<void> {
     await this.realtimeManager.broadcastProjectUpdate(projectId, {
       type: 'member_added',
       member,

@@ -1,6 +1,5 @@
+import { UserId, WorkspaceId } from '@taskmanagement/domain';
 import { BaseQuery, PaginationOptions } from './base-query';
-import { WorkspaceId } from '../../domain/value-objects/workspace-id';
-import { UserId } from '../../domain/value-objects/user-id';
 
 export interface WorkspaceFilters {
   ownerId?: UserId;

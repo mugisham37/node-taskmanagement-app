@@ -1,25 +1,12 @@
 import { Email, User, UserId, UserStatusVO } from '@monorepo/domain';
 import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  gte,
-  inArray,
-  isNull,
-  like,
-  lte,
-  or,
-  SQL,
-} from 'drizzle-orm';
-import {
   IUserRepository,
   PaginatedResult,
   PaginationOptions,
   UserFilters,
   UserSortOptions,
-} from '../../../domain/repositories/user-repository';
+} from '@taskmanagement/domain';
+import { and, asc, count, desc, eq, gte, inArray, isNull, like, lte, or, SQL } from 'drizzle-orm';
 import { UserStatus } from '../../../shared/constants/user-constants';
 import { getDatabase } from '../connection';
 import { users } from '../schema';
@@ -30,31 +17,20 @@ export class UserRepository implements IUserRepository {
   }
 
   async findById(id: UserId): Promise<User | null> {
-    const result = await this.db
-      .select()
-      .from(users)
-      .where(eq(users.id, id.value))
-      .limit(1);
+    const result = await this.db.select().from(users).where(eq(users.id, id.value)).limit(1);
 
     return result.length > 0 ? this.mapToEntity(result[0]) : null;
   }
 
   async findByIds(ids: UserId[]): Promise<User[]> {
-    const idValues = ids.map(id => id.value);
-    const result = await this.db
-      .select()
-      .from(users)
-      .where(inArray(users.id, idValues));
+    const idValues = ids.map((id) => id.value);
+    const result = await this.db.select().from(users).where(inArray(users.id, idValues));
 
-    return result.map(row => this.mapToEntity(row));
+    return result.map((row) => this.mapToEntity(row));
   }
 
   async findByEmail(email: Email): Promise<User | null> {
-    const result = await this.db
-      .select()
-      .from(users)
-      .where(eq(users.email, email.value))
-      .limit(1);
+    const result = await this.db.select().from(users).where(eq(users.email, email.value)).limit(1);
 
     return result.length > 0 ? this.mapToEntity(result[0]) : null;
   }
@@ -142,7 +118,7 @@ export class UserRepository implements IUserRepository {
     const total = await this.count(filters);
 
     return {
-      items: result.map(row => this.mapToEntity(row)),
+      items: result.map((row) => this.mapToEntity(row)),
       total,
       page: pagination?.page || 1,
       limit: pagination?.limit || result.length,
@@ -180,9 +156,7 @@ export class UserRepository implements IUserRepository {
     // Build additional filter conditions
     const filterConditions = filters ? this.buildFilterConditions(filters) : [];
     const allConditions =
-      filterConditions.length > 0
-        ? [searchCondition, ...filterConditions]
-        : [searchCondition];
+      filterConditions.length > 0 ? [searchCondition, ...filterConditions] : [searchCondition];
 
     const db = this.db;
     let result: any[];
@@ -210,7 +184,7 @@ export class UserRepository implements IUserRepository {
     const total = totalResult[0]?.count || 0;
 
     return {
-      items: result.map(row => this.mapToEntity(row)),
+      items: result.map((row) => this.mapToEntity(row)),
       total,
       page: pagination?.page || 1,
       limit: pagination?.limit || result.length,
@@ -218,14 +192,8 @@ export class UserRepository implements IUserRepository {
     };
   }
 
-  async getActiveUsers(
-    pagination?: PaginationOptions
-  ): Promise<PaginatedResult<User>> {
-    return this.findUsers(
-      { status: [UserStatus.ACTIVE] },
-      undefined,
-      pagination
-    );
+  async getActiveUsers(pagination?: PaginationOptions): Promise<PaginatedResult<User>> {
+    return this.findUsers({ status: [UserStatus.ACTIVE] }, undefined, pagination);
   }
 
   async getInactiveUsers(
@@ -235,10 +203,7 @@ export class UserRepository implements IUserRepository {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - inactiveDays);
 
-    const conditions = or(
-      lte(users.lastLoginAt, cutoffDate),
-      isNull(users.lastLoginAt)
-    );
+    const conditions = or(lte(users.lastLoginAt, cutoffDate), isNull(users.lastLoginAt));
 
     const db = this.db;
     let result: any[];
@@ -256,14 +221,11 @@ export class UserRepository implements IUserRepository {
     }
 
     // Count total
-    const totalResult = await db
-      .select({ count: count() })
-      .from(users)
-      .where(conditions);
+    const totalResult = await db.select({ count: count() }).from(users).where(conditions);
     const total = totalResult[0]?.count || 0;
 
     return {
-      items: result.map(row => this.mapToEntity(row)),
+      items: result.map((row) => this.mapToEntity(row)),
       total,
       page: pagination?.page || 1,
       limit: pagination?.limit || result.length,
@@ -279,12 +241,9 @@ export class UserRepository implements IUserRepository {
   }
 
   async getUsersRequiringVerification(): Promise<User[]> {
-    const result = await this.db
-      .select()
-      .from(users)
-      .where(eq(users.isActive, false));
+    const result = await this.db.select().from(users).where(eq(users.isActive, false));
 
-    return result.map(row => this.mapToEntity(row));
+    return result.map((row) => this.mapToEntity(row));
   }
 
   async getUserStatistics(): Promise<{
@@ -353,7 +312,7 @@ export class UserRepository implements IUserRepository {
   async saveMany(userList: User[]): Promise<void> {
     if (userList.length === 0) return;
 
-    const data = userList.map(user => this.mapFromEntity(user));
+    const data = userList.map((user) => this.mapFromEntity(user));
 
     await this.db
       .insert(users)
@@ -371,7 +330,7 @@ export class UserRepository implements IUserRepository {
   }
 
   async deleteMany(ids: UserId[]): Promise<void> {
-    const idValues = ids.map(id => id.value);
+    const idValues = ids.map((id) => id.value);
     await this.db.delete(users).where(inArray(users.id, idValues));
   }
 
@@ -457,10 +416,7 @@ export class UserRepository implements IUserRepository {
     return [];
   }
 
-  async getUserTaskAssignments(
-    userId: UserId,
-    includeCompleted?: boolean
-  ): Promise<any[]> {
+  async getUserTaskAssignments(userId: UserId, includeCompleted?: boolean): Promise<any[]> {
     // Implementation would require joins with tasks table
     // This would depend on task schema being available
     void userId; // Acknowledge parameter
@@ -499,7 +455,7 @@ export class UserRepository implements IUserRepository {
     userIds: UserId[],
     status: (typeof UserStatus)[keyof typeof UserStatus]
   ): Promise<void> {
-    const idValues = userIds.map(id => id.value);
+    const idValues = userIds.map((id) => id.value);
     await this.db
       .update(users)
       .set({
@@ -517,11 +473,7 @@ export class UserRepository implements IUserRepository {
     return [];
   }
 
-  async getUserLoginHistory(
-    userId: UserId,
-    fromDate: Date,
-    toDate: Date
-  ): Promise<any[]> {
+  async getUserLoginHistory(userId: UserId, fromDate: Date, toDate: Date): Promise<any[]> {
     // This would require login history tracking
     // For now, return empty array as placeholder
     void userId; // Acknowledge parameter
@@ -546,32 +498,21 @@ export class UserRepository implements IUserRepository {
     return {};
   }
 
-  async isEmailAvailable(
-    email: Email,
-    excludeUserId?: UserId
-  ): Promise<boolean> {
-    let query = this.db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, email.value));
+  async isEmailAvailable(email: Email, excludeUserId?: UserId): Promise<boolean> {
+    let query = this.db.select({ id: users.id }).from(users).where(eq(users.email, email.value));
 
     if (excludeUserId) {
       query = this.db
         .select({ id: users.id })
         .from(users)
-        .where(
-          and(eq(users.email, email.value), eq(users.id, excludeUserId.value))
-        );
+        .where(and(eq(users.email, email.value), eq(users.id, excludeUserId.value)));
     }
 
     const result = await query.limit(1);
     return result.length === 0;
   }
 
-  async getUsersByWorkspaceRole(
-    workspaceId: string,
-    role: string
-  ): Promise<User[]> {
+  async getUsersByWorkspaceRole(workspaceId: string, role: string): Promise<User[]> {
     // This would require workspace member joins
     // Implementation would depend on workspace member schema
     void workspaceId; // Acknowledge parameter
@@ -579,10 +520,7 @@ export class UserRepository implements IUserRepository {
     return [];
   }
 
-  async getUsersByProjectRole(
-    projectId: string,
-    role: string
-  ): Promise<User[]> {
+  async getUsersByProjectRole(projectId: string, role: string): Promise<User[]> {
     // This would require project member joins
     // Implementation would depend on project member schema
     void projectId; // Acknowledge parameter
@@ -613,7 +551,7 @@ export class UserRepository implements IUserRepository {
     if (filters.status && filters.status.length > 0) {
       // Map status to isActive boolean - simplified mapping
       const hasActive = filters.status.includes(UserStatus.ACTIVE);
-      const hasInactive = filters.status.some(s => s !== UserStatus.ACTIVE);
+      const hasInactive = filters.status.some((s) => s !== UserStatus.ACTIVE);
 
       if (hasActive && !hasInactive) {
         conditions.push(eq(users.isActive, true));
@@ -625,10 +563,7 @@ export class UserRepository implements IUserRepository {
 
     if (filters.search) {
       conditions.push(
-        or(
-          like(users.name, `%${filters.search}%`),
-          like(users.email, `%${filters.search}%`)
-        )!
+        or(like(users.name, `%${filters.search}%`), like(users.email, `%${filters.search}%`))!
       );
     }
 
@@ -657,9 +592,7 @@ export class UserRepository implements IUserRepository {
       Email.create(row.email),
       row.name,
       row.hashedPassword,
-      UserStatusVO.create(
-        row.isActive ? UserStatus.ACTIVE : UserStatus.INACTIVE
-      ),
+      UserStatusVO.create(row.isActive ? UserStatus.ACTIVE : UserStatus.INACTIVE),
       row.lastLoginAt,
       row.createdAt,
       row.updatedAt

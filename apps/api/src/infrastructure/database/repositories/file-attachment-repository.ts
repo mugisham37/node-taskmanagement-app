@@ -1,21 +1,13 @@
 import {
-  eq,
-  and,
-  gte,
-  lte,
-  desc,
-  isNull,
-  sql,
-} from 'drizzle-orm';
-import {
   FileAttachment,
-  FileType,
   FileStatus,
-} from '../../../domain/entities/file-attachment';
-import { IFileAttachmentRepository } from '../../../domain/repositories/file-attachment-repository';
-import { BaseDrizzleRepository } from './base-drizzle-repository';
-import { fileAttachments } from '../schema/file-attachments';
+  FileType,
+  IFileAttachmentRepository,
+} from '@taskmanagement/domain';
+import { and, desc, eq, gte, isNull, lte, sql } from 'drizzle-orm';
 import { logger } from '../../monitoring/logging-service';
+import { fileAttachments } from '../schema/file-attachments';
+import { BaseDrizzleRepository } from './base-drizzle-repository';
 
 interface FileAttachmentDrizzleModel {
   id: string;
@@ -76,9 +68,7 @@ export class FileAttachmentRepository
     });
   }
 
-  protected toDrizzle(
-    entity: FileAttachment
-  ): Partial<FileAttachmentDrizzleModel> {
+  protected toDrizzle(entity: FileAttachment): Partial<FileAttachmentDrizzleModel> {
     return {
       id: entity.id,
       filename: entity.filename,
@@ -141,9 +131,7 @@ export class FileAttachmentRepository
         .where(eq(fileAttachments.checksum, checksum))
         .orderBy(desc(fileAttachments.createdAt));
 
-      return results.map(result =>
-        this.toDomain(result as FileAttachmentDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as FileAttachmentDrizzleModel));
     } catch (error) {
       logger.error('Error finding file attachments by checksum', error as Error, {
         checksum,
@@ -161,19 +149,12 @@ export class FileAttachmentRepository
       const results = await this.database
         .select()
         .from(fileAttachments)
-        .where(
-          and(
-            eq(fileAttachments.uploadedBy, userId),
-            isNull(fileAttachments.deletedAt)
-          )
-        )
+        .where(and(eq(fileAttachments.uploadedBy, userId), isNull(fileAttachments.deletedAt)))
         .orderBy(desc(fileAttachments.createdAt))
         .limit(limit)
         .offset(offset);
 
-      return results.map(result =>
-        this.toDomain(result as FileAttachmentDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as FileAttachmentDrizzleModel));
     } catch (error) {
       logger.error('Error finding file attachments by uploaded by', error as Error, {
         userId,
@@ -191,19 +172,12 @@ export class FileAttachmentRepository
       const results = await this.database
         .select()
         .from(fileAttachments)
-        .where(
-          and(
-            eq(fileAttachments.workspaceId, workspaceId),
-            isNull(fileAttachments.deletedAt)
-          )
-        )
+        .where(and(eq(fileAttachments.workspaceId, workspaceId), isNull(fileAttachments.deletedAt)))
         .orderBy(desc(fileAttachments.createdAt))
         .limit(limit)
         .offset(offset);
 
-      return results.map(result =>
-        this.toDomain(result as FileAttachmentDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as FileAttachmentDrizzleModel));
     } catch (error) {
       logger.error('Error finding file attachments by workspace ID', error as Error, {
         workspaceId,
@@ -221,19 +195,12 @@ export class FileAttachmentRepository
       const results = await this.database
         .select()
         .from(fileAttachments)
-        .where(
-          and(
-            eq(fileAttachments.projectId, projectId),
-            isNull(fileAttachments.deletedAt)
-          )
-        )
+        .where(and(eq(fileAttachments.projectId, projectId), isNull(fileAttachments.deletedAt)))
         .orderBy(desc(fileAttachments.createdAt))
         .limit(limit)
         .offset(offset);
 
-      return results.map(result =>
-        this.toDomain(result as FileAttachmentDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as FileAttachmentDrizzleModel));
     } catch (error) {
       logger.error('Error finding file attachments by project ID', error as Error, {
         projectId,
@@ -251,19 +218,12 @@ export class FileAttachmentRepository
       const results = await this.database
         .select()
         .from(fileAttachments)
-        .where(
-          and(
-            eq(fileAttachments.taskId, taskId),
-            isNull(fileAttachments.deletedAt)
-          )
-        )
+        .where(and(eq(fileAttachments.taskId, taskId), isNull(fileAttachments.deletedAt)))
         .orderBy(desc(fileAttachments.createdAt))
         .limit(limit)
         .offset(offset);
 
-      return results.map(result =>
-        this.toDomain(result as FileAttachmentDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as FileAttachmentDrizzleModel));
     } catch (error) {
       logger.error('Error finding file attachments by task ID', error as Error, {
         taskId,
@@ -277,17 +237,10 @@ export class FileAttachmentRepository
       const results = await this.database
         .select()
         .from(fileAttachments)
-        .where(
-          and(
-            eq(fileAttachments.commentId, commentId),
-            isNull(fileAttachments.deletedAt)
-          )
-        )
+        .where(and(eq(fileAttachments.commentId, commentId), isNull(fileAttachments.deletedAt)))
         .orderBy(desc(fileAttachments.createdAt));
 
-      return results.map(result =>
-        this.toDomain(result as FileAttachmentDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as FileAttachmentDrizzleModel));
     } catch (error) {
       logger.error('Error finding file attachments by comment ID', error as Error, {
         commentId,
@@ -305,16 +258,12 @@ export class FileAttachmentRepository
       const results = await this.database
         .select()
         .from(fileAttachments)
-        .where(
-          and(eq(fileAttachments.type, type), isNull(fileAttachments.deletedAt))
-        )
+        .where(and(eq(fileAttachments.type, type), isNull(fileAttachments.deletedAt)))
         .orderBy(desc(fileAttachments.createdAt))
         .limit(limit)
         .offset(offset);
 
-      return results.map(result =>
-        this.toDomain(result as FileAttachmentDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as FileAttachmentDrizzleModel));
     } catch (error) {
       logger.error('Error finding file attachments by type', error as Error, { type });
       throw error;
@@ -335,9 +284,7 @@ export class FileAttachmentRepository
         .limit(limit)
         .offset(offset);
 
-      return results.map(result =>
-        this.toDomain(result as FileAttachmentDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as FileAttachmentDrizzleModel));
     } catch (error) {
       logger.error('Error finding file attachments by status', error as Error, {
         status,
@@ -355,19 +302,12 @@ export class FileAttachmentRepository
       const results = await this.database
         .select()
         .from(fileAttachments)
-        .where(
-          and(
-            eq(fileAttachments.mimeType, mimeType),
-            isNull(fileAttachments.deletedAt)
-          )
-        )
+        .where(and(eq(fileAttachments.mimeType, mimeType), isNull(fileAttachments.deletedAt)))
         .orderBy(desc(fileAttachments.createdAt))
         .limit(limit)
         .offset(offset);
 
-      return results.map(result =>
-        this.toDomain(result as FileAttachmentDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as FileAttachmentDrizzleModel));
     } catch (error) {
       logger.error('Error finding file attachments by MIME type', error as Error, {
         mimeType,
@@ -376,10 +316,7 @@ export class FileAttachmentRepository
     }
   }
 
-  async findDeleted(
-    limit: number = 50,
-    offset: number = 0
-  ): Promise<FileAttachment[]> {
+  async findDeleted(limit: number = 50, offset: number = 0): Promise<FileAttachment[]> {
     try {
       const results = await this.database
         .select()
@@ -389,9 +326,7 @@ export class FileAttachmentRepository
         .limit(limit)
         .offset(offset);
 
-      return results.map(result =>
-        this.toDomain(result as FileAttachmentDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as FileAttachmentDrizzleModel));
     } catch (error) {
       logger.error('Error finding deleted file attachments', error as Error);
       throw error;
@@ -414,9 +349,7 @@ export class FileAttachmentRepository
         )
         .orderBy(desc(fileAttachments.createdAt));
 
-      return results.map(result =>
-        this.toDomain(result as FileAttachmentDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as FileAttachmentDrizzleModel));
     } catch (error) {
       logger.error('Error finding orphaned file attachments', error as Error);
       throw error;
@@ -429,17 +362,10 @@ export class FileAttachmentRepository
       const results = await this.database
         .select()
         .from(fileAttachments)
-        .where(
-          and(
-            gte(fileAttachments.size, minSizeBytes),
-            isNull(fileAttachments.deletedAt)
-          )
-        )
+        .where(and(gte(fileAttachments.size, minSizeBytes), isNull(fileAttachments.deletedAt)))
         .orderBy(desc(fileAttachments.size));
 
-      return results.map(result =>
-        this.toDomain(result as FileAttachmentDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as FileAttachmentDrizzleModel));
     } catch (error) {
       logger.error('Error finding large file attachments', error as Error, {
         minSizeMB,
@@ -470,14 +396,9 @@ export class FileAttachmentRepository
 
       const whereClause = and(...conditions);
 
-      const results = await this.database
-        .select()
-        .from(fileAttachments)
-        .where(whereClause);
+      const results = await this.database.select().from(fileAttachments).where(whereClause);
 
-      const files = results.map(result =>
-        this.toDomain(result as FileAttachmentDrizzleModel)
-      );
+      const files = results.map((result) => this.toDomain(result as FileAttachmentDrizzleModel));
 
       const stats = {
         totalFiles: files.length,
@@ -488,15 +409,15 @@ export class FileAttachmentRepository
       };
 
       // Initialize type and status counts
-      Object.values(FileType).forEach(type => {
+      Object.values(FileType).forEach((type) => {
         stats.byType[type] = { count: 0, size: 0 };
       });
-      Object.values(FileStatus).forEach(status => {
+      Object.values(FileStatus).forEach((status) => {
         stats.byStatus[status] = 0;
       });
 
       // Calculate statistics
-      files.forEach(file => {
+      files.forEach((file) => {
         stats.totalSize += file.size;
         stats.byType[file.type].count++;
         stats.byType[file.type].size += file.size;
@@ -535,14 +456,10 @@ export class FileAttachmentRepository
       const conditions = [isNull(fileAttachments.deletedAt)];
 
       if (query.filename) {
-        conditions.push(
-          sql`${fileAttachments.filename} ILIKE '%${query.filename}%'`
-        );
+        conditions.push(sql`${fileAttachments.filename} ILIKE '%${query.filename}%'`);
       }
       if (query.originalName) {
-        conditions.push(
-          sql`${fileAttachments.originalName} ILIKE '%${query.originalName}%'`
-        );
+        conditions.push(sql`${fileAttachments.originalName} ILIKE '%${query.originalName}%'`);
       }
       if (query.mimeType) {
         conditions.push(eq(fileAttachments.mimeType, query.mimeType));
@@ -585,9 +502,7 @@ export class FileAttachmentRepository
         .limit(query.limit || 50)
         .offset(query.offset || 0);
 
-      return results.map(result =>
-        this.toDomain(result as FileAttachmentDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as FileAttachmentDrizzleModel));
     } catch (error) {
       logger.error('Error searching file attachments', error as Error, { query });
       throw error;
@@ -596,9 +511,7 @@ export class FileAttachmentRepository
 
   async hardDelete(id: string): Promise<void> {
     try {
-      await this.database
-        .delete(fileAttachments)
-        .where(eq(fileAttachments.id, id));
+      await this.database.delete(fileAttachments).where(eq(fileAttachments.id, id));
     } catch (error) {
       logger.error('Error hard deleting file attachment', error as Error, { id });
       throw error;
@@ -686,12 +599,7 @@ export class FileAttachmentRepository
           deletedAt: new Date(),
           updatedAt: new Date(),
         })
-        .where(
-          and(
-            lte(fileAttachments.createdAt, date),
-            isNull(fileAttachments.deletedAt)
-          )
-        )
+        .where(and(lte(fileAttachments.createdAt, date), isNull(fileAttachments.deletedAt)))
         .returning({ id: fileAttachments.id });
 
       return results.length;

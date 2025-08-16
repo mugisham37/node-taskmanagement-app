@@ -1,8 +1,6 @@
+import { IUserRepository, User, UserId } from '@taskmanagement/domain';
 import { UserQuery } from '@taskmanagement/types/dto';
 import { ValidationError } from '@taskmanagement/validation';
-import { User } from '../../domain/entities/user';
-import { IUserRepository } from '../../domain/repositories/user-repository';
-import { UserId } from '../../domain/value-objects/user-id';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
 import { NotFoundError } from '../../shared/errors/not-found-error';

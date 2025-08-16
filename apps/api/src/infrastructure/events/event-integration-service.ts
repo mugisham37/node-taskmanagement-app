@@ -20,10 +20,7 @@ interface Timer {
  * transaction management and error handling.
  */
 export class EventIntegrationService {
-  private readonly eventHandlers = new Map<
-    string,
-    Array<(event: DomainEvent) => Promise<void>>
-  >();
+  private readonly eventHandlers = new Map<string, Array<(event: DomainEvent) => Promise<void>>>();
   private isInitialized = false;
 
   constructor(
@@ -55,10 +52,7 @@ export class EventIntegrationService {
       this.isInitialized = true;
       this.logger.info('Event integration service initialized successfully');
     } catch (error) {
-      this.logger.error(
-        'Failed to initialize event integration service',
-        error as Error
-      );
+      this.logger.error('Failed to initialize event integration service', error as Error);
       throw error;
     }
   }
@@ -74,9 +68,7 @@ export class EventIntegrationService {
       this.eventHandlers.set(eventType, []);
     }
 
-    this.eventHandlers
-      .get(eventType)!
-      .push(handler as (event: DomainEvent) => Promise<void>);
+    this.eventHandlers.get(eventType)!.push(handler as (event: DomainEvent) => Promise<void>);
 
     this.logger.debug('Event handler registered', {
       eventType,
@@ -139,21 +131,17 @@ export class EventIntegrationService {
       const handlers = this.eventHandlers.get(eventType) || [];
       if (handlers.length > 0) {
         await Promise.allSettled(
-          handlers.map(handler => this.executeHandlerSafely(handler, event))
+          handlers.map((handler) => this.executeHandlerSafely(handler, event))
         );
       }
 
       this.metrics.incrementCounter('event_published_success', { eventType });
     } catch (error) {
       this.metrics.incrementCounter('event_published_error', { eventType });
-      this.logger.error(
-        `Failed to publish event: ${eventType}`,
-        error as Error,
-        {
-          eventId: event.getEventId(),
-          eventType,
-        }
-      );
+      this.logger.error(`Failed to publish event: ${eventType}`, error as Error, {
+        eventId: event.getEventId(),
+        eventType,
+      });
       throw error;
     }
   }
@@ -182,21 +170,21 @@ export class EventIntegrationService {
    */
   private async registerCrossServiceHandlers(): Promise<void> {
     // Task-related event handlers
-    this.registerEventHandler('TaskCreated', async event => {
+    this.registerEventHandler('TaskCreated', async (event) => {
       // Trigger notifications, audit logging, etc.
       this.logger.debug('Handling TaskCreated event', {
         taskId: event.getAggregateId(),
       });
     });
 
-    this.registerEventHandler('TaskCompleted', async event => {
+    this.registerEventHandler('TaskCompleted', async (event) => {
       // Update project progress, send notifications, etc.
       this.logger.debug('Handling TaskCompleted event', {
         taskId: event.getAggregateId(),
       });
     });
 
-    this.registerEventHandler('TaskAssigned', async event => {
+    this.registerEventHandler('TaskAssigned', async (event) => {
       // Send assignment notifications, update calendars, etc.
       this.logger.debug('Handling TaskAssigned event', {
         taskId: event.getAggregateId(),
@@ -204,14 +192,14 @@ export class EventIntegrationService {
     });
 
     // Project-related event handlers
-    this.registerEventHandler('ProjectCreated', async event => {
+    this.registerEventHandler('ProjectCreated', async (event) => {
       // Set up default webhooks, create calendar entries, etc.
       this.logger.debug('Handling ProjectCreated event', {
         projectId: event.getAggregateId(),
       });
     });
 
-    this.registerEventHandler('ProjectMemberAdded', async event => {
+    this.registerEventHandler('ProjectMemberAdded', async (event) => {
       // Send welcome notifications, update permissions, etc.
       this.logger.debug('Handling ProjectMemberAdded event', {
         projectId: event.getAggregateId(),
@@ -219,7 +207,7 @@ export class EventIntegrationService {
     });
 
     // User-related event handlers
-    this.registerEventHandler('UserRegistered', async event => {
+    this.registerEventHandler('UserRegistered', async (event) => {
       // Send welcome email, create default preferences, etc.
       this.logger.debug('Handling UserRegistered event', {
         userId: event.getAggregateId(),
@@ -227,7 +215,7 @@ export class EventIntegrationService {
     });
 
     // Workspace-related event handlers
-    this.registerEventHandler('WorkspaceCreated', async event => {
+    this.registerEventHandler('WorkspaceCreated', async (event) => {
       // Set up default settings, create admin permissions, etc.
       this.logger.debug('Handling WorkspaceCreated event', {
         workspaceId: event.getAggregateId(),
@@ -235,7 +223,7 @@ export class EventIntegrationService {
     });
 
     // Notification-related event handlers
-    this.registerEventHandler('NotificationCreated', async event => {
+    this.registerEventHandler('NotificationCreated', async (event) => {
       // Trigger delivery mechanisms, update counters, etc.
       this.logger.debug('Handling NotificationCreated event', {
         notificationId: event.getAggregateId(),
@@ -243,7 +231,7 @@ export class EventIntegrationService {
     });
 
     // Webhook-related event handlers
-    this.registerEventHandler('WebhookTriggered', async event => {
+    this.registerEventHandler('WebhookTriggered', async (event) => {
       // Log delivery attempts, update statistics, etc.
       this.logger.debug('Handling WebhookTriggered event', {
         webhookId: event.getAggregateId(),
@@ -329,10 +317,7 @@ export class EventIntegrationService {
       this.isInitialized = false;
       this.logger.info('Event integration service shut down successfully');
     } catch (error) {
-      this.logger.error(
-        'Error during event integration service shutdown',
-        error as Error
-      );
+      this.logger.error('Error during event integration service shutdown', error as Error);
       throw error;
     }
   }

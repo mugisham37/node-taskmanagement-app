@@ -1,17 +1,9 @@
 // Export main database components
-export {
-  DatabaseConnection,
-  createDatabaseConnection,
-  getDatabase,
-} from './connection';
+export { DatabaseConnection, createDatabaseConnection, getDatabase } from './connection';
 export type { DatabaseConfig } from './connection';
 
 // Export configuration utilities
-export {
-  createDatabaseConfig,
-  validateDatabaseConfig,
-  DATABASE_ENVIRONMENTS,
-} from './config';
+export { DATABASE_ENVIRONMENTS, createDatabaseConfig, validateDatabaseConfig } from './config';
 export type { DatabaseEnvironment, DatabaseEnvironmentConfig } from './config';
 
 // Export health checking
@@ -22,21 +14,15 @@ export type { DatabaseHealthStatus } from './health-check';
 export { runMigrations } from './migrations/migrate';
 
 // Export transaction management
-export {
-  TransactionManager,
-  createTransactionManager,
-} from './transaction-manager';
-export type {
-  TransactionOptions,
-  TransactionContext,
-} from './transaction-manager';
+export { TransactionManager, createTransactionManager } from './transaction-manager';
+export type { TransactionContext, TransactionOptions } from './transaction-manager';
 
 // Export query optimization
 export { QueryOptimizer, createQueryOptimizer } from './query-optimizer';
 export type {
-  QueryPerformanceMetrics,
   IndexSuggestion,
   QueryOptimizationReport,
+  QueryPerformanceMetrics,
   TableStatistics,
 } from './query-optimizer';
 
@@ -46,9 +32,9 @@ export {
   createDatabasePerformanceOptimizer,
 } from './performance-optimizer';
 export type {
-  DatabasePerformanceConfig,
   ConnectionPoolMetrics,
   DatabaseIndexInfo,
+  DatabasePerformanceConfig,
 } from './performance-optimizer';
 
 // Export seeding utilities
@@ -56,15 +42,8 @@ export { DatabaseSeeder } from './seeds';
 export type { SeedOptions } from './seeds';
 
 // Export backup and recovery utilities
-export {
-  BackupRecoveryManager,
-  createBackupRecoveryManager,
-} from './backup-recovery';
-export type {
-  BackupOptions,
-  RestoreOptions,
-  BackupMetadata,
-} from './backup-recovery';
+export { BackupRecoveryManager, createBackupRecoveryManager } from './backup-recovery';
+export type { BackupMetadata, BackupOptions, RestoreOptions } from './backup-recovery';
 
 // Export schema
 export * from './schema';
@@ -79,8 +58,8 @@ export * from './mappers/project-mapper';
 export * from './repositories';
 
 // Export repository interfaces (avoiding conflicts)
-export type { 
+export type {
   IProjectRepository,
   ProjectFilters,
-  ProjectSortOptions
-} from '../../domain/repositories/project-repository';
+  ProjectSortOptions,
+} from '@taskmanagement/domain';

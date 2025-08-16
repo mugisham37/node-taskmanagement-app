@@ -1,6 +1,6 @@
+import { AuditAction, AuditLog } from '@taskmanagement/domain';
 import { DatabaseConnection } from '../connection';
 import { AuditLogRepository } from '../repositories/audit-log-repository';
-import { AuditLog, AuditAction } from '../../../domain/entities/audit-log';
 
 export class AuditLogSeeder {
   private auditLogRepository: AuditLogRepository;
@@ -19,19 +19,12 @@ export class AuditLogSeeder {
     const auditLogs: AuditLog[] = [];
 
     const actions = Object.values(AuditAction);
-    const entityTypes = [
-      'user',
-      'workspace', 
-      'project',
-      'task',
-      'notification',
-    ];
+    const entityTypes = ['user', 'workspace', 'project', 'task', 'notification'];
 
     for (let i = 0; i < count; i++) {
       const userId = userIds[Math.floor(Math.random() * userIds.length)]!;
       const action = actions[Math.floor(Math.random() * actions.length)]!;
-      const entityType =
-        entityTypes[Math.floor(Math.random() * entityTypes.length)]!;
+      const entityType = entityTypes[Math.floor(Math.random() * entityTypes.length)]!;
 
       // Get appropriate entity ID based on type
       let entityId: string;
@@ -40,8 +33,7 @@ export class AuditLogSeeder {
           entityId = userIds[Math.floor(Math.random() * userIds.length)]!;
           break;
         case 'workspace':
-          entityId =
-            workspaceIds[Math.floor(Math.random() * workspaceIds.length)]!;
+          entityId = workspaceIds[Math.floor(Math.random() * workspaceIds.length)]!;
           break;
         case 'project':
           entityId = projectIds[Math.floor(Math.random() * projectIds.length)]!;
@@ -68,8 +60,7 @@ export class AuditLogSeeder {
 
       // Generate sample metadata
       const metadata = {
-        userAgent:
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         ipAddress: `192.168.1.${Math.floor(Math.random() * 255)}`,
         source: 'web_app',
         sessionId: `session-${Math.random().toString(36).substr(2, 16)}`,
@@ -94,9 +85,7 @@ export class AuditLogSeeder {
     const batchSize = 50;
     for (let i = 0; i < auditLogs.length; i += batchSize) {
       const batch = auditLogs.slice(i, i + batchSize);
-      await Promise.all(
-        batch.map(auditLog => this.auditLogRepository.save(auditLog))
-      );
+      await Promise.all(batch.map((auditLog) => this.auditLogRepository.save(auditLog)));
     }
 
     console.log(`Seeded ${auditLogs.length} audit logs`);

@@ -5,14 +5,16 @@
  * like bulk operations, analytics, automation, and enhanced validation.
  */
 
+import {
+  IProjectRepository,
+  ITaskRepository,
+  ProjectId,
+  Task,
+  TaskDomainService,
+  TaskId,
+  UserId,
+} from '@taskmanagement/domain';
 import { UnifiedTaskFilters } from '@taskmanagement/types/common';
-import { Task } from '../../domain/entities/task';
-import { IProjectRepository } from '../../domain/repositories/project-repository';
-import { ITaskRepository } from '../../domain/repositories/task-repository';
-import { TaskDomainService } from '../../domain/services/task-domain-service';
-import { ProjectId } from '../../domain/value-objects/project-id';
-import { TaskId } from '../../domain/value-objects/task-id';
-import { UserId } from '../../domain/value-objects/user-id';
 import { CacheService } from '../../infrastructure/caching/cache-service';
 import { TransactionManager } from '../../infrastructure/database/transaction-manager';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';

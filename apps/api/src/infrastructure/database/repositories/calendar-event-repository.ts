@@ -1,22 +1,13 @@
 import {
-  eq,
-  and,
-  or,
-  gte,
-  lte,
-  desc,
-  asc,
-  sql,
-} from 'drizzle-orm';
-import {
+  AttendeeStatus,
   CalendarEvent,
   EventType,
-  AttendeeStatus,
-} from '../../../domain/entities/calendar-event';
-import { ICalendarEventRepository } from '../../../domain/repositories/calendar-event-repository';
-import { BaseDrizzleRepository } from './base-drizzle-repository';
-import { calendarEvents } from '../schema/calendar-events';
+  ICalendarEventRepository,
+} from '@taskmanagement/domain';
+import { and, asc, desc, eq, gte, lte, or, sql } from 'drizzle-orm';
 import { logger } from '../../monitoring/logging-service';
+import { calendarEvents } from '../schema/calendar-events';
+import { BaseDrizzleRepository } from './base-drizzle-repository';
 
 interface CalendarEventDrizzleModel {
   id: string;
@@ -87,12 +78,12 @@ export class CalendarEventRepository
       taskId: drizzleModel.taskId || undefined,
       isRecurring: drizzleModel.isRecurring,
       recurrenceRule: drizzleModel.recurrenceRule || undefined,
-      attendees: drizzleModel.attendees.map(a => ({
+      attendees: drizzleModel.attendees.map((a) => ({
         userId: a.userId,
         status: a.status as AttendeeStatus,
         ...(a.responseAt && { responseAt: new Date(a.responseAt) }),
       })),
-      reminders: drizzleModel.reminders.map(r => ({
+      reminders: drizzleModel.reminders.map((r) => ({
         id: r.id,
         minutesBefore: r.minutesBefore,
         method: r.method as 'notification' | 'email' | 'sms',
@@ -107,9 +98,7 @@ export class CalendarEventRepository
     });
   }
 
-  protected toDrizzle(
-    entity: CalendarEvent
-  ): Partial<CalendarEventDrizzleModel> {
+  protected toDrizzle(entity: CalendarEvent): Partial<CalendarEventDrizzleModel> {
     return {
       id: entity.id,
       title: entity.title,
@@ -128,12 +117,12 @@ export class CalendarEventRepository
       taskId: entity.taskId || null,
       isRecurring: entity.isRecurring,
       recurrenceRule: entity.recurrenceRule || null,
-      attendees: entity.attendees.map(a => ({
+      attendees: entity.attendees.map((a) => ({
         userId: a.userId,
         status: a.status,
         ...(a.responseAt && { responseAt: a.responseAt.toISOString() }),
       })),
-      reminders: entity.reminders.map(r => ({
+      reminders: entity.reminders.map((r) => ({
         id: r.id,
         minutesBefore: r.minutesBefore,
         method: r.method,
@@ -169,9 +158,7 @@ export class CalendarEventRepository
         .limit(limit)
         .offset(offset);
 
-      return results.map(result =>
-        this.toDomain(result as CalendarEventDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as CalendarEventDrizzleModel));
     } catch (error) {
       logger.error('Error finding calendar events by user ID', error as Error, {
         userId,
@@ -194,9 +181,7 @@ export class CalendarEventRepository
         .limit(limit)
         .offset(offset);
 
-      return results.map(result =>
-        this.toDomain(result as CalendarEventDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as CalendarEventDrizzleModel));
     } catch (error) {
       logger.error('Error finding calendar events by workspace ID', error as Error, {
         workspaceId,
@@ -219,9 +204,7 @@ export class CalendarEventRepository
         .limit(limit)
         .offset(offset);
 
-      return results.map(result =>
-        this.toDomain(result as CalendarEventDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as CalendarEventDrizzleModel));
     } catch (error) {
       logger.error('Error finding calendar events by project ID', error as Error, {
         projectId,
@@ -244,9 +227,7 @@ export class CalendarEventRepository
         .limit(limit)
         .offset(offset);
 
-      return results.map(result =>
-        this.toDomain(result as CalendarEventDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as CalendarEventDrizzleModel));
     } catch (error) {
       logger.error('Error finding calendar events by task ID', error as Error, {
         taskId,
@@ -269,20 +250,14 @@ export class CalendarEventRepository
         .limit(limit)
         .offset(offset);
 
-      return results.map(result =>
-        this.toDomain(result as CalendarEventDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as CalendarEventDrizzleModel));
     } catch (error) {
       logger.error('Error finding calendar events by type', error as Error, { type });
       throw error;
     }
   }
 
-  async findByDateRange(
-    startDate: Date,
-    endDate: Date,
-    userId?: string
-  ): Promise<CalendarEvent[]> {
+  async findByDateRange(startDate: Date, endDate: Date, userId?: string): Promise<CalendarEvent[]> {
     try {
       let whereClause = and(
         gte(calendarEvents.startDate, startDate),
@@ -299,9 +274,7 @@ export class CalendarEventRepository
         .where(whereClause)
         .orderBy(asc(calendarEvents.startDate));
 
-      return results.map(result =>
-        this.toDomain(result as CalendarEventDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as CalendarEventDrizzleModel));
     } catch (error) {
       logger.error('Error finding calendar events by date range', error as Error, {
         startDate: startDate.toISOString(),
@@ -312,56 +285,35 @@ export class CalendarEventRepository
     }
   }
 
-  async findUpcoming(
-    userId: string,
-    limit: number = 10
-  ): Promise<CalendarEvent[]> {
+  async findUpcoming(userId: string, limit: number = 10): Promise<CalendarEvent[]> {
     try {
       const now = new Date();
       const results = await this.database
         .select()
         .from(calendarEvents)
-        .where(
-          and(
-            eq(calendarEvents.userId, userId),
-            gte(calendarEvents.startDate, now)
-          )
-        )
+        .where(and(eq(calendarEvents.userId, userId), gte(calendarEvents.startDate, now)))
         .orderBy(asc(calendarEvents.startDate))
         .limit(limit);
 
-      return results.map(result =>
-        this.toDomain(result as CalendarEventDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as CalendarEventDrizzleModel));
     } catch (error) {
       logger.error('Error finding upcoming calendar events', error as Error, { userId });
       throw error;
     }
   }
 
-  async findPast(
-    userId: string,
-    limit: number = 50,
-    offset: number = 0
-  ): Promise<CalendarEvent[]> {
+  async findPast(userId: string, limit: number = 50, offset: number = 0): Promise<CalendarEvent[]> {
     try {
       const now = new Date();
       const results = await this.database
         .select()
         .from(calendarEvents)
-        .where(
-          and(
-            eq(calendarEvents.userId, userId),
-            lte(calendarEvents.startDate, now)
-          )
-        )
+        .where(and(eq(calendarEvents.userId, userId), lte(calendarEvents.startDate, now)))
         .orderBy(desc(calendarEvents.startDate))
         .limit(limit)
         .offset(offset);
 
-      return results.map(result =>
-        this.toDomain(result as CalendarEventDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as CalendarEventDrizzleModel));
     } catch (error) {
       logger.error('Error finding past calendar events', error as Error, { userId });
       throw error;
@@ -373,17 +325,10 @@ export class CalendarEventRepository
       const results = await this.database
         .select()
         .from(calendarEvents)
-        .where(
-          and(
-            eq(calendarEvents.userId, userId),
-            eq(calendarEvents.isRecurring, true)
-          )
-        )
+        .where(and(eq(calendarEvents.userId, userId), eq(calendarEvents.isRecurring, true)))
         .orderBy(asc(calendarEvents.startDate));
 
-      return results.map(result =>
-        this.toDomain(result as CalendarEventDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as CalendarEventDrizzleModel));
     } catch (error) {
       logger.error('Error finding recurring calendar events', error as Error, {
         userId,
@@ -402,26 +347,14 @@ export class CalendarEventRepository
       let whereClause = and(
         eq(calendarEvents.userId, userId),
         or(
-          and(
-            gte(calendarEvents.startDate, startDate),
-            lte(calendarEvents.startDate, endDate)
-          ),
-          and(
-            gte(calendarEvents.endDate, startDate),
-            lte(calendarEvents.endDate, endDate)
-          ),
-          and(
-            lte(calendarEvents.startDate, startDate),
-            gte(calendarEvents.endDate, endDate)
-          )
+          and(gte(calendarEvents.startDate, startDate), lte(calendarEvents.startDate, endDate)),
+          and(gte(calendarEvents.endDate, startDate), lte(calendarEvents.endDate, endDate)),
+          and(lte(calendarEvents.startDate, startDate), gte(calendarEvents.endDate, endDate))
         )
       );
 
       if (excludeEventId) {
-        whereClause = and(
-          whereClause,
-          sql`${calendarEvents.id} != ${excludeEventId}`
-        );
+        whereClause = and(whereClause, sql`${calendarEvents.id} != ${excludeEventId}`);
       }
 
       const results = await this.database
@@ -430,9 +363,7 @@ export class CalendarEventRepository
         .where(whereClause)
         .orderBy(asc(calendarEvents.startDate));
 
-      return results.map(result =>
-        this.toDomain(result as CalendarEventDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as CalendarEventDrizzleModel));
     } catch (error) {
       logger.error('Error finding calendar event conflicts', error as Error, {
         userId,
@@ -443,10 +374,7 @@ export class CalendarEventRepository
     }
   }
 
-  async findByAttendee(
-    userId: string,
-    status?: AttendeeStatus
-  ): Promise<CalendarEvent[]> {
+  async findByAttendee(userId: string, status?: AttendeeStatus): Promise<CalendarEvent[]> {
     try {
       let whereClause;
       if (status) {
@@ -461,9 +389,7 @@ export class CalendarEventRepository
         .where(whereClause)
         .orderBy(asc(calendarEvents.startDate));
 
-      return results.map(result =>
-        this.toDomain(result as CalendarEventDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as CalendarEventDrizzleModel));
     } catch (error) {
       logger.error('Error finding calendar events by attendee', error as Error, {
         userId,
@@ -486,9 +412,7 @@ export class CalendarEventRepository
         )
         .orderBy(asc(calendarEvents.startDate));
 
-      return results.map(result =>
-        this.toDomain(result as CalendarEventDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as CalendarEventDrizzleModel));
     } catch (error) {
       logger.error('Error finding calendar events with reminders', error as Error, {
         beforeDate: beforeDate.toISOString(),
@@ -497,9 +421,7 @@ export class CalendarEventRepository
     }
   }
 
-  async findByExternalCalendar(
-    externalCalendarId: string
-  ): Promise<CalendarEvent[]> {
+  async findByExternalCalendar(externalCalendarId: string): Promise<CalendarEvent[]> {
     try {
       const results = await this.database
         .select()
@@ -507,9 +429,7 @@ export class CalendarEventRepository
         .where(eq(calendarEvents.externalCalendarId, externalCalendarId))
         .orderBy(asc(calendarEvents.startDate));
 
-      return results.map(result =>
-        this.toDomain(result as CalendarEventDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as CalendarEventDrizzleModel));
     } catch (error) {
       logger.error('Error finding calendar events by external calendar', error as Error, {
         externalCalendarId,
@@ -540,38 +460,32 @@ export class CalendarEventRepository
         )!;
       }
 
-      const results = await this.database
-        .select()
-        .from(calendarEvents)
-        .where(whereClause);
+      const results = await this.database.select().from(calendarEvents).where(whereClause);
 
-      const events = results.map(result =>
-        this.toDomain(result as CalendarEventDrizzleModel)
-      );
+      const events = results.map((result) => this.toDomain(result as CalendarEventDrizzleModel));
       const now = new Date();
 
       const stats = {
         totalEvents: events.length,
-        upcomingEvents: events.filter(e => e.startDate > now).length,
-        completedEvents: events.filter(e => e.isPast()).length,
+        upcomingEvents: events.filter((e) => e.startDate > now).length,
+        completedEvents: events.filter((e) => e.isPast()).length,
         byType: {} as Record<EventType, number>,
         averageDuration: 0,
       };
 
       // Initialize type counts
-      Object.values(EventType).forEach(type => {
+      Object.values(EventType).forEach((type) => {
         stats.byType[type] = 0;
       });
 
       // Calculate type distribution and average duration
       let totalDuration = 0;
-      events.forEach(event => {
+      events.forEach((event) => {
         stats.byType[event.type]++;
         totalDuration += event.getDuration();
       });
 
-      stats.averageDuration =
-        events.length > 0 ? totalDuration / events.length : 0;
+      stats.averageDuration = events.length > 0 ? totalDuration / events.length : 0;
 
       return stats;
     } catch (error) {
@@ -604,9 +518,7 @@ export class CalendarEventRepository
         conditions.push(sql`${calendarEvents.title} ILIKE '%${query.title}%'`);
       }
       if (query.description) {
-        conditions.push(
-          sql`${calendarEvents.description} ILIKE '%${query.description}%'`
-        );
+        conditions.push(sql`${calendarEvents.description} ILIKE '%${query.description}%'`);
       }
       if (query.type) {
         conditions.push(eq(calendarEvents.type, query.type));
@@ -618,8 +530,7 @@ export class CalendarEventRepository
         conditions.push(lte(calendarEvents.startDate, query.endDate));
       }
 
-      const whereClause =
-        conditions.length > 0 ? and(...conditions) : undefined;
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
       const results = await this.database
         .select()
@@ -629,12 +540,10 @@ export class CalendarEventRepository
         .limit(query.limit || 50)
         .offset(query.offset || 0);
 
-      return results.map(result =>
-        this.toDomain(result as CalendarEventDrizzleModel)
-      );
+      return results.map((result) => this.toDomain(result as CalendarEventDrizzleModel));
     } catch (error) {
-      logger.error('Error searching calendar events', error as Error, { 
-        queryParams: JSON.stringify(query) 
+      logger.error('Error searching calendar events', error as Error, {
+        queryParams: JSON.stringify(query),
       });
       throw error;
     }
@@ -642,9 +551,7 @@ export class CalendarEventRepository
 
   async deleteByUserId(userId: string): Promise<void> {
     try {
-      await this.database
-        .delete(calendarEvents)
-        .where(eq(calendarEvents.userId, userId));
+      await this.database.delete(calendarEvents).where(eq(calendarEvents.userId, userId));
     } catch (error) {
       logger.error('Error deleting calendar events by user ID', error as Error, {
         userId,
@@ -655,9 +562,7 @@ export class CalendarEventRepository
 
   async deleteByProjectId(projectId: string): Promise<void> {
     try {
-      await this.database
-        .delete(calendarEvents)
-        .where(eq(calendarEvents.projectId, projectId));
+      await this.database.delete(calendarEvents).where(eq(calendarEvents.projectId, projectId));
     } catch (error) {
       logger.error('Error deleting calendar events by project ID', error as Error, {
         projectId,
@@ -668,9 +573,7 @@ export class CalendarEventRepository
 
   async deleteByTaskId(taskId: string): Promise<void> {
     try {
-      await this.database
-        .delete(calendarEvents)
-        .where(eq(calendarEvents.taskId, taskId));
+      await this.database.delete(calendarEvents).where(eq(calendarEvents.taskId, taskId));
     } catch (error) {
       logger.error('Error deleting calendar events by task ID', error as Error, {
         taskId,

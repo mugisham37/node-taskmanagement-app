@@ -1,18 +1,16 @@
-import { Entity } from '../../../../domain/base/entity';
 import {
+  Entity,
   Notification,
-  NotificationPreferences,
-  NotificationType,
-  NotificationStatus,
   NotificationChannel,
-} from '../../../../domain/entities/notification';
-import {
   NotificationId,
-  UserId,
-  WorkspaceId,
+  NotificationPreferences,
+  NotificationStatus,
+  NotificationType,
   ProjectId,
   TaskId,
-} from '../../../../domain/value-objects';
+  UserId,
+  WorkspaceId,
+} from '@taskmanagement/domain';
 
 /**
  * Adapter to make domain notification entity compatible with repository pattern

@@ -1,17 +1,15 @@
-import { DatabaseConnection } from '../connection';
-import { NotificationRepository } from '../repositories/notification-repository';
 import {
   Notification,
-  NotificationType,
   NotificationChannel,
-} from '../../../domain/entities/notification';
-import {
   NotificationId,
-  UserId,
-  WorkspaceId,
+  NotificationType,
   ProjectId,
   TaskId,
-} from '../../../domain/value-objects';
+  UserId,
+  WorkspaceId,
+} from '@taskmanagement/domain';
+import { DatabaseConnection } from '../connection';
+import { NotificationRepository } from '../repositories/notification-repository';
 
 export class NotificationSeeder {
   private notificationRepository: NotificationRepository;
@@ -60,14 +58,10 @@ export class NotificationSeeder {
 
     for (let i = 0; i < count; i++) {
       const userId = userIds[Math.floor(Math.random() * userIds.length)]!;
-      const workspaceId =
-        workspaceIds[Math.floor(Math.random() * workspaceIds.length)]!;
-      const type =
-        notificationTypes[Math.floor(Math.random() * notificationTypes.length)]!;
-      const title =
-        sampleTitles[Math.floor(Math.random() * sampleTitles.length)]!;
-      const message =
-        sampleMessages[Math.floor(Math.random() * sampleMessages.length)]!;
+      const workspaceId = workspaceIds[Math.floor(Math.random() * workspaceIds.length)]!;
+      const type = notificationTypes[Math.floor(Math.random() * notificationTypes.length)]!;
+      const title = sampleTitles[Math.floor(Math.random() * sampleTitles.length)]!;
+      const message = sampleMessages[Math.floor(Math.random() * sampleMessages.length)]!;
 
       // Randomly select notification channels
       const shuffledChannels = [...channels].sort(() => 0.5 - Math.random());
@@ -121,9 +115,7 @@ export class NotificationSeeder {
     for (let i = 0; i < notifications.length; i += batchSize) {
       const batch = notifications.slice(i, i + batchSize);
       await Promise.all(
-        batch.map(notification =>
-          this.notificationRepository.save(notification)
-        )
+        batch.map((notification) => this.notificationRepository.save(notification))
       );
     }
 

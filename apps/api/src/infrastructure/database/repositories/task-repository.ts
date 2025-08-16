@@ -8,6 +8,12 @@ import {
   TaskStatusVO,
   UserId,
 } from '@monorepo/domain';
+import {
+  ITaskRepository,
+  PaginatedResult,
+  PaginationOptions,
+  TaskSortOptions,
+} from '@taskmanagement/domain';
 import { UnifiedTaskFilters } from '@taskmanagement/types/common';
 import {
   and,
@@ -23,12 +29,6 @@ import {
   lte,
   or,
 } from 'drizzle-orm';
-import {
-  ITaskRepository,
-  PaginatedResult,
-  PaginationOptions,
-  TaskSortOptions,
-} from '../../../domain/repositories/task-repository';
 import { TaskStatus } from '../../../shared/constants/task-constants';
 import { getDatabase } from '../connection';
 import { taskDependencies, tasks } from '../schema';

@@ -5,7 +5,7 @@
  * Queries represent read operations that don't change system state and are optimized for data retrieval.
  */
 
-import { UserId } from '../../domain/value-objects/user-id';
+import { UserId } from '@taskmanagement/domain';
 
 export interface IQuery {
   readonly queryId: string;
@@ -54,9 +54,7 @@ export abstract class QueryHandler<TQuery extends IQuery, TResult>
 
 export interface IQueryBus {
   send<TResult>(query: IQuery): Promise<TResult>;
-  register<TQuery extends IQuery, TResult>(
-    handler: IQueryHandler<TQuery, TResult>
-  ): void;
+  register<TQuery extends IQuery, TResult>(handler: IQueryHandler<TQuery, TResult>): void;
 }
 
 export interface PaginationQuery {

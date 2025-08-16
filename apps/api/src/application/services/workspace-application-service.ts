@@ -5,31 +5,33 @@
  */
 
 import {
-  BaseApplicationService,
-  ValidationResult,
-  RequiredFieldValidationRule,
-  LengthValidationRule,
-} from './base-application-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { IWorkspaceRepository } from '../../domain/repositories/workspace-repository';
-import { IUserRepository } from '../../domain/repositories/user-repository';
+  DomainEventPublisher,
+  IUserRepository,
+  IWorkspaceRepository,
+  UserId,
+  Workspace,
+  WorkspaceId,
+  WorkspaceMember,
+} from '@taskmanagement/domain';
 import { CacheService } from '../../infrastructure/caching/cache-service';
 import { EmailService } from '../../infrastructure/external-services/email-service';
-import { WorkspaceId } from '../../domain/value-objects/workspace-id';
-import { UserId } from '../../domain/value-objects/user-id';
-import { Workspace } from '../../domain/entities/workspace';
-import { WorkspaceMember } from '../../domain/entities/workspace-member';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { injectable } from '../../shared/decorators/injectable.decorator';
-import { ICommandBus } from '../cqrs/command';
 import {
+  ArchiveWorkspaceCommand,
   CreateWorkspaceCommand,
-  UpdateWorkspaceCommand,
   InviteUserToWorkspaceCommand,
   RemoveUserFromWorkspaceCommand,
   TransferWorkspaceOwnershipCommand,
-  ArchiveWorkspaceCommand
+  UpdateWorkspaceCommand,
 } from '../commands/workspace-commands';
+import { ICommandBus } from '../cqrs/command';
+import {
+  BaseApplicationService,
+  LengthValidationRule,
+  RequiredFieldValidationRule,
+  ValidationResult,
+} from './base-application-service';
 
 export interface CreateWorkspaceRequest {
   name: string;
@@ -232,7 +234,11 @@ export class WorkspaceApplicationService extends BaseApplicationService {
   /**
    * Update workspace details
    */
-  async updateWorkspace(userId: string, workspaceId: string, request: UpdateWorkspaceRequest): Promise<WorkspaceDto> {
+  async updateWorkspace(
+    userId: string,
+    workspaceId: string,
+    request: UpdateWorkspaceRequest
+  ): Promise<WorkspaceDto> {
     return await this.executeWithMonitoring('updateWorkspace', async () => {
       const workspaceIdVO = new WorkspaceId(workspaceId);
       const updatedBy = new UserId(userId);
@@ -268,24 +274,17 @@ export class WorkspaceApplicationService extends BaseApplicationService {
   /**
    * Get workspace by ID
    */
-  async getWorkspaceById(
-    workspaceId: string,
-    userId: string
-  ): Promise<WorkspaceDto> {
+  async getWorkspaceById(workspaceId: string, userId: string): Promise<WorkspaceDto> {
     return await this.executeWithMonitoring('getWorkspaceById', async () => {
       const workspaceIdVO = new WorkspaceId(workspaceId);
       const userIdVO = new UserId(userId);
 
       // Check cache first
       const cacheKey = `workspace:${workspaceId}`;
-      const cachedWorkspace =
-        await this.cacheService.get<WorkspaceDto>(cacheKey);
+      const cachedWorkspace = await this.cacheService.get<WorkspaceDto>(cacheKey);
       if (cachedWorkspace) {
         // Verify user still has access
-        const hasAccess = await this.canUserAccessWorkspace(
-          userIdVO,
-          workspaceIdVO
-        );
+        const hasAccess = await this.canUserAccessWorkspace(userIdVO, workspaceIdVO);
         if (hasAccess) {
           return cachedWorkspace;
         }
@@ -297,10 +296,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
       }
 
       // Check permissions
-      const canView = await this.canUserAccessWorkspace(
-        userIdVO,
-        workspaceIdVO
-      );
+      const canView = await this.canUserAccessWorkspace(userIdVO, workspaceIdVO);
       if (!canView) {
         throw new Error('Insufficient permissions to access workspace');
       }
@@ -308,11 +304,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
       const workspaceDto = await this.mapWorkspaceToDto(workspace);
 
       // Cache the result
-      await this.cacheService.set(
-        cacheKey,
-        workspaceDto,
-        this.WORKSPACE_CACHE_TTL
-      );
+      await this.cacheService.set(cacheKey, workspaceDto, this.WORKSPACE_CACHE_TTL);
 
       return workspaceDto;
     });
@@ -321,7 +313,10 @@ export class WorkspaceApplicationService extends BaseApplicationService {
   /**
    * Get user's workspaces
    */
-  async getUserWorkspaces(userId: string, _query?: any): Promise<{ workspaces: WorkspaceDto[]; total: number }> {
+  async getUserWorkspaces(
+    userId: string,
+    _query?: any
+  ): Promise<{ workspaces: WorkspaceDto[]; total: number }> {
     return await this.executeWithMonitoring('getUserWorkspaces', async () => {
       const userIdVO = new UserId(userId);
 
@@ -516,10 +511,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
       }
 
       // Check if already a member
-      const existingMember = await this.workspaceRepository.findMember(
-        workspaceId,
-        userIdVO
-      );
+      const existingMember = await this.workspaceRepository.findMember(workspaceId, userIdVO);
       if (existingMember) {
         throw new Error('User is already a member of this workspace');
       }
@@ -551,11 +543,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
   /**
    * Remove member from workspace
    */
-  async removeMember(
-    workspaceId: string,
-    userId: string,
-    removedBy: string
-  ): Promise<void> {
+  async removeMember(workspaceId: string, userId: string, removedBy: string): Promise<void> {
     return await this.executeWithMonitoring('removeMember', async () => {
       const workspaceIdVO = new WorkspaceId(workspaceId);
       const userToRemoveVO = new UserId(userId);
@@ -595,18 +583,14 @@ export class WorkspaceApplicationService extends BaseApplicationService {
       const userIdVO = new UserId(userId);
 
       // Check permissions
-      const canView = await this.canUserAccessWorkspace(
-        userIdVO,
-        workspaceIdVO
-      );
+      const canView = await this.canUserAccessWorkspace(userIdVO, workspaceIdVO);
       if (!canView) {
         throw new Error('Insufficient permissions to view workspace members');
       }
 
       // Check cache first
       const cacheKey = `workspace-members:${workspaceId}`;
-      const cachedMembers =
-        await this.cacheService.get<WorkspaceMemberDto[]>(cacheKey);
+      const cachedMembers = await this.cacheService.get<WorkspaceMemberDto[]>(cacheKey);
       if (cachedMembers) {
         return {
           members: cachedMembers,
@@ -614,8 +598,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
         };
       }
 
-      const members =
-        await this.workspaceRepository.getWorkspaceMembers(workspaceIdVO);
+      const members = await this.workspaceRepository.getWorkspaceMembers(workspaceIdVO);
       const memberDtos: WorkspaceMemberDto[] = [];
 
       for (const member of members) {
@@ -652,11 +635,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
   /**
    * Invite member to workspace
    */
-  async inviteWorkspaceMember(
-    userId: string,
-    workspaceId: string,
-    request: any
-  ): Promise<any> {
+  async inviteWorkspaceMember(userId: string, workspaceId: string, request: any): Promise<any> {
     return await this.executeWithMonitoring('inviteWorkspaceMember', async () => {
       const workspaceIdVO = new WorkspaceId(workspaceId);
       const invitedBy = new UserId(userId);
@@ -681,7 +660,10 @@ export class WorkspaceApplicationService extends BaseApplicationService {
       // Check if user is already a member
       const existingUser = await this.userRepository.findByEmail(request.email);
       if (existingUser) {
-        const existingMember = await this.workspaceRepository.findMember(workspaceIdVO, existingUser.id);
+        const existingMember = await this.workspaceRepository.findMember(
+          workspaceIdVO,
+          existingUser.id
+        );
         if (existingMember) {
           throw new Error('User is already a member of this workspace');
         }
@@ -743,10 +725,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
         throw new Error('Cannot remove workspace owner');
       }
 
-      const member = await this.workspaceRepository.findMember(
-        workspaceIdVO,
-        memberUserIdVO
-      );
+      const member = await this.workspaceRepository.findMember(workspaceIdVO, memberUserIdVO);
       if (!member) {
         throw new Error('User is not a member of this workspace');
       }
@@ -789,10 +768,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
         throw new Error('Insufficient permissions to update members');
       }
 
-      const member = await this.workspaceRepository.findMember(
-        workspaceIdVO,
-        memberUserIdVO
-      );
+      const member = await this.workspaceRepository.findMember(workspaceIdVO, memberUserIdVO);
       if (!member) {
         throw new Error('User is not a member of this workspace');
       }
@@ -817,17 +793,19 @@ export class WorkspaceApplicationService extends BaseApplicationService {
         permissions: member.getPermissions(),
         joinedAt: member.joinedAt,
         lastActiveAt: member.lastActiveAt,
-        user: user ? {
-          id: user.id.value,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email.value,
-        } : {
-          id: '',
-          firstName: 'Unknown',
-          lastName: 'User',
-          email: '',
-        },
+        user: user
+          ? {
+              id: user.id.value,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              email: user.email.value,
+            }
+          : {
+              id: '',
+              firstName: 'Unknown',
+              lastName: 'User',
+              email: '',
+            },
       };
     });
   }
@@ -850,10 +828,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
         throw new Error('Workspace owner cannot leave the workspace');
       }
 
-      const member = await this.workspaceRepository.findMember(
-        workspaceIdVO,
-        userIdVO
-      );
+      const member = await this.workspaceRepository.findMember(workspaceIdVO, userIdVO);
       if (!member) {
         throw new Error('User is not a member of this workspace');
       }
@@ -932,10 +907,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
       const workspaceId = new WorkspaceId(invitation.workspaceId);
 
       // Check if already a member
-      const existingMember = await this.workspaceRepository.findMember(
-        workspaceId,
-        userIdVO
-      );
+      const existingMember = await this.workspaceRepository.findMember(workspaceId, userIdVO);
       if (existingMember) {
         throw new Error('User is already a member of this workspace');
       }
@@ -972,17 +944,19 @@ export class WorkspaceApplicationService extends BaseApplicationService {
         permissions: member.getPermissions(),
         joinedAt: member.joinedAt,
         lastActiveAt: member.lastActiveAt,
-        user: user ? {
-          id: user.id.value,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email.value,
-        } : {
-          id: '',
-          firstName: 'Unknown',
-          lastName: 'User',
-          email: '',
-        },
+        user: user
+          ? {
+              id: user.id.value,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              email: user.email.value,
+            }
+          : {
+              id: '',
+              firstName: 'Unknown',
+              lastName: 'User',
+              email: '',
+            },
       };
     });
   }
@@ -1034,8 +1008,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
         throw new Error('Workspace not found');
       }
 
-      const usage =
-        await this.workspaceRepository.getUsageStatistics(workspaceId);
+      const usage = await this.workspaceRepository.getUsageStatistics(workspaceId);
 
       // Cache for 5 minutes
       await this.cacheService.set(cacheKey, usage, 300);
@@ -1053,11 +1026,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
       const archivedByVO = new UserId(archivedBy);
 
       // Use command pattern for archiving workspace
-      const command = new ArchiveWorkspaceCommand(
-        workspaceIdVO,
-        archivedByVO,
-        archivedByVO
-      );
+      const command = new ArchiveWorkspaceCommand(workspaceIdVO, archivedByVO, archivedByVO);
 
       await this.commandBus.send(command);
 
@@ -1103,9 +1072,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
   }
 
   // Private helper methods
-  private validateCreateWorkspaceRequest(
-    request: CreateWorkspaceRequest
-  ): ValidationResult {
+  private validateCreateWorkspaceRequest(request: CreateWorkspaceRequest): ValidationResult {
     return this.validateInput(request, [
       new RequiredFieldValidationRule('name', 'Workspace Name'),
       new RequiredFieldValidationRule('ownerId', 'Owner ID'),
@@ -1124,9 +1091,7 @@ export class WorkspaceApplicationService extends BaseApplicationService {
 
   private async checkUserWorkspaceLimit(userId: UserId): Promise<void> {
     const userWorkspaces = await this.workspaceRepository.findByUserId(userId);
-    const ownedWorkspaces = userWorkspaces.filter(w =>
-      w.ownerId.equals(userId)
-    );
+    const ownedWorkspaces = userWorkspaces.filter((w) => w.ownerId.equals(userId));
 
     // Free users can own max 1 workspace
     if (ownedWorkspaces.length >= 1) {
@@ -1134,61 +1099,31 @@ export class WorkspaceApplicationService extends BaseApplicationService {
     }
   }
 
-  private async canUserUpdateWorkspace(
-    userId: UserId,
-    workspaceId: WorkspaceId
-  ): Promise<boolean> {
-    const member = await this.workspaceRepository.findMember(
-      workspaceId,
-      userId
-    );
+  private async canUserUpdateWorkspace(userId: UserId, workspaceId: WorkspaceId): Promise<boolean> {
+    const member = await this.workspaceRepository.findMember(workspaceId, userId);
     return !!member && (member.role === 'ADMIN' || member.role === 'OWNER');
   }
 
-  private async canUserAccessWorkspace(
-    userId: UserId,
-    workspaceId: WorkspaceId
-  ): Promise<boolean> {
-    const member = await this.workspaceRepository.findMember(
-      workspaceId,
-      userId
-    );
+  private async canUserAccessWorkspace(userId: UserId, workspaceId: WorkspaceId): Promise<boolean> {
+    const member = await this.workspaceRepository.findMember(workspaceId, userId);
     return member !== null;
   }
 
-  private async canUserInviteMembers(
-    userId: UserId,
-    workspaceId: WorkspaceId
-  ): Promise<boolean> {
-    const member = await this.workspaceRepository.findMember(
-      workspaceId,
-      userId
-    );
+  private async canUserInviteMembers(userId: UserId, workspaceId: WorkspaceId): Promise<boolean> {
+    const member = await this.workspaceRepository.findMember(workspaceId, userId);
     return !!member && (member.role === 'ADMIN' || member.role === 'OWNER');
   }
 
-  private async canUserManageMembers(
-    userId: UserId,
-    workspaceId: WorkspaceId
-  ): Promise<boolean> {
-    const member = await this.workspaceRepository.findMember(
-      workspaceId,
-      userId
-    );
+  private async canUserManageMembers(userId: UserId, workspaceId: WorkspaceId): Promise<boolean> {
+    const member = await this.workspaceRepository.findMember(workspaceId, userId);
     return !!member && (member.role === 'ADMIN' || member.role === 'OWNER');
   }
 
   private async mapWorkspaceToDto(workspace: Workspace): Promise<WorkspaceDto> {
     const owner = await this.userRepository.findById(workspace.ownerId);
-    const memberCount = await this.workspaceRepository.getMemberCount(
-      workspace.id
-    );
-    const projectCount = await this.workspaceRepository.getProjectCount(
-      workspace.id
-    );
-    const storageUsed = await this.workspaceRepository.getStorageUsed(
-      workspace.id
-    );
+    const memberCount = await this.workspaceRepository.getMemberCount(workspace.id);
+    const projectCount = await this.workspaceRepository.getProjectCount(workspace.id);
+    const storageUsed = await this.workspaceRepository.getStorageUsed(workspace.id);
 
     return {
       id: workspace.id.value,
@@ -1224,29 +1159,17 @@ export class WorkspaceApplicationService extends BaseApplicationService {
     return `inv_${Date.now()}_${Math.random().toString(36).substr(2, 16)}`;
   }
 
-  private async storeInvitation(
-    invitation: WorkspaceInvitation
-  ): Promise<void> {
+  private async storeInvitation(invitation: WorkspaceInvitation): Promise<void> {
     const tokenKey = `invitation:${invitation.token}`;
     const emailKey = `invitation-email:${invitation.workspaceId}:${invitation.email}`;
 
     await Promise.all([
-      this.cacheService.set(
-        tokenKey,
-        invitation,
-        this.INVITATION_EXPIRY / 1000
-      ),
-      this.cacheService.set(
-        emailKey,
-        invitation,
-        this.INVITATION_EXPIRY / 1000
-      ),
+      this.cacheService.set(tokenKey, invitation, this.INVITATION_EXPIRY / 1000),
+      this.cacheService.set(emailKey, invitation, this.INVITATION_EXPIRY / 1000),
     ]);
   }
 
-  private async getInvitationByToken(
-    token: string
-  ): Promise<WorkspaceInvitation | null> {
+  private async getInvitationByToken(token: string): Promise<WorkspaceInvitation | null> {
     const tokenKey = `invitation:${token}`;
     return await this.cacheService.get<WorkspaceInvitation>(tokenKey);
   }
@@ -1265,17 +1188,11 @@ export class WorkspaceApplicationService extends BaseApplicationService {
       const tokenKey = `invitation:${token}`;
       const emailKey = `invitation-email:${invitation.workspaceId}:${invitation.email}`;
 
-      await Promise.all([
-        this.cacheService.delete(tokenKey),
-        this.cacheService.delete(emailKey),
-      ]);
+      await Promise.all([this.cacheService.delete(tokenKey), this.cacheService.delete(emailKey)]);
     }
   }
 
-  private async initializeBilling(
-    workspaceId: WorkspaceId,
-    plan: string
-  ): Promise<void> {
+  private async initializeBilling(workspaceId: WorkspaceId, plan: string): Promise<void> {
     // This would integrate with a billing service like Stripe
     this.logInfo('Billing initialized for workspace', {
       workspaceId: workspaceId.value,

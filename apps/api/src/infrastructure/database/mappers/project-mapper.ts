@@ -2,10 +2,23 @@
  * Database mapping utilities
  */
 
-import { Project, ProjectMember } from '../../../domain/entities/project';
-import { ProjectId, UserId, WorkspaceId, ProjectStatusVO, ProjectRoleVO } from '../../../domain/value-objects';
-import { ProjectStatus, ProjectRole } from '../../../shared/enums/common.enums';
-import { ProjectRow, ProjectMemberRow, DbProjectStatus, DbProjectRole, ProjectMemberWithUserRow } from '../types';
+import {
+  Project,
+  ProjectId,
+  ProjectMember,
+  ProjectRoleVO,
+  ProjectStatusVO,
+  UserId,
+  WorkspaceId,
+} from '@taskmanagement/domain';
+import { ProjectRole, ProjectStatus } from '../../../shared/enums/common.enums';
+import {
+  DbProjectRole,
+  DbProjectStatus,
+  ProjectMemberRow,
+  ProjectMemberWithUserRow,
+  ProjectRow,
+} from '../types';
 
 /**
  * Map database project status to domain enum
@@ -29,7 +42,7 @@ export function mapDbRoleToDomain(dbRole: DbProjectRole): ProjectRole {
 }
 
 /**
- * Map domain project role to database enum  
+ * Map domain project role to database enum
  */
 export function mapDomainRoleToDb(domainRole: ProjectRole): DbProjectRole {
   return domainRole as DbProjectRole;

@@ -1,45 +1,25 @@
 import {
-  eq,
-  and,
-  or,
-  desc,
-  asc,
-  count,
-  sql,
-  isNull,
-  lt,
-  lte,
-  gte,
-} from 'drizzle-orm';
-import {
-  Notification,
-  NotificationPreferences,
-  NotificationType,
-  NotificationStatus,
-  NotificationChannel,
-} from '../../../domain/entities/notification';
-import {
-  INotificationRepository,
   INotificationPreferencesRepository,
-} from '../../../domain/repositories/notification-repository';
-import {
-  notifications,
-  notificationPreferences,
-} from '../schema/notifications';
-import { logger } from '../../monitoring/logging-service';
-import { db } from '../connection';
-import {
+  INotificationRepository,
+  Notification,
+  NotificationChannel,
   NotificationId,
-  UserId,
-  WorkspaceId,
+  NotificationPreferences,
+  NotificationStatus,
+  NotificationType,
   ProjectId,
   TaskId,
-} from '../../../domain/value-objects';
+  UserId,
+  WorkspaceId,
+} from '@taskmanagement/domain';
+import { and, asc, count, desc, eq, gte, isNull, lt, lte, or, sql } from 'drizzle-orm';
+import { logger } from '../../monitoring/logging-service';
+import { db } from '../connection';
+import { notificationPreferences, notifications } from '../schema/notifications';
 
 // Drizzle model types
 type DrizzleNotification = typeof notifications.$inferSelect;
-type DrizzleNotificationPreferences =
-  typeof notificationPreferences.$inferSelect;
+type DrizzleNotificationPreferences = typeof notificationPreferences.$inferSelect;
 
 /**
  * Notification Repository Implementation
@@ -56,7 +36,7 @@ export class NotificationRepository implements INotificationRepository {
       drizzleModel.type as NotificationType,
       drizzleModel.title,
       drizzleModel.message,
-      (drizzleModel.channels as string[]).map(c => c as NotificationChannel),
+      (drizzleModel.channels as string[]).map((c) => c as NotificationChannel),
       drizzleModel.workspaceId ? WorkspaceId.create(drizzleModel.workspaceId) : undefined,
       drizzleModel.projectId ? ProjectId.create(drizzleModel.projectId) : undefined,
       drizzleModel.taskId ? TaskId.create(drizzleModel.taskId) : undefined,
@@ -137,10 +117,10 @@ export class NotificationRepository implements INotificationRepository {
         .limit(1);
 
       if (results.length === 0) return null;
-      
+
       const result = results[0];
       if (!result) return null;
-      
+
       return this.toDomain(result);
     } catch (error) {
       logger.error('Error finding notification by ID', error as Error);
@@ -162,7 +142,7 @@ export class NotificationRepository implements INotificationRepository {
         .limit(limit)
         .offset(offset);
 
-      return results.map(result => this.toDomain(result));
+      return results.map((result) => this.toDomain(result));
     } catch (error) {
       logger.error('Error finding notifications by user ID', error as Error);
       throw error;
@@ -183,7 +163,7 @@ export class NotificationRepository implements INotificationRepository {
         .limit(limit)
         .offset(offset);
 
-      return results.map(result => this.toDomain(result));
+      return results.map((result) => this.toDomain(result));
     } catch (error) {
       logger.error('Error finding notifications by workspace ID', error as Error);
       throw error;
@@ -204,7 +184,7 @@ export class NotificationRepository implements INotificationRepository {
         .limit(limit)
         .offset(offset);
 
-      return results.map(result => this.toDomain(result));
+      return results.map((result) => this.toDomain(result));
     } catch (error) {
       logger.error('Error finding notifications by type', error as Error);
       throw error;
@@ -225,7 +205,7 @@ export class NotificationRepository implements INotificationRepository {
         .limit(limit)
         .offset(offset);
 
-      return results.map(result => this.toDomain(result));
+      return results.map((result) => this.toDomain(result));
     } catch (error) {
       logger.error('Error finding notifications by status', error as Error);
       throw error;
@@ -255,7 +235,7 @@ export class NotificationRepository implements INotificationRepository {
         .limit(limit)
         .offset(offset);
 
-      return results.map(result => this.toDomain(result));
+      return results.map((result) => this.toDomain(result));
     } catch (error) {
       logger.error('Error finding unread notifications', error as Error);
       throw error;
@@ -271,19 +251,13 @@ export class NotificationRepository implements INotificationRepository {
         .where(
           and(
             eq(notifications.status, 'pending'),
-            or(
-              isNull(notifications.scheduledFor),
-              lte(notifications.scheduledFor, now)
-            ),
-            or(
-              isNull(notifications.expiresAt),
-              gte(notifications.expiresAt, now)
-            )
+            or(isNull(notifications.scheduledFor), lte(notifications.scheduledFor, now)),
+            or(isNull(notifications.expiresAt), gte(notifications.expiresAt, now))
           )
         )
         .orderBy(asc(notifications.createdAt));
 
-      return results.map(result => this.toDomain(result));
+      return results.map((result) => this.toDomain(result));
     } catch (error) {
       logger.error('Error finding pending delivery notifications', error as Error);
       throw error;
@@ -296,15 +270,10 @@ export class NotificationRepository implements INotificationRepository {
       const results = await this.database
         .select()
         .from(notifications)
-        .where(
-          and(
-            eq(notifications.status, 'pending'),
-            gte(notifications.scheduledFor, now)
-          )
-        )
+        .where(and(eq(notifications.status, 'pending'), gte(notifications.scheduledFor, now)))
         .orderBy(asc(notifications.scheduledFor));
 
-      return results.map(result => this.toDomain(result));
+      return results.map((result) => this.toDomain(result));
     } catch (error) {
       logger.error('Error finding scheduled notifications', error as Error);
       throw error;
@@ -320,14 +289,11 @@ export class NotificationRepository implements INotificationRepository {
         .where(
           and(
             lt(notifications.expiresAt, now),
-            or(
-              eq(notifications.status, 'pending'),
-              eq(notifications.status, 'failed')
-            )
+            or(eq(notifications.status, 'pending'), eq(notifications.status, 'failed'))
           )
         );
 
-      return results.map(result => this.toDomain(result));
+      return results.map((result) => this.toDomain(result));
     } catch (error) {
       logger.error('Error finding expired notifications', error as Error);
       throw error;
@@ -347,7 +313,7 @@ export class NotificationRepository implements INotificationRepository {
         )
         .orderBy(asc(notifications.updatedAt));
 
-      return results.map(result => this.toDomain(result));
+      return results.map((result) => this.toDomain(result));
     } catch (error) {
       logger.error('Error finding failed retryable notifications', error as Error);
       throw error;
@@ -428,53 +394,52 @@ export class NotificationRepository implements INotificationRepository {
     byStatus: Record<NotificationStatus, number>;
   }> {
     try {
-      const [totalResult, unreadResult, byTypeResult, byStatusResult] =
-        await Promise.all([
-          this.database
-            .select({ count: count() })
-            .from(notifications)
-            .where(eq(notifications.userId, userId)),
+      const [totalResult, unreadResult, byTypeResult, byStatusResult] = await Promise.all([
+        this.database
+          .select({ count: count() })
+          .from(notifications)
+          .where(eq(notifications.userId, userId)),
 
-          this.database
-            .select({ count: count() })
-            .from(notifications)
-            .where(
-              and(
-                eq(notifications.userId, userId),
-                or(
-                  eq(notifications.status, 'pending'),
-                  eq(notifications.status, 'sent'),
-                  eq(notifications.status, 'delivered')
-                )
+        this.database
+          .select({ count: count() })
+          .from(notifications)
+          .where(
+            and(
+              eq(notifications.userId, userId),
+              or(
+                eq(notifications.status, 'pending'),
+                eq(notifications.status, 'sent'),
+                eq(notifications.status, 'delivered')
               )
-            ),
+            )
+          ),
 
-          this.database
-            .select({
-              type: notifications.type,
-              count: count(),
-            })
-            .from(notifications)
-            .where(eq(notifications.userId, userId))
-            .groupBy(notifications.type),
+        this.database
+          .select({
+            type: notifications.type,
+            count: count(),
+          })
+          .from(notifications)
+          .where(eq(notifications.userId, userId))
+          .groupBy(notifications.type),
 
-          this.database
-            .select({
-              status: notifications.status,
-              count: count(),
-            })
-            .from(notifications)
-            .where(eq(notifications.userId, userId))
-            .groupBy(notifications.status),
-        ]);
+        this.database
+          .select({
+            status: notifications.status,
+            count: count(),
+          })
+          .from(notifications)
+          .where(eq(notifications.userId, userId))
+          .groupBy(notifications.status),
+      ]);
 
       const byType = {} as Record<NotificationType, number>;
-      byTypeResult.forEach(row => {
+      byTypeResult.forEach((row) => {
         byType[row.type as NotificationType] = row.count;
       });
 
       const byStatus = {} as Record<NotificationStatus, number>;
-      byStatusResult.forEach(row => {
+      byStatusResult.forEach((row) => {
         byStatus[row.status as NotificationStatus] = row.count;
       });
 
@@ -501,10 +466,7 @@ export class NotificationRepository implements INotificationRepository {
 
   async deleteRead(userId: string, olderThan?: Date): Promise<number> {
     try {
-      let whereClause = and(
-        eq(notifications.userId, userId),
-        eq(notifications.status, 'read')
-      );
+      let whereClause = and(eq(notifications.userId, userId), eq(notifications.status, 'read'));
 
       if (olderThan) {
         whereClause = and(whereClause, lt(notifications.readAt, olderThan));
@@ -545,9 +507,7 @@ export class NotificationRepository implements INotificationRepository {
 export class NotificationPreferencesRepository implements INotificationPreferencesRepository {
   private readonly database = db;
 
-  private toDomain(
-    drizzleModel: DrizzleNotificationPreferences
-  ): NotificationPreferences {
+  private toDomain(drizzleModel: DrizzleNotificationPreferences): NotificationPreferences {
     return new NotificationPreferences(
       NotificationId.create(drizzleModel.id),
       UserId.create(drizzleModel.userId),
@@ -564,9 +524,7 @@ export class NotificationPreferencesRepository implements INotificationPreferenc
     );
   }
 
-  private toDrizzle(
-    entity: NotificationPreferences
-  ): Partial<DrizzleNotificationPreferences> {
+  private toDrizzle(entity: NotificationPreferences): Partial<DrizzleNotificationPreferences> {
     return {
       id: entity.id.value,
       userId: entity.userId.value,
@@ -607,10 +565,10 @@ export class NotificationPreferencesRepository implements INotificationPreferenc
         .limit(1);
 
       if (results.length === 0) return null;
-      
+
       const result = results[0];
       if (!result) return null;
-      
+
       return this.toDomain(result);
     } catch (error) {
       logger.error('Error finding notification preferences by ID', error as Error);
@@ -632,10 +590,10 @@ export class NotificationPreferencesRepository implements INotificationPreferenc
         .limit(1);
 
       if (results.length === 0) return null;
-      
+
       const result = results[0];
       if (!result) return null;
-      
+
       return this.toDomain(result);
     } catch (error) {
       logger.error('Error finding notification preferences by user ID', error as Error);
@@ -660,10 +618,10 @@ export class NotificationPreferencesRepository implements INotificationPreferenc
         .limit(1);
 
       if (results.length === 0) return null;
-      
+
       const result = results[0];
       if (!result) return null;
-      
+
       return this.toDomain(result);
     } catch (error) {
       logger.error('Error finding notification preferences by user and workspace', error as Error);
@@ -714,10 +672,7 @@ export class NotificationPreferencesRepository implements INotificationPreferenc
     }
   }
 
-  async isInQuietHours(
-    userId: string,
-    date: Date = new Date()
-  ): Promise<boolean> {
+  async isInQuietHours(userId: string, date: Date = new Date()): Promise<boolean> {
     try {
       const preferences = await this.findByUserId(userId);
 
@@ -734,9 +689,7 @@ export class NotificationPreferencesRepository implements INotificationPreferenc
 
   async delete(id: string): Promise<void> {
     try {
-      await this.database
-        .delete(notificationPreferences)
-        .where(eq(notificationPreferences.id, id));
+      await this.database.delete(notificationPreferences).where(eq(notificationPreferences.id, id));
     } catch (error) {
       logger.error('Error deleting notification preferences', error as Error);
       throw error;

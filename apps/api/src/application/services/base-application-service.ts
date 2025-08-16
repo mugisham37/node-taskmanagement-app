@@ -5,8 +5,8 @@
  * with transaction management, logging, error handling, and performance monitoring.
  */
 
+import { DomainEventPublisher } from '@taskmanagement/domain';
 import { PerformanceMonitor } from '@taskmanagement/utils';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 
 export interface IUnitOfWork {

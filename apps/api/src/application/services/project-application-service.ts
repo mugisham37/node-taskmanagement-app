@@ -5,36 +5,38 @@
  */
 
 import {
-  BaseApplicationService,
-  ValidationResult,
-  RequiredFieldValidationRule,
-  LengthValidationRule,
-} from './base-application-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { IProjectRepository } from '../../domain/repositories/project-repository';
-import { IUserRepository } from '../../domain/repositories/user-repository';
-import { IWorkspaceRepository } from '../../domain/repositories/workspace-repository';
+  DomainEventPublisher,
+  IProjectRepository,
+  IUserRepository,
+  IWorkspaceRepository,
+  Project,
+  ProjectId,
+  ProjectRole,
+  UserId,
+  WorkspaceId,
+} from '@taskmanagement/domain';
 import { CacheService } from '../../infrastructure/caching/cache-service';
 import { EmailService } from '../../infrastructure/external-services/email-service';
-import { ProjectId } from '../../domain/value-objects/project-id';
-import { UserId } from '../../domain/value-objects/user-id';
-import { WorkspaceId } from '../../domain/value-objects/workspace-id';
-import { Project } from '../../domain/entities/project';
-import { ProjectRole } from '../../domain/value-objects/project-role';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { ProjectStatus } from '../../shared/constants/project-constants';
 import { injectable } from '../../shared/decorators/injectable.decorator';
+import {
+  AddProjectMemberCommand,
+  ArchiveProjectCommand,
+  CreateProjectCommand,
+  RemoveProjectMemberCommand,
+  RestoreProjectCommand,
+  UpdateProjectCommand,
+  UpdateProjectMemberRoleCommand,
+  UpdateProjectStatusCommand,
+} from '../commands/project-commands';
 import { ICommandBus } from '../cqrs/command';
 import {
-  CreateProjectCommand,
-  UpdateProjectCommand,
-  AddProjectMemberCommand,
-  RemoveProjectMemberCommand,
-  UpdateProjectMemberRoleCommand,
-  ArchiveProjectCommand,
-  RestoreProjectCommand,
-  UpdateProjectStatusCommand
-} from '../commands/project-commands';
+  BaseApplicationService,
+  LengthValidationRule,
+  RequiredFieldValidationRule,
+  ValidationResult,
+} from './base-application-service';
 
 export interface CreateProjectRequest {
   name: string;
@@ -244,10 +246,7 @@ export class ProjectApplicationService extends BaseApplicationService {
       }
 
       // Check permissions (only owner or workspace admin can delete)
-      const canDelete = await this.canUserDeleteProject(
-        deletedByVO,
-        projectIdVO
-      );
+      const canDelete = await this.canUserDeleteProject(deletedByVO, projectIdVO);
       if (!canDelete) {
         throw new Error('Insufficient permissions to delete project');
       }
@@ -308,41 +307,31 @@ export class ProjectApplicationService extends BaseApplicationService {
   /**
    * Get projects by workspace
    */
-  async getProjectsByWorkspace(
-    workspaceId: string,
-    userId: string
-  ): Promise<ProjectDto[]> {
-    return await this.executeWithMonitoring(
-      'getProjectsByWorkspace',
-      async () => {
-        const workspaceIdVO = new WorkspaceId(workspaceId);
-        const userIdVO = new UserId(userId);
+  async getProjectsByWorkspace(workspaceId: string, userId: string): Promise<ProjectDto[]> {
+    return await this.executeWithMonitoring('getProjectsByWorkspace', async () => {
+      const workspaceIdVO = new WorkspaceId(workspaceId);
+      const userIdVO = new UserId(userId);
 
-        // Check if user has access to workspace
-        const hasWorkspaceAccess = await this.canUserAccessWorkspace(
-          userIdVO,
-          workspaceIdVO
-        );
-        if (!hasWorkspaceAccess) {
-          throw new Error('Insufficient permissions to access workspace');
-        }
-
-        const projects =
-          await this.projectRepository.findByWorkspaceId(workspaceIdVO);
-
-        // Filter projects user can view and map to DTOs
-        const projectDtos: ProjectDto[] = [];
-        for (const project of projects.items) {
-          const canView = await this.canUserViewProject(userIdVO, project.id);
-          if (canView) {
-            const dto = await this.mapProjectToDto(project);
-            projectDtos.push(dto);
-          }
-        }
-
-        return projectDtos;
+      // Check if user has access to workspace
+      const hasWorkspaceAccess = await this.canUserAccessWorkspace(userIdVO, workspaceIdVO);
+      if (!hasWorkspaceAccess) {
+        throw new Error('Insufficient permissions to access workspace');
       }
-    );
+
+      const projects = await this.projectRepository.findByWorkspaceId(workspaceIdVO);
+
+      // Filter projects user can view and map to DTOs
+      const projectDtos: ProjectDto[] = [];
+      for (const project of projects.items) {
+        const canView = await this.canUserViewProject(userIdVO, project.id);
+        if (canView) {
+          const dto = await this.mapProjectToDto(project);
+          projectDtos.push(dto);
+        }
+      }
+
+      return projectDtos;
+    });
   }
 
   /**
@@ -362,13 +351,7 @@ export class ProjectApplicationService extends BaseApplicationService {
       }
 
       // Use command pattern for adding project member
-      const command = new AddProjectMemberCommand(
-        projectId,
-        memberId,
-        role,
-        addedBy,
-        addedBy
-      );
+      const command = new AddProjectMemberCommand(projectId, memberId, role, addedBy, addedBy);
 
       await this.commandBus.send(command);
 
@@ -414,11 +397,7 @@ export class ProjectApplicationService extends BaseApplicationService {
   /**
    * Remove member from project
    */
-  async removeMember(
-    projectId: string,
-    userId: string,
-    removedBy: string
-  ): Promise<void> {
+  async removeMember(projectId: string, userId: string, removedBy: string): Promise<void> {
     return await this.executeWithMonitoring('removeMember', async () => {
       const projectIdVO = new ProjectId(projectId);
       const memberIdVO = new UserId(userId);
@@ -496,11 +475,7 @@ export class ProjectApplicationService extends BaseApplicationService {
       const archivedByVO = new UserId(archivedBy);
 
       // Use command pattern for archiving project
-      const command = new ArchiveProjectCommand(
-        projectIdVO,
-        archivedByVO,
-        archivedByVO
-      );
+      const command = new ArchiveProjectCommand(projectIdVO, archivedByVO, archivedByVO);
 
       await this.commandBus.send(command);
 
@@ -520,11 +495,7 @@ export class ProjectApplicationService extends BaseApplicationService {
       const restoredByVO = new UserId(restoredBy);
 
       // Use command pattern for restoring project
-      const command = new RestoreProjectCommand(
-        projectIdVO,
-        restoredByVO,
-        restoredByVO
-      );
+      const command = new RestoreProjectCommand(projectIdVO, restoredByVO, restoredByVO);
 
       await this.commandBus.send(command);
 
@@ -548,12 +519,7 @@ export class ProjectApplicationService extends BaseApplicationService {
       const updatedByVO = new UserId(updatedBy);
 
       // Use command pattern for updating project status
-      const command = new UpdateProjectStatusCommand(
-        projectIdVO,
-        status,
-        updatedByVO,
-        updatedByVO
-      );
+      const command = new UpdateProjectStatusCommand(projectIdVO, status, updatedByVO, updatedByVO);
 
       await this.commandBus.send(command);
 
@@ -568,10 +534,7 @@ export class ProjectApplicationService extends BaseApplicationService {
   /**
    * Get project members
    */
-  async getProjectMembers(
-    projectId: string,
-    userId: string
-  ): Promise<ProjectMemberDto[]> {
+  async getProjectMembers(projectId: string, userId: string): Promise<ProjectMemberDto[]> {
     return await this.executeWithMonitoring('getProjectMembers', async () => {
       const projectIdVO = new ProjectId(projectId);
       const userIdVO = new UserId(userId);
@@ -584,14 +547,12 @@ export class ProjectApplicationService extends BaseApplicationService {
 
       // Check cache first
       const cacheKey = `project-members:${projectId}`;
-      const cachedMembers =
-        await this.cacheService.get<ProjectMemberDto[]>(cacheKey);
+      const cachedMembers = await this.cacheService.get<ProjectMemberDto[]>(cacheKey);
       if (cachedMembers) {
         return cachedMembers;
       }
 
-      const members =
-        await this.projectRepository.getProjectMembers(projectIdVO);
+      const members = await this.projectRepository.getProjectMembers(projectIdVO);
       const memberDtos: ProjectMemberDto[] = [];
 
       for (const member of members) {
@@ -624,64 +585,51 @@ export class ProjectApplicationService extends BaseApplicationService {
   /**
    * Get project statistics
    */
-  async getProjectStatistics(
-    workspaceId: string,
-    userId: string
-  ): Promise<ProjectStatistics> {
-    return await this.executeWithMonitoring(
-      'getProjectStatistics',
-      async () => {
-        const workspaceIdVO = new WorkspaceId(workspaceId);
-        const userIdVO = new UserId(userId);
+  async getProjectStatistics(workspaceId: string, userId: string): Promise<ProjectStatistics> {
+    return await this.executeWithMonitoring('getProjectStatistics', async () => {
+      const workspaceIdVO = new WorkspaceId(workspaceId);
+      const userIdVO = new UserId(userId);
 
-        // Check permissions
-        const hasAccess = await this.canUserAccessWorkspace(
-          userIdVO,
-          workspaceIdVO
-        );
-        if (!hasAccess) {
-          throw new Error(
-            'Insufficient permissions to view workspace statistics'
-          );
-        }
-
-        const cacheKey = `project-stats:${workspaceId}`;
-        const cachedStats =
-          await this.cacheService.get<ProjectStatistics>(cacheKey);
-        if (cachedStats) {
-          return cachedStats;
-        }
-
-        const stats =
-          await this.projectRepository.getProjectStatistics(workspaceIdVO);
-
-        // Transform repository result to match ProjectStatistics interface
-        const projectStats: ProjectStatistics = {
-          totalProjects: stats.total,
-          activeProjects: stats.byStatus[ProjectStatus.ACTIVE] || 0,
-          completedProjects: stats.byStatus[ProjectStatus.COMPLETED] || 0,
-          onHoldProjects: stats.byStatus[ProjectStatus.ON_HOLD] || 0,
-          totalTasks: 0, // Would need additional repository method
-          completedTasks: 0, // Would need additional repository method
-          overdueTasks: 0, // Would need additional repository method
-          totalMembers: stats.totalMembers,
-          averageProjectDuration: stats.averageCompletionTime || 0,
-          projectCompletionRate: stats.total > 0 ? 
-            ((stats.byStatus[ProjectStatus.COMPLETED] || 0) / stats.total) * 100 : 0,
-        };
-
-        // Cache for 5 minutes
-        await this.cacheService.set(cacheKey, projectStats, 300);
-
-        return projectStats;
+      // Check permissions
+      const hasAccess = await this.canUserAccessWorkspace(userIdVO, workspaceIdVO);
+      if (!hasAccess) {
+        throw new Error('Insufficient permissions to view workspace statistics');
       }
-    );
+
+      const cacheKey = `project-stats:${workspaceId}`;
+      const cachedStats = await this.cacheService.get<ProjectStatistics>(cacheKey);
+      if (cachedStats) {
+        return cachedStats;
+      }
+
+      const stats = await this.projectRepository.getProjectStatistics(workspaceIdVO);
+
+      // Transform repository result to match ProjectStatistics interface
+      const projectStats: ProjectStatistics = {
+        totalProjects: stats.total,
+        activeProjects: stats.byStatus[ProjectStatus.ACTIVE] || 0,
+        completedProjects: stats.byStatus[ProjectStatus.COMPLETED] || 0,
+        onHoldProjects: stats.byStatus[ProjectStatus.ON_HOLD] || 0,
+        totalTasks: 0, // Would need additional repository method
+        completedTasks: 0, // Would need additional repository method
+        overdueTasks: 0, // Would need additional repository method
+        totalMembers: stats.totalMembers,
+        averageProjectDuration: stats.averageCompletionTime || 0,
+        projectCompletionRate:
+          stats.total > 0
+            ? ((stats.byStatus[ProjectStatus.COMPLETED] || 0) / stats.total) * 100
+            : 0,
+      };
+
+      // Cache for 5 minutes
+      await this.cacheService.set(cacheKey, projectStats, 300);
+
+      return projectStats;
+    });
   }
 
   // Private helper methods
-  private validateCreateProjectRequest(
-    request: CreateProjectRequest
-  ): ValidationResult {
+  private validateCreateProjectRequest(request: CreateProjectRequest): ValidationResult {
     return this.validateInput(request, [
       new RequiredFieldValidationRule('name', 'Project Name'),
       new RequiredFieldValidationRule('workspaceId', 'Workspace ID'),
@@ -690,9 +638,7 @@ export class ProjectApplicationService extends BaseApplicationService {
     ]);
   }
 
-  private validateUpdateProjectRequest(
-    request: UpdateProjectRequest
-  ): ValidationResult {
+  private validateUpdateProjectRequest(request: UpdateProjectRequest): ValidationResult {
     const rules: any[] = [
       new RequiredFieldValidationRule('projectId', 'Project ID'),
       new RequiredFieldValidationRule('updatedBy', 'Updated By'),
@@ -705,51 +651,33 @@ export class ProjectApplicationService extends BaseApplicationService {
     return this.validateInput(request, rules);
   }
 
-  private async canUserCreateProject(
-    userId: UserId,
-    workspaceId: WorkspaceId
-  ): Promise<boolean> {
+  private async canUserCreateProject(userId: UserId, workspaceId: WorkspaceId): Promise<boolean> {
     // Check if user is member of the workspace with appropriate permissions
     const workspaceMember = await this.workspaceRepository.findMember(workspaceId, userId);
     return workspaceMember !== null;
   }
 
-  private async canUserUpdateProject(
-    userId: UserId,
-    projectId: ProjectId
-  ): Promise<boolean> {
+  private async canUserUpdateProject(userId: UserId, projectId: ProjectId): Promise<boolean> {
     const member = await this.projectRepository.findMember(projectId, userId);
     return member !== null && (member.role.isAdmin() || member.role.isManager());
   }
 
-  private async canUserDeleteProject(
-    userId: UserId,
-    projectId: ProjectId
-  ): Promise<boolean> {
+  private async canUserDeleteProject(userId: UserId, projectId: ProjectId): Promise<boolean> {
     const project = await this.projectRepository.findById(projectId);
     return project ? project.managerId.equals(userId) : false;
   }
 
-  private async canUserViewProject(
-    userId: UserId,
-    projectId: ProjectId
-  ): Promise<boolean> {
+  private async canUserViewProject(userId: UserId, projectId: ProjectId): Promise<boolean> {
     const member = await this.projectRepository.findMember(projectId, userId);
     return member !== null;
   }
 
-  private async canUserManageMembers(
-    userId: UserId,
-    projectId: ProjectId
-  ): Promise<boolean> {
+  private async canUserManageMembers(userId: UserId, projectId: ProjectId): Promise<boolean> {
     const member = await this.projectRepository.findMember(projectId, userId);
     return member !== null && (member.role.isAdmin() || member.role.isManager());
   }
 
-  private async canUserAccessWorkspace(
-    userId: UserId,
-    workspaceId: WorkspaceId
-  ): Promise<boolean> {
+  private async canUserAccessWorkspace(userId: UserId, workspaceId: WorkspaceId): Promise<boolean> {
     // Check if user is member of the workspace
     const workspaceMember = await this.workspaceRepository.findMember(workspaceId, userId);
     return workspaceMember !== null;
@@ -758,9 +686,7 @@ export class ProjectApplicationService extends BaseApplicationService {
   private async mapProjectToDto(project: Project): Promise<ProjectDto> {
     // Get additional data for DTO
     const memberCount = await this.projectRepository.getMemberCount(project.id);
-    const taskStats = await this.projectRepository.getTaskStatistics(
-      project.id
-    );
+    const taskStats = await this.projectRepository.getTaskStatistics(project.id);
 
     return {
       id: project.id.value,
@@ -777,18 +703,13 @@ export class ProjectApplicationService extends BaseApplicationService {
       taskCount: taskStats.totalTasks,
       completedTaskCount: taskStats.completedTasks,
       progress:
-        taskStats.totalTasks > 0
-          ? (taskStats.completedTasks / taskStats.totalTasks) * 100
-          : 0,
+        taskStats.totalTasks > 0 ? (taskStats.completedTasks / taskStats.totalTasks) * 100 : 0,
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
     };
   }
 
-  private async clearProjectCaches(
-    projectId: ProjectId,
-    workspaceId: WorkspaceId
-  ): Promise<void> {
+  private async clearProjectCaches(projectId: ProjectId, workspaceId: WorkspaceId): Promise<void> {
     await Promise.all([
       this.cacheService.delete(`project:${projectId.value}`),
       this.cacheService.delete(`project-stats:${workspaceId.value}`),
@@ -801,18 +722,14 @@ export class ProjectApplicationService extends BaseApplicationService {
   }
 
   // Additional convenience methods for controller compatibility
-  
+
   async unarchiveProject(projectId: string, unarchivedBy: string): Promise<void> {
     return await this.executeWithMonitoring('unarchiveProject', async () => {
       // Use restore command for unarchiving
       const projectIdVO = new ProjectId(projectId);
       const restoredByVO = new UserId(unarchivedBy);
 
-      const command = new RestoreProjectCommand(
-        projectIdVO,
-        restoredByVO,
-        restoredByVO
-      );
+      const command = new RestoreProjectCommand(projectIdVO, restoredByVO, restoredByVO);
 
       await this.commandBus.send(command);
 
@@ -831,26 +748,23 @@ export class ProjectApplicationService extends BaseApplicationService {
       // TODO: Implement general project listing
       const page = options?.page || 1;
       const limit = options?.limit || 20;
-      
+
       if (options?.workspaceId) {
-        const projects = await this.getProjectsByWorkspace(
-          options.workspaceId,
-          userId
-        );
+        const projects = await this.getProjectsByWorkspace(options.workspaceId, userId);
         return {
           projects: projects,
           total: projects.length,
           page,
-          limit
+          limit,
         };
       }
-      
+
       // Return empty for now - TODO: implement user's accessible projects
       return {
         projects: [],
         total: 0,
         page,
-        limit
+        limit,
       };
     });
   }
@@ -865,7 +779,7 @@ export class ProjectApplicationService extends BaseApplicationService {
       projects: projects,
       total: projects.length,
       page: options?.page || 1,
-      limit: options?.limit || 20
+      limit: options?.limit || 20,
     };
   }
 
@@ -879,12 +793,12 @@ export class ProjectApplicationService extends BaseApplicationService {
       void userId; // Suppress unused variable warning
       const page = options?.page || 1;
       const limit = options?.limit || 20;
-      
+
       return {
         projects: [],
         total: 0,
         page,
-        limit
+        limit,
       };
     });
   }
@@ -908,11 +822,7 @@ export class ProjectApplicationService extends BaseApplicationService {
     });
   }
 
-  async removeProjectMember(
-    projectId: string,
-    userId: string,
-    removedBy: string
-  ): Promise<void> {
+  async removeProjectMember(projectId: string, userId: string, removedBy: string): Promise<void> {
     await this.removeMember(projectId, userId, removedBy);
   }
 

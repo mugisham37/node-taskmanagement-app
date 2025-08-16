@@ -1,6 +1,5 @@
+import { Email, UserId } from '@taskmanagement/domain';
 import { BaseQuery, PaginationOptions } from './base-query';
-import { UserId } from '../../domain/value-objects/user-id';
-import { Email } from '../../domain/value-objects/email';
 
 export interface UserFilters {
   isActive?: boolean;

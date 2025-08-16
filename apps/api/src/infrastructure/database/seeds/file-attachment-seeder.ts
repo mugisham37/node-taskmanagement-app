@@ -1,10 +1,6 @@
+import { FileAttachment, FileStatus, FileType } from '@taskmanagement/domain';
 import { DatabaseConnection } from '../connection';
 import { FileAttachmentRepository } from '../repositories/file-attachment-repository';
-import {
-  FileAttachment,
-  FileType,
-  FileStatus,
-} from '../../../domain/entities/file-attachment';
 
 export class FileAttachmentSeeder {
   private fileAttachmentRepository: FileAttachmentRepository;
@@ -128,14 +124,11 @@ export class FileAttachmentSeeder {
 
     for (let i = 0; i < count; i++) {
       const userId = userIds[Math.floor(Math.random() * userIds.length)]!;
-      const workspaceId =
-        workspaceIds[Math.floor(Math.random() * workspaceIds.length)]!;
+      const workspaceId = workspaceIds[Math.floor(Math.random() * workspaceIds.length)]!;
       const type = fileTypes[Math.floor(Math.random() * fileTypes.length)]!;
-      const status =
-        fileStatuses[Math.floor(Math.random() * fileStatuses.length)]!;
+      const status = fileStatuses[Math.floor(Math.random() * fileStatuses.length)]!;
 
-      const sampleFile =
-        sampleFiles[type]![Math.floor(Math.random() * sampleFiles[type]!.length)]!;
+      const sampleFile = sampleFiles[type]![Math.floor(Math.random() * sampleFiles[type]!.length)]!;
 
       // Generate unique filename
       const timestamp = Date.now();
@@ -189,18 +182,12 @@ export class FileAttachmentSeeder {
         metadata['colorSpace'] = Math.random() > 0.5 ? 'sRGB' : 'Adobe RGB';
       } else if (type === FileType.VIDEO) {
         metadata['duration'] = Math.floor(Math.random() * 3600) + 60; // 1 minute to 1 hour
-        metadata['resolution'] = ['720p', '1080p', '4K'][
-          Math.floor(Math.random() * 3)
-        ];
-        metadata['codec'] = ['H.264', 'H.265', 'VP9'][
-          Math.floor(Math.random() * 3)
-        ];
+        metadata['resolution'] = ['720p', '1080p', '4K'][Math.floor(Math.random() * 3)];
+        metadata['codec'] = ['H.264', 'H.265', 'VP9'][Math.floor(Math.random() * 3)];
       } else if (type === FileType.AUDIO) {
         metadata['duration'] = Math.floor(Math.random() * 1800) + 30; // 30 seconds to 30 minutes
         metadata['bitrate'] = [128, 192, 256, 320][Math.floor(Math.random() * 4)];
-        metadata['sampleRate'] = [44100, 48000, 96000][
-          Math.floor(Math.random() * 3)
-        ];
+        metadata['sampleRate'] = [44100, 48000, 96000][Math.floor(Math.random() * 3)];
       }
 
       const fileAttachment = FileAttachment.create({
@@ -234,9 +221,7 @@ export class FileAttachmentSeeder {
     const batchSize = 30;
     for (let i = 0; i < fileAttachments.length; i += batchSize) {
       const batch = fileAttachments.slice(i, i + batchSize);
-      await Promise.all(
-        batch.map(file => this.fileAttachmentRepository.save(file))
-      );
+      await Promise.all(batch.map((file) => this.fileAttachmentRepository.save(file)));
     }
 
     console.log(`Seeded ${fileAttachments.length} file attachments`);

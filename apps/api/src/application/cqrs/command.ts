@@ -5,7 +5,7 @@
  * pattern in the application layer. Commands represent write operations that change system state.
  */
 
-import { UserId } from '../../domain/value-objects/user-id';
+import { UserId } from '@taskmanagement/domain';
 
 export interface ICommand {
   readonly commandId: string;

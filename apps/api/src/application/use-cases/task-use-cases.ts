@@ -1,12 +1,12 @@
+import {
+  DomainEventPublisher,
+  IProjectRepository,
+  ITaskRepository,
+  Priority,
+  TaskDomainService,
+} from '@taskmanagement/domain';
 import { ValidationError } from '@taskmanagement/validation';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { IProjectRepository } from '../../domain/repositories/project-repository';
-import { ITaskRepository } from '../../domain/repositories/task-repository';
-import { TaskDomainService } from '../../domain/services/task-domain-service';
-import { Priority } from '../../domain/value-objects/priority';
-import { ProjectId } from '../../domain/value-objects/project-id';
-import { TaskId } from '../../domain/value-objects/task-id';
-import { UserId } from '../../domain/value-objects/user-id';
+// Additional imports from domain package (already imported above)
 import { CacheService } from '../../infrastructure/caching/cache-service';
 import { TransactionManager } from '../../infrastructure/database/transaction-manager';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';

@@ -4,15 +4,15 @@
  */
 
 import { Entity } from '@monorepo/domain';
-import { asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
   IPaginatedResult,
   IPaginationOptions,
   IRepository,
   ISpecification,
   PaginatedResult,
-} from '../../../domain/base/repository.interface.js';
+} from '@taskmanagement/domain';
+import { asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { logger } from '../../monitoring/logging-service';
 import { db } from '../connection';
 import { TransactionContext } from '../transaction-manager';
@@ -41,9 +41,7 @@ export abstract class BaseDrizzleRepository<
   // Abstract methods that must be implemented by concrete repositories
   protected abstract toDomain(drizzleModel: TDrizzleModel): TEntity;
   protected abstract toDrizzle(entity: TEntity): Partial<TDrizzleModel>;
-  protected abstract buildWhereClause(
-    specification: ISpecification<TEntity>
-  ): any;
+  protected abstract buildWhereClause(specification: ISpecification<TEntity>): any;
 
   // Basic CRUD operations
   public async findById(id: TId): Promise<TEntity | null> {
@@ -75,9 +73,7 @@ export abstract class BaseDrizzleRepository<
         .from(this.table as any)
         .where(inArray((this.table as any).id, ids));
 
-      return results.map((result: any) =>
-        this.toDomain(result as TDrizzleModel)
-      );
+      return results.map((result: any) => this.toDomain(result as TDrizzleModel));
     } catch (error) {
       logger.error(`Error finding ${this.modelName} by ids`, {
         ids: ids,
@@ -87,9 +83,7 @@ export abstract class BaseDrizzleRepository<
     }
   }
 
-  public async findAll(
-    options?: IPaginationOptions
-  ): Promise<PaginatedResult<TEntity>> {
+  public async findAll(options?: IPaginationOptions): Promise<PaginatedResult<TEntity>> {
     try {
       if (options) {
         return this.findPaginated(undefined, options);
@@ -100,9 +94,7 @@ export abstract class BaseDrizzleRepository<
         .from(this.table as any)
         .orderBy(this.getDefaultOrderBy());
 
-      const items = results.map((result: any) =>
-        this.toDomain(result as TDrizzleModel)
-      );
+      const items = results.map((result: any) => this.toDomain(result as TDrizzleModel));
 
       return {
         items,
@@ -121,9 +113,7 @@ export abstract class BaseDrizzleRepository<
     }
   }
 
-  public async findMany(
-    specification: ISpecification<TEntity>
-  ): Promise<TEntity[]> {
+  public async findMany(specification: ISpecification<TEntity>): Promise<TEntity[]> {
     try {
       const whereClause = this.buildWhereClause(specification);
 
@@ -133,9 +123,7 @@ export abstract class BaseDrizzleRepository<
         .where(whereClause)
         .orderBy(this.getDefaultOrderBy());
 
-      return results.map((result: any) =>
-        this.toDomain(result as TDrizzleModel)
-      );
+      return results.map((result: any) => this.toDomain(result as TDrizzleModel));
     } catch (error) {
       logger.error(`Error finding ${this.modelName} with specification`, {
         error: error,
@@ -144,9 +132,7 @@ export abstract class BaseDrizzleRepository<
     }
   }
 
-  public async findOne(
-    specification: ISpecification<TEntity>
-  ): Promise<TEntity | null> {
+  public async findOne(specification: ISpecification<TEntity>): Promise<TEntity | null> {
     try {
       const whereClause = this.buildWhereClause(specification);
 
@@ -178,9 +164,7 @@ export abstract class BaseDrizzleRepository<
       const limit = Math.min(pagination?.limit || 10, 100); // Max 100 items per page
       const offset = (page - 1) * limit;
 
-      const whereClause = specification
-        ? this.buildWhereClause(specification)
-        : undefined;
+      const whereClause = specification ? this.buildWhereClause(specification) : undefined;
       const orderBy = this.buildOrderBy(pagination);
 
       // Execute count and data queries in parallel
@@ -199,9 +183,7 @@ export abstract class BaseDrizzleRepository<
       ]);
 
       const totalCount = totalCountResult[0]?.count || 0;
-      const items = results.map((result: any) =>
-        this.toDomain(result as TDrizzleModel)
-      );
+      const items = results.map((result: any) => this.toDomain(result as TDrizzleModel));
       const totalPages = Math.ceil(totalCount / limit);
 
       return {
@@ -243,16 +225,14 @@ export abstract class BaseDrizzleRepository<
 
   public async saveMany(entities: TEntity[]): Promise<TEntity[]> {
     try {
-      const data = entities.map(entity => this.toDrizzle(entity));
+      const data = entities.map((entity) => this.toDrizzle(entity));
 
       const results = (await this.database
         .insert(this.table as any)
         .values(data)
         .returning()) as any[];
 
-      return results.map((result: any) =>
-        this.toDomain(result as TDrizzleModel)
-      );
+      return results.map((result: any) => this.toDomain(result as TDrizzleModel));
     } catch (error) {
       logger.error(`Error saving many ${this.modelName}`, {
         count: entities.length,
@@ -291,7 +271,7 @@ export abstract class BaseDrizzleRepository<
       const results: TEntity[] = [];
 
       // Use transaction for bulk update
-      await this.database.transaction(async tx => {
+      await this.database.transaction(async (tx) => {
         for (const entity of entities) {
           const data = this.toDrizzle(entity);
           const updateResults = (await tx
@@ -318,9 +298,7 @@ export abstract class BaseDrizzleRepository<
 
   public async delete(id: TId): Promise<void> {
     try {
-      await this.database
-        .delete(this.table as any)
-        .where(eq((this.table as any).id, id));
+      await this.database.delete(this.table as any).where(eq((this.table as any).id, id));
     } catch (error) {
       logger.error(`Error deleting ${this.modelName}`, {
         id: id,
@@ -332,9 +310,7 @@ export abstract class BaseDrizzleRepository<
 
   public async deleteMany(ids: TId[]): Promise<void> {
     try {
-      await this.database
-        .delete(this.table as any)
-        .where(inArray((this.table as any).id, ids));
+      await this.database.delete(this.table as any).where(inArray((this.table as any).id, ids));
     } catch (error) {
       logger.error(`Error deleting many ${this.modelName}`, {
         ids: ids,
@@ -346,9 +322,7 @@ export abstract class BaseDrizzleRepository<
 
   public async count(specification?: ISpecification<TEntity>): Promise<number> {
     try {
-      const whereClause = specification
-        ? this.buildWhereClause(specification)
-        : undefined;
+      const whereClause = specification ? this.buildWhereClause(specification) : undefined;
 
       const results = await this.database
         .select({ count: count() })
@@ -382,9 +356,7 @@ export abstract class BaseDrizzleRepository<
     }
   }
 
-  public async existsWhere(
-    specification: ISpecification<TEntity>
-  ): Promise<boolean> {
+  public async existsWhere(specification: ISpecification<TEntity>): Promise<boolean> {
     try {
       const whereClause = this.buildWhereClause(specification);
 
@@ -396,17 +368,16 @@ export abstract class BaseDrizzleRepository<
 
       return results.length > 0;
     } catch (error) {
-      logger.error(
-        `Error checking existence of ${this.modelName} with specification`,
-        { error: error } as any
-      );
+      logger.error(`Error checking existence of ${this.modelName} with specification`, {
+        error: error,
+      } as any);
       throw error;
     }
   }
 
   public async bulkInsert(entities: TEntity[]): Promise<void> {
     try {
-      const data = entities.map(entity => this.toDrizzle(entity));
+      const data = entities.map((entity) => this.toDrizzle(entity));
 
       await this.database.insert(this.table as any).values(data);
     } catch (error) {
@@ -441,9 +412,7 @@ export abstract class BaseDrizzleRepository<
     }
   }
 
-  public async bulkDelete(
-    specification: ISpecification<TEntity>
-  ): Promise<number> {
+  public async bulkDelete(specification: ISpecification<TEntity>): Promise<number> {
     try {
       const whereClause = this.buildWhereClause(specification);
 
@@ -476,16 +445,12 @@ export abstract class BaseDrizzleRepository<
   }
 
   // Transaction support
-  protected async executeInTransaction<T>(
-    operation: (tx: any) => Promise<T>
-  ): Promise<T> {
+  protected async executeInTransaction<T>(operation: (tx: any) => Promise<T>): Promise<T> {
     return await this.database.transaction(operation);
   }
 
   // Transaction context support
-  protected getDatabaseFromContext(
-    context?: TransactionContext
-  ): NodePgDatabase<any> {
+  protected getDatabaseFromContext(context?: TransactionContext): NodePgDatabase<any> {
     return (context as any)?.database || this.database;
   }
 
@@ -493,9 +458,7 @@ export abstract class BaseDrizzleRepository<
   public async findWithRawQuery(query: string): Promise<TEntity[]> {
     try {
       const results = await this.database.execute(sql`${sql.raw(query)}`);
-      const rows = Array.isArray(results)
-        ? results
-        : (results as any).rows || [];
+      const rows = Array.isArray(results) ? results : (results as any).rows || [];
       return rows.map((result: any) => this.toDomain(result as TDrizzleModel));
     } catch (error) {
       logger.error(`Error executing raw query for ${this.modelName}`, {
@@ -509,9 +472,7 @@ export abstract class BaseDrizzleRepository<
   public async countWithRawQuery(query: string): Promise<number> {
     try {
       const results = await this.database.execute(sql`${sql.raw(query)}`);
-      const rows = Array.isArray(results)
-        ? results
-        : (results as any).rows || [];
+      const rows = Array.isArray(results) ? results : (results as any).rows || [];
       return rows[0]?.count || 0;
     } catch (error) {
       logger.error(`Error executing raw count query for ${this.modelName}`, {

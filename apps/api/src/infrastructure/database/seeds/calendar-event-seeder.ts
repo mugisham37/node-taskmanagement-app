@@ -1,12 +1,12 @@
-import { DatabaseConnection } from '../connection';
-import { CalendarEventRepository } from '../repositories/calendar-event-repository';
 import {
-  CalendarEvent,
-  EventType,
   AttendeeStatus,
+  CalendarEvent,
   CalendarEventAttendee,
   CalendarEventReminder,
-} from '../../../domain/entities/calendar-event';
+  EventType,
+} from '@taskmanagement/domain';
+import { DatabaseConnection } from '../connection';
+import { CalendarEventRepository } from '../repositories/calendar-event-repository';
 
 export class CalendarEventSeeder {
   private calendarEventRepository: CalendarEventRepository;
@@ -79,15 +79,11 @@ export class CalendarEventSeeder {
 
     for (let i = 0; i < count; i++) {
       const userId = userIds[Math.floor(Math.random() * userIds.length)]!;
-      const workspaceId =
-        workspaceIds[Math.floor(Math.random() * workspaceIds.length)]!;
+      const workspaceId = workspaceIds[Math.floor(Math.random() * workspaceIds.length)]!;
       const type = eventTypes[Math.floor(Math.random() * eventTypes.length)]!;
-      const title =
-        sampleTitles[Math.floor(Math.random() * sampleTitles.length)]!;
+      const title = sampleTitles[Math.floor(Math.random() * sampleTitles.length)]!;
       const description =
-        sampleDescriptions[
-          Math.floor(Math.random() * sampleDescriptions.length)
-        ]!;
+        sampleDescriptions[Math.floor(Math.random() * sampleDescriptions.length)]!;
       const location =
         Math.random() > 0.3
           ? sampleLocations[Math.floor(Math.random() * sampleLocations.length)]!
@@ -102,9 +98,7 @@ export class CalendarEventSeeder {
 
       // Generate end date (30 minutes to 4 hours later)
       const endDate = new Date(startDate);
-      const durationMinutes = [30, 60, 90, 120, 180, 240][
-        Math.floor(Math.random() * 6)
-      ]!;
+      const durationMinutes = [30, 60, 90, 120, 180, 240][Math.floor(Math.random() * 6)]!;
       endDate.setMinutes(endDate.getMinutes() + durationMinutes);
 
       const allDay = Math.random() > 0.9; // 10% chance of all-day events
@@ -115,11 +109,7 @@ export class CalendarEventSeeder {
       const attendees: CalendarEventAttendee[] = [];
       const selectedUserIds = new Set([userId]); // Include event creator
 
-      for (
-        let j = 0;
-        j < attendeeCount && selectedUserIds.size < userIds.length;
-        j++
-      ) {
+      for (let j = 0; j < attendeeCount && selectedUserIds.size < userIds.length; j++) {
         let attendeeUserId;
         do {
           attendeeUserId = userIds[Math.floor(Math.random() * userIds.length)]!;
@@ -128,10 +118,7 @@ export class CalendarEventSeeder {
         selectedUserIds.add(attendeeUserId);
         attendees.push({
           userId: attendeeUserId,
-          status:
-            attendeeStatuses[
-              Math.floor(Math.random() * attendeeStatuses.length)
-            ]!,
+          status: attendeeStatuses[Math.floor(Math.random() * attendeeStatuses.length)]!,
           responseAt: Math.random() > 0.5 ? new Date() : undefined,
         });
       }
@@ -145,10 +132,8 @@ export class CalendarEventSeeder {
       for (let j = 0; j < reminderCount; j++) {
         reminders.push({
           id: `reminder-${i}-${j}`,
-          minutesBefore:
-            reminderTimes[Math.floor(Math.random() * reminderTimes.length)]!,
-          method:
-            reminderMethods[Math.floor(Math.random() * reminderMethods.length)]!,
+          minutesBefore: reminderTimes[Math.floor(Math.random() * reminderTimes.length)]!,
+          method: reminderMethods[Math.floor(Math.random() * reminderMethods.length)]!,
           sent: Math.random() > 0.7, // 30% chance already sent
           sentAt: Math.random() > 0.7 ? new Date() : undefined,
         });
@@ -175,10 +160,7 @@ export class CalendarEventSeeder {
           'FREQ=MONTHLY;INTERVAL=1;BYMONTHDAY=1',
           'FREQ=MONTHLY;INTERVAL=1;BYDAY=1MO',
         ];
-        recurrenceRule =
-          recurrencePatterns[
-            Math.floor(Math.random() * recurrencePatterns.length)
-          ]!;
+        recurrenceRule = recurrencePatterns[Math.floor(Math.random() * recurrencePatterns.length)]!;
       }
 
       const calendarEvent = CalendarEvent.create({
@@ -213,9 +195,7 @@ export class CalendarEventSeeder {
     const batchSize = 25;
     for (let i = 0; i < calendarEvents.length; i += batchSize) {
       const batch = calendarEvents.slice(i, i + batchSize);
-      await Promise.all(
-        batch.map(event => this.calendarEventRepository.save(event))
-      );
+      await Promise.all(batch.map((event) => this.calendarEventRepository.save(event)));
     }
 
     console.log(`Seeded ${calendarEvents.length} calendar events`);

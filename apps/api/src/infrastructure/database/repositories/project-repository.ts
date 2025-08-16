@@ -7,25 +7,13 @@ import {
   WorkspaceId,
 } from '@monorepo/domain';
 import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  gte,
-  inArray,
-  isNotNull,
-  like,
-  lte,
-  or,
-} from 'drizzle-orm';
-import {
   IProjectRepository,
   PaginatedResult,
   PaginationOptions,
   ProjectFilters,
   ProjectSortOptions,
-} from '../../../domain/repositories/project-repository';
+} from '@taskmanagement/domain';
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, like, lte, or } from 'drizzle-orm';
 import { ProjectStatus } from '../../../shared/enums/common.enums';
 import { getDatabase } from '../connection';
 import {
@@ -44,11 +32,7 @@ export class ProjectRepository implements IProjectRepository {
   }
 
   async findById(id: ProjectId): Promise<Project | null> {
-    const result = await this.db
-      .select()
-      .from(projects)
-      .where(eq(projects.id, id.value))
-      .limit(1);
+    const result = await this.db.select().from(projects).where(eq(projects.id, id.value)).limit(1);
 
     if (result.length === 0) return null;
 
@@ -57,14 +41,11 @@ export class ProjectRepository implements IProjectRepository {
   }
 
   async findByIds(ids: ProjectId[]): Promise<Project[]> {
-    const idValues = ids.map(id => id.value);
-    const result = await this.db
-      .select()
-      .from(projects)
-      .where(inArray(projects.id, idValues));
+    const idValues = ids.map((id) => id.value);
+    const result = await this.db.select().from(projects).where(inArray(projects.id, idValues));
 
     const projectsWithMembers = await Promise.all(
-      result.map(async row => {
+      result.map(async (row) => {
         const members = await this.getProjectMembers(ProjectId.create(row.id));
         return mapRowToProject(row, members);
       })
@@ -105,9 +86,7 @@ export class ProjectRepository implements IProjectRepository {
           .limit(pagination.limit)
           .offset(offset);
       } else {
-        finalQuery = baseQuery
-          .where(and(...conditions))
-          .orderBy(orderFn(projects[sort.field]));
+        finalQuery = baseQuery.where(and(...conditions)).orderBy(orderFn(projects[sort.field]));
       }
     } else {
       if (pagination) {
@@ -118,9 +97,7 @@ export class ProjectRepository implements IProjectRepository {
           .limit(pagination.limit)
           .offset(offset);
       } else {
-        finalQuery = baseQuery
-          .where(and(...conditions))
-          .orderBy(desc(projects.createdAt));
+        finalQuery = baseQuery.where(and(...conditions)).orderBy(desc(projects.createdAt));
       }
     }
 
@@ -128,7 +105,7 @@ export class ProjectRepository implements IProjectRepository {
 
     // Load members for each project
     const projectsWithMembers = await Promise.all(
-      result.map(async row => {
+      result.map(async (row) => {
         const members = await this.getProjectMembers(ProjectId.create(row.id));
         return mapRowToProject(row, members);
       })
@@ -184,9 +161,7 @@ export class ProjectRepository implements IProjectRepository {
           .limit(pagination.limit)
           .offset(offset);
       } else {
-        finalQuery = baseQuery
-          .where(and(...baseConditions))
-          .orderBy(orderFn(projects[sort.field]));
+        finalQuery = baseQuery.where(and(...baseConditions)).orderBy(orderFn(projects[sort.field]));
       }
     } else {
       if (pagination) {
@@ -197,9 +172,7 @@ export class ProjectRepository implements IProjectRepository {
           .limit(pagination.limit)
           .offset(offset);
       } else {
-        finalQuery = baseQuery
-          .where(and(...baseConditions))
-          .orderBy(desc(projects.createdAt));
+        finalQuery = baseQuery.where(and(...baseConditions)).orderBy(desc(projects.createdAt));
       }
     }
 
@@ -207,10 +180,8 @@ export class ProjectRepository implements IProjectRepository {
 
     // Load members for each project
     const projectsWithMembers = await Promise.all(
-      result.map(async row => {
-        const members = await this.getProjectMembers(
-          ProjectId.create(row.projects.id)
-        );
+      result.map(async (row) => {
+        const members = await this.getProjectMembers(ProjectId.create(row.projects.id));
         return mapRowToProject(row.projects, members);
       })
     );
@@ -256,9 +227,7 @@ export class ProjectRepository implements IProjectRepository {
           .limit(pagination.limit)
           .offset(offset);
       } else {
-        finalQuery = baseQuery
-          .where(and(...conditions))
-          .orderBy(orderFn(projects[sort.field]));
+        finalQuery = baseQuery.where(and(...conditions)).orderBy(orderFn(projects[sort.field]));
       }
     } else {
       if (pagination) {
@@ -269,9 +238,7 @@ export class ProjectRepository implements IProjectRepository {
           .limit(pagination.limit)
           .offset(offset);
       } else {
-        finalQuery = baseQuery
-          .where(and(...conditions))
-          .orderBy(desc(projects.createdAt));
+        finalQuery = baseQuery.where(and(...conditions)).orderBy(desc(projects.createdAt));
       }
     }
 
@@ -279,7 +246,7 @@ export class ProjectRepository implements IProjectRepository {
 
     // Load members for each project
     const projectsWithMembers = await Promise.all(
-      result.map(async row => {
+      result.map(async (row) => {
         const members = await this.getProjectMembers(ProjectId.create(row.id));
         return mapRowToProject(row, members);
       })
@@ -338,7 +305,7 @@ export class ProjectRepository implements IProjectRepository {
 
     // Load members for each project
     const projectsWithMembers = await Promise.all(
-      result.map(async row => {
+      result.map(async (row) => {
         const members = await this.getProjectMembers(ProjectId.create(row.id));
         return mapRowToProject(row, members);
       })
@@ -365,7 +332,7 @@ export class ProjectRepository implements IProjectRepository {
       );
 
     return Promise.all(
-      result.map(async row => {
+      result.map(async (row) => {
         const members = await this.getProjectMembers(ProjectId.create(row.id));
         return mapRowToProject(row, members);
       })
@@ -402,7 +369,7 @@ export class ProjectRepository implements IProjectRepository {
       .where(and(...conditions));
 
     return Promise.all(
-      result.map(async row => {
+      result.map(async (row) => {
         const members = await this.getProjectMembers(ProjectId.create(row.id));
         return mapRowToProject(row, members);
       })
@@ -465,13 +432,10 @@ export class ProjectRepository implements IProjectRepository {
       .innerJoin(users, eq(projectMembers.userId, users.id))
       .where(eq(projectMembers.projectId, projectId.value));
 
-    return result.map(row => mapRowToProjectMember(row));
+    return result.map((row) => mapRowToProjectMember(row));
   }
 
-  async getProjectMember(
-    projectId: ProjectId,
-    userId: UserId
-  ): Promise<ProjectMember | null> {
+  async getProjectMember(projectId: ProjectId, userId: UserId): Promise<ProjectMember | null> {
     const result = await this.db
       .select({
         project_members: projectMembers,
@@ -484,20 +448,14 @@ export class ProjectRepository implements IProjectRepository {
       .from(projectMembers)
       .innerJoin(users, eq(projectMembers.userId, users.id))
       .where(
-        and(
-          eq(projectMembers.projectId, projectId.value),
-          eq(projectMembers.userId, userId.value)
-        )
+        and(eq(projectMembers.projectId, projectId.value), eq(projectMembers.userId, userId.value))
       )
       .limit(1);
 
     return result.length > 0 ? mapRowToProjectMember(result[0]!) : null;
   }
 
-  async addProjectMember(
-    projectId: ProjectId,
-    member: ProjectMember
-  ): Promise<void> {
+  async addProjectMember(projectId: ProjectId, member: ProjectMember): Promise<void> {
     const insertData = mapProjectMemberToInsert(projectId.value, member);
     await this.db.insert(projectMembers).values({
       ...insertData,
@@ -505,17 +463,11 @@ export class ProjectRepository implements IProjectRepository {
     });
   }
 
-  async removeProjectMember(
-    projectId: ProjectId,
-    userId: UserId
-  ): Promise<void> {
+  async removeProjectMember(projectId: ProjectId, userId: UserId): Promise<void> {
     await this.db
       .delete(projectMembers)
       .where(
-        and(
-          eq(projectMembers.projectId, projectId.value),
-          eq(projectMembers.userId, userId.value)
-        )
+        and(eq(projectMembers.projectId, projectId.value), eq(projectMembers.userId, userId.value))
       );
   }
 
@@ -528,10 +480,7 @@ export class ProjectRepository implements IProjectRepository {
       .update(projectMembers)
       .set({ role: newRole as DbProjectRole })
       .where(
-        and(
-          eq(projectMembers.projectId, projectId.value),
-          eq(projectMembers.userId, userId.value)
-        )
+        and(eq(projectMembers.projectId, projectId.value), eq(projectMembers.userId, userId.value))
       );
   }
 
@@ -561,7 +510,7 @@ export class ProjectRepository implements IProjectRepository {
   async saveMany(projectList: Project[]): Promise<void> {
     if (projectList.length === 0) return;
 
-    const data = projectList.map(project => ({
+    const data = projectList.map((project) => ({
       ...mapProjectToInsert(project),
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -580,21 +529,17 @@ export class ProjectRepository implements IProjectRepository {
 
   async delete(id: ProjectId): Promise<void> {
     // Delete project members first
-    await this.db
-      .delete(projectMembers)
-      .where(eq(projectMembers.projectId, id.value));
+    await this.db.delete(projectMembers).where(eq(projectMembers.projectId, id.value));
 
     // Delete project
     await this.db.delete(projects).where(eq(projects.id, id.value));
   }
 
   async deleteMany(ids: ProjectId[]): Promise<void> {
-    const idValues = ids.map(id => id.value);
+    const idValues = ids.map((id) => id.value);
 
     // Delete project members first
-    await this.db
-      .delete(projectMembers)
-      .where(inArray(projectMembers.projectId, idValues));
+    await this.db.delete(projectMembers).where(inArray(projectMembers.projectId, idValues));
 
     // Delete projects
     await this.db.delete(projects).where(inArray(projects.id, idValues));
@@ -610,10 +555,7 @@ export class ProjectRepository implements IProjectRepository {
     return result.length > 0;
   }
 
-  async count(
-    workspaceId?: WorkspaceId,
-    filters?: ProjectFilters
-  ): Promise<number> {
+  async count(workspaceId?: WorkspaceId, filters?: ProjectFilters): Promise<number> {
     const conditions: any[] = [];
 
     if (workspaceId) {
@@ -643,9 +585,7 @@ export class ProjectRepository implements IProjectRepository {
   }
 
   // Placeholder implementations for complex methods
-  async getProjectAggregate(
-    _projectId: ProjectId
-  ): Promise<ProjectAggregate | null> {
+  async getProjectAggregate(_projectId: ProjectId): Promise<ProjectAggregate | null> {
     // TODO: Implement project aggregate loading
     return null;
   }
@@ -655,13 +595,8 @@ export class ProjectRepository implements IProjectRepository {
     // This would involve saving the project and all its related entities atomically
   }
 
-  async getProjectsByStatus(
-    status: ProjectStatus,
-    workspaceId?: WorkspaceId
-  ): Promise<Project[]> {
-    const conditions: any[] = [
-      eq(projects.status, mapDomainStatusToDb(status)),
-    ];
+  async getProjectsByStatus(status: ProjectStatus, workspaceId?: WorkspaceId): Promise<Project[]> {
+    const conditions: any[] = [eq(projects.status, mapDomainStatusToDb(status))];
 
     if (workspaceId) {
       conditions.push(eq(projects.workspaceId, workspaceId.value));
@@ -673,17 +608,14 @@ export class ProjectRepository implements IProjectRepository {
       .where(and(...conditions));
 
     return Promise.all(
-      result.map(async row => {
+      result.map(async (row) => {
         const members = await this.getProjectMembers(ProjectId.create(row.id));
         return mapRowToProject(row, members);
       })
     );
   }
 
-  async getProjectsEndingSoon(
-    days: number,
-    workspaceId?: WorkspaceId
-  ): Promise<Project[]> {
+  async getProjectsEndingSoon(days: number, workspaceId?: WorkspaceId): Promise<Project[]> {
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + days);
 
@@ -703,7 +635,7 @@ export class ProjectRepository implements IProjectRepository {
       .where(and(...conditions));
 
     return Promise.all(
-      result.map(async row => {
+      result.map(async (row) => {
         const members = await this.getProjectMembers(ProjectId.create(row.id));
         return mapRowToProject(row, members);
       })
@@ -728,7 +660,7 @@ export class ProjectRepository implements IProjectRepository {
       .where(and(...conditions));
 
     return Promise.all(
-      result.map(async row => {
+      result.map(async (row) => {
         const members = await this.getProjectMembers(ProjectId.create(row.id));
         return mapRowToProject(row, members);
       })
@@ -750,27 +682,20 @@ export class ProjectRepository implements IProjectRepository {
     return [];
   }
 
-  async getProjectHealthScores(
-    _workspaceId: WorkspaceId
-  ): Promise<Map<string, number>> {
+  async getProjectHealthScores(_workspaceId: WorkspaceId): Promise<Map<string, number>> {
     // TODO: Implement project health scoring
     return new Map();
   }
 
-  async bulkUpdateStatus(
-    projectIds: ProjectId[],
-    status: ProjectStatus
-  ): Promise<void> {
-    const idValues = projectIds.map(id => id.value);
+  async bulkUpdateStatus(projectIds: ProjectId[], status: ProjectStatus): Promise<void> {
+    const idValues = projectIds.map((id) => id.value);
     await this.db
       .update(projects)
       .set({ status: mapDomainStatusToDb(status), updatedAt: new Date() })
       .where(inArray(projects.id, idValues));
   }
 
-  async getProjectsReadyForArchival(
-    _workspaceId?: WorkspaceId
-  ): Promise<Project[]> {
+  async getProjectsReadyForArchival(_workspaceId?: WorkspaceId): Promise<Project[]> {
     // TODO: Implement logic to find projects ready for archival
     return [];
   }
@@ -784,46 +709,31 @@ export class ProjectRepository implements IProjectRepository {
     return {};
   }
 
-  async userHasAccessToProject(
-    projectId: ProjectId,
-    userId: UserId
-  ): Promise<boolean> {
+  async userHasAccessToProject(projectId: ProjectId, userId: UserId): Promise<boolean> {
     const result = await this.db
       .select({ id: projectMembers.id })
       .from(projectMembers)
       .where(
-        and(
-          eq(projectMembers.projectId, projectId.value),
-          eq(projectMembers.userId, userId.value)
-        )
+        and(eq(projectMembers.projectId, projectId.value), eq(projectMembers.userId, userId.value))
       )
       .limit(1);
 
     return result.length > 0;
   }
 
-  async getUserPermissionLevel(
-    projectId: ProjectId,
-    userId: UserId
-  ): Promise<string | null> {
+  async getUserPermissionLevel(projectId: ProjectId, userId: UserId): Promise<string | null> {
     const result = await this.db
       .select({ role: projectMembers.role })
       .from(projectMembers)
       .where(
-        and(
-          eq(projectMembers.projectId, projectId.value),
-          eq(projectMembers.userId, userId.value)
-        )
+        and(eq(projectMembers.projectId, projectId.value), eq(projectMembers.userId, userId.value))
       )
       .limit(1);
 
     return result.length > 0 ? result[0]?.role || null : null;
   }
 
-  async getProjectsWithLowActivity(
-    _days: number,
-    _workspaceId?: WorkspaceId
-  ): Promise<Project[]> {
+  async getProjectsWithLowActivity(_days: number, _workspaceId?: WorkspaceId): Promise<Project[]> {
     // TODO: Implement logic to find projects with low activity
     return [];
   }
@@ -832,9 +742,7 @@ export class ProjectRepository implements IProjectRepository {
     const conditions: any[] = [];
 
     if (filters.status && filters.status.length > 0) {
-      const dbStatuses = filters.status.map(status =>
-        mapDomainStatusToDb(status)
-      );
+      const dbStatuses = filters.status.map((status) => mapDomainStatusToDb(status));
       conditions.push(inArray(projects.status, dbStatuses));
     }
 

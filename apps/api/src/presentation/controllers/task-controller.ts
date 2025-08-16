@@ -1,19 +1,16 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { BaseController } from './base-controller';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { Priority, ProjectId, TaskId, UserId } from '@taskmanagement/domain';
+import { FastifyReply, FastifyRequest } from 'fastify';
+import { z } from 'zod';
 import { TaskApplicationService } from '../../application/services/task-application-service';
-import { TaskId } from '../../domain/value-objects/task-id';
-import { UserId } from '../../domain/value-objects/user-id';
-import { ProjectId } from '../../domain/value-objects/project-id';
-import { Priority } from '../../domain/value-objects/priority';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import {
-  CreateTaskSchema,
-  UpdateTaskSchema,
   AssignTaskSchema,
   CompleteTaskSchema,
+  CreateTaskSchema,
   TaskQuerySchema,
+  UpdateTaskSchema,
 } from '../dto/task-dto';
-import { z } from 'zod';
+import { BaseController } from './base-controller';
 
 const ParamsSchema = z.object({
   id: z.string(),
@@ -31,10 +28,7 @@ export class TaskController extends BaseController {
     super(logger);
   }
 
-  createTask = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  createTask = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
       const taskData = this.validateBody(request.body, CreateTaskSchema);
@@ -47,17 +41,14 @@ export class TaskController extends BaseController {
         description: taskData.description || '',
         assigneeId: taskData.assigneeId ? new UserId(taskData.assigneeId) : undefined,
         dueDate: taskData.dueDate || undefined,
-        estimatedHours: taskData.estimatedHours || undefined
+        estimatedHours: taskData.estimatedHours || undefined,
       });
 
       await this.sendCreated(reply, task);
     });
   };
 
-  getTask = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  getTask = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
       const { id } = this.validateParams(request.params, ParamsSchema);
@@ -68,10 +59,7 @@ export class TaskController extends BaseController {
     });
   };
 
-  updateTask = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  updateTask = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
       const { id } = this.validateParams(request.params, ParamsSchema);
@@ -85,17 +73,14 @@ export class TaskController extends BaseController {
         ...(updateData.priority && { priority: Priority.fromString(updateData.priority) }),
         ...(updateData.assigneeId && { assigneeId: new UserId(updateData.assigneeId) }),
         ...(updateData.dueDate && { dueDate: updateData.dueDate }),
-        ...(updateData.estimatedHours && { estimatedHours: updateData.estimatedHours })
+        ...(updateData.estimatedHours && { estimatedHours: updateData.estimatedHours }),
       });
 
       return { success: true, message: 'Task updated successfully' };
     });
   };
 
-  deleteTask = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  deleteTask = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
       const { id } = this.validateParams(request.params, ParamsSchema);
@@ -106,10 +91,7 @@ export class TaskController extends BaseController {
     });
   };
 
-  assignTask = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  assignTask = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
       const { id } = this.validateParams(request.params, ParamsSchema);
@@ -118,17 +100,14 @@ export class TaskController extends BaseController {
       await this.taskService.assignTask({
         taskId: new TaskId(id),
         assigneeId: new UserId(assignData.assigneeId),
-        assignedBy: new UserId(userId)
+        assignedBy: new UserId(userId),
       });
 
       return { success: true, message: 'Task assigned successfully' };
     });
   };
 
-  unassignTask = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  unassignTask = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
       const { id } = this.validateParams(request.params, ParamsSchema);
@@ -139,10 +118,7 @@ export class TaskController extends BaseController {
     });
   };
 
-  completeTask = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  completeTask = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
       const { id } = this.validateParams(request.params, ParamsSchema);
@@ -151,17 +127,14 @@ export class TaskController extends BaseController {
       await this.taskService.completeTask({
         taskId: new TaskId(id),
         completedBy: new UserId(userId),
-        actualHours: completeData.actualHours || 0
+        actualHours: completeData.actualHours || 0,
       });
 
       return { success: true, message: 'Task completed successfully' };
     });
   };
 
-  reopenTask = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  reopenTask = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
       const { id } = this.validateParams(request.params, ParamsSchema);
@@ -172,10 +145,7 @@ export class TaskController extends BaseController {
     });
   };
 
-  startTask = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  startTask = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
       const { id } = this.validateParams(request.params, ParamsSchema);
@@ -186,10 +156,7 @@ export class TaskController extends BaseController {
     });
   };
 
-  submitForReview = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  submitForReview = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
       const { id } = this.validateParams(request.params, ParamsSchema);
@@ -200,10 +167,7 @@ export class TaskController extends BaseController {
     });
   };
 
-  cancelTask = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  cancelTask = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
       const { id } = this.validateParams(request.params, ParamsSchema);
@@ -214,10 +178,7 @@ export class TaskController extends BaseController {
     });
   };
 
-  getTasks = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  getTasks = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
       const query = this.validateQuery(request.query, TaskQuerySchema);
@@ -234,23 +195,13 @@ export class TaskController extends BaseController {
     });
   };
 
-  getProjectTasks = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  getProjectTasks = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
-      const { projectId } = this.validateParams(
-        request.params,
-        ProjectParamsSchema
-      );
+      const { projectId } = this.validateParams(request.params, ProjectParamsSchema);
       const query = this.validateQuery(request.query, TaskQuerySchema);
 
-      const result = await this.taskService.getProjectTasks(
-        userId,
-        projectId,
-        query
-      );
+      const result = await this.taskService.getProjectTasks(userId, projectId, query);
 
       await this.sendPaginated(
         reply,
@@ -262,10 +213,7 @@ export class TaskController extends BaseController {
     });
   };
 
-  getMyTasks = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  getMyTasks = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
       const query = this.validateQuery(request.query, TaskQuerySchema);
@@ -282,10 +230,7 @@ export class TaskController extends BaseController {
     });
   };
 
-  getAssignedTasks = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  getAssignedTasks = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
       const query = this.validateQuery(request.query, TaskQuerySchema);
@@ -302,10 +247,7 @@ export class TaskController extends BaseController {
     });
   };
 
-  getOverdueTasks = async (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> => {
+  getOverdueTasks = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await this.handleRequest(request, reply, async () => {
       const userId = this.getUserId(request);
       const query = this.validateQuery(request.query, TaskQuerySchema);
