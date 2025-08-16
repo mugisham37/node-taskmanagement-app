@@ -1,12 +1,36 @@
+// Core i18n functionality
 export { I18nManager, i18nManager } from './i18n-manager';
-export { TranslationLoader, translationLoader } from './translation-loader';
 export type {
-  TranslationResource,
-  LocaleConfig,
-  TranslationOptions,
-  TranslationMetadata,
+    LocaleConfig, TranslationMetadata, TranslationOptions, TranslationResource
 } from './i18n-manager';
-export type { TranslationFile, LoaderOptions } from './translation-loader';
+export { TranslationLoader, translationLoader } from './translation-loader';
+export type { LoaderOptions, TranslationFile } from './translation-loader';
+
+// Formatters
+export { DateFormatter } from './formatters/date-formatter';
+export type { DateFormatterOptions } from './formatters/date-formatter';
+export { NumberFormatter } from './formatters/number-formatter';
+export type { NumberFormatterOptions } from './formatters/number-formatter';
+
+// Validators
+export { LocaleValidator } from './validators/locale-validator';
+export type { LocaleValidationResult } from './validators/locale-validator';
+
+// Middleware
+export { createLocaleMiddleware, detectLocaleFromDevice, detectLocaleFromNextRequest, LocaleMiddleware } from './middleware/locale-middleware';
+export type { LocaleMiddlewareOptions, LocaleRequest } from './middleware/locale-middleware';
+
+// Language Detection
+export { LanguageDetector } from './detectors/language-detector';
+export type { DetectionOptions, DetectionResult } from './detectors/language-detector';
+
+// Pluralization
+export { PluralRules } from './pluralization/plural-rules';
+export type { PluralForm, PluralRule } from './pluralization/plural-rules';
+
+// Interpolation
+export { Interpolator } from './interpolation/interpolator';
+export type { FormatFunction, InterpolationContext, InterpolationOptions } from './interpolation/interpolator';
 
 import { i18nManager } from './i18n-manager';
 import { translationLoader } from './translation-loader';
@@ -21,7 +45,7 @@ export async function initializeI18n(config?: {
   const {
     defaultLocale = 'en',
     fallbackLocale = 'en',
-    translationsPath = './src/shared/localization/locales',
+    translationsPath = './locales',
     autoLoad = true,
   } = config || {};
 

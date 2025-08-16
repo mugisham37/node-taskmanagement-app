@@ -1,5 +1,5 @@
+import { i18nManager, initializeI18n } from '@taskmanagement/i18n';
 import { APIDocumentationGenerator } from './api-documentation-generator';
-import { initializeI18n, i18nManager } from '../localization';
 
 export interface DocumentationIntegrationConfig {
   apiDocumentation: {
@@ -36,7 +36,7 @@ export class DocumentationIntegration {
         enabled: true,
         defaultLocale: 'en',
         fallbackLocale: 'en',
-        translationsPath: './src/shared/localization/locales',
+        translationsPath: './packages/i18n/src/locales',
         autoLoad: true,
         ...config.localization,
       },
@@ -57,9 +57,7 @@ export class DocumentationIntegration {
       await this.initializeApiDocumentation();
     }
 
-    console.log(
-      '✅ Documentation and localization systems initialized successfully'
-    );
+    console.log('✅ Documentation and localization systems initialized successfully');
   }
 
   /**
@@ -78,12 +76,8 @@ export class DocumentationIntegration {
 
       // Log available locales
       const availableLocales = i18nManager.getAvailableLocales();
-      console.log(
-        `📍 Available locales: ${availableLocales.map(l => l.code).join(', ')}`
-      );
-      console.log(
-        `🎯 Default locale: ${this.config.localization.defaultLocale}`
-      );
+      console.log(`📍 Available locales: ${availableLocales.map((l) => l.code).join(', ')}`);
+      console.log(`🎯 Default locale: ${this.config.localization.defaultLocale}`);
 
       // Test translation system
       const testTranslation = i18nManager.t('common.success');
@@ -131,12 +125,8 @@ export class DocumentationIntegration {
     }
 
     console.log('🔨 Generating API documentation...');
-    await this.apiDocGenerator.generateDocumentation(
-      this.config.apiDocumentation.outputDir
-    );
-    console.log(
-      `📂 API documentation generated at: ${this.config.apiDocumentation.outputDir}`
-    );
+    await this.apiDocGenerator.generateDocumentation(this.config.apiDocumentation.outputDir);
+    console.log(`📂 API documentation generated at: ${this.config.apiDocumentation.outputDir}`);
   }
 
   /**

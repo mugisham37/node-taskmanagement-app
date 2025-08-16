@@ -66,7 +66,7 @@
   - Use PowerShell to update config imports: `(Get-Content -Path "apps/api/src/**/*.ts" -Raw) -replace 'from ["\']\.\.?/.*?/config/', 'from "@taskmanagement/config"' | Set-Content`
   - _Requirements: 1.11, 1.12, 1.14_
 
-- [ ] 7. Extract i18n Package from API Using PowerShell Commands
+- [x] 7. Extract i18n Package from API Using PowerShell Commands
 
   - Use PowerShell: `New-Item -ItemType Directory -Path "packages/i18n/src" -Force` and create subdirectories for locales/, formatters/, validators/, middleware/, detectors/, pluralization/, interpolation/
   - Use PowerShell: `Move-Item "apps/api/src/shared/localization/*" "packages/i18n/src/" -Force` including all language directories (en/, es/, fr/, de/, zh/)
