@@ -5,16 +5,10 @@
  * providing caching, validation, performance monitoring, and read optimization.
  */
 
-import {
-  IQuery,
-  IQueryHandler,
-  IQueryBus,
-  QueryHandlerNotFoundError,
-} from './query';
+import { Cache, PerformanceMonitor } from '@taskmanagement/utils';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { PerformanceMonitor } from '../../shared/utils/performance-monitor';
-import { Cache } from '../../shared/utils/cache';
 import { injectable } from '../../shared/decorators/injectable.decorator';
+import { IQuery, IQueryBus, IQueryHandler, QueryHandlerNotFoundError } from './query';
 
 @injectable()
 export class QueryBus implements IQueryBus {
@@ -35,7 +29,7 @@ export class QueryBus implements IQueryBus {
     // Check cache first for cacheable queries
     const cacheKey = this.generateCacheKey(query);
     if (this.isCacheable(query)) {
-      const cachedResult = await this.cache.get(cacheKey) as TResult;
+      const cachedResult = (await this.cache.get(cacheKey)) as TResult;
       if (cachedResult !== null) {
         this.logger.debug('Query result served from cache', {
           queryType,
@@ -71,18 +65,12 @@ export class QueryBus implements IQueryBus {
       // Cache the result if cacheable
       if (this.isCacheable(query)) {
         await this.cache.set(cacheKey, result, this.getCacheTTL(query));
-        this.performanceMonitor.recordMetric(
-          `query.${queryType}.cache_miss`,
-          1
-        );
+        this.performanceMonitor.recordMetric(`query.${queryType}.cache_miss`, 1);
       }
 
       // Record performance metrics
       this.performanceMonitor.recordMetric(`query.${queryType}.success`, 1);
-      this.performanceMonitor.recordMetric(
-        `query.${queryType}.duration`,
-        duration
-      );
+      this.performanceMonitor.recordMetric(`query.${queryType}.duration`, duration);
 
       return result;
     } catch (error) {
@@ -103,18 +91,14 @@ export class QueryBus implements IQueryBus {
     }
   }
 
-  register<TQuery extends IQuery, TResult>(
-    handler: IQueryHandler<TQuery, TResult>
-  ): void {
+  register<TQuery extends IQuery, TResult>(handler: IQueryHandler<TQuery, TResult>): void {
     const handlerName = handler.constructor.name;
 
     // Extract query type from handler name (e.g., GetTaskByIdQueryHandler -> GetTaskByIdQuery)
     const queryType = handlerName.replace('Handler', '');
 
     if (this.handlers.has(queryType)) {
-      throw new Error(
-        `Handler for query type '${queryType}' is already registered`
-      );
+      throw new Error(`Handler for query type '${queryType}' is already registered`);
     }
 
     this.handlers.set(queryType, handler);
@@ -152,10 +136,7 @@ export class QueryBus implements IQueryBus {
   private isCacheable(query: IQuery): boolean {
     // Implement caching logic based on query type or properties
     // For now, cache all read queries except those with real-time requirements
-    const nonCacheableQueries = [
-      'GetRealtimeDataQuery',
-      'GetCurrentStatusQuery',
-    ];
+    const nonCacheableQueries = ['GetRealtimeDataQuery', 'GetCurrentStatusQuery'];
     return !nonCacheableQueries.includes(query.constructor.name);
   }
 

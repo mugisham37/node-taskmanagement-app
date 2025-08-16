@@ -5,29 +5,32 @@
     "rootDir": "./src",
     "paths": {
       "@/*": ["./src/*"],
-      "@taskmanagement/shared": ["../../packages/shared/src"],
-      "@taskmanagement/shared/*": ["../../packages/shared/src/*"],
-      "@taskmanagement/database": ["../../packages/database/src"],
-      "@taskmanagement/database/*": ["../../packages/database/src/*"],
+      "@taskmanagement/core": ["../../packages/core/src"],
+      "@taskmanagement/core/*": ["../../packages/core/src/*"],
+      "@taskmanagement/types": ["../../packages/types/src"],
+      "@taskmanagement/types/*": ["../../packages/types/src/*"],
+      "@taskmanagement/utils": ["../../packages/utils/src"],
+      "@taskmanagement/utils/*": ["../../packages/utils/src/*"],
+      "@taskmanagement/validation": ["../../packages/validation/src"],
+      "@taskmanagement/validation/*": ["../../packages/validation/src/*"],
       "@taskmanagement/config": ["../../packages/config/src"],
       "@taskmanagement/config/*": ["../../packages/config/src/*"]
     }
   },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "**/*.test.ts",
-    "**/*.spec.ts"
-  ],
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"],
   "references": [
     {
-      "path": "../../packages/shared"
+      "path": "../../packages/core"
     },
     {
-      "path": "../../packages/database"
+      "path": "../../packages/types"
+    },
+    {
+      "path": "../../packages/utils"
+    },
+    {
+      "path": "../../packages/validation"
     },
     {
       "path": "../../packages/config"

@@ -3,12 +3,10 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
+    "composite": true,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "composite": true,
-    "incremental": true,
-    "tsBuildInfoFile": "./dist/.tsbuildinfo",
     "noEmit": false
   },
   "include": [
@@ -23,9 +21,6 @@
   "references": [
     {
       "path": "../core"
-    },
-    {
-      "path": "../types"
     }
   ]
 }

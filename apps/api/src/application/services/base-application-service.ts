@@ -5,9 +5,9 @@
  * with transaction management, logging, error handling, and performance monitoring.
  */
 
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { PerformanceMonitor } from '../../shared/utils/performance-monitor';
+import { PerformanceMonitor } from '@taskmanagement/utils';
 import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
+import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 
 export interface IUnitOfWork {
   commit(): Promise<void>;
@@ -17,11 +17,7 @@ export interface IUnitOfWork {
 
 export interface TransactionOptions {
   timeout?: number;
-  isolationLevel?:
-    | 'READ_UNCOMMITTED'
-    | 'READ_COMMITTED'
-    | 'REPEATABLE_READ'
-    | 'SERIALIZABLE';
+  isolationLevel?: 'READ_UNCOMMITTED' | 'READ_COMMITTED' | 'REPEATABLE_READ' | 'SERIALIZABLE';
   retryOnFailure?: boolean;
   maxRetries?: number;
 }
@@ -43,9 +39,7 @@ export abstract class BaseApplicationService {
     options: TransactionOptions = {}
   ): Promise<T> {
     if (!this.unitOfWork) {
-      this.logger.warn(
-        'No unit of work available, executing without transaction'
-      );
+      this.logger.warn('No unit of work available, executing without transaction');
       return await operation();
     }
 
@@ -102,10 +96,7 @@ export abstract class BaseApplicationService {
             await this.unitOfWork.rollback();
           }
         } catch (rollbackError) {
-          this.logger.error(
-            'Transaction rollback failed',
-            rollbackError as Error
-          );
+          this.logger.error('Transaction rollback failed', rollbackError as Error);
         }
 
         // Clear any pending domain events on failure
@@ -152,10 +143,7 @@ export abstract class BaseApplicationService {
       });
 
       this.performanceMonitor.recordMetric(`${operationName}.success`, 1);
-      this.performanceMonitor.recordMetric(
-        `${operationName}.duration`,
-        duration
-      );
+      this.performanceMonitor.recordMetric(`${operationName}.duration`, duration);
 
       return result;
     } catch (error) {
@@ -283,7 +271,7 @@ export abstract class BaseApplicationService {
   }
 
   protected delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 
@@ -349,14 +337,10 @@ export class LengthValidationRule<T> implements ValidationRule<T> {
 
     if (typeof value === 'string') {
       if (this.minLength !== undefined && value.length < this.minLength) {
-        errors.push(
-          `${fieldDisplayName} must be at least ${this.minLength} characters long`
-        );
+        errors.push(`${fieldDisplayName} must be at least ${this.minLength} characters long`);
       }
       if (this.maxLength !== undefined && value.length > this.maxLength) {
-        errors.push(
-          `${fieldDisplayName} must be no more than ${this.maxLength} characters long`
-        );
+        errors.push(`${fieldDisplayName} must be no more than ${this.maxLength} characters long`);
       }
     }
 

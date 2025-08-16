@@ -44,7 +44,7 @@
   - Use PowerShell to update validation imports: `(Get-Content -Path "apps/api/src/**/*.ts" -Raw) -replace 'from ["\']\.\.?/.*?/validation/', 'from "@taskmanagement/validation"' | Set-Content`
   - _Requirements: 1.7, 1.12, 1.14_
 
-- [ ] 5. Extract Utils Package from API Using PowerShell Commands
+- [x] 5. Extract Utils Package from API Using PowerShell Commands
 
   - Use PowerShell: `New-Item -ItemType Directory -Path "packages/utils/src" -Force` and create subdirectories for date/, string/, array/, object/, crypto/, file/, network/, math/, formatting/, testing/
   - Use PowerShell: `Move-Item "apps/api/src/shared/utils/*" "packages/utils/src/" -Force` and `Move-Item "apps/api/src/core/utils/*" "packages/utils/src/" -Force`
@@ -55,7 +55,7 @@
   - Implement utility function documentation and usage examples
   - _Requirements: 1.10, 1.12, 1.14_
 
-- [ ] 6. Extract Config Package from API Using PowerShell Commands
+- [x] 6. Extract Config Package from API Using PowerShell Commands
 
   - Use PowerShell: `New-Item -ItemType Directory -Path "packages/config/src" -Force` and create subdirectories for environment/, database/, security/, monitoring/, cache/, features/, secrets/, validation/
   - Use PowerShell: `Move-Item "apps/api/src/shared/config/*" "packages/config/src/" -Force`

@@ -5,15 +5,10 @@
  * providing validation, error handling, transaction coordination, and performance monitoring.
  */
 
-import {
-  ICommand,
-  ICommandHandler,
-  ICommandBus,
-  CommandHandlerNotFoundError,
-} from './command';
+import { PerformanceMonitor } from '@taskmanagement/utils';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { PerformanceMonitor } from '../../shared/utils/performance-monitor';
 import { injectable } from '../../shared/decorators/injectable.decorator';
+import { CommandHandlerNotFoundError, ICommand, ICommandBus, ICommandHandler } from './command';
 
 @injectable()
 export class CommandBus implements ICommandBus {
@@ -53,10 +48,7 @@ export class CommandBus implements ICommandBus {
 
       // Record performance metrics
       this.performanceMonitor.recordMetric(`command.${commandType}.success`, 1);
-      this.performanceMonitor.recordMetric(
-        `command.${commandType}.duration`,
-        duration
-      );
+      this.performanceMonitor.recordMetric(`command.${commandType}.duration`, duration);
 
       return result;
     } catch (error) {
@@ -86,9 +78,7 @@ export class CommandBus implements ICommandBus {
     const commandType = handlerName.replace('Handler', '');
 
     if (this.handlers.has(commandType)) {
-      throw new Error(
-        `Handler for command type '${commandType}' is already registered`
-      );
+      throw new Error(`Handler for command type '${commandType}' is already registered`);
     }
 
     this.handlers.set(commandType, handler);
@@ -99,9 +89,7 @@ export class CommandBus implements ICommandBus {
     });
   }
 
-  private findHandler(
-    command: ICommand
-  ): ICommandHandler<any, any> | undefined {
+  private findHandler(command: ICommand): ICommandHandler<any, any> | undefined {
     const commandType = command.constructor.name;
     const handler = this.handlers.get(commandType);
 

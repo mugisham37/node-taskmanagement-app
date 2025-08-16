@@ -1,6 +1,6 @@
+import { AppConfig } from '@taskmanagement/config';
 import winston, { Logger, LoggerOptions, format, transports } from 'winston';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
-import { AppConfig } from '../../shared/config';
 
 export interface LoggingConfig {
   level: string;
@@ -72,10 +72,7 @@ export interface StructuredLog {
 
 export class LoggingService {
   private logger: Logger;
-  private performanceMetrics: Map<
-    string,
-    { startTime: number; startMemory: number }
-  > = new Map();
+  private performanceMetrics: Map<string, { startTime: number; startMemory: number }> = new Map();
 
   constructor(private readonly config: LoggingConfig) {
     this.logger = this.createLogger();
@@ -99,7 +96,7 @@ export class LoggingService {
         environment: appConfig.nodeEnv,
       },
     };
-    
+
     return new LoggingService(loggingConfig);
   }
 
@@ -210,12 +207,7 @@ export class LoggingService {
    * Log authentication event
    */
   logAuth(
-    event:
-      | 'login'
-      | 'logout'
-      | 'token_refresh'
-      | 'password_reset'
-      | 'registration',
+    event: 'login' | 'logout' | 'token_refresh' | 'password_reset' | 'registration',
     userId: string,
     success: boolean,
     context?: LogContext
@@ -266,8 +258,7 @@ export class LoggingService {
     severity: 'low' | 'medium' | 'high' | 'critical',
     context?: LogContext
   ): void {
-    const level =
-      severity === 'critical' || severity === 'high' ? 'error' : 'warn';
+    const level = severity === 'critical' || severity === 'high' ? 'error' : 'warn';
     const message = `Security event: ${event} (severity: ${severity})`;
 
     this.log(level, message, {
@@ -291,11 +282,7 @@ export class LoggingService {
   /**
    * End performance tracking and log results
    */
-  endPerformanceTracking(
-    operationId: string,
-    operation: string,
-    context?: LogContext
-  ): void {
+  endPerformanceTracking(operationId: string, operation: string, context?: LogContext): void {
     const metrics = this.performanceMetrics.get(operationId);
 
     if (!metrics) {
@@ -346,11 +333,7 @@ export class LoggingService {
 
     // Override the log method to include the context
     const originalLog = childLogger.log.bind(childLogger);
-    childLogger.log = (
-      level: string,
-      message: string,
-      additionalContext?: LogContext
-    ) => {
+    childLogger.log = (level: string, message: string, additionalContext?: LogContext) => {
       originalLog(level, message, { ...context, ...additionalContext });
     };
 
@@ -368,7 +351,7 @@ export class LoggingService {
    * Flush all logs
    */
   async flush(): Promise<void> {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       this.logger.on('finish', resolve);
       this.logger.end();
     });
@@ -456,10 +439,7 @@ export class LoggingService {
   }
 
   private getLogFormat() {
-    const baseFormat = format.combine(
-      format.timestamp(),
-      format.errors({ stack: true })
-    );
+    const baseFormat = format.combine(format.timestamp(), format.errors({ stack: true }));
 
     switch (this.config.format) {
       case 'json':
@@ -471,9 +451,7 @@ export class LoggingService {
           baseFormat,
           format.colorize(),
           format.printf(({ timestamp, level, message, ...meta }) => {
-            const metaStr = Object.keys(meta).length
-              ? JSON.stringify(meta, null, 2)
-              : '';
+            const metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
             return `${timestamp} [${level}]: ${message} ${metaStr}`;
           })
         );

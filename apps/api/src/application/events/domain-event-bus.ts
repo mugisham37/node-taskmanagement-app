@@ -5,9 +5,9 @@
  * advanced features like error handling, retry mechanisms, and performance monitoring.
  */
 
+import { PerformanceMonitor } from '@taskmanagement/utils';
 import { DomainEvent } from '../../domain/events/domain-event';
 import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { PerformanceMonitor } from '../../shared/utils/performance-monitor';
 import { injectable } from '../../shared/decorators/injectable.decorator';
 
 export interface EventHandler<T extends DomainEvent = DomainEvent> {
@@ -24,10 +24,7 @@ export interface EventSubscription {
 export interface IDomainEventBus {
   publish(event: DomainEvent): Promise<void>;
   publishAll(events: DomainEvent[]): Promise<void>;
-  subscribe<T extends DomainEvent>(
-    eventName: string,
-    handler: EventHandler<T>
-  ): EventSubscription;
+  subscribe<T extends DomainEvent>(eventName: string, handler: EventHandler<T>): EventSubscription;
   unsubscribe(eventName: string, handler: EventHandler): void;
   clear(): void;
   getSubscriptionStats(): Promise<SubscriptionStats>;
@@ -93,14 +90,12 @@ export class DomainEventBus implements IDomainEventBus {
 
     try {
       // Sort handlers by priority (higher first)
-      const sortedHandlers = eventHandlers.sort(
-        (a, b) => (b.priority || 0) - (a.priority || 0)
-      );
+      const sortedHandlers = eventHandlers.sort((a, b) => (b.priority || 0) - (a.priority || 0));
 
       if (this.options.enableParallelProcessing) {
         // Execute all handlers in parallel
         await Promise.allSettled(
-          sortedHandlers.map(handler => this.executeHandler(handler, event))
+          sortedHandlers.map((handler) => this.executeHandler(handler, event))
         );
       } else {
         // Execute handlers sequentially
@@ -120,27 +115,17 @@ export class DomainEventBus implements IDomainEventBus {
 
       if (this.options.enableMetrics) {
         this.performanceMonitor.recordMetric(`event.${eventName}.success`, 1);
-        this.performanceMonitor.recordMetric(
-          `event.${eventName}.duration`,
-          duration
-        );
-        this.performanceMonitor.recordMetric(
-          `event.${eventName}.handlers`,
-          eventHandlers.length
-        );
+        this.performanceMonitor.recordMetric(`event.${eventName}.duration`, duration);
+        this.performanceMonitor.recordMetric(`event.${eventName}.handlers`, eventHandlers.length);
       }
     } catch (error) {
       const duration = timer.end();
 
-      this.logger.error(
-        `Event publishing failed: ${eventName}`,
-        error as Error,
-        {
-          eventId: event.getEventId(),
-          eventName,
-          duration,
-        }
-      );
+      this.logger.error(`Event publishing failed: ${eventName}`, error as Error, {
+        eventId: event.getEventId(),
+        eventName,
+        duration,
+      });
 
       if (this.options.enableMetrics) {
         this.performanceMonitor.recordMetric(`event.${eventName}.error`, 1);
@@ -157,7 +142,7 @@ export class DomainEventBus implements IDomainEventBus {
 
     try {
       if (this.options.enableParallelProcessing) {
-        await Promise.allSettled(events.map(event => this.publish(event)));
+        await Promise.allSettled(events.map((event) => this.publish(event)));
       } else {
         for (const event of events) {
           await this.publish(event);
@@ -173,26 +158,16 @@ export class DomainEventBus implements IDomainEventBus {
 
       if (this.options.enableMetrics) {
         this.performanceMonitor.recordMetric('event.publishAll.success', 1);
-        this.performanceMonitor.recordMetric(
-          'event.publishAll.duration',
-          duration
-        );
-        this.performanceMonitor.recordMetric(
-          'event.publishAll.count',
-          events.length
-        );
+        this.performanceMonitor.recordMetric('event.publishAll.duration', duration);
+        this.performanceMonitor.recordMetric('event.publishAll.count', events.length);
       }
     } catch (error) {
       const duration = timer.end();
 
-      this.logger.error(
-        `Failed to publish ${events.length} events`,
-        error as Error,
-        {
-          duration,
-          eventCount: events.length,
-        }
-      );
+      this.logger.error(`Failed to publish ${events.length} events`, error as Error, {
+        duration,
+        eventCount: events.length,
+      });
 
       if (this.options.enableMetrics) {
         this.performanceMonitor.recordMetric('event.publishAll.error', 1);
@@ -202,10 +177,7 @@ export class DomainEventBus implements IDomainEventBus {
     }
   }
 
-  subscribe<T extends DomainEvent>(
-    eventName: string,
-    handler: EventHandler<T>
-  ): EventSubscription {
+  subscribe<T extends DomainEvent>(eventName: string, handler: EventHandler<T>): EventSubscription {
     if (!this.handlers.has(eventName)) {
       this.handlers.set(eventName, []);
       this.subscriptions.set(eventName, []);
@@ -215,9 +187,7 @@ export class DomainEventBus implements IDomainEventBus {
 
     const subscription: EventSubscription = {
       unsubscribe: () => this.unsubscribe(eventName, handler as EventHandler),
-      isActive: () =>
-        this.handlers.get(eventName)?.includes(handler as EventHandler) ||
-        false,
+      isActive: () => this.handlers.get(eventName)?.includes(handler as EventHandler) || false,
     };
 
     this.subscriptions.get(eventName)!.push(subscription);
@@ -298,10 +268,7 @@ export class DomainEventBus implements IDomainEventBus {
     this.logger.info('All subscriptions cleared');
   }
 
-  private async executeHandler(
-    handler: EventHandler,
-    event: DomainEvent
-  ): Promise<void> {
+  private async executeHandler(handler: EventHandler, event: DomainEvent): Promise<void> {
     if (!handler.canHandle(event)) {
       this.logger.debug(`Handler cannot handle event`, {
         handlerName: handler.constructor.name,
@@ -317,9 +284,7 @@ export class DomainEventBus implements IDomainEventBus {
 
     while (attempt <= (this.options.maxRetries || 0)) {
       try {
-        const timer = this.performanceMonitor.startTimer(
-          `handler.${handlerName}`
-        );
+        const timer = this.performanceMonitor.startTimer(`handler.${handlerName}`);
 
         await handler.handle(event);
 
@@ -334,14 +299,8 @@ export class DomainEventBus implements IDomainEventBus {
         });
 
         if (this.options.enableMetrics) {
-          this.performanceMonitor.recordMetric(
-            `handler.${handlerName}.success`,
-            1
-          );
-          this.performanceMonitor.recordMetric(
-            `handler.${handlerName}.duration`,
-            duration
-          );
+          this.performanceMonitor.recordMetric(`handler.${handlerName}.success`, 1);
+          this.performanceMonitor.recordMetric(`handler.${handlerName}.duration`, duration);
         }
 
         return; // Success, exit retry loop
@@ -358,17 +317,11 @@ export class DomainEventBus implements IDomainEventBus {
         });
 
         if (this.options.enableMetrics) {
-          this.performanceMonitor.recordMetric(
-            `handler.${handlerName}.error`,
-            1
-          );
+          this.performanceMonitor.recordMetric(`handler.${handlerName}.error`, 1);
         }
 
         // If we haven't exceeded max retries and retry is enabled, wait and try again
-        if (
-          this.options.enableRetry &&
-          attempt <= (this.options.maxRetries || 0)
-        ) {
+        if (this.options.enableRetry && attempt <= (this.options.maxRetries || 0)) {
           await this.delay(this.options.retryDelay || 1000);
         }
       }
@@ -390,7 +343,7 @@ export class DomainEventBus implements IDomainEventBus {
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   // Performance monitoring

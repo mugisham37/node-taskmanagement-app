@@ -5,29 +5,29 @@ export * from './errors';
 export * from './guards';
 export * from './types';
 export * from './utils';
-export * from './config';
+
 export * from './services';
 
 // Export decorators (excluding Container to avoid conflict)
 export {
-  injectable,
-  inject,
-  getInjectableMetadata,
-  isInjectable,
-  getInjectionTokens,
+  INJECTABLE_METADATA_KEY,
   InjectableContainer,
+  getInjectableMetadata,
+  getInjectionTokens,
+  inject,
+  injectable,
   injectableContainer,
-  INJECTABLE_METADATA_KEY
+  isInjectable,
 } from './decorators';
 
 // Export container (with explicit Container interface)
 export {
-  DIContainer,
-  ServiceDescriptor,
-  ServiceFactory,
+  Container,
   ContainerHealthChecker,
-  Container, // This is the Container interface from container module
-  ServiceLifetime,
+  DIContainer,
   SERVICE_TOKENS,
-  ServiceToken
+  ServiceDescriptor,
+  ServiceFactory, // This is the Container interface from container module
+  ServiceLifetime,
+  ServiceToken,
 } from './container';

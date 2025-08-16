@@ -1,8 +1,8 @@
-import { RedisClient } from './redis-client';
+import { RedisConfig } from '@taskmanagement/config';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
 import { logger } from '../monitoring/logging-service';
 import { ICacheService } from './cache-service-interface';
-import { RedisConfig } from '../../shared/config';
+import { RedisClient } from './redis-client';
 
 export interface CacheOptions {
   ttl?: number;
@@ -124,8 +124,7 @@ class LRUMemoryCache implements IMemoryCache {
 
   getStats(): MemoryCacheStats {
     const totalRequests = this.hitCount + this.missCount;
-    const hitRate =
-      totalRequests > 0 ? (this.hitCount / totalRequests) * 100 : 0;
+    const hitRate = totalRequests > 0 ? (this.hitCount / totalRequests) * 100 : 0;
 
     return {
       size: this.cache.size,
@@ -264,11 +263,7 @@ export class CacheService implements ICacheService {
       const parsedValue = JSON.parse(value) as T;
 
       // Populate L1 cache with L2 value
-      await this.memoryCache.set(
-        fullKey,
-        parsedValue,
-        Math.min(this.defaultTTL, 300)
-      );
+      await this.memoryCache.set(fullKey, parsedValue, Math.min(this.defaultTTL, 300));
 
       return parsedValue;
     } catch (error) {
@@ -280,17 +275,13 @@ export class CacheService implements ICacheService {
   /**
    * Set value in both L1 and L2 cache
    */
-  async set(
-    key: string,
-    value: any,
-    options?: CacheOptions | number
-  ): Promise<void> {
+  async set(key: string, value: any, options?: CacheOptions | number): Promise<void> {
     const fullKey = this.buildKey(key);
-    
+
     // Handle legacy number TTL or new options object
     let ttl: number;
     let cacheOptions: CacheOptions;
-    
+
     if (typeof options === 'number') {
       ttl = options;
       cacheOptions = { ttl };
@@ -298,7 +289,7 @@ export class CacheService implements ICacheService {
       cacheOptions = options || {};
       ttl = cacheOptions.ttl || this.defaultTTL;
     }
-    
+
     const memoryTTL = Math.min(ttl, 300); // Max 5 minutes in memory
 
     try {
@@ -312,9 +303,7 @@ export class CacheService implements ICacheService {
       // Set in L2 cache (Redis)
       const client = this.redisClient.getClient();
       const serializedValue = JSON.stringify(value);
-      promises.push(
-        client.setex(fullKey, ttl, serializedValue).then(() => {})
-      );
+      promises.push(client.setex(fullKey, ttl, serializedValue).then(() => {}));
 
       await Promise.all(promises);
 
@@ -441,7 +430,7 @@ export class CacheService implements ICacheService {
 
         if (keys.length > 0) {
           // Delete all keys associated with this tag
-          const fullKeys = keys.map(key => this.buildKey(key));
+          const fullKeys = keys.map((key) => this.buildKey(key));
           await client.del(...fullKeys);
           totalDeleted += keys.length;
         }
@@ -638,10 +627,7 @@ export class CacheService implements ICacheService {
   /**
    * Invalidate cache for entity
    */
-  async invalidateForEntity(
-    entityType: string,
-    entityId: string
-  ): Promise<void> {
+  async invalidateForEntity(entityType: string, entityId: string): Promise<void> {
     try {
       const patterns = [
         `${entityType}:${entityId}:*`,
@@ -652,9 +638,7 @@ export class CacheService implements ICacheService {
         `analytics:${entityType}:*`,
       ];
 
-      const deletePromises = patterns.map(pattern =>
-        this.invalidatePattern(pattern)
-      );
+      const deletePromises = patterns.map((pattern) => this.invalidatePattern(pattern));
       const results = await Promise.all(deletePromises);
       const totalDeleted = results.reduce((sum, count) => sum + count, 0);
 
@@ -664,10 +648,14 @@ export class CacheService implements ICacheService {
         totalDeleted,
       });
     } catch (error) {
-      this.logError('Cache invalidation error for entity', {
-        entityType,
-        entityId,
-      }, error);
+      this.logError(
+        'Cache invalidation error for entity',
+        {
+          entityType,
+          entityId,
+        },
+        error
+      );
     }
   }
 
@@ -688,9 +676,7 @@ export class CacheService implements ICacheService {
         `dashboard:${userId}:*`,
       ];
 
-      const deletePromises = patterns.map(pattern =>
-        this.invalidatePattern(pattern)
-      );
+      const deletePromises = patterns.map((pattern) => this.invalidatePattern(pattern));
       const results = await Promise.all(deletePromises);
       const totalDeleted = results.reduce((sum, count) => sum + count, 0);
 
@@ -716,9 +702,7 @@ export class CacheService implements ICacheService {
         `dashboard:workspace:${workspaceId}:*`,
       ];
 
-      const deletePromises = patterns.map(pattern =>
-        this.invalidatePattern(pattern)
-      );
+      const deletePromises = patterns.map((pattern) => this.invalidatePattern(pattern));
       const results = await Promise.all(deletePromises);
       const totalDeleted = results.reduce((sum, count) => sum + count, 0);
 
@@ -727,9 +711,13 @@ export class CacheService implements ICacheService {
         totalDeleted,
       });
     } catch (error) {
-      this.logError('Cache invalidation error for workspace', {
-        workspaceId,
-      }, error);
+      this.logError(
+        'Cache invalidation error for workspace',
+        {
+          workspaceId,
+        },
+        error
+      );
     }
   }
 
@@ -833,11 +821,7 @@ export class CacheService implements ICacheService {
     return `${this.tagPrefix}${tag}`;
   }
 
-  private async addKeyToTags(
-    key: string,
-    tags: string[],
-    ttl: number
-  ): Promise<void> {
+  private async addKeyToTags(key: string, tags: string[], ttl: number): Promise<void> {
     const client = this.redisClient.getClient();
 
     for (const tag of tags) {

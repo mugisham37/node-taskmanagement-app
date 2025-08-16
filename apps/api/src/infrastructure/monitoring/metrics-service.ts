@@ -1,13 +1,6 @@
-import {
-  register,
-  Counter,
-  Histogram,
-  Gauge,
-  Summary,
-  collectDefaultMetrics,
-} from 'prom-client';
+import { AppConfig } from '@taskmanagement/config';
+import { Counter, Gauge, Histogram, Summary, collectDefaultMetrics, register } from 'prom-client';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
-import { AppConfig } from '../../shared/config';
 
 export interface MetricsConfig {
   enableDefaultMetrics: boolean;
@@ -67,7 +60,7 @@ export class MetricsService {
         environment: appConfig.nodeEnv,
       },
     };
-    
+
     return new MetricsService(metricsConfig);
   }
 
@@ -108,11 +101,11 @@ export class MetricsService {
     );
 
     // Database metrics
-    this.createCounter(
-      'database_operations_total',
-      'Total number of database operations',
-      ['operation', 'table', 'status']
-    );
+    this.createCounter('database_operations_total', 'Total number of database operations', [
+      'operation',
+      'table',
+      'status',
+    ]);
     this.createHistogram(
       'database_operation_duration_seconds',
       'Database operation duration in seconds',
@@ -121,33 +114,24 @@ export class MetricsService {
     );
 
     // Authentication metrics
-    this.createCounter(
-      'auth_attempts_total',
-      'Total number of authentication attempts',
-      ['type', 'status']
-    );
-    this.createCounter(
-      'auth_tokens_issued_total',
-      'Total number of authentication tokens issued',
-      ['type']
-    );
+    this.createCounter('auth_attempts_total', 'Total number of authentication attempts', [
+      'type',
+      'status',
+    ]);
+    this.createCounter('auth_tokens_issued_total', 'Total number of authentication tokens issued', [
+      'type',
+    ]);
 
     // Business metrics
-    this.createCounter('tasks_total', 'Total number of tasks', [
-      'status',
-      'priority',
-    ]);
-    this.createCounter('projects_total', 'Total number of projects', [
-      'status',
-    ]);
+    this.createCounter('tasks_total', 'Total number of tasks', ['status', 'priority']);
+    this.createCounter('projects_total', 'Total number of projects', ['status']);
     this.createCounter('users_total', 'Total number of users', ['status']);
 
     // Cache metrics
-    this.createCounter(
-      'cache_operations_total',
-      'Total number of cache operations',
-      ['operation', 'status']
-    );
+    this.createCounter('cache_operations_total', 'Total number of cache operations', [
+      'operation',
+      'status',
+    ]);
     this.createHistogram(
       'cache_operation_duration_seconds',
       'Cache operation duration in seconds',
@@ -156,35 +140,24 @@ export class MetricsService {
     );
 
     // Email metrics
-    this.createCounter('emails_sent_total', 'Total number of emails sent', [
-      'type',
-      'status',
-    ]);
+    this.createCounter('emails_sent_total', 'Total number of emails sent', ['type', 'status']);
     this.createGauge('email_queue_size', 'Current size of email queue');
 
     // Rate limiting metrics
-    this.createCounter(
-      'rate_limit_exceeded_total',
-      'Total number of rate limit violations',
-      ['action', 'identifier_type']
-    );
-
-    // Error metrics
-    this.createCounter('errors_total', 'Total number of errors', [
-      'type',
-      'severity',
+    this.createCounter('rate_limit_exceeded_total', 'Total number of rate limit violations', [
+      'action',
+      'identifier_type',
     ]);
 
+    // Error metrics
+    this.createCounter('errors_total', 'Total number of errors', ['type', 'severity']);
+
     // WebSocket metrics
-    this.createGauge(
-      'websocket_connections_active',
-      'Number of active WebSocket connections'
-    );
-    this.createCounter(
-      'websocket_messages_total',
-      'Total number of WebSocket messages',
-      ['type', 'direction']
-    );
+    this.createGauge('websocket_connections_active', 'Number of active WebSocket connections');
+    this.createCounter('websocket_messages_total', 'Total number of WebSocket messages', [
+      'type',
+      'direction',
+    ]);
 
     // Performance metrics
     this.createHistogram(
@@ -301,11 +274,7 @@ export class MetricsService {
   /**
    * Increment a counter
    */
-  incrementCounter(
-    name: string,
-    labels: Record<string, string> = {},
-    value: number = 1
-  ): void {
+  incrementCounter(name: string, labels: Record<string, string> = {}, value: number = 1): void {
     const counter = this.getCounter(name);
     if (counter) {
       counter.inc({ ...this.getConfig().labels, ...labels }, value);
@@ -315,11 +284,7 @@ export class MetricsService {
   /**
    * Observe a histogram value
    */
-  observeHistogram(
-    name: string,
-    value: number,
-    labels: Record<string, string> = {}
-  ): void {
+  observeHistogram(name: string, value: number, labels: Record<string, string> = {}): void {
     const histogram = this.getHistogram(name);
     if (histogram) {
       histogram.observe({ ...this.getConfig().labels, ...labels }, value);
@@ -329,11 +294,7 @@ export class MetricsService {
   /**
    * Set a gauge value
    */
-  setGauge(
-    name: string,
-    value: number,
-    labels: Record<string, string> = {}
-  ): void {
+  setGauge(name: string, value: number, labels: Record<string, string> = {}): void {
     const gauge = this.getGauge(name);
     if (gauge) {
       gauge.set({ ...this.getConfig().labels, ...labels }, value);
@@ -343,11 +304,7 @@ export class MetricsService {
   /**
    * Increment a gauge value
    */
-  incrementGauge(
-    name: string,
-    labels: Record<string, string> = {},
-    value: number = 1
-  ): void {
+  incrementGauge(name: string, labels: Record<string, string> = {}, value: number = 1): void {
     const gauge = this.getGauge(name);
     if (gauge) {
       gauge.inc({ ...this.getConfig().labels, ...labels }, value);
@@ -357,11 +314,7 @@ export class MetricsService {
   /**
    * Decrement a gauge value
    */
-  decrementGauge(
-    name: string,
-    labels: Record<string, string> = {},
-    value: number = 1
-  ): void {
+  decrementGauge(name: string, labels: Record<string, string> = {}, value: number = 1): void {
     const gauge = this.getGauge(name);
     if (gauge) {
       gauge.dec({ ...this.getConfig().labels, ...labels }, value);
@@ -371,11 +324,7 @@ export class MetricsService {
   /**
    * Observe a summary value
    */
-  observeSummary(
-    name: string,
-    value: number,
-    labels: Record<string, string> = {}
-  ): void {
+  observeSummary(name: string, value: number, labels: Record<string, string> = {}): void {
     const summary = this.getSummary(name);
     if (summary) {
       summary.observe({ ...this.getConfig().labels, ...labels }, value);
@@ -385,12 +334,7 @@ export class MetricsService {
   /**
    * Record HTTP request metrics
    */
-  recordHttpRequest(
-    method: string,
-    route: string,
-    statusCode: number,
-    duration: number
-  ): void {
+  recordHttpRequest(method: string, route: string, statusCode: number, duration: number): void {
     this.incrementCounter('http_requests_total', {
       method,
       route,
@@ -417,20 +361,16 @@ export class MetricsService {
       table,
       status,
     });
-    this.observeHistogram(
-      'database_operation_duration_seconds',
-      duration / 1000,
-      { operation, table }
-    );
+    this.observeHistogram('database_operation_duration_seconds', duration / 1000, {
+      operation,
+      table,
+    });
   }
 
   /**
    * Record authentication metrics
    */
-  recordAuthAttempt(
-    type: 'login' | 'register' | 'refresh',
-    success: boolean
-  ): void {
+  recordAuthAttempt(type: 'login' | 'register' | 'refresh', success: boolean): void {
     const status = success ? 'success' : 'failure';
     this.incrementCounter('auth_attempts_total', { type, status });
 
@@ -457,20 +397,12 @@ export class MetricsService {
   /**
    * Record cache operation metrics
    */
-  recordCacheOperation(
-    operation: 'get' | 'set' | 'del' | 'hit' | 'miss',
-    duration?: number
-  ): void {
-    const status =
-      operation === 'hit' || operation === 'miss' ? operation : 'success';
+  recordCacheOperation(operation: 'get' | 'set' | 'del' | 'hit' | 'miss', duration?: number): void {
+    const status = operation === 'hit' || operation === 'miss' ? operation : 'success';
     this.incrementCounter('cache_operations_total', { operation, status });
 
     if (duration !== undefined) {
-      this.observeHistogram(
-        'cache_operation_duration_seconds',
-        duration / 1000,
-        { operation }
-      );
+      this.observeHistogram('cache_operation_duration_seconds', duration / 1000, { operation });
     }
   }
 
@@ -499,10 +431,7 @@ export class MetricsService {
   /**
    * Record error metrics
    */
-  recordError(
-    type: string,
-    severity: 'low' | 'medium' | 'high' | 'critical'
-  ): void {
+  recordError(type: string, severity: 'low' | 'medium' | 'high' | 'critical'): void {
     this.incrementCounter('errors_total', { type, severity });
   }
 
@@ -513,10 +442,7 @@ export class MetricsService {
     this.setGauge('websocket_connections_active', count);
   }
 
-  recordWebSocketMessage(
-    type: string,
-    direction: 'inbound' | 'outbound'
-  ): void {
+  recordWebSocketMessage(type: string, direction: 'inbound' | 'outbound'): void {
     this.incrementCounter('websocket_messages_total', { type, direction });
   }
 
@@ -532,11 +458,7 @@ export class MetricsService {
   /**
    * Record histogram value (alias for observeHistogram for backward compatibility)
    */
-  recordHistogram(
-    name: string,
-    value: number,
-    labels: Record<string, string> = {}
-  ): void {
+  recordHistogram(name: string, value: number, labels: Record<string, string> = {}): void {
     this.observeHistogram(name, value, labels);
   }
 
@@ -560,19 +482,11 @@ export class MetricsService {
   /**
    * Record a generic metric (for backward compatibility)
    */
-  async recordMetric(
-    name: string,
-    value: number,
-    labels?: Record<string, string>
-  ): Promise<void> {
+  async recordMetric(name: string, value: number, labels?: Record<string, string>): Promise<void> {
     // Try to determine metric type based on name patterns
     if (name.includes('_total') || name.includes('_count')) {
       this.incrementCounter(name, labels, value);
-    } else if (
-      name.includes('_duration') ||
-      name.includes('_time') ||
-      name.includes('_latency')
-    ) {
+    } else if (name.includes('_duration') || name.includes('_time') || name.includes('_latency')) {
       this.observeHistogram(name, value, labels);
     } else {
       this.setGauge(name, value, labels);
@@ -650,5 +564,4 @@ export class MetricsService {
     const fullName = `${this.getConfig().prefix}${name}`;
     return this.summaries.get(fullName);
   }
-
 }

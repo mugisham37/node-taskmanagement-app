@@ -1,14 +1,14 @@
+import { ConfigLoader } from '@taskmanagement/config';
 import fastify, { FastifyInstance } from 'fastify';
-import { Container, SERVICE_TOKENS } from './shared/container/types';
-import { containerInitializationService } from './shared/container/container-initialization-service';
-import { ConfigLoader } from './shared/config';
-import { setupRoutes } from './presentation/routes';
-import { setupMiddleware } from './presentation/middleware';
-import { setupWebSocket } from './presentation/websocket';
-import { LoggingService } from './infrastructure/monitoring/logging-service';
-import { HealthService } from './infrastructure/monitoring/health-service';
-import { IDatabaseConnection } from './infrastructure/database/database-connection-interface';
 import { ICacheService } from './infrastructure/caching/cache-service-interface';
+import { IDatabaseConnection } from './infrastructure/database/database-connection-interface';
+import { HealthService } from './infrastructure/monitoring/health-service';
+import { LoggingService } from './infrastructure/monitoring/logging-service';
+import { setupMiddleware } from './presentation/middleware';
+import { setupRoutes } from './presentation/routes';
+import { setupWebSocket } from './presentation/websocket';
+import { containerInitializationService } from './shared/container/container-initialization-service';
+import { Container, SERVICE_TOKENS } from './shared/container/types';
 
 /**
  * Application class that manages the entire system lifecycle
@@ -163,9 +163,7 @@ export class Application {
     await cacheService.connect();
 
     // Initialize other infrastructure services
-    const healthService = this.container.resolve<HealthService>(
-      SERVICE_TOKENS.HEALTH_SERVICE
-    );
+    const healthService = this.container.resolve<HealthService>(SERVICE_TOKENS.HEALTH_SERVICE);
     await healthService.initialize();
 
     logger.info('Infrastructure services initialized successfully');
@@ -198,8 +196,7 @@ export class Application {
   }
 
   private async setupWebSocket(): Promise<void> {
-    if (!this.app || !this.container || !this.config.app.enableWebSocket)
-      return;
+    if (!this.app || !this.container || !this.config.app.enableWebSocket) return;
 
     const logger = this.getLogger();
     logger.info('Setting up WebSocket...');
@@ -215,7 +212,7 @@ export class Application {
     // Handle process signals
     const signals = ['SIGTERM', 'SIGINT', 'SIGUSR2'];
 
-    signals.forEach(signal => {
+    signals.forEach((signal) => {
       process.on(signal, async () => {
         logger.info(`Received ${signal}, starting graceful shutdown...`);
 
@@ -235,7 +232,7 @@ export class Application {
     });
 
     // Handle uncaught exceptions
-    process.on('uncaughtException', error => {
+    process.on('uncaughtException', (error) => {
       logger.error('Uncaught exception', error);
       process.exit(1);
     });
@@ -252,9 +249,7 @@ export class Application {
     const logger = this.getLogger();
     logger.info('Validating system health...');
 
-    const healthService = this.container.resolve<HealthService>(
-      SERVICE_TOKENS.HEALTH_SERVICE
-    );
+    const healthService = this.container.resolve<HealthService>(SERVICE_TOKENS.HEALTH_SERVICE);
     const health = await healthService.getOverallHealth();
 
     if (health.status === 'unhealthy') {
@@ -269,8 +264,7 @@ export class Application {
 
     logger.info('System health validation passed', {
       status: health.status,
-      healthyServices: health.services.filter((s: any) => s.status === 'healthy')
-        .length,
+      healthyServices: health.services.filter((s: any) => s.status === 'healthy').length,
       totalServices: health.services.length,
     });
   }
@@ -279,9 +273,7 @@ export class Application {
     if (!this.container) return;
 
     const logger = this.getLogger();
-    const healthService = this.container.resolve<HealthService>(
-      SERVICE_TOKENS.HEALTH_SERVICE
-    );
+    const healthService = this.container.resolve<HealthService>(SERVICE_TOKENS.HEALTH_SERVICE);
 
     // Start periodic health checks
     setInterval(async () => {
@@ -329,9 +321,7 @@ export class Application {
   private getLogger(): LoggingService {
     try {
       if (this.container) {
-        return this.container.resolve<LoggingService>(
-          SERVICE_TOKENS.LOGGING_SERVICE
-        );
+        return this.container.resolve<LoggingService>(SERVICE_TOKENS.LOGGING_SERVICE);
       }
       throw new Error('Container not available');
     } catch {

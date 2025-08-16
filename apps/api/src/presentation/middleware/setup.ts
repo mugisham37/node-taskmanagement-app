@@ -1,6 +1,6 @@
+import { ConfigLoader } from '@taskmanagement/config';
 import { FastifyInstance } from 'fastify';
 import { Container } from '../../shared/container';
-import { ConfigLoader } from '../../shared/config';
 import { SERVICE_TOKENS } from '../../shared/container/types';
 
 /**
@@ -29,16 +29,16 @@ export async function setupMiddleware(
     app.setErrorHandler((errorHandlerMiddleware as any).handle);
 
     // Add container and config to request context
-    app.addHook('onRequest', async request => {
+    app.addHook('onRequest', async (request) => {
       (request as any).container = container;
       (request as any).config = config;
     });
   } catch (error) {
     // Fallback middleware setup if container services are not available
     console.warn('Container middleware not available, using fallback setup');
-    
+
     // Add basic container and config to request context
-    app.addHook('onRequest', async request => {
+    app.addHook('onRequest', async (request) => {
       (request as any).container = container;
       (request as any).config = config;
     });
