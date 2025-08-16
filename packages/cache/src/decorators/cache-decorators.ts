@@ -1,4 +1,4 @@
-import { MultiLayerCache, CacheOptions } from './multi-layer-cache';
+import { CacheOptions, MultiLayerCache } from '../multi-layer-cache';
 
 export interface CacheDecoratorOptions extends CacheOptions {
   keyGenerator?: (...args: any[]) => string;

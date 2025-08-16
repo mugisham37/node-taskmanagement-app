@@ -1,5 +1,11 @@
+// Simple error class for cache package
+class InfrastructureError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InfrastructureError';
+  }
+}
 import Redis, { RedisOptions } from 'ioredis';
-import { InfrastructureError } from '../../shared/errors/infrastructure-error';
 
 export interface RedisConfig {
   host: string;

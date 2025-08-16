@@ -109,6 +109,7 @@ import {
   SessionManager,
   TwoFactorAuthService,
 } from '@taskmanagement/auth';
+import { CacheService, RedisClient } from '@taskmanagement/cache';
 import {
   DatabaseConnection,
   TransactionIntegrationService,
@@ -116,8 +117,6 @@ import {
   UnitOfWorkFactory,
 } from '@taskmanagement/database';
 import { EventHandlerLifecycleManager } from '../../application/events/event-handler-lifecycle-manager';
-import { CacheService } from '../../infrastructure/caching/cache-service';
-import { RedisClient } from '../../infrastructure/caching/redis-client';
 import { EventIntegrationService } from '../../infrastructure/events/event-integration-service';
 import { EmailService } from '../../infrastructure/external-services/email-service';
 import { WebSocketService } from '../../infrastructure/external-services/websocket-service';

@@ -1,5 +1,5 @@
-import { CacheService } from './cache-service';
-import { CacheKeys, CacheTags, CacheTTL } from './cache-keys';
+import { CacheKeys, CacheTags, CacheTTL } from '../cache-keys';
+import { CacheService } from '../cache-service';
 
 export interface WarmupStrategy {
   name: string;

@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
-import { CacheService } from '../caching/cache-service';
-import { ResponseCompressionService } from './response-compression';
+import { CacheService } from '@taskmanagement/cache';
+import { NextFunction, Request, Response } from 'express';
 import { RequestBatchingService } from './request-batching';
+import { ResponseCompressionService } from './response-compression';
 
 export interface APIOptimizationConfig {
   caching: {
@@ -93,9 +93,7 @@ export class APIOptimizationService {
         this.updateResponseTimeStats(responseTime);
 
         // Track bytes transferred
-        const contentLength = parseInt(
-          (res.getHeader('content-length') as string) || '0'
-        );
+        const contentLength = parseInt((res.getHeader('content-length') as string) || '0');
         this.stats.bytesTransferred += contentLength;
       });
 
@@ -139,7 +137,7 @@ export class APIOptimizationService {
         // Cache miss - intercept response to cache it
         const originalJson = res.json;
         const self = this;
-        
+
         res.json = function (this: Response, body: any) {
           // Only cache successful responses
           if (
@@ -183,7 +181,7 @@ export class APIOptimizationService {
         return next();
       }
 
-      const selectedFields = fields.split(',').map(f => f.trim());
+      const selectedFields = fields.split(',').map((f) => f.trim());
 
       // Store selected fields in request for use by controllers
       (req as any).selectedFields = selectedFields;
@@ -191,7 +189,7 @@ export class APIOptimizationService {
       // Intercept response to filter fields
       const originalJson = res.json;
       const self = this;
-      
+
       res.json = function (this: Response, body: any) {
         const filteredBody = self.filterResponseFields(body, selectedFields);
         return originalJson.call(this, filteredBody);
@@ -213,8 +211,7 @@ export class APIOptimizationService {
       // Parse pagination parameters
       const page = parseInt(req.query['page'] as string) || 1;
       const limit = Math.min(
-        parseInt(req.query['limit'] as string) ||
-          this.config.pagination.defaultLimit,
+        parseInt(req.query['limit'] as string) || this.config.pagination.defaultLimit,
         this.config.pagination.maxLimit
       );
       const offset = (page - 1) * limit;
@@ -242,9 +239,7 @@ export class APIOptimizationService {
 
     // Include query parameters in cache key
     const queryString = new URLSearchParams(req.query as any).toString();
-    const queryKey = queryString
-      ? `:${Buffer.from(queryString).toString('base64')}`
-      : '';
+    const queryKey = queryString ? `:${Buffer.from(queryString).toString('base64')}` : '';
 
     // Include user context if available
     const userId = (req as any).user?.id;
@@ -278,7 +273,7 @@ export class APIOptimizationService {
    * Check if path should be excluded from caching
    */
   private isPathExcluded(path: string): boolean {
-    return this.config.caching.excludePaths.some(excludePath => {
+    return this.config.caching.excludePaths.some((excludePath) => {
       if (excludePath.endsWith('*')) {
         return path.startsWith(excludePath.slice(0, -1));
       }
@@ -295,16 +290,14 @@ export class APIOptimizationService {
     }
 
     if (Array.isArray(body)) {
-      return body.map(item => this.filterObjectFields(item, fields));
+      return body.map((item) => this.filterObjectFields(item, fields));
     }
 
     // Handle paginated responses
     if (body.data && Array.isArray(body.data)) {
       return {
         ...body,
-        data: body.data.map((item: any) =>
-          this.filterObjectFields(item, fields)
-        ),
+        data: body.data.map((item: any) => this.filterObjectFields(item, fields)),
       };
     }
 
@@ -329,16 +322,9 @@ export class APIOptimizationService {
           if (!filtered[parent]) {
             filtered[parent] = {};
           }
-          const nestedValue = this.getNestedValue(
-            obj[parent],
-            nested.join('.')
-          );
+          const nestedValue = this.getNestedValue(obj[parent], nested.join('.'));
           if (nestedValue !== undefined) {
-            this.setNestedValue(
-              filtered[parent],
-              nested.join('.'),
-              nestedValue
-            );
+            this.setNestedValue(filtered[parent], nested.join('.'), nestedValue);
           }
         }
       } else if (obj.hasOwnProperty(field)) {
@@ -380,8 +366,7 @@ export class APIOptimizationService {
    */
   private updateResponseTimeStats(responseTime: number): void {
     this.stats.averageResponseTime =
-      (this.stats.averageResponseTime * (this.stats.totalRequests - 1) +
-        responseTime) /
+      (this.stats.averageResponseTime * (this.stats.totalRequests - 1) + responseTime) /
       this.stats.totalRequests;
   }
 

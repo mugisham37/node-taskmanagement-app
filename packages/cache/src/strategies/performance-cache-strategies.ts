@@ -1,6 +1,12 @@
-import { CacheService } from './cache-service';
-import { CacheKeys, CacheTags, CacheTTL } from './cache-keys';
-import { InfrastructureError } from '../../shared/errors/infrastructure-error';
+// Simple error class for cache package
+class InfrastructureError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InfrastructureError';
+  }
+}
+import { CacheKeys, CacheTags, CacheTTL } from '../cache-keys';
+import { CacheService } from '../cache-service';
 
 export interface CacheStrategy {
   name: string;

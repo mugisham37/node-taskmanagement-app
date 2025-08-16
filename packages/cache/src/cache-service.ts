@@ -1,8 +1,21 @@
-import { RedisConfig } from '@taskmanagement/config';
-import { InfrastructureError } from '../../shared/errors/infrastructure-error';
-import { logger } from '../monitoring/logging-service';
+// Redis configuration interface
+export interface RedisConfig {
+  host: string;
+  port: number;
+  password?: string;
+  db?: number;
+  defaultTTL?: number;
+  keyPrefix?: string;
+}
 import { ICacheService } from './cache-service-interface';
-import { RedisClient } from './redis-client';
+import { RedisClient } from './providers/redis-client';
+// Simple error class for cache package
+class InfrastructureError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InfrastructureError';
+  }
+}
 
 export interface CacheOptions {
   ttl?: number;
@@ -225,15 +238,15 @@ export class CacheService implements ICacheService {
         errorStack: error.stack,
       }),
     };
-    logger.error(message, undefined, logContext);
+    console.error(`[CacheService] ${message}`, logContext);
   }
 
   private logInfo(message: string, context: Record<string, any>): void {
-    logger.info(message, context);
+    console.info(`[CacheService] ${message}`, context);
   }
 
   private logDebug(message: string, context: Record<string, any>): void {
-    logger.debug(message, context);
+    console.debug(`[CacheService] ${message}`, context);
   }
 
   /**

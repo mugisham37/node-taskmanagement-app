@@ -1,6 +1,6 @@
-import { LRUCache } from 'lru-cache';
 import { Redis } from 'ioredis';
-import { Container } from '../../shared/container/Container';
+import { LRUCache } from 'lru-cache';
+// Container will be injected from the consuming application
 
 export interface CacheOptions {
   ttl?: number; // Time to live in seconds
@@ -28,7 +28,7 @@ export class MultiLayerCache {
   };
 
   constructor(
-    private container: Container,
+    redis: Redis,
     options: {
       maxMemoryItems?: number;
       memoryTTL?: number;
@@ -39,7 +39,7 @@ export class MultiLayerCache {
       ttl: (options.memoryTTL || 300) * 1000, // Convert to milliseconds
     });
 
-    this.redis = this.container.resolve<Redis>('RedisClient');
+    this.redis = redis;
   }
 
   async get<T>(key: string, options: CacheOptions = {}): Promise<T | null> {

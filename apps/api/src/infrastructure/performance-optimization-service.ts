@@ -1,6 +1,6 @@
+import { PerformanceCacheStrategies } from '@taskmanagement/cache';
 import { DatabasePerformanceOptimizer } from '@taskmanagement/database';
 import { InfrastructureError } from '../shared/errors/infrastructure-error';
-import { PerformanceCacheStrategies } from './caching/performance-cache-strategies';
 import { APIPerformanceMonitor } from './monitoring/api-performance-monitor';
 import { ComprehensiveMonitoring } from './monitoring/comprehensive-monitoring';
 import { LoggingService } from './monitoring/logging-service';
