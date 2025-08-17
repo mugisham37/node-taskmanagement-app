@@ -1,7 +1,7 @@
 import '@taskmanagement/types/common';
 import { EnvironmentUtils } from '@taskmanagement/types/common';
 import { FastifyInstance } from 'fastify';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 import { APIDocumentationGenerator } from './api-documentation-generator';
 
 /**
@@ -1216,3 +1216,4 @@ function registerCommonSchemas(docGenerator: APIDocumentationGenerator): void {
     required: ['content', 'entityId', 'entityType'],
   });
 }
+

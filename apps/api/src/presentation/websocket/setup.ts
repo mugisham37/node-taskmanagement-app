@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { Container } from '../../shared/container';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 import { WebSocketHandler } from './websocket-handler';
 import { RealtimeManager, AuthenticatedWebSocket } from './realtime-manager';
 
@@ -49,3 +49,4 @@ export async function setupWebSocket(
     throw error;
   }
 }
+

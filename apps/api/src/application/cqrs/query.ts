@@ -119,3 +119,4 @@ export class QueryExecutionError extends Error {
     this.name = 'QueryExecutionError';
   }
 }
+

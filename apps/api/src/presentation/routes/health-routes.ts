@@ -1,5 +1,5 @@
+import { HealthCheckService } from '@taskmanagement/observability';
 import { FastifyInstance } from 'fastify';
-import { HealthCheckService } from '../../infrastructure/monitoring';
 import { RateLimitMiddleware } from '../middleware';
 
 export async function healthRoutes(
@@ -9,9 +9,7 @@ export async function healthRoutes(
 ): Promise<void> {
   // Health check endpoint - no authentication required
   fastify.get('/health', {
-    preHandler: [
-      rateLimitMiddleware.createRateLimit(RateLimitMiddleware.LENIENT),
-    ],
+    preHandler: [rateLimitMiddleware.createRateLimit(RateLimitMiddleware.LENIENT)],
     handler: async (_request, reply) => {
       try {
         const health = await healthCheckService.checkHealth();
@@ -38,9 +36,7 @@ export async function healthRoutes(
 
   // Readiness probe
   fastify.get('/ready', {
-    preHandler: [
-      rateLimitMiddleware.createRateLimit(RateLimitMiddleware.LENIENT),
-    ],
+    preHandler: [rateLimitMiddleware.createRateLimit(RateLimitMiddleware.LENIENT)],
     handler: async (_request, reply) => {
       try {
         const isReady = await healthCheckService.checkReadiness();
@@ -51,18 +47,14 @@ export async function healthRoutes(
           await reply.status(503).send({ status: 'not ready' });
         }
       } catch (error) {
-        await reply
-          .status(503)
-          .send({ status: 'not ready', error: 'Readiness check failed' });
+        await reply.status(503).send({ status: 'not ready', error: 'Readiness check failed' });
       }
     },
   });
 
   // Liveness probe
   fastify.get('/live', {
-    preHandler: [
-      rateLimitMiddleware.createRateLimit(RateLimitMiddleware.LENIENT),
-    ],
+    preHandler: [rateLimitMiddleware.createRateLimit(RateLimitMiddleware.LENIENT)],
     handler: async (_request, reply) => {
       // Simple liveness check - if we can respond, we're alive
       await reply.status(200).send({ status: 'alive' });
@@ -71,9 +63,7 @@ export async function healthRoutes(
 
   // Metrics endpoint (basic)
   fastify.get('/metrics', {
-    preHandler: [
-      rateLimitMiddleware.createRateLimit(RateLimitMiddleware.MODERATE),
-    ],
+    preHandler: [rateLimitMiddleware.createRateLimit(RateLimitMiddleware.MODERATE)],
     handler: async (_request, reply) => {
       try {
         const detailedHealth = await healthCheckService.getDetailedHealth();
@@ -82,7 +72,7 @@ export async function healthRoutes(
           timestamp: new Date().toISOString(),
           health: detailedHealth.health,
           database: detailedHealth.database,
-          metrics: detailedHealth.metrics ? 'Available' : 'Not Available'
+          metrics: detailedHealth.metrics ? 'Available' : 'Not Available',
         });
       } catch (error) {
         await reply.status(500).send({ error: 'Failed to retrieve metrics' });

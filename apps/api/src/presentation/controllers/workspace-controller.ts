@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './base-controller';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 import { WorkspaceApplicationService } from '../../application/services/workspace-application-service';
 import {
   CreateWorkspaceSchema,
@@ -399,3 +399,4 @@ export class WorkspaceController extends BaseController {
     });
   };
 }
+

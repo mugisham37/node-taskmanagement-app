@@ -18,9 +18,9 @@ import {
   WorkspaceId,
 } from '@taskmanagement/domain';
 import * as crypto from 'crypto';
-import { CacheService } from '../../infrastructure/caching/cache-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { injectable } from '../../shared/decorators/injectable.decorator';
+import { CacheService } from "@taskmanagement/cache";
+import { LoggingService } from '@taskmanagement/observability';
+import { injectable } from '../shared/decorators/injectable.decorator';
 import {
   BaseApplicationService,
   LengthValidationRule,
@@ -831,3 +831,4 @@ export class WebhookApplicationService extends BaseApplicationService {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
+

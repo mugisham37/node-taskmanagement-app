@@ -8,10 +8,9 @@ import {
   TaskUpdatedEvent,
   WorkspaceCreatedEvent,
   WorkspaceMemberAddedEvent,
-} from '@monorepo/domain';
-import { CollaborationService } from '../../infrastructure/external-services/collaboration-service';
-import { RealtimeEventService } from '../../infrastructure/external-services/realtime-event-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+} from '@taskmanagement/domain';
+import { CollaborationService, RealtimeEventService } from '@taskmanagement/integrations';
+import { LoggingService } from '@taskmanagement/observability';
 import { WebSocketHandler } from './websocket-handler';
 
 /**
@@ -46,36 +45,24 @@ export class WebSocketGateway {
 
   private setupTaskEventHandlers(): void {
     // Task created
-    this.realtimeEventService.on(
-      'domain:TaskCreatedEvent',
-      async (event: TaskCreatedEvent) => {
-        await this.handleTaskCreated(event);
-      }
-    );
+    this.realtimeEventService.on('domain:TaskCreatedEvent', async (event: TaskCreatedEvent) => {
+      await this.handleTaskCreated(event);
+    });
 
     // Task assigned
-    this.realtimeEventService.on(
-      'domain:TaskAssignedEvent',
-      async (event: TaskAssignedEvent) => {
-        await this.handleTaskAssigned(event);
-      }
-    );
+    this.realtimeEventService.on('domain:TaskAssignedEvent', async (event: TaskAssignedEvent) => {
+      await this.handleTaskAssigned(event);
+    });
 
     // Task completed
-    this.realtimeEventService.on(
-      'domain:TaskCompletedEvent',
-      async (event: TaskCompletedEvent) => {
-        await this.handleTaskCompleted(event);
-      }
-    );
+    this.realtimeEventService.on('domain:TaskCompletedEvent', async (event: TaskCompletedEvent) => {
+      await this.handleTaskCompleted(event);
+    });
 
     // Task updated
-    this.realtimeEventService.on(
-      'domain:TaskUpdatedEvent',
-      async (event: TaskUpdatedEvent) => {
-        await this.handleTaskUpdated(event);
-      }
-    );
+    this.realtimeEventService.on('domain:TaskUpdatedEvent', async (event: TaskUpdatedEvent) => {
+      await this.handleTaskUpdated(event);
+    });
   }
 
   private setupProjectEventHandlers(): void {
@@ -190,14 +177,10 @@ export class WebSocketGateway {
         assignedBy: event.assignedById.value,
       });
     } catch (error) {
-      this.logger.error(
-        'Failed to handle task assigned event',
-        error as Error,
-        {
-          taskId: event.taskId.value,
-          eventId: event.eventId,
-        }
-      );
+      this.logger.error('Failed to handle task assigned event', error as Error, {
+        taskId: event.taskId.value,
+        eventId: event.eventId,
+      });
     }
   }
 
@@ -221,14 +204,10 @@ export class WebSocketGateway {
         projectId: event.projectId.value,
       });
     } catch (error) {
-      this.logger.error(
-        'Failed to handle task completed event',
-        error as Error,
-        {
-          taskId: event.taskId.value,
-          eventId: event.eventId,
-        }
-      );
+      this.logger.error('Failed to handle task completed event', error as Error, {
+        taskId: event.taskId.value,
+        eventId: event.eventId,
+      });
     }
   }
 
@@ -256,9 +235,7 @@ export class WebSocketGateway {
   }
 
   // Project event handlers
-  private async handleProjectCreated(
-    event: ProjectCreatedEvent
-  ): Promise<void> {
+  private async handleProjectCreated(event: ProjectCreatedEvent): Promise<void> {
     try {
       await this.realtimeEventService.publishProjectCreated(
         event.projectId.value,
@@ -289,20 +266,14 @@ export class WebSocketGateway {
         workspaceId: event.workspaceId.value,
       });
     } catch (error) {
-      this.logger.error(
-        'Failed to handle project created event',
-        error as Error,
-        {
-          projectId: event.projectId.value,
-          eventId: event.eventId,
-        }
-      );
+      this.logger.error('Failed to handle project created event', error as Error, {
+        projectId: event.projectId.value,
+        eventId: event.eventId,
+      });
     }
   }
 
-  private async handleProjectMemberAdded(
-    event: ProjectMemberAddedEvent
-  ): Promise<void> {
+  private async handleProjectMemberAdded(event: ProjectMemberAddedEvent): Promise<void> {
     try {
       await this.realtimeEventService.publishProjectMemberAdded(
         event.projectId.value,
@@ -328,20 +299,14 @@ export class WebSocketGateway {
         addedBy: event.addedById.value,
       });
     } catch (error) {
-      this.logger.error(
-        'Failed to handle project member added event',
-        error as Error,
-        {
-          projectId: event.projectId.value,
-          eventId: event.eventId,
-        }
-      );
+      this.logger.error('Failed to handle project member added event', error as Error, {
+        projectId: event.projectId.value,
+        eventId: event.eventId,
+      });
     }
   }
 
-  private async handleProjectUpdated(
-    event: ProjectUpdatedEvent
-  ): Promise<void> {
+  private async handleProjectUpdated(event: ProjectUpdatedEvent): Promise<void> {
     try {
       await this.realtimeEventService.publishEvent({
         id: event.eventId,
@@ -362,21 +327,15 @@ export class WebSocketGateway {
         changes: Object.keys(event.changes),
       });
     } catch (error) {
-      this.logger.error(
-        'Failed to handle project updated event',
-        error as Error,
-        {
-          projectId: event.projectId.value,
-          eventId: event.eventId,
-        }
-      );
+      this.logger.error('Failed to handle project updated event', error as Error, {
+        projectId: event.projectId.value,
+        eventId: event.eventId,
+      });
     }
   }
 
   // Workspace event handlers
-  private async handleWorkspaceCreated(
-    event: WorkspaceCreatedEvent
-  ): Promise<void> {
+  private async handleWorkspaceCreated(event: WorkspaceCreatedEvent): Promise<void> {
     try {
       await this.realtimeEventService.publishEvent({
         id: event.eventId,
@@ -399,20 +358,14 @@ export class WebSocketGateway {
         ownerId: event.ownerId.value,
       });
     } catch (error) {
-      this.logger.error(
-        'Failed to handle workspace created event',
-        error as Error,
-        {
-          workspaceId: event.workspaceId.value,
-          eventId: event.eventId,
-        }
-      );
+      this.logger.error('Failed to handle workspace created event', error as Error, {
+        workspaceId: event.workspaceId.value,
+        eventId: event.eventId,
+      });
     }
   }
 
-  private async handleWorkspaceMemberAdded(
-    event: WorkspaceMemberAddedEvent
-  ): Promise<void> {
+  private async handleWorkspaceMemberAdded(event: WorkspaceMemberAddedEvent): Promise<void> {
     try {
       await this.realtimeEventService.publishEvent({
         id: event.eventId,
@@ -436,14 +389,10 @@ export class WebSocketGateway {
         addedBy: event.addedById.value,
       });
     } catch (error) {
-      this.logger.error(
-        'Failed to handle workspace member added event',
-        error as Error,
-        {
-          workspaceId: event.workspaceId.value,
-          eventId: event.eventId,
-        }
-      );
+      this.logger.error('Failed to handle workspace member added event', error as Error, {
+        workspaceId: event.workspaceId.value,
+        eventId: event.eventId,
+      });
     }
   }
 
@@ -462,16 +411,10 @@ export class WebSocketGateway {
     };
 
     this.webSocketHandler.broadcastToChannel(`task:${taskId}`, message);
-    this.webSocketHandler.broadcastToChannel(
-      `project:${updateData.projectId}`,
-      message
-    );
+    this.webSocketHandler.broadcastToChannel(`project:${updateData.projectId}`, message);
   }
 
-  async broadcastProjectUpdate(
-    projectId: string,
-    updateData: any
-  ): Promise<void> {
+  async broadcastProjectUpdate(projectId: string, updateData: any): Promise<void> {
     const message = {
       type: 'project_update',
       payload: {
@@ -483,22 +426,11 @@ export class WebSocketGateway {
     };
 
     this.webSocketHandler.broadcastToChannel(`project:${projectId}`, message);
-    this.webSocketHandler.broadcastToChannel(
-      `workspace:${updateData.workspaceId}`,
-      message
-    );
+    this.webSocketHandler.broadcastToChannel(`workspace:${updateData.workspaceId}`, message);
   }
 
-  async broadcastUserPresence(
-    userId: string,
-    status: string,
-    metadata?: any
-  ): Promise<void> {
-    await this.realtimeEventService.publishUserPresenceUpdate(
-      userId,
-      status,
-      metadata
-    );
+  async broadcastUserPresence(userId: string, status: string, metadata?: any): Promise<void> {
+    await this.realtimeEventService.publishUserPresenceUpdate(userId, status, metadata);
   }
 
   async notifyUser(userId: string, notification: any): Promise<void> {

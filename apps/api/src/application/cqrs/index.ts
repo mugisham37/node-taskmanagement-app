@@ -48,3 +48,4 @@ export type {
 } from '@taskmanagement/validation';
 
 export type { CQRSComponents, CQRSConfiguration } from './cqrs-factory';
+

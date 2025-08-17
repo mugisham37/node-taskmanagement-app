@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './base-controller';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 import { z } from 'zod';
 
 // Helper function to suppress TypeScript unused variable warnings
@@ -542,3 +542,4 @@ export class SearchController extends BaseController {
     });
   };
 }
+

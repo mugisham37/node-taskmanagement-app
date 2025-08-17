@@ -9,17 +9,17 @@ import {
   AttendeeStatus,
   CalendarEvent,
   CalendarEventReminder,
-} from '../../domain/entities/calendar-event';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { ICalendarEventRepository } from '../../domain/repositories/calendar-event-repository';
-import { IProjectRepository } from '../../domain/repositories/project-repository';
-import { IUserRepository } from '../../domain/repositories/user-repository';
-import { ProjectId } from '../../domain/value-objects/project-id';
-import { UserId } from '../../domain/value-objects/user-id';
-import { EmailService } from '../../infrastructure/external-services/email-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { NotFoundError } from '../../shared/errors/not-found-error';
+} from "@taskmanagement/domain";
+import { DomainEventPublisher } from "@taskmanagement/domain";
+import { ICalendarEventRepository } from "@taskmanagement/domain";
+import { IProjectRepository } from "@taskmanagement/domain";
+import { IUserRepository } from "@taskmanagement/domain";
+import { ProjectId } from "@taskmanagement/domain";
+import { UserId } from "@taskmanagement/domain";
+import { EmailService } from '@taskmanagement/integrations';
+import { LoggingService } from '@taskmanagement/observability';
+import { AuthorizationError } from '../shared/errors/authorization-error';
+import { NotFoundError } from '../shared/errors/not-found-error';
 import { BaseHandler, ICommandHandler } from './base-handler';
 
 // Type aliases for missing value objects
@@ -723,3 +723,4 @@ export class RespondToEventCommandHandler
 export const CreateCalendarEventHandler = CreateCalendarEventCommandHandler;
 export const UpdateCalendarEventHandler = UpdateCalendarEventCommandHandler;
 export const ScheduleCalendarEventHandler = CreateCalendarEventCommandHandler; // alias for create
+

@@ -1,7 +1,7 @@
-import { IUserRepository, UserId } from '@monorepo/domain';
 import { JWTService } from '@taskmanagement/auth';
+import { IUserRepository, UserId } from '@taskmanagement/domain';
+import { LoggingService } from '@taskmanagement/observability';
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
 
 export interface AuthenticatedUser {

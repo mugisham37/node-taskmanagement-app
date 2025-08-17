@@ -1,9 +1,9 @@
 import { BaseCommand } from './base-command';
-import { TaskId } from '../../domain/value-objects/task-id';
-import { ProjectId } from '../../domain/value-objects/project-id';
-import { UserId } from '../../domain/value-objects/user-id';
-import { Priority } from '../../domain/value-objects/priority';
-import { TaskStatus } from '../../domain/value-objects/task-status';
+import { TaskId } from "@taskmanagement/domain";
+import { ProjectId } from "@taskmanagement/domain";
+import { UserId } from "@taskmanagement/domain";
+import { Priority } from "@taskmanagement/domain";
+import { TaskStatus } from "@taskmanagement/domain";
 
 export class CreateTaskCommand extends BaseCommand {
   constructor(
@@ -99,3 +99,4 @@ export class RemoveTaskDependencyCommand extends BaseCommand {
     super(userId);
   }
 }
+

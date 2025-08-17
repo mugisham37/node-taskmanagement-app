@@ -75,3 +75,4 @@ export class MissingTokenError extends AuthenticationError {
     super('Authentication token is required', context);
   }
 }
+

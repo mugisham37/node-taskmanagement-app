@@ -2,7 +2,7 @@ import { Priority, ProjectId, TaskId, UserId } from '@taskmanagement/domain';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { TaskApplicationService } from '../../application/services/task-application-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 import {
   AssignTaskSchema,
   CompleteTaskSchema,
@@ -264,3 +264,4 @@ export class TaskController extends BaseController {
     });
   };
 }
+

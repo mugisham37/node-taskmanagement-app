@@ -358,3 +358,4 @@ export enum Browser {
   OPERA = 'opera',
   UNKNOWN = 'unknown',
 }
+

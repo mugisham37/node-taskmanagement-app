@@ -13,10 +13,10 @@ import {
   WorkspaceId,
   WorkspaceMember,
 } from '@taskmanagement/domain';
-import { CacheService } from '../../infrastructure/caching/cache-service';
-import { EmailService } from '../../infrastructure/external-services/email-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { injectable } from '../../shared/decorators/injectable.decorator';
+import { CacheService } from "@taskmanagement/cache";
+import { EmailService } from '@taskmanagement/integrations';
+import { LoggingService } from '@taskmanagement/observability';
+import { injectable } from '../shared/decorators/injectable.decorator';
 import {
   ArchiveWorkspaceCommand,
   CreateWorkspaceCommand,
@@ -1212,3 +1212,4 @@ export class WorkspaceApplicationService extends BaseApplicationService {
     await this.cacheService.delete(`workspace-members:${workspaceId.value}`);
   }
 }
+

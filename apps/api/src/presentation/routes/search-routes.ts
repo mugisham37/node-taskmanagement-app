@@ -124,3 +124,4 @@ export async function searchRoutes(
     handler: searchController.getIndexStatus,
   });
 }
+

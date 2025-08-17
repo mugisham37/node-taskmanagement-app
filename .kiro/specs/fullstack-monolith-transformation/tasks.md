@@ -130,7 +130,7 @@
   - Use PowerShell to update event imports: `(Get-Content -Path "apps/api/src/**/*.ts" -Raw) -replace 'from ["\']\.\.?/.*?/events/', 'from "@taskmanagement/events"' | Set-Content`
   - _Requirements: 1.6, 1.12, 1.14_
 
-- [ ] 13. Extract Additional Shared Packages Using PowerShell Commands
+- [x] 13. Extract Additional Shared Packages Using PowerShell Commands
 
   - Use PowerShell to create packages/observability/, packages/integrations/, and packages/jobs/ with complete directory structures
   - Use PowerShell: `Move-Item "apps/api/src/infrastructure/monitoring/*" "packages/observability/src/" -Force` for monitoring, metrics, logging, tracing, health checks, alerts, dashboards, profiling, APM, and error tracking
@@ -141,7 +141,7 @@
   - Write comprehensive test suites for all extracted functionality
   - _Requirements: 1.12, 1.13, 1.14_
 
-- [ ] 14. Refactor API Application Dependencies and Clean Up
+- [x] 14. Refactor API Application Dependencies and Clean Up
 
   - Update apps/api/package.json to depend on all extracted packages using workspace:\* protocol and remove dependencies now handled by packages
   - Use PowerShell to systematically replace all moved code imports with references to @taskmanagement/\* packages across entire API codebase

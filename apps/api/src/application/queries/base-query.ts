@@ -1,4 +1,4 @@
-import { UserId } from '../../domain/value-objects/user-id';
+import { UserId } from "@taskmanagement/domain";
 
 export interface IQuery {
   readonly queryId: string;
@@ -42,3 +42,4 @@ export interface PaginatedResult<T> {
   limit: number;
   totalPages: number;
 }
+

@@ -1,9 +1,8 @@
 import { ConfigLoader } from '@taskmanagement/config';
 import { IDatabaseConnection } from '@taskmanagement/database';
+import { HealthService, LoggingService } from '@taskmanagement/observability';
 import fastify, { FastifyInstance } from 'fastify';
 import { ICacheService } from './infrastructure/caching/cache-service-interface';
-import { HealthService } from './infrastructure/monitoring/health-service';
-import { LoggingService } from './infrastructure/monitoring/logging-service';
 import { setupMiddleware } from './presentation/middleware';
 import { setupRoutes } from './presentation/routes';
 import { setupWebSocket } from './presentation/websocket';

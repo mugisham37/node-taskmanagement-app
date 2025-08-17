@@ -8,11 +8,11 @@ import {
 import { ValidationError } from '@taskmanagement/validation';
 // Additional imports from domain package (already imported above)
 import { TransactionManager } from '@taskmanagement/database';
-import { CacheService } from '../../infrastructure/caching/cache-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { Priority as PriorityEnum } from '../../shared/enums/common.enums';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { NotFoundError } from '../../shared/errors/not-found-error';
+import { CacheService } from "@taskmanagement/cache";
+import { LoggingService } from '@taskmanagement/observability';
+import { Priority as PriorityEnum } from '../shared/enums/common.enums';
+import { AuthorizationError } from '../shared/errors/authorization-error';
+import { NotFoundError } from '../shared/errors/not-found-error';
 import { CreateTaskCommand, UpdateTaskCommand } from '../commands/task-commands';
 import { ICommandBus, IQueryBus } from '../cqrs';
 import { GetTaskByIdQuery, GetTasksQuery } from '../queries/task-queries';
@@ -868,3 +868,4 @@ export class EnhancedTaskManagementUseCase extends BaseApplicationService {
     return recommendations;
   }
 }
+

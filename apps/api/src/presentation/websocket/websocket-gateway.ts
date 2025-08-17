@@ -1,7 +1,7 @@
 import { WebSocketHandler } from './websocket-handler';
-import { RealtimeEventService } from '../../infrastructure/external-services/realtime-event-service';
-import { CollaborationService } from '../../infrastructure/external-services/collaboration-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { RealtimeEventService } from '@taskmanagement/integrations';
+import { CollaborationService } from '@taskmanagement/integrations';
+import { LoggingService } from '@taskmanagement/observability';
 
 /**
  * Simplified WebSocket Gateway that bridges domain events with real-time WebSocket communications
@@ -181,3 +181,4 @@ export class WebSocketGateway {
     return this.webSocketHandler.getConnectedUsers();
   }
 }
+

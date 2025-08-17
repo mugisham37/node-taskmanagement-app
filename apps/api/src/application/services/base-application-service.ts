@@ -7,7 +7,7 @@
 
 import { DomainEventPublisher } from '@taskmanagement/domain';
 import { PerformanceMonitor } from '@taskmanagement/utils';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 
 export interface IUnitOfWork {
   commit(): Promise<void>;
@@ -350,3 +350,4 @@ export class LengthValidationRule<T> implements ValidationRule<T> {
     };
   }
 }
+

@@ -1,5 +1,5 @@
 import { Container, SERVICE_TOKENS } from './types';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 
 /**
  * Dependency Validation Service
@@ -413,3 +413,4 @@ interface ValidationSummary {
   errors: ValidationResult[];
   validationResults: ValidationResult[];
 }
+

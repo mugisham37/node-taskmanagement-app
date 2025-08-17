@@ -16,10 +16,10 @@ import {
   UserId,
 } from '@taskmanagement/domain';
 import { UnifiedTaskFilters } from '@taskmanagement/types/common';
-import { CacheService } from '../../infrastructure/caching/cache-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { ValidationError } from '../../shared/errors';
-import { NotFoundError } from '../../shared/errors/not-found-error';
+import { CacheService } from "@taskmanagement/cache";
+import { LoggingService } from '@taskmanagement/observability';
+import { ValidationError } from '../shared/errors';
+import { NotFoundError } from '../shared/errors/not-found-error';
 import { BaseApplicationService } from '../services/base-application-service';
 
 export interface BulkTaskOperation {
@@ -227,3 +227,4 @@ export class EnhancedTaskUseCases extends BaseApplicationService {
     }
   }
 }
+

@@ -1,27 +1,27 @@
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { EmailService } from '../../infrastructure/external-services/email-service';
-import { CacheService } from '../../infrastructure/caching/cache-service';
-import { ITaskRepository } from '../../domain/repositories/task-repository';
-import { IUserRepository } from '../../domain/repositories/user-repository';
-import { IProjectRepository } from '../../domain/repositories/project-repository';
-import { IWorkspaceRepository } from '../../domain/repositories/workspace-repository';
-import { UserId } from '../../domain/value-objects/user-id';
+import { DomainEventPublisher } from "@taskmanagement/domain";
+import { LoggingService } from '@taskmanagement/observability';
+import { EmailService } from '@taskmanagement/integrations';
+import { CacheService } from "@taskmanagement/cache";
+import { ITaskRepository } from "@taskmanagement/domain";
+import { IUserRepository } from "@taskmanagement/domain";
+import { IProjectRepository } from "@taskmanagement/domain";
+import { IWorkspaceRepository } from "@taskmanagement/domain";
+import { UserId } from "@taskmanagement/domain";
 import {
   TaskCreatedEvent,
   TaskAssignedEvent,
   TaskCompletedEvent,
   TaskStatusChangedEvent,
-} from '../../domain/events/task-events';
+} from "@taskmanagement/domain";
 import {
   ProjectCreatedEvent,
   ProjectMemberAddedEvent,
   ProjectMemberRemovedEvent,
-} from '../../domain/events/project-events';
+} from "@taskmanagement/domain";
 import {
   WorkspaceCreatedEvent,
   UserInvitedToWorkspaceEvent,
-} from '../../domain/events/workspace-events';
+} from "@taskmanagement/domain";
 
 export interface NotificationPreferences {
   emailNotifications: boolean;
@@ -549,3 +549,4 @@ export class NotificationApplicationService {
     }
   }
 }
+

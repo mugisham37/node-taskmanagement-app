@@ -1,4 +1,4 @@
-import { Container } from '../../shared/container/types';
+import { Container } from '../shared/container/types';
 import { MigrationTrackerService } from './services/migration-tracker.service';
 import { BackupService } from './services/backup.service';
 import { ErrorRecoveryService } from './services/error-recovery.service';
@@ -52,3 +52,4 @@ export function registerMigrationServices(container: Container): void {
     ]
   );
 }
+

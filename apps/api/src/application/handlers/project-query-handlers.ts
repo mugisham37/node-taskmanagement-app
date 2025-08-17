@@ -5,19 +5,19 @@
  */
 
 import { BaseHandler, IQueryHandler } from './base-handler';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { IProjectRepository } from '../../domain/repositories/project-repository';
-import { IUserRepository } from '../../domain/repositories/user-repository';
-import { IWorkspaceRepository } from '../../domain/repositories/workspace-repository';
-import { CacheService } from '../../infrastructure/caching/cache-service';
+import { DomainEventPublisher } from "@taskmanagement/domain";
+import { LoggingService } from '@taskmanagement/observability';
+import { IProjectRepository } from "@taskmanagement/domain";
+import { IUserRepository } from "@taskmanagement/domain";
+import { IWorkspaceRepository } from "@taskmanagement/domain";
+import { CacheService } from "@taskmanagement/cache";
 import { PaginatedResult, PaginationOptions } from '../queries/base-query';
-import { ProjectId } from '../../domain/value-objects/project-id';
-import { UserId } from '../../domain/value-objects/user-id';
-import { WorkspaceId } from '../../domain/value-objects/workspace-id';
-import { NotFoundError } from '../../shared/errors/not-found-error';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { ProjectStatus } from '../../shared/enums/common.enums';
+import { ProjectId } from "@taskmanagement/domain";
+import { UserId } from "@taskmanagement/domain";
+import { WorkspaceId } from "@taskmanagement/domain";
+import { NotFoundError } from '../shared/errors/not-found-error';
+import { AuthorizationError } from '../shared/errors/authorization-error';
+import { ProjectStatus } from '../shared/enums/common.enums';
 
 // Query interfaces
 export interface GetProjectByIdQuery {
@@ -816,3 +816,4 @@ export class GetProjectStatisticsQueryHandler
 export const GetProjectHandler = GetProjectByIdQueryHandler;
 export const ListProjectsHandler = GetProjectsByWorkspaceQueryHandler;
 export const GetProjectMembersHandler = GetProjectMembersQueryHandler;
+

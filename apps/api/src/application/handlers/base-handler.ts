@@ -1,5 +1,5 @@
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { DomainEventPublisher } from "@taskmanagement/domain";
+import { LoggingService } from '@taskmanagement/observability';
 
 export interface ICommandHandler<TCommand, TResult = void> {
   handle(command: TCommand): Promise<TResult>;
@@ -35,3 +35,4 @@ export abstract class BaseHandler {
     this.logger.debug(message, context);
   }
 }
+

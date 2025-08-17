@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 
 export interface CorsOptions {
   origin?: string | string[] | boolean | ((origin: string) => boolean);
@@ -182,3 +182,4 @@ export class CorsMiddleware {
     allowedHeaders: ['Content-Type', 'Authorization'],
   };
 }
+

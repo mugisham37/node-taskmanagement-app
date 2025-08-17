@@ -1,6 +1,6 @@
+import { LoggingService } from '@taskmanagement/observability';
 import { ComprehensiveValidationMiddleware } from '@taskmanagement/validation/middleware';
 import { FastifyInstance } from 'fastify';
-import { LoggingService } from '../infrastructure/monitoring/logging-service';
 import { DIContainer } from '../shared/container';
 import { setupAPIDocumentation } from './documentation/setup-api-docs';
 import { StandardizedResponseMiddleware } from './middleware/standardized-response-middleware';

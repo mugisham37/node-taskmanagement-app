@@ -1,9 +1,12 @@
+import {
+  AlertingConfig,
+  AlertingService,
+  LoggingService,
+  MetricsService,
+} from '@taskmanagement/observability';
 import { FastifyInstance } from 'fastify';
-import { DIContainer } from '../../shared/container';
+import { DIContainer } from '../shared/container';
 import { setupMigrationModule } from '../migration/migration.module';
-import { AlertingService, AlertingConfig } from '../monitoring/alerting-service';
-import { LoggingService } from '../monitoring/logging-service';
-import { MetricsService } from '../monitoring/metrics-service';
 
 /**
  * Integration example showing how to use the fixed migration and alerting services
@@ -14,7 +17,7 @@ export async function setupInfrastructureIntegration(
 ): Promise<void> {
   // Setup migration module
   await setupMigrationModule(app, container);
-  
+
   // Setup alerting service
   const alertingConfig: AlertingConfig = {
     enabled: true,
@@ -28,12 +31,8 @@ export async function setupInfrastructureIntegration(
 
   const loggingService = container.resolve<LoggingService>('LoggingService');
   const metricsService = container.resolve<MetricsService>('MetricsService');
-  
-  const alertingService = new AlertingService(
-    alertingConfig,
-    loggingService,
-    metricsService
-  );
+
+  const alertingService = new AlertingService(alertingConfig, loggingService, metricsService);
 
   // Register alerting service in container
   container.registerInstance('AlertingService', alertingService);
@@ -68,7 +67,7 @@ export async function setupInfrastructureIntegration(
       }
 
       alertingService.acknowledgeAlert(alertId, acknowledgedBy);
-      
+
       return {
         success: true,
         message: 'Alert acknowledged successfully',
@@ -88,7 +87,7 @@ export async function setupInfrastructureIntegration(
       const { resolvedBy } = request.body as { resolvedBy?: string };
 
       alertingService.resolveAlert(alertId, resolvedBy);
-      
+
       return {
         success: true,
         message: 'Alert resolved successfully',
@@ -174,10 +173,10 @@ export async function exampleApplicationSetup(
   try {
     // Setup infrastructure
     await setupInfrastructureIntegration(app, container);
-    
+
     // Start monitoring metrics for migration
     const alertingService = container.resolve<AlertingService>('AlertingService');
-    
+
     // Example: Record migration metrics
     alertingService.recordMetric('migration_attempts_total', 1, {
       environment: 'development',

@@ -73,3 +73,4 @@ export class OperationNotAllowedError extends DomainError {
     );
   }
 }
+

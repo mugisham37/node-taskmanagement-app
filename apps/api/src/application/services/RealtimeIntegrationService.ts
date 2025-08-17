@@ -1,6 +1,6 @@
 import { Project, Task, User } from '@taskmanagement/domain';
 import { RealtimeManager } from '../../presentation/websocket/realtime-manager';
-import { Container } from '../../shared/container/Container';
+import { Container } from '../shared/container/Container';
 
 /**
  * Service to integrate real-time updates with application services
@@ -157,3 +157,4 @@ export class RealtimeIntegrationService {
     return this.realtimeManager.getUserRooms(userId);
   }
 }
+

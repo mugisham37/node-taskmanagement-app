@@ -31,3 +31,4 @@ export {
   ServiceLifetime,
   ServiceToken,
 } from './container';
+

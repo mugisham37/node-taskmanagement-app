@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './base-controller';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 import { z } from 'zod';
 
 // Notification schemas
@@ -410,3 +410,4 @@ export class NotificationController extends BaseController {
     });
   };
 }
+

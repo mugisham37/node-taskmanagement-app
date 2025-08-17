@@ -11,7 +11,7 @@ import {
   IQueryValidator,
   QueryValidator,
 } from '@taskmanagement/validation';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 import { ICommandBus } from './command';
 import { CommandBus } from './command-bus';
 import { IQueryBus } from './query';
@@ -133,3 +133,4 @@ export class CQRSFactory {
     (components.queryValidator as QueryValidator).clearRules();
   }
 }
+

@@ -1,17 +1,19 @@
+import { CacheService } from '@taskmanagement/cache';
 import { TransactionManager } from '@taskmanagement/database';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { IProjectRepository } from '../../domain/repositories/project-repository';
-import { ITaskRepository } from '../../domain/repositories/task-repository';
-import { IUserRepository } from '../../domain/repositories/user-repository';
-import { TaskDomainService } from '../../domain/services/task-domain-service';
-import { Priority } from '../../domain/value-objects/priority';
-import { ProjectId } from '../../domain/value-objects/project-id';
-import { TaskId } from '../../domain/value-objects/task-id';
-import { TaskStatus } from '../../domain/value-objects/task-status';
-import { UserId } from '../../domain/value-objects/user-id';
-import { CacheService } from '../../infrastructure/caching/cache-service';
-import { EmailService } from '../../infrastructure/external-services/email-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import {
+  DomainEventPublisher,
+  IProjectRepository,
+  ITaskRepository,
+  IUserRepository,
+  Priority,
+  ProjectId,
+  TaskDomainService,
+  TaskId,
+  TaskStatus,
+  UserId,
+} from '@taskmanagement/domain';
+import { EmailService } from '@taskmanagement/integrations';
+import { LoggingService } from '@taskmanagement/observability';
 import {
   AddTaskDependencyCommand,
   DeleteTaskCommand,

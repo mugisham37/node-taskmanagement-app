@@ -1,13 +1,13 @@
 import { TransactionManager } from '@taskmanagement/database';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { IUserRepository } from '../../domain/repositories/user-repository';
-import { IWorkspaceRepository } from '../../domain/repositories/workspace-repository';
-import { WorkspaceDomainService } from '../../domain/services/workspace-domain-service';
-import { WorkspaceId } from '../../domain/value-objects/workspace-id';
-import { EmailService } from '../../infrastructure/external-services/email-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { NotFoundError } from '../../shared/errors/not-found-error';
+import { DomainEventPublisher } from "@taskmanagement/domain";
+import { IUserRepository } from "@taskmanagement/domain";
+import { IWorkspaceRepository } from "@taskmanagement/domain";
+import { WorkspaceDomainService } from "@taskmanagement/domain";
+import { WorkspaceId } from "@taskmanagement/domain";
+import { EmailService } from '@taskmanagement/integrations';
+import { LoggingService } from '@taskmanagement/observability';
+import { AuthorizationError } from '../shared/errors/authorization-error';
+import { NotFoundError } from '../shared/errors/not-found-error';
 import {
   ArchiveWorkspaceCommand,
   CreateWorkspaceCommand,
@@ -316,3 +316,4 @@ export class ArchiveWorkspaceCommandHandler
 // Export aliases for backward compatibility
 export const CreateWorkspaceHandler = CreateWorkspaceCommandHandler;
 export const InviteUserHandler = InviteUserToWorkspaceCommandHandler;
+

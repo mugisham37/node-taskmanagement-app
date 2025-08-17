@@ -1,7 +1,7 @@
 import { UnifiedTaskFilters } from '@taskmanagement/types/common';
-import { ProjectId } from '../../domain/value-objects/project-id';
-import { TaskId } from '../../domain/value-objects/task-id';
-import { UserId } from '../../domain/value-objects/user-id';
+import { ProjectId } from "@taskmanagement/domain";
+import { TaskId } from "@taskmanagement/domain";
+import { UserId } from "@taskmanagement/domain";
 import { BaseQuery, PaginationOptions } from './base-query';
 
 export type TaskFilters = UnifiedTaskFilters;
@@ -100,3 +100,4 @@ export class GetTasksQuery extends BaseQuery {
     super(userId);
   }
 }
+

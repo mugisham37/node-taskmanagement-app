@@ -3,9 +3,9 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import {
   CollaborationService,
   OperationType,
-} from '../../infrastructure/external-services/collaboration-service';
-import { RealtimeEventService } from '../../infrastructure/external-services/realtime-event-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+} from '@taskmanagement/integrations';
+import { RealtimeEventService } from '@taskmanagement/integrations';
+import { LoggingService } from '@taskmanagement/observability';
 import { NotFoundError } from '../../shared/errors/not-found-error';
 
 export class CollaborationController {
@@ -582,3 +582,4 @@ export class CollaborationController {
     }
   }
 }
+

@@ -1,13 +1,13 @@
 import { TransactionManager } from '@taskmanagement/database';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { IProjectRepository } from '../../domain/repositories/project-repository';
-import { IUserRepository } from '../../domain/repositories/user-repository';
-import { IWorkspaceRepository } from '../../domain/repositories/workspace-repository';
-import { ProjectDomainService } from '../../domain/services/project-domain-service';
-import { ProjectId } from '../../domain/value-objects/project-id';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { NotFoundError } from '../../shared/errors/not-found-error';
+import { DomainEventPublisher } from "@taskmanagement/domain";
+import { IProjectRepository } from "@taskmanagement/domain";
+import { IUserRepository } from "@taskmanagement/domain";
+import { IWorkspaceRepository } from "@taskmanagement/domain";
+import { ProjectDomainService } from "@taskmanagement/domain";
+import { ProjectId } from "@taskmanagement/domain";
+import { LoggingService } from '@taskmanagement/observability';
+import { AuthorizationError } from '../shared/errors/authorization-error';
+import { NotFoundError } from '../shared/errors/not-found-error';
 import {
   AddProjectMemberCommand,
   ArchiveProjectCommand,
@@ -422,3 +422,4 @@ export const CreateProjectHandler = CreateProjectCommandHandler;
 export const UpdateProjectHandler = UpdateProjectCommandHandler;
 export const AddProjectMemberHandler = AddProjectMemberCommandHandler;
 export const RemoveProjectMemberHandler = RemoveProjectMemberCommandHandler;
+

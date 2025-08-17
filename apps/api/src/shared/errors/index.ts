@@ -64,3 +64,4 @@ export function isOperationalError(error: Error): boolean {
 export function isAppError(error: Error): error is AppError {
   return error instanceof AppError;
 }
+

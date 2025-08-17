@@ -1,6 +1,6 @@
 import { AuditContext, AuditLogger, InputSanitizer } from '@taskmanagement/auth';
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 
 export interface SecurityOptions {
   contentSecurityPolicy?: string | false;
@@ -223,3 +223,4 @@ export class SecurityMiddleware {
     frameOptions: 'SAMEORIGIN',
   };
 }
+

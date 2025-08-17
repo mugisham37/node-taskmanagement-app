@@ -6,8 +6,8 @@
  */
 
 import { Cache, PerformanceMonitor } from '@taskmanagement/utils';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { injectable } from '../../shared/decorators/injectable.decorator';
+import { LoggingService } from '@taskmanagement/observability';
+import { injectable } from '../shared/decorators/injectable.decorator';
 import { IQuery, IQueryBus, IQueryHandler, QueryHandlerNotFoundError } from './query';
 
 @injectable()
@@ -178,3 +178,4 @@ export class QueryBus implements IQueryBus {
     return this.performanceMonitor.getMetrics();
   }
 }
+

@@ -12,3 +12,4 @@ export * from './comprehensive-security-middleware';
 // Phase 7 comprehensive middleware
 export { ComprehensiveValidationMiddleware } from '@taskmanagement/validation/middleware';
 export * from './standardized-response-middleware';
+

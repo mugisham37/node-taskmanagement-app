@@ -1,7 +1,7 @@
 import { Result } from '@taskmanagement/types/common';
-import { Task } from '../../domain/entities/Task';
-import { Cacheable, CacheEvict, CachePut } from '../../infrastructure/caching/cache-decorators';
-import { MultiLayerCache } from '../../infrastructure/caching/multi-layer-cache';
+import { Task } from "@taskmanagement/domain";
+import { Cacheable, CacheEvict, CachePut } from "@taskmanagement/cache";
+import { MultiLayerCache } from "@taskmanagement/cache";
 import { TaskApplicationService } from './TaskApplicationService';
 
 /**
@@ -150,3 +150,4 @@ export class CachedTaskApplicationService extends TaskApplicationService {
     await this.cache.invalidateByPattern(`*:user:${userId}*`);
   }
 }
+

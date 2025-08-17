@@ -1,12 +1,12 @@
 import { TransactionManager } from '@taskmanagement/database';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { IProjectRepository } from '../../domain/repositories/project-repository';
-import { ITaskRepository } from '../../domain/repositories/task-repository';
-import { TaskDomainService } from '../../domain/services/task-domain-service';
-import { Priority, ProjectId, TaskId, TaskStatusVO, UserId } from '../../domain/value-objects';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { NotFoundError } from '../../shared/errors/not-found-error';
+import { DomainEventPublisher } from "@taskmanagement/domain";
+import { IProjectRepository } from "@taskmanagement/domain";
+import { ITaskRepository } from "@taskmanagement/domain";
+import { TaskDomainService } from "@taskmanagement/domain";
+import { Priority, ProjectId, TaskId, TaskStatusVO, UserId } from "@taskmanagement/domain";
+import { LoggingService } from '@taskmanagement/observability';
+import { AuthorizationError } from '../shared/errors/authorization-error';
+import { NotFoundError } from '../shared/errors/not-found-error';
 import {
   AddTaskDependencyCommand,
   AssignTaskCommand,
@@ -421,3 +421,4 @@ export const CreateTaskHandler = CreateTaskCommandHandler;
 export const UpdateTaskHandler = UpdateTaskCommandHandler;
 export const AssignTaskHandler = AssignTaskCommandHandler;
 export const CompleteTaskHandler = CompleteTaskCommandHandler;
+

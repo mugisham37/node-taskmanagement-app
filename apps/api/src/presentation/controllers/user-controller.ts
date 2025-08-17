@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './base-controller';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 import { UserApplicationService } from '../../application/services/user-application-service';
 import {
   UpdateUserSchema,
@@ -175,3 +175,4 @@ export class UserController extends BaseController {
     });
   };
 }
+

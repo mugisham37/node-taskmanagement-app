@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { DIContainer } from '../../shared/container';
+import { DIContainer } from '../shared/container';
 import { MIGRATION_SERVICE_TOKENS } from './migration-service-registration';
 import { MigrationTrackerService } from './services/migration-tracker.service';
 import { BackupService } from './services/backup.service';
@@ -342,3 +342,4 @@ export async function setupMigrationRoutes(
     }
   });
 }
+

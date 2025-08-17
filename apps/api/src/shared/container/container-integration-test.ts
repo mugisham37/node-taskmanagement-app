@@ -9,7 +9,7 @@ import { ContainerInitializationService } from './container-initialization-servi
 import { ContainerHealthChecker } from './health-checker';
 import { DependencyValidationService } from './dependency-validation-service';
 import { SERVICE_TOKENS } from './types';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 
 export class ContainerIntegrationTest {
   private initializationService: ContainerInitializationService;
@@ -511,3 +511,4 @@ export async function runContainerIntegrationTest(): Promise<ContainerIntegratio
   await test.cleanup();
   return result;
 }
+

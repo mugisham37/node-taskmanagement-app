@@ -98,3 +98,4 @@ export async function setupWebSocket(
 
   loggingService.info('WebSocket endpoints registered successfully');
 }
+

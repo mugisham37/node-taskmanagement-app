@@ -63,3 +63,4 @@ const isAdmin = t.middleware(({ ctx, next }) => {
 });
 
 export const adminProcedure = t.procedure.use(isAdmin);
+

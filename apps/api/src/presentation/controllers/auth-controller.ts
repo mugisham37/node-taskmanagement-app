@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { AuthApplicationService } from '../../application/services/auth-application-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 import {
   ChangePasswordSchema,
   LoginSchema,
@@ -138,3 +138,4 @@ export class AuthController extends BaseController {
     });
   };
 }
+

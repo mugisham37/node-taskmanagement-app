@@ -1,8 +1,8 @@
 import { BaseQuery, PaginationOptions } from './base-query';
-import { ProjectId } from '../../domain/value-objects/project-id';
-import { WorkspaceId } from '../../domain/value-objects/workspace-id';
-import { UserId } from '../../domain/value-objects/user-id';
-import { ProjectStatus } from '../../domain/value-objects/project-status';
+import { ProjectId } from "@taskmanagement/domain";
+import { WorkspaceId } from "@taskmanagement/domain";
+import { UserId } from "@taskmanagement/domain";
+import { ProjectStatus } from "@taskmanagement/domain";
 
 export interface ProjectFilters {
   status?: ProjectStatus[];
@@ -88,3 +88,4 @@ export class SearchProjectsQuery extends BaseQuery {
     super(userId);
   }
 }
+

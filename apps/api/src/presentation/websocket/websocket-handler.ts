@@ -1,9 +1,9 @@
 import { JWTService } from '@taskmanagement/auth';
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import { nanoid } from 'nanoid';
-import { RealtimeEventService } from '../../infrastructure/external-services/realtime-event-service';
-import { WebSocketService } from '../../infrastructure/external-services/websocket-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { RealtimeEventService } from '@taskmanagement/integrations';
+import { WebSocketService } from '@taskmanagement/integrations';
+import { LoggingService } from '@taskmanagement/observability';
 import { WEBSOCKET_EVENTS } from '../../shared/constants';
 
 // Define WebSocket connection type
@@ -955,3 +955,4 @@ export class WebSocketHandler {
     });
   }
 }
+

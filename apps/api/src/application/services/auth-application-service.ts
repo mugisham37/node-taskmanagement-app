@@ -12,14 +12,14 @@ import {
   TwoFactorAuthService,
   TwoFactorSetup,
 } from '@taskmanagement/auth';
-import { User } from '../../domain/entities/user';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { IUserRepository } from '../../domain/repositories/user-repository';
-import { Email } from '../../domain/value-objects/email';
-import { UserId } from '../../domain/value-objects/user-id';
-import { CacheService } from '../../infrastructure/caching/cache-service';
-import { EmailService } from '../../infrastructure/external-services/email-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { User } from "@taskmanagement/domain";
+import { DomainEventPublisher } from "@taskmanagement/domain";
+import { IUserRepository } from "@taskmanagement/domain";
+import { Email } from "@taskmanagement/domain";
+import { UserId } from "@taskmanagement/domain";
+import { CacheService } from "@taskmanagement/cache";
+import { EmailService } from '@taskmanagement/integrations';
+import { LoggingService } from '@taskmanagement/observability';
 import { injectable } from '../../shared/decorators/injectable.decorator';
 import {
   BaseApplicationService,
@@ -1222,3 +1222,4 @@ export class AuthApplicationService extends BaseApplicationService {
     };
   }
 }
+

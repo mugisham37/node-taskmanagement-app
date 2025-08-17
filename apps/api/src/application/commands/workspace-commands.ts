@@ -1,6 +1,6 @@
 import { BaseCommand } from './base-command';
-import { WorkspaceId } from '../../domain/value-objects/workspace-id';
-import { UserId } from '../../domain/value-objects/user-id';
+import { WorkspaceId } from "@taskmanagement/domain";
+import { UserId } from "@taskmanagement/domain";
 
 export class CreateWorkspaceCommand extends BaseCommand {
   constructor(
@@ -66,3 +66,4 @@ export class ArchiveWorkspaceCommand extends BaseCommand {
     super(userId);
   }
 }
+

@@ -251,3 +251,4 @@ export class MigrationTrackerService {
     await fs.writeFile(reportPath, JSON.stringify(report, null, 2));
   }
 }
+

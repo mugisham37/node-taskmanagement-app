@@ -1,4 +1,4 @@
-import { User } from '@monorepo/domain';
+import { User } from '@taskmanagement/domain';
 import {
   ProjectUpdatedEvent,
   RealtimeEvent,

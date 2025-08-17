@@ -1,6 +1,6 @@
 import { ValidationError } from '@taskmanagement/validation';
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
 
 export interface SecurityConfig {
@@ -472,3 +472,4 @@ export const defaultSecurityConfig: SecurityConfig = {
   },
   userAgentBlacklist: [/bot/i, /crawler/i, /spider/i, /scraper/i],
 };
+

@@ -5,14 +5,14 @@
  */
 
 import { BaseHandler, IQueryHandler } from './base-handler';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { INotificationRepository } from '../../domain/repositories/notification-repository';
-import { CacheService } from '../../infrastructure/caching/cache-service';
+import { DomainEventPublisher } from "@taskmanagement/domain";
+import { LoggingService } from '@taskmanagement/observability';
+import { INotificationRepository } from "@taskmanagement/domain";
+import { CacheService } from "@taskmanagement/cache";
 import { PaginatedResult, PaginationOptions } from '../queries/base-query';
-import { UserId } from '../../domain/value-objects/user-id';
-import { NotFoundError } from '../../shared/errors/not-found-error';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { UserId } from "@taskmanagement/domain";
+import { NotFoundError } from '../shared/errors/not-found-error';
+import { AuthorizationError } from '../shared/errors/authorization-error';
 
 // Query interfaces
 export interface GetNotificationsQuery {
@@ -460,3 +460,4 @@ export class GetNotificationStatisticsQueryHandler
 // Export aliases for backward compatibility
 export const GetNotificationsHandler = GetNotificationsQueryHandler;
 export const GetNotificationPreferencesHandler = GetNotificationPreferencesQueryHandler;
+

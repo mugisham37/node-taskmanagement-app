@@ -55,3 +55,4 @@ export async function analyticsRoutes(
     handler: analyticsController.exportAnalytics,
   });
 }
+

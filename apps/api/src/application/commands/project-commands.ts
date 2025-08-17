@@ -1,9 +1,9 @@
 import { BaseCommand } from './base-command';
-import { ProjectId } from '../../domain/value-objects/project-id';
-import { WorkspaceId } from '../../domain/value-objects/workspace-id';
-import { UserId } from '../../domain/value-objects/user-id';
-import { ProjectRole } from '../../shared/enums/common.enums';
-import { ProjectStatus } from '../../shared/enums/common.enums';
+import { ProjectId } from "@taskmanagement/domain";
+import { WorkspaceId } from "@taskmanagement/domain";
+import { UserId } from "@taskmanagement/domain";
+import { ProjectRole } from '../shared/enums/common.enums';
+import { ProjectStatus } from '../shared/enums/common.enums';
 
 export class CreateProjectCommand extends BaseCommand {
   constructor(
@@ -97,3 +97,4 @@ export class UpdateProjectStatusCommand extends BaseCommand {
     super(userId);
   }
 }
+

@@ -15,11 +15,11 @@ import {
   UserId,
   WorkspaceId,
 } from '@taskmanagement/domain';
-import { CacheService } from '../../infrastructure/caching/cache-service';
-import { EmailService } from '../../infrastructure/external-services/email-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { ProjectStatus } from '../../shared/constants/project-constants';
-import { injectable } from '../../shared/decorators/injectable.decorator';
+import { CacheService } from "@taskmanagement/cache";
+import { EmailService } from '@taskmanagement/integrations';
+import { LoggingService } from '@taskmanagement/observability';
+import { ProjectStatus } from '../shared/constants/project-constants';
+import { injectable } from '../shared/decorators/injectable.decorator';
 import {
   AddProjectMemberCommand,
   ArchiveProjectCommand,
@@ -844,3 +844,4 @@ export class ProjectApplicationService extends BaseApplicationService {
     await this.removeMember(projectId, userId, userId);
   }
 }
+

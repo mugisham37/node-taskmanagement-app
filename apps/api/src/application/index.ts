@@ -114,3 +114,4 @@ export * from './events';
 // Enhanced event infrastructure
 export * from './events/domain-event-bus';
 export * from './events/event-handler-registry';
+

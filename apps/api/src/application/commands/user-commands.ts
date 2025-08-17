@@ -1,6 +1,6 @@
 import { BaseCommand } from './base-command';
-import { UserId } from '../../domain/value-objects/user-id';
-import { Email } from '../../domain/value-objects/email';
+import { UserId } from "@taskmanagement/domain";
+import { Email } from "@taskmanagement/domain";
 
 export class RegisterUserCommand extends BaseCommand {
   constructor(
@@ -54,3 +54,4 @@ export class DeactivateUserCommand extends BaseCommand {
     super(userId);
   }
 }
+

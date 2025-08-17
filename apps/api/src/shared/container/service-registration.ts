@@ -10,7 +10,7 @@ import {
   TaskDomainService,
   WebhookDomainService,
   WorkspaceDomainService,
-} from '@monorepo/domain';
+} from '@taskmanagement/domain';
 
 // Application Services
 import { AuthApplicationService } from '../../application/services/auth-application-service';
@@ -117,11 +117,8 @@ import {
   UnitOfWorkFactory,
 } from '@taskmanagement/database';
 import { EventHandlerLifecycleManager, EventIntegrationService } from '@taskmanagement/events';
-import { EmailService } from '../../infrastructure/external-services/email-service';
-import { WebSocketService } from '../../infrastructure/external-services/websocket-service';
-import { HealthService } from '../../infrastructure/monitoring/health-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { MetricsService } from '../../infrastructure/monitoring/metrics-service';
+import { EmailService, WebSocketService } from '@taskmanagement/integrations';
+import { HealthService, LoggingService, MetricsService } from '@taskmanagement/observability';
 
 // Repositories
 import {
@@ -156,11 +153,12 @@ import { RateLimitMiddleware } from '../../presentation/middleware/rate-limit-mi
 import { SecurityMiddleware } from '../../presentation/middleware/security-middleware';
 
 // Event Handling
-import { DomainEventPublisher } from '@monorepo/domain';
+import { DomainEventPublisher } from '@taskmanagement/domain';
 import { ApplicationEventHandlers, DomainEventBus, EventBus } from '@taskmanagement/events';
 
 // Migration Services
-import { registerMigrationServices } from '../../infrastructure/migration/migration-service-registration';
+// Migration services are now handled by the infrastructure package
+// import { registerMigrationServices } from '@taskmanagement/database';
 
 /**
  * Register all services with the container

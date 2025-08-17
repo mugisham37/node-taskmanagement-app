@@ -61,3 +61,4 @@ export async function userRoutes(
     handler: userController.activateUser,
   });
 }
+

@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { WebSocketHandler } from './websocket-handler';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 
 export interface WebSocketRouteOptions {
   webSocketHandler: WebSocketHandler;
@@ -81,3 +81,4 @@ export async function registerWebSocketRoutes(
 
   logger.info('WebSocket routes registered successfully');
 }
+

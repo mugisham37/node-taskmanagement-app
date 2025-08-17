@@ -5,15 +5,15 @@
  */
 
 import { BaseHandler, IQueryHandler } from './base-handler';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { IUserRepository, UserFilters as DomainUserFilters } from '../../domain/repositories/user-repository';
-import { CacheService } from '../../infrastructure/caching/cache-service';
+import { DomainEventPublisher } from "@taskmanagement/domain";
+import { LoggingService } from '@taskmanagement/observability';
+import { IUserRepository, UserFilters as DomainUserFilters } from "@taskmanagement/domain";
+import { CacheService } from "@taskmanagement/cache";
 import { PaginatedResult, PaginationOptions } from '../queries/base-query';
-import { UserId } from '../../domain/value-objects/user-id';
-import { Email } from '../../domain/value-objects/email';
-import { NotFoundError } from '../../shared/errors/not-found-error';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { UserId } from "@taskmanagement/domain";
+import { Email } from "@taskmanagement/domain";
+import { NotFoundError } from '../shared/errors/not-found-error';
+import { AuthorizationError } from '../shared/errors/authorization-error';
 
 // Query interfaces
 export interface GetUserByIdQuery {
@@ -843,3 +843,4 @@ export class GetUserStatisticsQueryHandler
 export const GetUserHandler = GetUserByIdQueryHandler;
 export const ListUsersHandler = GetUsersQueryHandler;
 export const GetUserPreferencesHandler = GetUserPreferencesQueryHandler;
+

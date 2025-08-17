@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './base-controller';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 import { z } from 'zod';
 import {
   WebhookDto,
@@ -545,3 +545,4 @@ export class WebhookController extends BaseController {
     });
   };
 }
+

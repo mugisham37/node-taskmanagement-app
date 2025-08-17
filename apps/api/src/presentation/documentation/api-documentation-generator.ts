@@ -5,7 +5,7 @@ import {
 } from '@taskmanagement/types/common';
 import { FastifyInstance } from 'fastify';
 import { ZodSchema } from 'zod';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 
 export interface APIEndpoint {
   method: string;
@@ -991,3 +991,4 @@ export class APIDocumentationGenerator {
     return items;
   }
 }
+

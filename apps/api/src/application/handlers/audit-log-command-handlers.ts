@@ -5,14 +5,14 @@
  */
 
 import { TransactionManager } from '@taskmanagement/database';
-import { AuditAction, AuditLog } from '../../domain/entities/audit-log';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { IAuditLogRepository } from '../../domain/repositories/audit-log-repository';
-import { IUserRepository } from '../../domain/repositories/user-repository';
-import { AuditLogId } from '../../domain/value-objects/audit-log-id';
-import { UserId } from '../../domain/value-objects/user-id';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { NotFoundError } from '../../shared/errors/not-found-error';
+import { AuditAction, AuditLog } from "@taskmanagement/domain";
+import { DomainEventPublisher } from "@taskmanagement/domain";
+import { IAuditLogRepository } from "@taskmanagement/domain";
+import { IUserRepository } from "@taskmanagement/domain";
+import { AuditLogId } from "@taskmanagement/domain";
+import { UserId } from "@taskmanagement/domain";
+import { LoggingService } from '@taskmanagement/observability';
+import { NotFoundError } from '../shared/errors/not-found-error';
 import { BaseHandler, ICommandHandler } from './base-handler';
 
 // Command interfaces
@@ -374,3 +374,4 @@ export class DeleteAuditLogCommandHandler
 // Export aliases for backward compatibility
 export const CreateAuditLogHandler = LogAuditEventCommandHandler;
 export const CleanupAuditLogsHandler = CleanupOldAuditLogsCommandHandler;
+

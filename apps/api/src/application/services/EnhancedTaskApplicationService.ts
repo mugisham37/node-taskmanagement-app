@@ -1,7 +1,7 @@
 import { Result } from '@taskmanagement/types/common';
-import { Task } from '../../domain/entities/Task';
-import { User } from '../../domain/entities/User';
-import { CacheEvict, CachePut } from '../../infrastructure/caching/cache-decorators';
+import { Task } from "@taskmanagement/domain";
+import { User } from "@taskmanagement/domain";
+import { CacheEvict, CachePut } from "@taskmanagement/cache";
 import { CachedTaskApplicationService } from './CachedTaskApplicationService';
 import { RealtimeIntegrationService } from './RealtimeIntegrationService';
 
@@ -252,3 +252,4 @@ export class EnhancedTaskApplicationService extends CachedTaskApplicationService
     }
   }
 }
+

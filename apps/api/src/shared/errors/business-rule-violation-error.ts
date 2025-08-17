@@ -25,3 +25,4 @@ export class BusinessRuleViolationError extends AppError {
     return new BusinessRuleViolationError(message, violations, { violations });
   }
 }
+

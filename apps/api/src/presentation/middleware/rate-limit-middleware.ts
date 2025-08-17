@@ -1,6 +1,6 @@
 import { RateLimitService } from '@taskmanagement/auth';
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 import { RATE_LIMIT, RATE_LIMITS } from '../../shared/constants';
 import { AppError } from '../../shared/errors/app-error';
 import { InfrastructureError } from '../../shared/errors/infrastructure-error';
@@ -547,3 +547,4 @@ export class RateLimitMiddleware {
     return `ip:${request.ip}`;
   }
 }
+

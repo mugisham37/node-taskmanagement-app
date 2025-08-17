@@ -1,10 +1,12 @@
 import { PerformanceCacheStrategies } from '@taskmanagement/cache';
 import { DatabasePerformanceOptimizer } from '@taskmanagement/database';
+import {
+  APIPerformanceMonitor,
+  ComprehensiveMonitoring,
+  LoggingService,
+  MetricsService,
+} from '@taskmanagement/observability';
 import { InfrastructureError } from '../shared/errors/infrastructure-error';
-import { APIPerformanceMonitor } from './monitoring/api-performance-monitor';
-import { ComprehensiveMonitoring } from './monitoring/comprehensive-monitoring';
-import { LoggingService } from './monitoring/logging-service';
-import { MetricsService } from './monitoring/metrics-service';
 
 export interface PerformanceOptimizationConfig {
   caching: {

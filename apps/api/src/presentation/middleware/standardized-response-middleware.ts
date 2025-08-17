@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 import { ALL_ERROR_CODES, PAGINATION } from '../../shared/constants';
 
 export interface StandardResponse<T = any> {
@@ -482,3 +482,4 @@ export class StandardizedResponseMiddleware {
 
 // Use centralized error codes from constants
 export const ERROR_CODES = ALL_ERROR_CODES;
+

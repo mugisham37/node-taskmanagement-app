@@ -6,19 +6,19 @@
 
 import { TransactionManager } from '@taskmanagement/database';
 import * as crypto from 'crypto';
-import { Webhook, WebhookStatus } from '../../domain/entities/webhook';
-import { validateWebhookEvents } from '../../domain/enums/webhook-event';
-import { WorkspaceRoleHelper } from '../../domain/enums/workspace-role';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { IWebhookRepository } from '../../domain/repositories/webhook-repository';
-import { IWorkspaceRepository } from '../../domain/repositories/workspace-repository';
-import { UserId } from '../../domain/value-objects/user-id';
-import { WebhookId } from '../../domain/value-objects/webhook-id';
-import { WorkspaceId } from '../../domain/value-objects/workspace-id';
-import { CacheService } from '../../infrastructure/caching/cache-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { NotFoundError } from '../../shared/errors/not-found-error';
+import { Webhook, WebhookStatus } from "@taskmanagement/domain";
+import { validateWebhookEvents } from "@taskmanagement/domain";
+import { WorkspaceRoleHelper } from "@taskmanagement/domain";
+import { DomainEventPublisher } from "@taskmanagement/domain";
+import { IWebhookRepository } from "@taskmanagement/domain";
+import { IWorkspaceRepository } from "@taskmanagement/domain";
+import { UserId } from "@taskmanagement/domain";
+import { WebhookId } from "@taskmanagement/domain";
+import { WorkspaceId } from "@taskmanagement/domain";
+import { CacheService } from "@taskmanagement/cache";
+import { LoggingService } from '@taskmanagement/observability';
+import { AuthorizationError } from '../shared/errors/authorization-error';
+import { NotFoundError } from '../shared/errors/not-found-error';
 import { BaseHandler, ICommandHandler } from './base-handler';
 
 // Command interfaces
@@ -549,3 +549,4 @@ export class TestWebhookCommandHandler
 export const CreateWebhookHandler = CreateWebhookCommandHandler;
 export const UpdateWebhookHandler = UpdateWebhookCommandHandler;
 export const TriggerWebhookHandler = TriggerWebhookCommandHandler;
+

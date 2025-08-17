@@ -76,3 +76,4 @@ export class WorkspaceNotFoundError extends NotFoundError {
     super('Workspace', identifier, context);
   }
 }
+

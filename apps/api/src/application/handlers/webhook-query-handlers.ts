@@ -5,18 +5,18 @@
  */
 
 import { BaseHandler, IQueryHandler } from './base-handler';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { IWebhookRepository } from '../../domain/repositories/webhook-repository';
-import { IWorkspaceRepository } from '../../domain/repositories/workspace-repository';
-import { CacheService } from '../../infrastructure/caching/cache-service';
+import { DomainEventPublisher } from "@taskmanagement/domain";
+import { LoggingService } from '@taskmanagement/observability';
+import { IWebhookRepository } from "@taskmanagement/domain";
+import { IWorkspaceRepository } from "@taskmanagement/domain";
+import { CacheService } from "@taskmanagement/cache";
 import { PaginatedResult, PaginationOptions } from '../queries/base-query';
-import { WebhookId } from '../../domain/value-objects/webhook-id';
-import { WorkspaceId } from '../../domain/value-objects/workspace-id';
-import { UserId } from '../../domain/value-objects/user-id';
-import { NotFoundError } from '../../shared/errors/not-found-error';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { Webhook, WebhookDelivery } from '../../domain/entities/webhook';
+import { WebhookId } from "@taskmanagement/domain";
+import { WorkspaceId } from "@taskmanagement/domain";
+import { UserId } from "@taskmanagement/domain";
+import { NotFoundError } from '../shared/errors/not-found-error';
+import { AuthorizationError } from '../shared/errors/authorization-error';
+import { Webhook, WebhookDelivery } from "@taskmanagement/domain";
 
 // Query interfaces
 export interface GetWebhookByIdQuery {
@@ -730,3 +730,4 @@ export class GetWebhookDeliveryByIdQueryHandler
 // Export aliases for backward compatibility
 export const GetWebhooksHandler = GetWebhooksByWorkspaceQueryHandler;
 export const GetWebhookDeliveriesHandler = GetWebhookDeliveriesQueryHandler;
+

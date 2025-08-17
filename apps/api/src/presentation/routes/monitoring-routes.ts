@@ -189,3 +189,4 @@ export async function monitoringRoutes(
     handler: monitoringController.getMaintenanceStatus,
   });
 }
+

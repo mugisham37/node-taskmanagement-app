@@ -365,3 +365,4 @@ export function createBatchingService(
 
   return new RequestBatchingService(defaultConfig);
 }
+

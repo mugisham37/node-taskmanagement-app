@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './base-controller';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 import { ProjectApplicationService } from '../../application/services/project-application-service';
 import {
   CreateProjectSchema,
@@ -325,3 +325,4 @@ export class ProjectController extends BaseController {
     });
   };
 }
+

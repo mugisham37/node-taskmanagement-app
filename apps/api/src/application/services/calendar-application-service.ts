@@ -10,19 +10,19 @@ import {
   RequiredFieldValidationRule,
   LengthValidationRule,
 } from './base-application-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { ICalendarEventRepository } from '../../domain/repositories/calendar-event-repository';
-import { IProjectRepository } from '../../domain/repositories/project-repository';
-import { IUserRepository } from '../../domain/repositories/user-repository';
-import { CacheService } from '../../infrastructure/caching/cache-service';
-import { EmailService } from '../../infrastructure/external-services/email-service';
-import { CalendarEventId } from '../../domain/value-objects/calendar-event-id';
-import { ProjectId } from '../../domain/value-objects/project-id';
-import { UserId } from '../../domain/value-objects/user-id';
-import { CalendarEvent, AttendeeStatus, EventType } from '../../domain/entities/calendar-event';
-import { RecurrenceRule } from '../../domain/value-objects/recurrence-rule';
-import { injectable } from '../../shared/decorators/injectable.decorator';
+import { LoggingService } from '@taskmanagement/observability';
+import { DomainEventPublisher } from "@taskmanagement/domain";
+import { ICalendarEventRepository } from "@taskmanagement/domain";
+import { IProjectRepository } from "@taskmanagement/domain";
+import { IUserRepository } from "@taskmanagement/domain";
+import { CacheService } from "@taskmanagement/cache";
+import { EmailService } from '@taskmanagement/integrations';
+import { CalendarEventId } from "@taskmanagement/domain";
+import { ProjectId } from "@taskmanagement/domain";
+import { UserId } from "@taskmanagement/domain";
+import { CalendarEvent, AttendeeStatus, EventType } from "@taskmanagement/domain";
+import { RecurrenceRule } from "@taskmanagement/domain";
+import { injectable } from '../shared/decorators/injectable.decorator';
 
 export interface CreateCalendarEventRequest {
   title: string;
@@ -971,3 +971,4 @@ export class CalendarApplicationService extends BaseApplicationService {
     });
   }
 }
+

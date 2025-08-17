@@ -5,16 +5,16 @@
  */
 
 import { TransactionManager } from '@taskmanagement/database';
-import { Notification } from '../../domain/entities/notification';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { INotificationRepository } from '../../domain/repositories/notification-repository';
-import { IUserRepository } from '../../domain/repositories/user-repository';
-import { NotificationId } from '../../domain/value-objects/notification-id';
-import { UserId } from '../../domain/value-objects/user-id';
-import { CacheService } from '../../infrastructure/caching/cache-service';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { NotFoundError } from '../../shared/errors/not-found-error';
+import { Notification } from "@taskmanagement/domain";
+import { DomainEventPublisher } from "@taskmanagement/domain";
+import { INotificationRepository } from "@taskmanagement/domain";
+import { IUserRepository } from "@taskmanagement/domain";
+import { NotificationId } from "@taskmanagement/domain";
+import { UserId } from "@taskmanagement/domain";
+import { CacheService } from "@taskmanagement/cache";
+import { LoggingService } from '@taskmanagement/observability';
+import { AuthorizationError } from '../shared/errors/authorization-error';
+import { NotFoundError } from '../shared/errors/not-found-error';
 import { BaseHandler, ICommandHandler } from './base-handler';
 
 // Command interfaces
@@ -500,3 +500,4 @@ export class BulkDeleteNotificationsCommandHandler
 export const CreateNotificationHandler = CreateNotificationCommandHandler;
 export const UpdateNotificationHandler = UpdateNotificationPreferencesCommandHandler;
 export const MarkNotificationReadHandler = MarkNotificationAsReadCommandHandler;
+

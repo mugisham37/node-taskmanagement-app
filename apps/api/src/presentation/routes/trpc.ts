@@ -40,3 +40,4 @@ export async function setupTRPCRoutes(
     return { status: 'ok', timestamp: new Date().toISOString() };
   });
 }
+

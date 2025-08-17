@@ -81,3 +81,4 @@ export const PROJECT_BUSINESS_RULES = {
   MIN_MANAGERS_PER_PROJECT: 1,
 } as const;
 
+

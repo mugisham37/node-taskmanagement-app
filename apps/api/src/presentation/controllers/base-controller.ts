@@ -1,7 +1,7 @@
 import { ValidationError } from '@taskmanagement/validation';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { ZodError, ZodSchema } from 'zod';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 import { AppError } from '../../shared/errors/app-error';
 import { AuthorizationError } from '../../shared/errors/authorization-error';
 import { NotFoundError } from '../../shared/errors/not-found-error';
@@ -226,3 +226,4 @@ export abstract class BaseController {
     await reply.status(500).send(response);
   }
 }
+

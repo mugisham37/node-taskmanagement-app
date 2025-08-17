@@ -1,8 +1,8 @@
 import { BaseHandler, IQueryHandler } from './base-handler';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { ITaskRepository } from '../../domain/repositories/task-repository';
-import { CacheService } from '../../infrastructure/caching/cache-service';
+import { DomainEventPublisher } from "@taskmanagement/domain";
+import { LoggingService } from '@taskmanagement/observability';
+import { ITaskRepository } from "@taskmanagement/domain";
+import { CacheService } from "@taskmanagement/cache";
 import {
   GetTaskByIdQuery,
   GetTasksByProjectQuery,
@@ -12,9 +12,9 @@ import {
   GetTasksQuery,
 } from '../queries/task-queries';
 import { PaginatedResult } from '../queries/base-query';
-import { Task } from '../../domain/entities/task';
-import { NotFoundError } from '../../shared/errors/not-found-error';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
+import { Task } from "@taskmanagement/domain";
+import { NotFoundError } from '../shared/errors/not-found-error';
+import { AuthorizationError } from '../shared/errors/authorization-error';
 
 export interface TaskDto {
   id: string;
@@ -486,3 +486,4 @@ export class GetTasksQueryHandler
 // Export aliases for backward compatibility
 export const GetTaskHandler = GetTaskByIdQueryHandler;
 export const ListTasksHandler = GetTasksQueryHandler;
+

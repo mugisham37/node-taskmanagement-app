@@ -179,3 +179,4 @@ export const ERROR_CATEGORIES = {
   PERFORMANCE: 'performance',
 } as const;
 
+

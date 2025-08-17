@@ -237,3 +237,4 @@ export function createCompressionService(
 
   return new ResponseCompressionService(defaultConfig);
 }
+

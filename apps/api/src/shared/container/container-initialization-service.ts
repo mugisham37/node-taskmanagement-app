@@ -1,6 +1,6 @@
 import { TransactionIntegrationService } from '@taskmanagement/database';
 import { EventHandlerLifecycleManager, EventIntegrationService } from '@taskmanagement/events';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 import { DIContainer } from './container';
 import { DependencyValidationService } from './dependency-validation-service';
 import { registerServices } from './service-registration';
@@ -309,3 +309,4 @@ export class ContainerInitializationService {
 
 // Export singleton instance
 export const containerInitializationService = new ContainerInitializationService();
+

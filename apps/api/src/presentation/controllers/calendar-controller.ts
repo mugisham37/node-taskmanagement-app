@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './base-controller';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 import { z } from 'zod';
 
 // Calendar schemas
@@ -466,3 +466,4 @@ export class CalendarController extends BaseController {
     });
   };
 }
+

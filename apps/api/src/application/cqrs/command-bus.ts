@@ -6,8 +6,8 @@
  */
 
 import { PerformanceMonitor } from '@taskmanagement/utils';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { injectable } from '../../shared/decorators/injectable.decorator';
+import { LoggingService } from '@taskmanagement/observability';
+import { injectable } from '../shared/decorators/injectable.decorator';
 import { CommandHandlerNotFoundError, ICommand, ICommandBus, ICommandHandler } from './command';
 
 @injectable()
@@ -121,3 +121,4 @@ export class CommandBus implements ICommandBus {
     return this.performanceMonitor.getMetrics();
   }
 }
+

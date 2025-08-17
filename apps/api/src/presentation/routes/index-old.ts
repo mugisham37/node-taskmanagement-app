@@ -1,31 +1,29 @@
+import { LoggingService } from '@taskmanagement/observability';
 import { FastifyInstance } from 'fastify';
 import { DIContainer } from '../../shared/container';
 import { SERVICE_TOKENS } from '../../shared/container/types';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { authRoutes } from './auth-routes';
-import { taskRoutes } from './task-routes';
-import { projectRoutes } from './project-routes';
-import { workspaceRoutes } from './workspace-routes';
-import { userRoutes } from './user-routes';
-import { healthRoutes } from './health-routes';
-import { notificationRoutes } from './notification-routes';
-import { webhookRoutes } from './webhook-routes';
 import { analyticsRoutes } from './analytics-routes';
-import { calendarRoutes } from './calendar-routes';
-import { fileManagementRoutes } from './file-management-routes';
-import { searchRoutes } from './search-routes';
-import { collaborationRoutes } from './collaboration-routes';
-import { monitoringRoutes } from './monitoring-routes';
+import { authRoutes } from './auth-routes';
 import { bulkOperationsRoutes } from './bulk-operations-routes';
-import { setupMigrationRoutes } from '../../infrastructure/migration/migration-routes';
+import { calendarRoutes } from './calendar-routes';
+import { collaborationRoutes } from './collaboration-routes';
+import { fileManagementRoutes } from './file-management-routes';
+import { healthRoutes } from './health-routes';
+import { monitoringRoutes } from './monitoring-routes';
+import { notificationRoutes } from './notification-routes';
+import { projectRoutes } from './project-routes';
+import { searchRoutes } from './search-routes';
+import { taskRoutes } from './task-routes';
+import { userRoutes } from './user-routes';
+import { webhookRoutes } from './webhook-routes';
+import { workspaceRoutes } from './workspace-routes';
+// Migration routes are now handled by the database package
+// import { setupMigrationRoutes } from '@taskmanagement/database';
 
 /**
  * Setup all routes for the Fastify application using dependency injection
  */
-export async function setupRoutes(
-  app: FastifyInstance,
-  container: DIContainer
-): Promise<void> {
+export async function setupRoutes(app: FastifyInstance, container: DIContainer): Promise<void> {
   // API version prefix
   const apiPrefix = '/api/v1';
 
@@ -40,15 +38,15 @@ export async function setupRoutes(
   const userController = container.resolve('USER_CONTROLLER');
 
   // Health routes (no prefix, no auth required)
-  await app.register(async fastify => {
+  await app.register(async (fastify) => {
     await healthRoutes(fastify, healthCheckService, rateLimitMiddleware);
   });
 
   // API routes with version prefix
-  await app.register(async fastify => {
+  await app.register(async (fastify) => {
     // Authentication routes
     await fastify.register(
-      async fastify => {
+      async (fastify) => {
         const authController = container.resolve('AUTH_CONTROLLER');
         await authRoutes(fastify, authController, authMiddleware, rateLimitMiddleware);
       },
@@ -57,7 +55,7 @@ export async function setupRoutes(
 
     // Task routes
     await fastify.register(
-      async fastify => {
+      async (fastify) => {
         await taskRoutes(fastify, taskController, authMiddleware, rateLimitMiddleware);
       },
       { prefix: `${apiPrefix}/tasks` }
@@ -65,7 +63,7 @@ export async function setupRoutes(
 
     // Project routes
     await fastify.register(
-      async fastify => {
+      async (fastify) => {
         await projectRoutes(fastify, container);
       },
       { prefix: `${apiPrefix}/projects` }
@@ -73,7 +71,7 @@ export async function setupRoutes(
 
     // Workspace routes
     await fastify.register(
-      async fastify => {
+      async (fastify) => {
         await workspaceRoutes(fastify, container);
       },
       { prefix: `${apiPrefix}/workspaces` }
@@ -81,7 +79,7 @@ export async function setupRoutes(
 
     // User routes
     await fastify.register(
-      async fastify => {
+      async (fastify) => {
         await userRoutes(fastify, container);
       },
       { prefix: `${apiPrefix}/users` }
@@ -89,7 +87,7 @@ export async function setupRoutes(
 
     // Notification routes
     await fastify.register(
-      async fastify => {
+      async (fastify) => {
         await notificationRoutes(fastify, container);
       },
       { prefix: `${apiPrefix}/notifications` }
@@ -97,7 +95,7 @@ export async function setupRoutes(
 
     // Webhook routes
     await fastify.register(
-      async fastify => {
+      async (fastify) => {
         await webhookRoutes(fastify, container);
       },
       { prefix: `${apiPrefix}/webhooks` }
@@ -105,7 +103,7 @@ export async function setupRoutes(
 
     // Analytics routes
     await fastify.register(
-      async fastify => {
+      async (fastify) => {
         await analyticsRoutes(fastify, container);
       },
       { prefix: `${apiPrefix}/analytics` }
@@ -113,7 +111,7 @@ export async function setupRoutes(
 
     // Calendar routes
     await fastify.register(
-      async fastify => {
+      async (fastify) => {
         await calendarRoutes(fastify, container);
       },
       { prefix: `${apiPrefix}/calendar` }
@@ -121,7 +119,7 @@ export async function setupRoutes(
 
     // File management routes
     await fastify.register(
-      async fastify => {
+      async (fastify) => {
         await fileManagementRoutes(fastify, container);
       },
       { prefix: `${apiPrefix}/files` }
@@ -129,7 +127,7 @@ export async function setupRoutes(
 
     // Search routes
     await fastify.register(
-      async fastify => {
+      async (fastify) => {
         await searchRoutes(fastify, container);
       },
       { prefix: `${apiPrefix}/search` }
@@ -137,7 +135,7 @@ export async function setupRoutes(
 
     // Collaboration routes
     await fastify.register(
-      async fastify => {
+      async (fastify) => {
         await collaborationRoutes(fastify, container);
       },
       { prefix: `${apiPrefix}/collaboration` }
@@ -145,7 +143,7 @@ export async function setupRoutes(
 
     // Monitoring routes
     await fastify.register(
-      async fastify => {
+      async (fastify) => {
         await monitoringRoutes(fastify, container);
       },
       { prefix: `${apiPrefix}/monitoring` }
@@ -153,7 +151,7 @@ export async function setupRoutes(
 
     // Bulk operations routes
     await fastify.register(
-      async fastify => {
+      async (fastify) => {
         await bulkOperationsRoutes(fastify, container);
       },
       { prefix: `${apiPrefix}/bulk` }
@@ -161,7 +159,7 @@ export async function setupRoutes(
 
     // Migration routes
     await fastify.register(
-      async fastify => {
+      async (fastify) => {
         await setupMigrationRoutes(fastify, container);
       },
       { prefix: `${apiPrefix}` }
@@ -240,18 +238,18 @@ export async function registerRoutes(
   await setupRoutes(app, dependencies.container);
 }
 
-export * from './auth-routes';
-export * from './task-routes';
-export * from './project-routes';
-export * from './workspace-routes';
-export * from './user-routes';
-export * from './health-routes';
-export * from './notification-routes';
-export * from './webhook-routes';
 export * from './analytics-routes';
-export * from './calendar-routes';
-export * from './file-management-routes';
-export * from './search-routes';
-export * from './collaboration-routes';
-export * from './monitoring-routes';
+export * from './auth-routes';
 export * from './bulk-operations-routes';
+export * from './calendar-routes';
+export * from './collaboration-routes';
+export * from './file-management-routes';
+export * from './health-routes';
+export * from './monitoring-routes';
+export * from './notification-routes';
+export * from './project-routes';
+export * from './search-routes';
+export * from './task-routes';
+export * from './user-routes';
+export * from './webhook-routes';
+export * from './workspace-routes';

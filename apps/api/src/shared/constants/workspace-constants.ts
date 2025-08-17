@@ -72,3 +72,4 @@ export const WORKSPACE_BUSINESS_RULES = {
   MAX_OWNERS_PER_WORKSPACE: 5,
 } as const;
 
+

@@ -1,4 +1,4 @@
-import { UserId } from '../../domain/value-objects/user-id';
+import { UserId } from "@taskmanagement/domain";
 
 export interface ICommand {
   readonly commandId: string;
@@ -27,3 +27,4 @@ export abstract class BaseCommand implements ICommand {
     return `cmd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 }
+

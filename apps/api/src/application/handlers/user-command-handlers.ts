@@ -2,13 +2,13 @@ import { PasswordService } from '@taskmanagement/auth';
 import { TransactionManager } from '@taskmanagement/database';
 import { ValidationError } from '@taskmanagement/validation';
 import { nanoid } from 'nanoid';
-import { User } from '../../domain/entities/user';
-import { DomainEventPublisher } from '../../domain/events/domain-event-publisher';
-import { IUserRepository } from '../../domain/repositories/user-repository';
-import { UserId } from '../../domain/value-objects/user-id';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
-import { AuthorizationError } from '../../shared/errors/authorization-error';
-import { NotFoundError } from '../../shared/errors/not-found-error';
+import { User } from "@taskmanagement/domain";
+import { DomainEventPublisher } from "@taskmanagement/domain";
+import { IUserRepository } from "@taskmanagement/domain";
+import { UserId } from "@taskmanagement/domain";
+import { LoggingService } from '@taskmanagement/observability';
+import { AuthorizationError } from '../shared/errors/authorization-error';
+import { NotFoundError } from '../shared/errors/not-found-error';
 import {
   ActivateUserCommand,
   ChangePasswordCommand,
@@ -282,3 +282,4 @@ export class DeactivateUserCommandHandler
 // Export aliases for backward compatibility
 export const RegisterUserHandler = RegisterUserCommandHandler;
 export const UpdateUserProfileHandler = UpdateUserProfileCommandHandler;
+

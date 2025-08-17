@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { Container, SERVICE_TOKENS } from '../../shared/container';
-import { LoggingService } from '../../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
 import { ContainerHealthChecker } from '../../shared/container/health-checker';
 // Import route modules
 import { authRoutes } from './auth-routes';
@@ -267,3 +267,4 @@ export * from './search-routes';
 export * from './collaboration-routes';
 export * from './monitoring-routes';
 export * from './bulk-operations-routes';
+

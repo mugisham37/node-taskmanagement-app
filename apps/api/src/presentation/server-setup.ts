@@ -1,9 +1,9 @@
-import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import websocket from '@fastify/websocket';
-import { LoggingService } from '../infrastructure/monitoring/logging-service';
+import { LoggingService } from '@taskmanagement/observability';
+import Fastify, { FastifyInstance } from 'fastify';
 import { ErrorHandlerMiddleware } from './middleware';
 import { registerRoutes, RoutesDependencies } from './routes';
 import { WebSocketHandler } from './websocket';
@@ -45,9 +45,7 @@ export class ServerSetup {
     });
   }
 
-  async setupServer(
-    dependencies: RoutesDependencies
-  ): Promise<FastifyInstance> {
+  async setupServer(dependencies: RoutesDependencies): Promise<FastifyInstance> {
     try {
       // Setup middleware
       await this.setupMiddleware(dependencies);
@@ -72,10 +70,7 @@ export class ServerSetup {
     }
   }
 
-  private async setupMiddleware(
-    _dependencies: RoutesDependencies
-  ): Promise<void> {
-
+  private async setupMiddleware(_dependencies: RoutesDependencies): Promise<void> {
     // CORS middleware
     await this.fastify.register(cors, {
       origin: this.config.cors.origin,
@@ -149,20 +144,18 @@ export class ServerSetup {
     this.logger.info('Middleware setup completed');
   }
 
-  private async setupWebSocket(
-    _dependencies: RoutesDependencies
-  ): Promise<void> {
+  private async setupWebSocket(_dependencies: RoutesDependencies): Promise<void> {
     // Create a simplified WebSocket handler with required dependencies
     const webSocketHandler = new WebSocketHandler(
       this.logger,
       {} as any, // JWTService - will be properly injected later
-      {} as any, // WebSocketService - will be properly injected later  
-      {} as any  // RealtimeEventService - will be properly injected later
+      {} as any, // WebSocketService - will be properly injected later
+      {} as any // RealtimeEventService - will be properly injected later
     );
 
     await this.fastify.register(websocket);
 
-    this.fastify.register(async fastify => {
+    this.fastify.register(async (fastify) => {
       fastify.get('/ws', { websocket: true }, (connection: any, request: any) => {
         try {
           // Use the simplified connection handler
@@ -176,9 +169,7 @@ export class ServerSetup {
     this.logger.info('WebSocket setup completed');
   }
 
-  private async setupErrorHandling(
-    _dependencies: RoutesDependencies
-  ): Promise<void> {
+  private async setupErrorHandling(_dependencies: RoutesDependencies): Promise<void> {
     const errorHandler = new ErrorHandlerMiddleware(this.logger);
 
     // Global error handler

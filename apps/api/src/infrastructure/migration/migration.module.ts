@@ -1,4 +1,4 @@
-import { DIContainer } from '../../shared/container';
+import { DIContainer } from '../shared/container';
 import { FastifyInstance } from 'fastify';
 import { MigrationController } from './fastify-migration.controller';
 import { setupMigrationRoutes } from './migration-routes';
@@ -51,3 +51,4 @@ export async function setupMigrationModule(
   await migrationModule.register(app);
   return migrationModule;
 }
+

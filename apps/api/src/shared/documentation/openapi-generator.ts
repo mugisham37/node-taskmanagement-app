@@ -1170,3 +1170,4 @@ export class OpenAPIGenerator {
     return { type: 'object' };
   }
 }
+
