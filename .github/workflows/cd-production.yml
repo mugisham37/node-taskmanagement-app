@@ -1,0 +1,333 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy'
+        required: true
+        default: 'latest'
+
+env:
+  NODE_VERSION: '18'
+  PNPM_VERSION: '8'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Pre-deployment checks
+  pre-deployment:
+    name: Pre-deployment Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify staging deployment
+        run: |
+          # Check if staging is healthy before production deployment
+          curl -f https://staging-api.taskmanagement.app/health || exit 1
+          echo "Staging environment is healthy"
+
+      - name: Security scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=critical
+
+  # Build and Push Production Images
+  build-production-images:
+    name: Build Production Images
+    runs-on: ubuntu-latest
+    needs: pre-deployment
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        app: [api, web, admin]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.app }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=production
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./apps/${{ matrix.app }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            NODE_ENV=production
+            BUILD_VERSION=${{ github.sha }}
+
+  # Blue-Green Deployment
+  deploy-production:
+    name: Deploy to Production (Blue-Green)
+    runs-on: ubuntu-latest
+    needs: build-production-images
+    environment:
+      name: production
+      url: https://taskmanagement.app
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+
+      - name: Determine deployment color
+        id: deployment-color
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          # Check current active deployment
+          CURRENT_COLOR=$(kubectl get service taskmanagement-api-active -o jsonpath='{.spec.selector.color}' -n production 2>/dev/null || echo "blue")
+          
+          if [ "$CURRENT_COLOR" = "blue" ]; then
+            NEW_COLOR="green"
+          else
+            NEW_COLOR="blue"
+          fi
+          
+          echo "current-color=$CURRENT_COLOR" >> $GITHUB_OUTPUT
+          echo "new-color=$NEW_COLOR" >> $GITHUB_OUTPUT
+          echo "Deploying to $NEW_COLOR environment (current: $CURRENT_COLOR)"
+
+      - name: Deploy to inactive environment
+        run: |
+          export KUBECONFIG=kubeconfig
+          NEW_COLOR=${{ steps.deployment-color.outputs.new-color }}
+          
+          # Update deployment manifests with new color and image tags
+          sed -i "s|COLOR|$NEW_COLOR|g" infrastructure/kubernetes/production/api-deployment.yaml
+          sed -i "s|COLOR|$NEW_COLOR|g" infrastructure/kubernetes/production/web-deployment.yaml
+          sed -i "s|COLOR|$NEW_COLOR|g" infrastructure/kubernetes/production/admin-deployment.yaml
+          sed -i "s|IMAGE_TAG|${{ github.sha }}|g" infrastructure/kubernetes/production/api-deployment.yaml
+          sed -i "s|IMAGE_TAG|${{ github.sha }}|g" infrastructure/kubernetes/production/web-deployment.yaml
+          sed -i "s|IMAGE_TAG|${{ github.sha }}|g" infrastructure/kubernetes/production/admin-deployment.yaml
+          
+          # Apply new deployment
+          kubectl apply -f infrastructure/kubernetes/production/
+          
+          # Wait for rollout to complete
+          kubectl rollout status deployment/taskmanagement-api-$NEW_COLOR -n production --timeout=600s
+          kubectl rollout status deployment/taskmanagement-web-$NEW_COLOR -n production --timeout=600s
+          kubectl rollout status deployment/taskmanagement-admin-$NEW_COLOR -n production --timeout=600s
+
+      - name: Run database migrations
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl create job --from=cronjob/db-migrate db-migrate-$(date +%s) -n production
+          kubectl wait --for=condition=complete job/db-migrate-$(date +%s) -n production --timeout=600s
+
+      - name: Health check new deployment
+        run: |
+          export KUBECONFIG=kubeconfig
+          NEW_COLOR=${{ steps.deployment-color.outputs.new-color }}
+          
+          # Get service IP for health check
+          API_IP=$(kubectl get service taskmanagement-api-$NEW_COLOR -o jsonpath='{.spec.clusterIP}' -n production)
+          
+          # Wait for services to be ready
+          sleep 60
+          
+          # Health check with retry
+          for i in {1..10}; do
+            if kubectl exec -n production deployment/taskmanagement-api-$NEW_COLOR -- curl -f http://localhost:3000/health; then
+              echo "Health check passed"
+              break
+            else
+              echo "Health check failed, retrying in 30s..."
+              sleep 30
+            fi
+            
+            if [ $i -eq 10 ]; then
+              echo "Health check failed after 10 attempts"
+              exit 1
+            fi
+          done
+
+      - name: Switch traffic to new deployment
+        run: |
+          export KUBECONFIG=kubeconfig
+          NEW_COLOR=${{ steps.deployment-color.outputs.new-color }}
+          
+          # Update active service selectors to point to new deployment
+          kubectl patch service taskmanagement-api-active -p '{"spec":{"selector":{"color":"'$NEW_COLOR'"}}}' -n production
+          kubectl patch service taskmanagement-web-active -p '{"spec":{"selector":{"color":"'$NEW_COLOR'"}}}' -n production
+          kubectl patch service taskmanagement-admin-active -p '{"spec":{"selector":{"color":"'$NEW_COLOR'"}}}' -n production
+          
+          echo "Traffic switched to $NEW_COLOR deployment"
+
+      - name: Final health check
+        run: |
+          # Wait for DNS propagation
+          sleep 30
+          
+          # Test production endpoints
+          curl -f https://api.taskmanagement.app/health || exit 1
+          curl -f https://taskmanagement.app || exit 1
+          curl -f https://admin.taskmanagement.app || exit 1
+          
+          echo "Production deployment successful!"
+
+      - name: Clean up old deployment
+        run: |
+          export KUBECONFIG=kubeconfig
+          OLD_COLOR=${{ steps.deployment-color.outputs.current-color }}
+          
+          # Scale down old deployment after successful switch
+          kubectl scale deployment taskmanagement-api-$OLD_COLOR --replicas=0 -n production
+          kubectl scale deployment taskmanagement-web-$OLD_COLOR --replicas=0 -n production
+          kubectl scale deployment taskmanagement-admin-$OLD_COLOR --replicas=0 -n production
+
+  # Post-deployment verification
+  post-deployment:
+    name: Post-deployment Verification
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run production smoke tests
+        run: |
+          # Comprehensive production testing
+          curl -f https://api.taskmanagement.app/health
+          curl -f https://api.taskmanagement.app/metrics
+          curl -f https://taskmanagement.app
+          curl -f https://admin.taskmanagement.app
+          
+          # Test critical API endpoints
+          curl -f -X POST https://api.taskmanagement.app/auth/health
+          curl -f https://api.taskmanagement.app/tasks/health
+
+      - name: Update deployment status
+        run: |
+          # Update deployment tracking
+          echo "Production deployment completed at $(date)" >> deployment-log.txt
+
+      - name: Create GitHub release
+        if: github.ref == 'refs/heads/main'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release v${{ github.run_number }}
+          body: |
+            Production deployment of commit ${{ github.sha }}
+            
+            ## Changes
+            - Deployed to production environment
+            - All health checks passed
+            - Blue-green deployment completed successfully
+          draft: false
+          prerelease: false
+
+  # Rollback capability
+  rollback:
+    name: Rollback (Manual Trigger)
+    runs-on: ubuntu-latest
+    if: failure()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+
+      - name: Rollback deployment
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          # Get previous deployment color
+          CURRENT_COLOR=$(kubectl get service taskmanagement-api-active -o jsonpath='{.spec.selector.color}' -n production)
+          
+          if [ "$CURRENT_COLOR" = "blue" ]; then
+            ROLLBACK_COLOR="green"
+          else
+            ROLLBACK_COLOR="blue"
+          fi
+          
+          # Switch back to previous deployment
+          kubectl patch service taskmanagement-api-active -p '{"spec":{"selector":{"color":"'$ROLLBACK_COLOR'"}}}' -n production
+          kubectl patch service taskmanagement-web-active -p '{"spec":{"selector":{"color":"'$ROLLBACK_COLOR'"}}}' -n production
+          kubectl patch service taskmanagement-admin-active -p '{"spec":{"selector":{"color":"'$ROLLBACK_COLOR'"}}}' -n production
+          
+          # Scale up rollback deployment
+          kubectl scale deployment taskmanagement-api-$ROLLBACK_COLOR --replicas=3 -n production
+          kubectl scale deployment taskmanagement-web-$ROLLBACK_COLOR --replicas=2 -n production
+          kubectl scale deployment taskmanagement-admin-$ROLLBACK_COLOR --replicas=2 -n production
+          
+          echo "Rollback to $ROLLBACK_COLOR completed"
+
+  # Notification
+  notify-production:
+    name: Notify Production Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy-production, post-deployment]
+    if: always()
+    steps:
+      - name: Notify Slack on success
+        if: needs.deploy-production.result == 'success' && needs.post-deployment.result == 'success'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          channel: '#deployments'
+          text: '🎉 Production deployment successful! 🚀 Version: ${{ github.sha }}'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify Slack on failure
+        if: needs.deploy-production.result == 'failure' || needs.post-deployment.result == 'failure'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          channel: '#deployments'
+          text: '🚨 Production deployment failed! Rollback initiated. 🚨'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
