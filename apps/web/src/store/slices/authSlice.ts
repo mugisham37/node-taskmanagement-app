@@ -1,287 +1,159 @@
-import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit'
-import type { LoginCredentials, RegisterData, User } from '@taskmanagement/types'
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-// Types
-interface AuthState {
-  user: User | null
-  token: string | null
-  refreshToken: string | null
-  isAuthenticated: boolean
-  isLoading: boolean
-  error: string | null
-  lastActivity: number | null
+interface User {
+  id: string;
+  email: string;
+  name?: string;
+  avatar?: string;
+  role: string;
 }
 
-// Initial state
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  loading: boolean;
+  error: string | null;
+}
+
 const initialState: AuthState = {
   user: null,
   token: null,
-  refreshToken: null,
-  isAuthenticated: false,
-  isLoading: false,
+  loading: false,
   error: null,
-  lastActivity: null,
-}
+};
 
 // Async thunks
 export const loginUser = createAsyncThunk(
   'auth/login',
-  async (credentials: LoginCredentials, { rejectWithValue }) => {
-    try {
-      // This will be replaced with actual API call
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        return rejectWithValue(error.message || 'Login failed')
-      }
-
-      const data = await response.json()
-      return data
-    } catch (error) {
-      return rejectWithValue('Network error occurred')
+  async ({ email, password }: { email: string; password: string }) => {
+    // TODO: Replace with actual API call
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    
+    if (!response.ok) {
+      throw new Error('Login failed');
     }
+    
+    return response.json();
   }
-)
+);
 
 export const registerUser = createAsyncThunk(
   'auth/register',
-  async (userData: RegisterData, { rejectWithValue }) => {
-    try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        return rejectWithValue(error.message || 'Registration failed')
-      }
-
-      const data = await response.json()
-      return data
-    } catch (error) {
-      return rejectWithValue('Network error occurred')
+  async ({ email, password, name }: { email: string; password: string; name: string }) => {
+    // TODO: Replace with actual API call
+    const response = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, name }),
+    });
+    
+    if (!response.ok) {
+      throw new Error('Registration failed');
     }
+    
+    return response.json();
   }
-)
-
-export const refreshToken = createAsyncThunk(
-  'auth/refreshToken',
-  async (_, { getState, rejectWithValue }) => {
-    try {
-      const state = getState() as { auth: AuthState }
-      const { refreshToken } = state.auth
-
-      if (!refreshToken) {
-        return rejectWithValue('No refresh token available')
-      }
-
-      const response = await fetch('/api/auth/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        return rejectWithValue(error.message || 'Token refresh failed')
-      }
-
-      const data = await response.json()
-      return data
-    } catch (error) {
-      return rejectWithValue('Network error occurred')
-    }
-  }
-)
+);
 
 export const logoutUser = createAsyncThunk(
   'auth/logout',
-  async (_, { getState, rejectWithValue }) => {
-    try {
-      const state = getState() as { auth: AuthState }
-      const { token } = state.auth
-
-      if (token) {
-        await fetch('/api/auth/logout', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        })
-      }
-
-      return null
-    } catch (error) {
-      // Even if logout fails on server, we still clear local state
-      return null
-    }
+  async () => {
+    // TODO: Replace with actual API call
+    await fetch('/api/auth/logout', { method: 'POST' });
+    localStorage.removeItem('auth_token');
   }
-)
+);
 
-export const fetchCurrentUser = createAsyncThunk(
-  'auth/fetchCurrentUser',
-  async (_, { getState, rejectWithValue }) => {
-    try {
-      const state = getState() as { auth: AuthState }
-      const { token } = state.auth
-
-      if (!token) {
-        return rejectWithValue('No token available')
-      }
-
-      const response = await fetch('/api/auth/me', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        return rejectWithValue(error.message || 'Failed to fetch user')
-      }
-
-      const data = await response.json()
-      return data
-    } catch (error) {
-      return rejectWithValue('Network error occurred')
+export const refreshToken = createAsyncThunk(
+  'auth/refresh',
+  async () => {
+    // TODO: Replace with actual API call
+    const response = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Token refresh failed');
     }
+    
+    return response.json();
   }
-)
+);
 
-// Auth slice
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
     clearError: (state) => {
-      state.error = null
+      state.error = null;
     },
-    updateLastActivity: (state) => {
-      state.lastActivity = Date.now()
+    setCredentials: (state, action: PayloadAction<{ user: User; token: string }>) => {
+      state.user = action.payload.user;
+      state.token = action.payload.token;
+      localStorage.setItem('auth_token', action.payload.token);
     },
-    updateUser: (state, action: PayloadAction<Partial<User>>) => {
-      if (state.user) {
-        state.user = { ...state.user, ...action.payload }
-      }
-    },
-    clearAuth: (state) => {
-      state.user = null
-      state.token = null
-      state.refreshToken = null
-      state.isAuthenticated = false
-      state.error = null
-      state.lastActivity = null
+    clearCredentials: (state) => {
+      state.user = null;
+      state.token = null;
+      localStorage.removeItem('auth_token');
     },
   },
   extraReducers: (builder) => {
-    // Login
     builder
+      // Login
       .addCase(loginUser.pending, (state) => {
-        state.isLoading = true
-        state.error = null
+        state.loading = true;
+        state.error = null;
       })
       .addCase(loginUser.fulfilled, (state, action) => {
-        state.isLoading = false
-        state.user = action.payload.user
-        state.token = action.payload.token
-        state.refreshToken = action.payload.refreshToken
-        state.isAuthenticated = true
-        state.lastActivity = Date.now()
-        state.error = null
+        state.loading = false;
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        localStorage.setItem('auth_token', action.payload.token);
       })
       .addCase(loginUser.rejected, (state, action) => {
-        state.isLoading = false
-        state.error = action.payload as string
-        state.isAuthenticated = false
+        state.loading = false;
+        state.error = action.error.message || 'Login failed';
       })
-
-    // Register
-    builder
+      // Register
       .addCase(registerUser.pending, (state) => {
-        state.isLoading = true
-        state.error = null
+        state.loading = true;
+        state.error = null;
       })
       .addCase(registerUser.fulfilled, (state, action) => {
-        state.isLoading = false
-        state.user = action.payload.user
-        state.token = action.payload.token
-        state.refreshToken = action.payload.refreshToken
-        state.isAuthenticated = true
-        state.lastActivity = Date.now()
-        state.error = null
+        state.loading = false;
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        localStorage.setItem('auth_token', action.payload.token);
       })
       .addCase(registerUser.rejected, (state, action) => {
-        state.isLoading = false
-        state.error = action.payload as string
-        state.isAuthenticated = false
+        state.loading = false;
+        state.error = action.error.message || 'Registration failed';
       })
-
-    // Refresh token
-    builder
+      // Logout
+      .addCase(logoutUser.fulfilled, (state) => {
+        state.user = null;
+        state.token = null;
+        state.loading = false;
+        state.error = null;
+      })
+      // Refresh token
       .addCase(refreshToken.fulfilled, (state, action) => {
-        state.token = action.payload.token
-        state.refreshToken = action.payload.refreshToken
-        state.lastActivity = Date.now()
+        state.token = action.payload.token;
+        localStorage.setItem('auth_token', action.payload.token);
       })
       .addCase(refreshToken.rejected, (state) => {
-        state.user = null
-        state.token = null
-        state.refreshToken = null
-        state.isAuthenticated = false
-        state.lastActivity = null
-      })
-
-    // Logout
-    builder
-      .addCase(logoutUser.fulfilled, (state) => {
-        state.user = null
-        state.token = null
-        state.refreshToken = null
-        state.isAuthenticated = false
-        state.error = null
-        state.lastActivity = null
-      })
-
-    // Fetch current user
-    builder
-      .addCase(fetchCurrentUser.pending, (state) => {
-        state.isLoading = true
-      })
-      .addCase(fetchCurrentUser.fulfilled, (state, action) => {
-        state.isLoading = false
-        state.user = action.payload
-        state.isAuthenticated = true
-        state.lastActivity = Date.now()
-      })
-      .addCase(fetchCurrentUser.rejected, (state) => {
-        state.isLoading = false
-        state.user = null
-        state.token = null
-        state.refreshToken = null
-        state.isAuthenticated = false
-        state.lastActivity = null
-      })
+        state.user = null;
+        state.token = null;
+        localStorage.removeItem('auth_token');
+      });
   },
-})
+});
 
-// Export actions
-export const { clearError, updateLastActivity, updateUser, clearAuth } = authSlice.actions
-
-// Selectors
-export const selectAuth = (state: { auth: AuthState }) => state.auth
-export const selectUser = (state: { auth: AuthState }) => state.auth.user
-export const selectIsAuthenticated = (state: { auth: AuthState }) => state.auth.isAuthenticated
-export const selectAuthLoading = (state: { auth: AuthState }) => state.auth.isLoading
-export const selectAuthError = (state: { auth: AuthState }) => state.auth.error
-export const selectToken = (state: { auth: AuthState }) => state.auth.token
-
-// Export reducer
-export default authSlice.reducer
+export const { clearError, setCredentials, clearCredentials } = authSlice.actions;
+export default authSlice.reducer;
