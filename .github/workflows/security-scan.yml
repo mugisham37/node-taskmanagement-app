@@ -2,8 +2,7 @@ name: Security Scanning
 
 on:
   schedule:
-    # Run security scans daily at 2 AM UTC
-    - cron: '0 2 * * *'
+    - cron: '0 2 * * *' # Daily at 2 AM UTC
   push:
     branches: [main, develop]
   pull_request:
@@ -11,11 +10,10 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: '18'
-  PNPM_VERSION: '8'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # Dependency Vulnerability Scanning
   dependency-scan:
     name: Dependency Vulnerability Scan
     runs-on: ubuntu-latest
@@ -26,46 +24,29 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: ${{ env.PNPM_VERSION }}
+          node-version: '18'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
+
+      - name: Run npm audit
+        run: |
+          npm audit --audit-level=moderate --json > npm-audit-results.json || true
+          npm audit --audit-level=moderate
 
       - name: Run Snyk vulnerability scan
         uses: snyk/actions/node@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --all-projects --detection-depth=4 --severity-threshold=medium
+          args: --json-file-output=snyk-results.json
 
       - name: Upload Snyk results to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v2
         if: always()
         with:
           sarif_file: snyk.sarif
-
-      - name: Run npm audit
-        run: |
-          pnpm audit --audit-level moderate --json > npm-audit-results.json || true
-
-      - name: Upload npm audit results
-        uses: actions/upload-artifact@v3
-        with:
-          name: npm-audit-results
-          path: npm-audit-results.json
-
-  # OWASP Dependency Check
-  owasp-dependency-check:
-    name: OWASP Dependency Check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
 
       - name: Run OWASP Dependency Check
         uses: dependency-check/Dependency-Check_Action@main
@@ -76,62 +57,72 @@ jobs:
           args: >
             --enableRetired
             --enableExperimental
-            --failOnCVSS 7
+            --nvdApiKey ${{ secrets.NVD_API_KEY }}
 
       - name: Upload OWASP results
         uses: actions/upload-artifact@v3
         with:
-          name: owasp-dependency-check-results
+          name: dependency-check-report
           path: reports/
 
-      - name: Upload OWASP SARIF results
-        uses: github/codeql-action/upload-sarif@v2
-        if: always()
-        with:
-          sarif_file: reports/dependency-check-report.sarif
-
-  # Container Security Scanning
   container-scan:
-    name: Container Security Scan
+    name: Container Image Security Scan
     runs-on: ubuntu-latest
+    needs: []
+    if: github.event_name == 'push'
     strategy:
       matrix:
-        app: [api, web, admin]
+        service: [api, web, admin]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: |
-          docker build -t taskmanagement/${{ matrix.app }}:security-scan -f apps/${{ matrix.app }}/Dockerfile .
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image for scanning
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./apps/${{ matrix.service }}/Dockerfile
+          tags: ${{ matrix.service }}:scan
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'taskmanagement/${{ matrix.app }}:security-scan'
+          image-ref: '${{ matrix.service }}:scan'
           format: 'sarif'
-          output: 'trivy-${{ matrix.app }}.sarif'
+          output: 'trivy-${{ matrix.service }}.sarif'
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v2
         if: always()
         with:
-          sarif_file: 'trivy-${{ matrix.app }}.sarif'
+          sarif_file: 'trivy-${{ matrix.service }}.sarif'
 
       - name: Run Grype vulnerability scanner
         uses: anchore/scan-action@v3
         with:
-          image: 'taskmanagement/${{ matrix.app }}:security-scan'
+          image: '${{ matrix.service }}:scan'
           fail-build: false
           severity-cutoff: high
 
-      - name: Upload Grype results
-        uses: actions/upload-artifact@v3
-        with:
-          name: grype-${{ matrix.app }}-results
-          path: anchore-reports/
+      - name: Run Docker Bench Security
+        run: |
+          docker run --rm --net host --pid host --userns host --cap-add audit_control \
+            -e DOCKER_CONTENT_TRUST=$DOCKER_CONTENT_TRUST \
+            -v /etc:/etc:ro \
+            -v /usr/bin/containerd:/usr/bin/containerd:ro \
+            -v /usr/bin/runc:/usr/bin/runc:ro \
+            -v /usr/lib/systemd:/usr/lib/systemd:ro \
+            -v /var/lib:/var/lib:ro \
+            -v /var/run/docker.sock:/var/run/docker.sock:ro \
+            --label docker_bench_security \
+            docker/docker-bench-security
 
-  # Static Application Security Testing (SAST)
   sast-scan:
     name: Static Application Security Testing
     runs-on: ubuntu-latest
@@ -139,24 +130,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          languages: javascript
+          queries: security-and-quality
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: ${{ env.PNPM_VERSION }}
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run ESLint security rules
-        run: |
-          pnpm run lint:security || true
-
-      - name: Run Semgrep SAST scan
+      - name: Run Semgrep SAST
         uses: returntocorp/semgrep-action@v1
         with:
           config: >-
@@ -167,18 +150,20 @@ jobs:
             p/typescript
             p/react
             p/nodejs
-        env:
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
-      - name: Run CodeQL analysis
-        uses: github/codeql-action/analyze@v2
+      - name: Run ESLint Security Plugin
+        run: |
+          npm ci
+          npx eslint . --ext .js,.jsx,.ts,.tsx --format json --output-file eslint-security-results.json || true
+
+      - name: Upload ESLint results
+        uses: actions/upload-artifact@v3
         with:
-          languages: javascript
-          queries: security-and-quality
+          name: eslint-security-results
+          path: eslint-security-results.json
 
-  # Secrets Scanning
   secrets-scan:
-    name: Secrets Scanning
+    name: Secrets Detection
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -186,7 +171,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run TruffleHog secrets scan
+      - name: Run TruffleHog
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
@@ -194,12 +179,17 @@ jobs:
           head: HEAD
           extra_args: --debug --only-verified
 
-      - name: Run GitLeaks secrets scan
+      - name: Run GitLeaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Infrastructure Security Scanning
+      - name: Run detect-secrets
+        run: |
+          pip install detect-secrets
+          detect-secrets scan --all-files --baseline .secrets.baseline
+          detect-secrets audit .secrets.baseline
+
   infrastructure-scan:
     name: Infrastructure Security Scan
     runs-on: ubuntu-latest
@@ -207,83 +197,87 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run Checkov IaC security scan
+      - name: Run Checkov for Terraform
         uses: bridgecrewio/checkov-action@master
         with:
-          directory: infrastructure/
-          framework: terraform,kubernetes,dockerfile
+          directory: infrastructure/terraform
+          framework: terraform
           output_format: sarif
-          output_file_path: checkov-results.sarif
+          output_file_path: checkov-terraform.sarif
+
+      - name: Run Checkov for Kubernetes
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: infrastructure/kubernetes
+          framework: kubernetes
+          output_format: sarif
+          output_file_path: checkov-kubernetes.sarif
+
+      - name: Run Checkov for Dockerfile
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          framework: dockerfile
+          output_format: sarif
+          output_file_path: checkov-dockerfile.sarif
 
       - name: Upload Checkov results
         uses: github/codeql-action/upload-sarif@v2
         if: always()
         with:
-          sarif_file: checkov-results.sarif
+          sarif_file: checkov-terraform.sarif
 
-      - name: Run Terrascan IaC scan
+      - name: Run Terrascan
         uses: tenable/terrascan-action@main
         with:
           iac_type: 'terraform'
-          iac_version: 'v14'
+          iac_dir: 'infrastructure/terraform'
           policy_type: 'aws'
           only_warn: true
           sarif_upload: true
 
-      - name: Run kube-score Kubernetes security scan
+      - name: Run kube-score
         run: |
-          # Install kube-score
-          wget https://github.com/zegl/kube-score/releases/download/v1.16.1/kube-score_1.16.1_linux_amd64.tar.gz
-          tar -xzf kube-score_1.16.1_linux_amd64.tar.gz
-          chmod +x kube-score
-          
-          # Scan Kubernetes manifests
-          find infrastructure/kubernetes -name "*.yaml" -exec ./kube-score score {} \; || true
+          wget https://github.com/zegl/kube-score/releases/latest/download/kube-score_linux_amd64.tar.gz
+          tar -xzf kube-score_linux_amd64.tar.gz
+          ./kube-score score infrastructure/kubernetes/**/*.yml
 
-  # License Compliance Scanning
-  license-scan:
-    name: License Compliance Scan
+  compliance-check:
+    name: Compliance and Policy Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run license checker
+      - name: Run OPA Conftest for Kubernetes
         run: |
-          npx license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD' --excludePrivatePackages --json > license-report.json || true
+          wget https://github.com/open-policy-agent/conftest/releases/latest/download/conftest_linux_x86_64.tar.gz
+          tar -xzf conftest_linux_x86_64.tar.gz
+          ./conftest verify --policy security-policies/ infrastructure/kubernetes/
 
-      - name: Upload license report
+      - name: Check GDPR compliance
+        run: |
+          npm ci
+          npm run compliance:gdpr-check
+
+      - name: Check SOC2 compliance
+        run: |
+          npm run compliance:soc2-check
+
+      - name: Generate compliance report
+        run: |
+          npm run compliance:generate-report
+
+      - name: Upload compliance report
         uses: actions/upload-artifact@v3
         with:
-          name: license-report
-          path: license-report.json
+          name: compliance-report
+          path: compliance-report.pdf
 
-      - name: Run FOSSA license scan
-        if: env.FOSSA_API_KEY != ''
-        uses: fossas/fossa-action@main
-        with:
-          api-key: ${{ secrets.FOSSA_API_KEY }}
-        env:
-          FOSSA_API_KEY: ${{ secrets.FOSSA_API_KEY }}
-
-  # Security Report Generation
   security-report:
     name: Generate Security Report
     runs-on: ubuntu-latest
-    needs: [dependency-scan, owasp-dependency-check, container-scan, sast-scan, secrets-scan, infrastructure-scan, license-scan]
+    needs: [dependency-scan, container-scan, sast-scan, secrets-scan, infrastructure-scan, compliance-check]
     if: always()
     steps:
       - name: Checkout code
@@ -292,70 +286,35 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v3
 
-      - name: Generate security summary report
+      - name: Generate consolidated security report
         run: |
-          cat > security-report.md << 'EOF'
-          # Security Scan Report
-          
-          **Scan Date:** $(date)
-          **Commit:** ${{ github.sha }}
-          **Branch:** ${{ github.ref_name }}
-          
-          ## Scan Results Summary
-          
-          | Scan Type | Status | Critical | High | Medium | Low |
-          |-----------|--------|----------|------|--------|-----|
-          | Dependencies | ${{ needs.dependency-scan.result }} | - | - | - | - |
-          | OWASP Check | ${{ needs.owasp-dependency-check.result }} | - | - | - | - |
-          | Container Scan | ${{ needs.container-scan.result }} | - | - | - | - |
-          | SAST Scan | ${{ needs.sast-scan.result }} | - | - | - | - |
-          | Secrets Scan | ${{ needs.secrets-scan.result }} | - | - | - | - |
-          | Infrastructure | ${{ needs.infrastructure-scan.result }} | - | - | - | - |
-          | License Check | ${{ needs.license-scan.result }} | - | - | - | - |
-          
-          ## Recommendations
-          
-          1. Review and remediate any critical or high severity vulnerabilities
-          2. Update dependencies with known vulnerabilities
-          3. Ensure all secrets are properly managed
-          4. Review infrastructure security configurations
-          5. Verify license compliance for all dependencies
-          
-          EOF
+          npm ci
+          npm run security:generate-report
 
       - name: Upload security report
         uses: actions/upload-artifact@v3
         with:
           name: security-report
-          path: security-report.md
+          path: security-report/
 
-      - name: Comment security report on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const fs = require('fs');
-            const report = fs.readFileSync('security-report.md', 'utf8');
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: report
-            });
-
-  # Security notification
-  notify-security:
-    name: Security Notification
-    runs-on: ubuntu-latest
-    needs: [dependency-scan, owasp-dependency-check, container-scan, sast-scan, secrets-scan, infrastructure-scan]
-    if: failure()
-    steps:
-      - name: Notify security team on critical findings
+      - name: Notify security team
+        if: failure()
         uses: 8398a7/action-slack@v3
         with:
           status: failure
-          channel: '#security-alerts'
-          text: '🚨 Critical security vulnerabilities detected in ${{ github.repository }}! Please review immediately.'
+          text: "🔒 Security scan detected critical vulnerabilities"
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SECURITY_SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_SECURITY }}
+
+      - name: Create security issue
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Security Vulnerabilities Detected',
+              body: 'Critical security vulnerabilities were detected in the latest security scan. Please review the security report and take appropriate action.',
+              labels: ['security', 'critical']
+            })

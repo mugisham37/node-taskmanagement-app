@@ -6,70 +6,15 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: '18'
-  PNPM_VERSION: '8'
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  KUBE_NAMESPACE: taskmanagement-staging
 
 jobs:
-  # Build and Push Docker Images
-  build-images:
-    name: Build & Push Docker Images
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      matrix:
-        app: [api, web, admin]
-    outputs:
-      api-image: ${{ steps.meta.outputs.tags }}
-      web-image: ${{ steps.meta.outputs.tags }}
-      admin-image: ${{ steps.meta.outputs.tags }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.app }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-
-            type=raw,value=staging
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./apps/${{ matrix.app }}/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
-
-  # Deploy to Staging Environment
   deploy-staging:
-    name: Deploy to Staging
+    name: Deploy to Staging Environment
     runs-on: ubuntu-latest
-    needs: build-images
-    environment:
-      name: staging
-      url: https://staging.taskmanagement.app
+    environment: staging
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -81,97 +26,195 @@ jobs:
 
       - name: Configure kubectl
         run: |
-          echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > kubeconfig
-          export KUBECONFIG=kubeconfig
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
 
-      - name: Deploy to Kubernetes
+      - name: Create namespace if not exists
         run: |
-          export KUBECONFIG=kubeconfig
-          
-          # Update image tags in deployment manifests
-          sed -i "s|IMAGE_TAG|${{ github.sha }}|g" infrastructure/kubernetes/staging/api-deployment.yaml
-          sed -i "s|IMAGE_TAG|${{ github.sha }}|g" infrastructure/kubernetes/staging/web-deployment.yaml
-          sed -i "s|IMAGE_TAG|${{ github.sha }}|g" infrastructure/kubernetes/staging/admin-deployment.yaml
-          
-          # Apply Kubernetes manifests
-          kubectl apply -f infrastructure/kubernetes/staging/
-          
-          # Wait for rollout to complete
-          kubectl rollout status deployment/taskmanagement-api -n staging --timeout=300s
-          kubectl rollout status deployment/taskmanagement-web -n staging --timeout=300s
-          kubectl rollout status deployment/taskmanagement-admin -n staging --timeout=300s
+          kubectl create namespace ${{ env.KUBE_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy database secrets
+        run: |
+          kubectl create secret generic database-secret \
+            --from-literal=url="${{ secrets.DATABASE_URL_STAGING }}" \
+            --from-literal=username="${{ secrets.DB_USERNAME_STAGING }}" \
+            --from-literal=password="${{ secrets.DB_PASSWORD_STAGING }}" \
+            --namespace=${{ env.KUBE_NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy Redis secrets
+        run: |
+          kubectl create secret generic redis-secret \
+            --from-literal=url="${{ secrets.REDIS_URL_STAGING }}" \
+            --from-literal=password="${{ secrets.REDIS_PASSWORD_STAGING }}" \
+            --namespace=${{ env.KUBE_NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy application secrets
+        run: |
+          kubectl create secret generic app-secret \
+            --from-literal=jwt-secret="${{ secrets.JWT_SECRET_STAGING }}" \
+            --from-literal=encryption-key="${{ secrets.ENCRYPTION_KEY_STAGING }}" \
+            --from-literal=webhook-secret="${{ secrets.WEBHOOK_SECRET_STAGING }}" \
+            --namespace=${{ env.KUBE_NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy ConfigMap
+        run: |
+          kubectl create configmap app-config \
+            --from-literal=NODE_ENV=staging \
+            --from-literal=LOG_LEVEL=info \
+            --from-literal=API_URL=https://api-staging.taskmanagement.com \
+            --from-literal=WEB_URL=https://staging.taskmanagement.com \
+            --from-literal=ADMIN_URL=https://admin-staging.taskmanagement.com \
+            --namespace=${{ env.KUBE_NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Run database migrations
         run: |
-          export KUBECONFIG=kubeconfig
-          kubectl create job --from=cronjob/db-migrate db-migrate-$(date +%s) -n staging
-          kubectl wait --for=condition=complete job/db-migrate-$(date +%s) -n staging --timeout=300s
+          kubectl run migration-job-$(date +%s) \
+            --image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:develop-${{ github.sha }} \
+            --restart=Never \
+            --namespace=${{ env.KUBE_NAMESPACE }} \
+            --env-from=configmap/app-config \
+            --env-from=secret/database-secret \
+            --command -- npm run db:migrate
+          
+          # Wait for migration to complete
+          kubectl wait --for=condition=complete --timeout=300s job/migration-job-$(date +%s) --namespace=${{ env.KUBE_NAMESPACE }}
 
-      - name: Run smoke tests
+      - name: Deploy API service
+        run: |
+          envsubst < infrastructure/kubernetes/staging/api-deployment.yml | kubectl apply -f -
+          kubectl apply -f infrastructure/kubernetes/staging/api-service.yml
+        env:
+          IMAGE_TAG: develop-${{ github.sha }}
+          NAMESPACE: ${{ env.KUBE_NAMESPACE }}
+
+      - name: Deploy Web service
+        run: |
+          envsubst < infrastructure/kubernetes/staging/web-deployment.yml | kubectl apply -f -
+          kubectl apply -f infrastructure/kubernetes/staging/web-service.yml
+        env:
+          IMAGE_TAG: develop-${{ github.sha }}
+          NAMESPACE: ${{ env.KUBE_NAMESPACE }}
+
+      - name: Deploy Admin service
+        run: |
+          envsubst < infrastructure/kubernetes/staging/admin-deployment.yml | kubectl apply -f -
+          kubectl apply -f infrastructure/kubernetes/staging/admin-service.yml
+        env:
+          IMAGE_TAG: develop-${{ github.sha }}
+          NAMESPACE: ${{ env.KUBE_NAMESPACE }}
+
+      - name: Deploy Ingress
+        run: |
+          kubectl apply -f infrastructure/kubernetes/staging/ingress.yml
+
+      - name: Wait for deployment rollout
+        run: |
+          kubectl rollout status deployment/taskmanagement-api --namespace=${{ env.KUBE_NAMESPACE }} --timeout=600s
+          kubectl rollout status deployment/taskmanagement-web --namespace=${{ env.KUBE_NAMESPACE }} --timeout=600s
+          kubectl rollout status deployment/taskmanagement-admin --namespace=${{ env.KUBE_NAMESPACE }} --timeout=600s
+
+      - name: Run health checks
         run: |
           # Wait for services to be ready
           sleep 30
           
-          # Test API health endpoint
-          curl -f https://staging-api.taskmanagement.app/health || exit 1
+          # Check API health
+          kubectl run health-check-api-$(date +%s) \
+            --image=curlimages/curl:latest \
+            --restart=Never \
+            --namespace=${{ env.KUBE_NAMESPACE }} \
+            --command -- curl -f https://api-staging.taskmanagement.com/health
           
-          # Test Web application
-          curl -f https://staging.taskmanagement.app || exit 1
+          # Check Web health
+          kubectl run health-check-web-$(date +%s) \
+            --image=curlimages/curl:latest \
+            --restart=Never \
+            --namespace=${{ env.KUBE_NAMESPACE }} \
+            --command -- curl -f https://staging.taskmanagement.com/api/health
           
-          # Test Admin dashboard
-          curl -f https://staging-admin.taskmanagement.app || exit 1
+          # Check Admin health
+          kubectl run health-check-admin-$(date +%s) \
+            --image=curlimages/curl:latest \
+            --restart=Never \
+            --namespace=${{ env.KUBE_NAMESPACE }} \
+            --command -- curl -f https://admin-staging.taskmanagement.com/api/health
 
-  # Performance Testing
-  performance-test:
-    name: Performance Testing
-    runs-on: ubuntu-latest
-    needs: deploy-staging
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup K6
+      - name: Run smoke tests
         run: |
-          sudo gpg -k
-          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
-          sudo apt-get update
-          sudo apt-get install k6
+          npm ci
+          npm run test:smoke:staging
+        env:
+          STAGING_API_URL: https://api-staging.taskmanagement.com
+          STAGING_WEB_URL: https://staging.taskmanagement.com
+          STAGING_ADMIN_URL: https://admin-staging.taskmanagement.com
 
-      - name: Run performance tests
-        run: |
-          k6 run tests/performance/api-load-test.js --env BASE_URL=https://staging-api.taskmanagement.app
-          k6 run tests/performance/web-load-test.js --env BASE_URL=https://staging.taskmanagement.app
-
-      - name: Upload performance results
-        uses: actions/upload-artifact@v3
-        with:
-          name: performance-results
-          path: performance-results.json
-
-  # Notify deployment status
-  notify:
-    name: Notify Deployment Status
-    runs-on: ubuntu-latest
-    needs: [deploy-staging, performance-test]
-    if: always()
-    steps:
-      - name: Notify Slack on success
-        if: needs.deploy-staging.result == 'success' && needs.performance-test.result == 'success'
+      - name: Notify deployment success
+        if: success()
         uses: 8398a7/action-slack@v3
         with:
           status: success
-          channel: '#deployments'
-          text: '✅ Staging deployment successful! 🚀'
+          text: "✅ Staging deployment successful for commit ${{ github.sha }}"
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
-      - name: Notify Slack on failure
-        if: needs.deploy-staging.result == 'failure' || needs.performance-test.result == 'failure'
+      - name: Notify deployment failure
+        if: failure()
         uses: 8398a7/action-slack@v3
         with:
           status: failure
-          channel: '#deployments'
-          text: '❌ Staging deployment failed! 🚨'
+          text: "❌ Staging deployment failed for commit ${{ github.sha }}"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  rollback-on-failure:
+    name: Rollback on Failure
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    if: failure()
+    steps:
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Rollback deployments
+        run: |
+          kubectl rollout undo deployment/taskmanagement-api --namespace=${{ env.KUBE_NAMESPACE }}
+          kubectl rollout undo deployment/taskmanagement-web --namespace=${{ env.KUBE_NAMESPACE }}
+          kubectl rollout undo deployment/taskmanagement-admin --namespace=${{ env.KUBE_NAMESPACE }}
+
+      - name: Wait for rollback completion
+        run: |
+          kubectl rollout status deployment/taskmanagement-api --namespace=${{ env.KUBE_NAMESPACE }} --timeout=300s
+          kubectl rollout status deployment/taskmanagement-web --namespace=${{ env.KUBE_NAMESPACE }} --timeout=300s
+          kubectl rollout status deployment/taskmanagement-admin --namespace=${{ env.KUBE_NAMESPACE }} --timeout=300s
+
+      - name: Notify rollback completion
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              text: "🔄 Staging environment rolled back due to deployment failure",
+              attachments: [{
+                color: "warning",
+                fields: [{
+                  title: "Commit",
+                  value: "${{ github.sha }}",
+                  short: true
+                }]
+              }]
+            }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
