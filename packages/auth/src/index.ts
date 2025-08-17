@@ -28,6 +28,9 @@ export * from './guards';
 // Middleware
 export * from './middleware';
 
+// Comprehensive Security Services
+export * from './security';
+
 // Audit Logging
 export {
     AuditEventType, AuditLogger, AuditSeverity
