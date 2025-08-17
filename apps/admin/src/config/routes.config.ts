@@ -33,6 +33,7 @@ export const ADMIN_ROUTES = {
   // System monitoring routes
   MONITORING: {
     OVERVIEW: '/monitoring',
+    SYSTEM_HEALTH: '/monitoring/system-health',
     METRICS: '/monitoring/metrics',
     LOGS: '/monitoring/logs',
     TRACES: '/monitoring/traces',
@@ -55,6 +56,7 @@ export const ADMIN_ROUTES = {
 
   // System settings routes
   SETTINGS: {
+    SYSTEM: '/settings',
     GENERAL: '/settings',
     SECURITY: '/settings/security',
     INTEGRATIONS: '/settings/integrations',
@@ -64,6 +66,7 @@ export const ADMIN_ROUTES = {
     FEATURE_FLAGS: '/settings/feature-flags',
     EMAIL_TEMPLATES: '/settings/email-templates',
     API_KEYS: '/settings/api-keys',
+    PROFILE: '/settings/profile',
   },
 
   // Audit and compliance routes
@@ -78,6 +81,7 @@ export const ADMIN_ROUTES = {
 
   // Alert management routes
   ALERTS: {
+    LIST: '/alerts',
     ACTIVE: '/alerts',
     HISTORY: '/alerts/history',
     RULES: '/alerts/rules',

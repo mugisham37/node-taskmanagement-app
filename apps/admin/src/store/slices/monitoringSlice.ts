@@ -4,182 +4,105 @@ interface SystemMetrics {
   cpu: {
     usage: number;
     cores: number;
-    loadAverage: number[];
+    temperature: number;
   };
   memory: {
-    total: number;
     used: number;
-    free: number;
-    usage: number;
+    total: number;
+    percentage: number;
   };
   disk: {
-    total: number;
     used: number;
-    free: number;
-    usage: number;
+    total: number;
+    percentage: number;
   };
   network: {
-    bytesIn: number;
-    bytesOut: number;
-    packetsIn: number;
-    packetsOut: number;
+    inbound: number;
+    outbound: number;
   };
 }
 
-interface ServiceHealth {
+interface ServiceStatus {
   name: string;
-  status: 'healthy' | 'unhealthy' | 'degraded' | 'unknown';
-  uptime: number;
+  status: 'healthy' | 'warning' | 'critical';
+  uptime: string;
   responseTime: number;
   lastCheck: string;
-  dependencies: Array<{
-    name: string;
-    status: 'healthy' | 'unhealthy' | 'unknown';
-  }>;
-}
-
-interface PerformanceMetrics {
-  apiResponseTime: {
-    p50: number;
-    p95: number;
-    p99: number;
-  };
-  throughput: {
-    requestsPerSecond: number;
-    requestsPerMinute: number;
-  };
-  errorRate: {
-    rate: number;
-    count: number;
-  };
-  activeConnections: number;
-  queueSize: number;
-}
-
-interface LogEntry {
-  id: string;
-  timestamp: string;
-  level: 'error' | 'warn' | 'info' | 'debug';
-  service: string;
-  message: string;
-  metadata?: Record<string, any>;
 }
 
 interface MonitoringState {
-  // System metrics
-  systemMetrics: SystemMetrics | null;
-  systemMetricsHistory: Array<{ timestamp: string; metrics: SystemMetrics }>;
-  
-  // Service health
-  services: ServiceHealth[];
-  overallHealth: 'healthy' | 'unhealthy' | 'degraded';
-  
-  // Performance metrics
-  performanceMetrics: PerformanceMetrics | null;
-  performanceHistory: Array<{ timestamp: string; metrics: PerformanceMetrics }>;
-  
-  // Logs
-  logs: LogEntry[];
-  logFilters: {
-    level?: string;
-    service?: string;
-    timeRange?: string;
-    search?: string;
-  };
-  
-  // Alerts
-  activeAlerts: number;
-  criticalAlerts: number;
-  
-  // Real-time updates
-  isRealTimeEnabled: boolean;
-  lastUpdate: string | null;
-  
-  // Loading states
-  isLoadingMetrics: boolean;
-  isLoadingServices: boolean;
-  isLoadingLogs: boolean;
-  
-  // Error states
+  metrics: SystemMetrics | null;
+  services: ServiceStatus[];
+  isLoading: boolean;
   error: string | null;
-  
-  // Configuration
-  refreshInterval: number;
-  metricsRetention: number; // hours
+  lastUpdated: string | null;
 }
 
 const initialState: MonitoringState = {
-  systemMetrics: null,
-  systemMetricsHistory: [],
+  metrics: null,
   services: [],
-  overallHealth: 'unknown',
-  performanceMetrics: null,
-  performanceHistory: [],
-  logs: [],
-  logFilters: {},
-  activeAlerts: 0,
-  criticalAlerts: 0,
-  isRealTimeEnabled: true,
-  lastUpdate: null,
-  isLoadingMetrics: false,
-  isLoadingServices: false,
-  isLoadingLogs: false,
+  isLoading: false,
   error: null,
-  refreshInterval: 30000, // 30 seconds
-  metricsRetention: 24, // 24 hours
+  lastUpdated: null,
 };
 
 // Async thunks
-export const fetchSystemMetricsAsync = createAsyncThunk(
+export const fetchSystemMetrics = createAsyncThunk(
   'monitoring/fetchSystemMetrics',
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await fetch('/api/monitoring/system-metrics');
-      if (!response.ok) throw new Error('Failed to fetch system metrics');
-      return await response.json();
-    } catch (error: any) {
-      return rejectWithValue(error.message);
-    }
+  async () => {
+    // Mock API call
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const mockMetrics: SystemMetrics = {
+      cpu: {
+        usage: 45.2,
+        cores: 8,
+        temperature: 62,
+      },
+      memory: {
+        used: 12.4,
+        total: 32,
+        percentage: 38.8,
+      },
+      disk: {
+        used: 245,
+        total: 500,
+        percentage: 49.0,
+      },
+      network: {
+        inbound: 125.6,
+        outbound: 89.3,
+      },
+    };
+
+    return mockMetrics;
   }
 );
 
-export const fetchServiceHealthAsync = createAsyncThunk(
-  'monitoring/fetchServiceHealth',
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await fetch('/api/monitoring/service-health');
-      if (!response.ok) throw new Error('Failed to fetch service health');
-      return await response.json();
-    } catch (error: any) {
-      return rejectWithValue(error.message);
-    }
-  }
-);
+export const fetchServiceStatus = createAsyncThunk(
+  'monitoring/fetchServiceStatus',
+  async () => {
+    // Mock API call
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const mockServices: ServiceStatus[] = [
+      {
+        name: 'API Server',
+        status: 'healthy',
+        uptime: '99.9%',
+        responseTime: 145,
+        lastCheck: '2024-01-15T10:30:00Z',
+      },
+      {
+        name: 'Database',
+        status: 'healthy',
+        uptime: '99.8%',
+        responseTime: 23,
+        lastCheck: '2024-01-15T10:30:00Z',
+      },
+    ];
 
-export const fetchPerformanceMetricsAsync = createAsyncThunk(
-  'monitoring/fetchPerformanceMetrics',
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await fetch('/api/monitoring/performance-metrics');
-      if (!response.ok) throw new Error('Failed to fetch performance metrics');
-      return await response.json();
-    } catch (error: any) {
-      return rejectWithValue(error.message);
-    }
-  }
-);
-
-export const fetchLogsAsync = createAsyncThunk(
-  'monitoring/fetchLogs',
-  async (filters: Record<string, any>, { rejectWithValue }) => {
-    try {
-      const params = new URLSearchParams(filters);
-      const response = await fetch(`/api/monitoring/logs?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch logs');
-      return await response.json();
-    } catch (error: any) {
-      return rejectWithValue(error.message);
-    }
+    return mockServices;
   }
 );
 
@@ -187,187 +110,38 @@ const monitoringSlice = createSlice({
   name: 'monitoring',
   initialState,
   reducers: {
-    // Real-time updates
-    updateSystemMetrics: (state, action: PayloadAction<SystemMetrics>) => {
-      state.systemMetrics = action.payload;
-      state.lastUpdate = new Date().toISOString();
-      
-      // Add to history
-      state.systemMetricsHistory.push({
-        timestamp: new Date().toISOString(),
-        metrics: action.payload,
-      });
-      
-      // Keep only recent history based on retention
-      const cutoff = new Date(Date.now() - state.metricsRetention * 60 * 60 * 1000);
-      state.systemMetricsHistory = state.systemMetricsHistory.filter(
-        entry => new Date(entry.timestamp) > cutoff
-      );
+    updateMetrics: (state, action: PayloadAction<SystemMetrics>) => {
+      state.metrics = action.payload;
+      state.lastUpdated = new Date().toISOString();
     },
-    
-    updateServiceHealth: (state, action: PayloadAction<ServiceHealth[]>) => {
+    updateServiceStatus: (state, action: PayloadAction<ServiceStatus[]>) => {
       state.services = action.payload;
-      
-      // Calculate overall health
-      const unhealthyServices = action.payload.filter(s => s.status === 'unhealthy').length;
-      const degradedServices = action.payload.filter(s => s.status === 'degraded').length;
-      
-      if (unhealthyServices > 0) {
-        state.overallHealth = 'unhealthy';
-      } else if (degradedServices > 0) {
-        state.overallHealth = 'degraded';
-      } else {
-        state.overallHealth = 'healthy';
-      }
-    },
-    
-    updatePerformanceMetrics: (state, action: PayloadAction<PerformanceMetrics>) => {
-      state.performanceMetrics = action.payload;
-      
-      // Add to history
-      state.performanceHistory.push({
-        timestamp: new Date().toISOString(),
-        metrics: action.payload,
-      });
-      
-      // Keep only recent history
-      const cutoff = new Date(Date.now() - state.metricsRetention * 60 * 60 * 1000);
-      state.performanceHistory = state.performanceHistory.filter(
-        entry => new Date(entry.timestamp) > cutoff
-      );
-    },
-    
-    addLogEntry: (state, action: PayloadAction<LogEntry>) => {
-      state.logs.unshift(action.payload);
-      
-      // Keep only recent logs (max 1000)
-      if (state.logs.length > 1000) {
-        state.logs = state.logs.slice(0, 1000);
-      }
-    },
-    
-    // Log filtering
-    setLogFilters: (state, action: PayloadAction<typeof initialState.logFilters>) => {
-      state.logFilters = action.payload;
-    },
-    
-    updateLogFilter: (state, action: PayloadAction<{ key: string; value: any }>) => {
-      const { key, value } = action.payload;
-      if (value === null || value === undefined || value === '') {
-        delete (state.logFilters as any)[key];
-      } else {
-        (state.logFilters as any)[key] = value;
-      }
-    },
-    
-    clearLogFilters: (state) => {
-      state.logFilters = {};
-    },
-    
-    // Alert updates
-    updateAlertCounts: (state, action: PayloadAction<{ active: number; critical: number }>) => {
-      state.activeAlerts = action.payload.active;
-      state.criticalAlerts = action.payload.critical;
-    },
-    
-    // Configuration
-    setRealTimeEnabled: (state, action: PayloadAction<boolean>) => {
-      state.isRealTimeEnabled = action.payload;
-    },
-    
-    setRefreshInterval: (state, action: PayloadAction<number>) => {
-      state.refreshInterval = action.payload;
-    },
-    
-    setMetricsRetention: (state, action: PayloadAction<number>) => {
-      state.metricsRetention = action.payload;
-    },
-    
-    // Error handling
-    clearError: (state) => {
-      state.error = null;
-    },
-    
-    // Clear data
-    clearMetricsHistory: (state) => {
-      state.systemMetricsHistory = [];
-      state.performanceHistory = [];
-    },
-    
-    clearLogs: (state) => {
-      state.logs = [];
+      state.lastUpdated = new Date().toISOString();
     },
   },
   extraReducers: (builder) => {
-    // Fetch system metrics
     builder
-      .addCase(fetchSystemMetricsAsync.pending, (state) => {
-        state.isLoadingMetrics = true;
+      // Fetch system metrics
+      .addCase(fetchSystemMetrics.pending, (state) => {
+        state.isLoading = true;
         state.error = null;
       })
-      .addCase(fetchSystemMetricsAsync.fulfilled, (state, action) => {
-        state.isLoadingMetrics = false;
-        state.systemMetrics = action.payload;
-        state.lastUpdate = new Date().toISOString();
+      .addCase(fetchSystemMetrics.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.metrics = action.payload;
+        state.lastUpdated = new Date().toISOString();
       })
-      .addCase(fetchSystemMetricsAsync.rejected, (state, action) => {
-        state.isLoadingMetrics = false;
-        state.error = action.payload as string;
-      });
-
-    // Fetch service health
-    builder
-      .addCase(fetchServiceHealthAsync.pending, (state) => {
-        state.isLoadingServices = true;
-        state.error = null;
+      .addCase(fetchSystemMetrics.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.error.message || 'Failed to fetch system metrics';
       })
-      .addCase(fetchServiceHealthAsync.fulfilled, (state, action) => {
-        state.isLoadingServices = false;
+      // Fetch service status
+      .addCase(fetchServiceStatus.fulfilled, (state, action) => {
         state.services = action.payload;
-      })
-      .addCase(fetchServiceHealthAsync.rejected, (state, action) => {
-        state.isLoadingServices = false;
-        state.error = action.payload as string;
-      });
-
-    // Fetch performance metrics
-    builder
-      .addCase(fetchPerformanceMetricsAsync.fulfilled, (state, action) => {
-        state.performanceMetrics = action.payload;
-      });
-
-    // Fetch logs
-    builder
-      .addCase(fetchLogsAsync.pending, (state) => {
-        state.isLoadingLogs = true;
-        state.error = null;
-      })
-      .addCase(fetchLogsAsync.fulfilled, (state, action) => {
-        state.isLoadingLogs = false;
-        state.logs = action.payload;
-      })
-      .addCase(fetchLogsAsync.rejected, (state, action) => {
-        state.isLoadingLogs = false;
-        state.error = action.payload as string;
+        state.lastUpdated = new Date().toISOString();
       });
   },
 });
 
-export const {
-  updateSystemMetrics,
-  updateServiceHealth,
-  updatePerformanceMetrics,
-  addLogEntry,
-  setLogFilters,
-  updateLogFilter,
-  clearLogFilters,
-  updateAlertCounts,
-  setRealTimeEnabled,
-  setRefreshInterval,
-  setMetricsRetention,
-  clearError,
-  clearMetricsHistory,
-  clearLogs,
-} = monitoringSlice.actions;
-
+export const { updateMetrics, updateServiceStatus } = monitoringSlice.actions;
 export default monitoringSlice.reducer;
