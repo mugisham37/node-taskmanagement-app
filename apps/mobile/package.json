@@ -40,6 +40,7 @@
     "@taskmanagement/validation": "workspace:*",
     "@taskmanagement/i18n": "workspace:*",
     "@taskmanagement/utils": "workspace:*",
+    "@taskmanagement/observability": "workspace:*",
     "expo": "~49.0.0",
     "expo-application": "~5.3.0",
     "expo-auth-session": "~5.0.2",

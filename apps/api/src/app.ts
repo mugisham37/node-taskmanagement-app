@@ -18,6 +18,15 @@ export class Application {
   private config: ReturnType<typeof ConfigLoader.validateAllConfigs>;
   private isShuttingDown = false;
 
+  // Monitoring services
+  private structuredLogger: StructuredLogger | null = null;
+  private applicationMonitoring: ApplicationMonitoringService | null = null;
+  private performanceMonitoring: PerformanceMonitoringService | null = null;
+  private businessMetrics: BusinessMetricsService | null = null;
+  private distributedTracing: DistributedTracingService | null = null;
+  private healthCheckRegistry: HealthCheckRegistry | null = null;
+  private webSocketMonitoring: WebSocketMonitoringService | null = null;
+
   constructor() {
     this.config = ConfigLoader.validateAllConfigs();
   }
@@ -27,6 +36,9 @@ export class Application {
    */
   async initialize(): Promise<void> {
     try {
+      // Initialize monitoring services first
+      await this.initializeMonitoring();
+
       // Initialize dependency injection container
       this.container = await containerInitializationService.initialize();
 
@@ -39,6 +51,7 @@ export class Application {
 
       // Setup application components
       await this.setupInfrastructure();
+      await this.setupMonitoringIntegration();
       await this.setupMiddleware();
       await this.setupRoutes();
       await this.setupWebSocket();
@@ -107,6 +120,9 @@ export class Application {
 
       // Close infrastructure connections
       await this.closeInfrastructure();
+
+      // Shutdown monitoring services
+      await this.shutdownMonitoring();
 
       // Shutdown container
       await containerInitializationService.shutdown();
@@ -317,8 +333,281 @@ export class Application {
     }
   }
 
+  private async shutdownMonitoring(): Promise<void> {
+    const logger = this.getLogger();
+
+    try {
+      logger.info('Shutting down monitoring services...');
+
+      // Shutdown distributed tracing
+      if (this.distributedTracing) {
+        await this.distributedTracing.shutdown();
+      }
+
+      // Destroy monitoring services
+      if (this.applicationMonitoring) {
+        this.applicationMonitoring.destroy();
+      }
+
+      if (this.performanceMonitoring) {
+        this.performanceMonitoring.destroy();
+      }
+
+      if (this.businessMetrics) {
+        this.businessMetrics.destroy();
+      }
+
+      if (this.healthCheckRegistry) {
+        this.healthCheckRegistry.destroy();
+      }
+
+      // Close structured logger
+      if (this.structuredLogger) {
+        await this.structuredLogger.close();
+      }
+
+      logger.info('Monitoring services shutdown completed');
+    } catch (error) {
+      logger.error('Error shutting down monitoring services', error as Error);
+    }
+  }
+
+  private async initializeMonitoring(): Promise<void> {
+    console.log('🔧 Initializing monitoring services...');
+
+    // Initialize structured logger
+    this.structuredLogger = new StructuredLogger({
+      service: 'taskmanagement-api',
+      version: this.config.app.version || '1.0.0',
+      environment: this.config.app.nodeEnv,
+      level: this.config.app.logLevel || 'info',
+      enableConsole: true,
+      enableFile: true,
+      logDirectory: './logs',
+    });
+
+    // Initialize distributed tracing
+    this.distributedTracing = new DistributedTracingService(
+      {
+        serviceName: 'taskmanagement-api',
+        serviceVersion: this.config.app.version || '1.0.0',
+        environment: this.config.app.nodeEnv,
+        jaegerEndpoint: process.env.JAEGER_ENDPOINT,
+        enableJaegerExporter: process.env.NODE_ENV !== 'test',
+        enableConsoleExporter: process.env.NODE_ENV === 'development',
+      },
+      this.structuredLogger.getLogger()
+    );
+
+    // Initialize performance monitoring
+    this.performanceMonitoring = new PerformanceMonitoringService(
+      { getLogger: () => this.structuredLogger!.getLogger() } as any,
+      {
+        enabled: true,
+        prefix: 'taskmanagement_api',
+        alertThresholds: {
+          httpResponseTime: 1000,
+          databaseQueryTime: 500,
+          memoryUsage: 0.85,
+          cpuUsage: 0.8,
+          errorRate: 0.05,
+        },
+      }
+    );
+
+    // Initialize business metrics
+    this.businessMetrics = new BusinessMetricsService(
+      { getLogger: () => this.structuredLogger!.getLogger() } as any,
+      {
+        enabled: true,
+        prefix: 'taskmanagement_business',
+      }
+    );
+
+    // Initialize application monitoring
+    this.applicationMonitoring = new ApplicationMonitoringService(
+      { getLogger: () => this.structuredLogger!.getLogger() } as any,
+      this.businessMetrics,
+      this.performanceMonitoring,
+      {
+        enabled: true,
+        applicationName: 'taskmanagement-api',
+        version: this.config.app.version || '1.0.0',
+        environment: this.config.app.nodeEnv,
+        healthCheckInterval: 30000,
+        errorThreshold: 0.05,
+        dependencies: ['database', 'cache', 'external-api'],
+      }
+    );
+
+    // Initialize health check registry
+    this.healthCheckRegistry = new HealthCheckRegistry(
+      {
+        version: this.config.app.version || '1.0.0',
+        environment: this.config.app.nodeEnv,
+        defaultTimeout: 5000,
+      },
+      this.structuredLogger.getLogger()
+    );
+
+    // Initialize WebSocket monitoring
+    this.webSocketMonitoring = new WebSocketMonitoringService(
+      { getLogger: () => this.structuredLogger!.getLogger() } as any,
+      this.applicationMonitoring,
+      this.businessMetrics
+    );
+
+    // Inject monitoring services for decorators
+    injectMonitoringServices({
+      applicationMonitoring: this.applicationMonitoring,
+      performanceMonitoring: this.performanceMonitoring,
+      businessMetrics: this.businessMetrics,
+      logger: this.structuredLogger.getLogger(),
+    });
+
+    console.log('✅ Monitoring services initialized');
+  }
+
+  private async setupMonitoringIntegration(): Promise<void> {
+    if (!this.app || !this.container) return;
+
+    const logger = this.getLogger();
+    logger.info('Setting up monitoring integration...');
+
+    // Register Fastify monitoring plugin
+    if (this.performanceMonitoring && this.applicationMonitoring && this.businessMetrics) {
+      const fastifyMonitoring = new FastifyMonitoringPlugin(
+        { getLogger: () => this.structuredLogger!.getLogger() } as any,
+        this.applicationMonitoring,
+        this.performanceMonitoring,
+        this.businessMetrics
+      );
+
+      await this.app.register(fastifyMonitoring.plugin());
+    }
+
+    // Setup health checks
+    await this.setupHealthChecks();
+
+    // Setup metrics endpoint
+    this.app.get('/metrics', async (request, reply) => {
+      const register = require('prom-client').register;
+      reply.type('text/plain');
+      return register.metrics();
+    });
+
+    // Setup health endpoint
+    this.app.get('/health', async (request, reply) => {
+      if (!this.healthCheckRegistry) {
+        return reply
+          .code(503)
+          .send({ status: 'unhealthy', message: 'Health checks not initialized' });
+      }
+
+      const health = await this.healthCheckRegistry.getSystemHealth();
+      const statusCode =
+        health.status === 'healthy' ? 200 : health.status === 'degraded' ? 200 : 503;
+
+      return reply.code(statusCode).send(health);
+    });
+
+    // Setup readiness endpoint
+    this.app.get('/ready', async (request, reply) => {
+      if (!this.healthCheckRegistry) {
+        return reply
+          .code(503)
+          .send({ status: 'not ready', message: 'Health checks not initialized' });
+      }
+
+      const criticalChecks = this.healthCheckRegistry.getCriticalChecks();
+      const results = await Promise.all(
+        criticalChecks.map((check) => this.healthCheckRegistry!.runSingleCheck(check.name))
+      );
+
+      const allPassing = results.every((result) => result.status === 'pass');
+      const statusCode = allPassing ? 200 : 503;
+
+      return reply.code(statusCode).send({
+        status: allPassing ? 'ready' : 'not ready',
+        checks: results.reduce(
+          (acc, result, index) => {
+            acc[criticalChecks[index].name] = result;
+            return acc;
+          },
+          {} as Record<string, any>
+        ),
+      });
+    });
+
+    logger.info('Monitoring integration setup completed');
+  }
+
+  private async setupHealthChecks(): Promise<void> {
+    if (!this.healthCheckRegistry || !this.container) return;
+
+    const logger = this.getLogger();
+    logger.info('Setting up health checks...');
+
+    // Database health check
+    const dbConnection = this.container.resolve<IDatabaseConnection>(
+      SERVICE_TOKENS.DATABASE_CONNECTION
+    );
+    this.healthCheckRegistry.register(
+      HealthCheckFactory.createDatabaseCheck(
+        'database',
+        async () => {
+          try {
+            // This would be a simple query to check database connectivity
+            await dbConnection.query('SELECT 1');
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        { interval: 30000 }
+      )
+    );
+
+    // Cache health check
+    const cacheService = this.container.resolve<ICacheService>(SERVICE_TOKENS.CACHE_SERVICE);
+    this.healthCheckRegistry.register(
+      HealthCheckFactory.createCacheCheck(
+        'cache',
+        async () => {
+          try {
+            await cacheService.ping();
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        { interval: 30000 }
+      )
+    );
+
+    // Memory health check
+    this.healthCheckRegistry.register(
+      HealthCheckFactory.createMemoryCheck(
+        'memory',
+        { warning: 0.8, critical: 0.9 },
+        { interval: 60000 }
+      )
+    );
+
+    logger.info('Health checks setup completed');
+  }
+
   private getLogger(): LoggingService {
     try {
+      if (this.structuredLogger) {
+        return {
+          info: (message: string, meta?: any) => this.structuredLogger!.info(message, meta),
+          error: (message: string, meta?: any) => this.structuredLogger!.error(message, meta),
+          warn: (message: string, meta?: any) => this.structuredLogger!.warn(message, meta),
+          debug: (message: string, meta?: any) => this.structuredLogger!.debug(message, meta),
+        } as LoggingService;
+      }
+
       if (this.container) {
         return this.container.resolve<LoggingService>(SERVICE_TOKENS.LOGGING_SERVICE);
       }

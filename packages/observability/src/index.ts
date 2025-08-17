@@ -1,29 +1,32 @@
-// Monitoring exports
-export * from './monitoring';
+// Core monitoring services
+export * from './application-monitoring';
+export * from './business-metrics-service';
+export * from './monitoring-decorators';
+export * from './monitoring-middleware';
+export * from './performance-monitoring';
 
-// Metrics exports
-export * from './metrics';
+// Legacy services (maintain compatibility)
+export * from './alerting-service';
+export * from './api-performance-monitor';
+export * from './comprehensive-monitoring';
+export * from './correlation-id-service';
+export * from './distributed-tracing-service';
+export * from './enhanced-monitoring-service';
+export * from './error-tracking';
+export * from './health-check-service';
+export * from './health-service';
+export * from './logging-service';
+export * from './metrics-service';
 
-// Logging exports
+// Sub-modules
+export * from './alerts';
+export * from './apm';
+export * from './dashboards';
+export * from './error-tracking';
+export * from './health-checks';
 export * from './logging';
-
-// Tracing exports
+export * from './metrics';
+export * from './monitoring';
+export * from './profiling';
 export * from './tracing';
 
-// Health checks exports
-export * from './health-checks';
-
-// Alerts exports
-export * from './alerts';
-
-// Dashboards exports
-export * from './dashboards';
-
-// Profiling exports
-export * from './profiling';
-
-// APM exports
-export * from './apm';
-
-// Error tracking exports
-export * from './error-tracking';
