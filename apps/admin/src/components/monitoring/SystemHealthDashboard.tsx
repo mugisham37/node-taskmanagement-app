@@ -1,5 +1,6 @@
 'use client';
 
+import { SystemMetrics } from '@/services/monitoringService';
 import {
   CheckCircleIcon,
   CircleStackIcon,
@@ -99,25 +100,39 @@ const mockServices: ServiceStatus[] = [
 
 export function SystemHealthDashboard() {
   const [metrics, setMetrics] = useState<SystemMetrics>(mockMetrics);
+  const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics | null>(null);
+  const [healthChecks, setHealthChecks] = useState<HealthCheck[]>([]);
   const [services, setServices] = useState<ServiceStatus[]>(mockServices);
   const [isLoading, setIsLoading] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [activeTab, setActiveTab] = useState<'overview' | 'prometheus' | 'grafana' | 'performance' | 'alerts'>('overview');
 
-  // Simulate real-time updates
+  // Real-time data fetching
+  const fetchMonitoringData = async () => {
+    setIsLoading(true);
+    try {
+      const [systemMetrics, perfMetrics, healthData] = await Promise.all([
+        monitoringService.getSystemMetrics(),
+        monitoringService.getPerformanceMetrics(),
+        monitoringService.performHealthChecks(),
+      ]);
+
+      setMetrics(systemMetrics);
+      setPerformanceMetrics(perfMetrics);
+      setHealthChecks(healthData);
+      setLastUpdate(new Date());
+    } catch (error) {
+      console.error('Failed to fetch monitoring data:', error);
+      // Fall back to mock data on error
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Initial load and periodic updates
   useEffect(() => {
-    const interval = setInterval(() => {
-      setMetrics(prev => ({
-        ...prev,
-        cpu: {
-          ...prev.cpu,
-          usage: Math.max(0, Math.min(100, prev.cpu.usage + (Math.random() - 0.5) * 10)),
-        },
-        memory: {
-          ...prev.memory,
-          percentage: Math.max(0, Math.min(100, prev.memory.percentage + (Math.random() - 0.5) * 5)),
-        },
-      }));
-    }, 5000);
-
+    fetchMonitoringData();
+    const interval = setInterval(fetchMonitoringData, 30000); // Update every 30 seconds
     return () => clearInterval(interval);
   }, []);
 
@@ -160,26 +175,78 @@ export function SystemHealthDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Overall Health Status */}
-      <div className={`rounded-lg border-2 p-6 ${getStatusColor(healthStatus)}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            {getStatusIcon(healthStatus)}
-            <div>
-              <h3 className="text-lg font-semibold">System Health</h3>
-              <p className="text-sm opacity-75">
-                Overall system status: {healthStatus.charAt(0).toUpperCase() + healthStatus.slice(1)}
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold">
-              {services.filter(s => s.status === 'healthy').length}/{services.length}
-            </div>
-            <div className="text-sm opacity-75">Services Healthy</div>
-          </div>
+      {/* Header with Controls */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-admin-secondary-900">System Monitoring</h2>
+          <p className="text-sm text-admin-secondary-500">
+            Last updated: {lastUpdate.toLocaleTimeString()}
+          </p>
+        </div>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={fetchMonitoringData}
+            disabled={isLoading}
+            className="inline-flex items-center px-3 py-2 border border-admin-secondary-300 shadow-sm text-sm leading-4 font-medium rounded-md text-admin-secondary-700 bg-white hover:bg-admin-secondary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-admin-primary-500 disabled:opacity-50"
+          >
+            <ArrowPathIcon className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <button className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-admin-primary-600 hover:bg-admin-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-admin-primary-500">
+            <Cog6ToothIcon className="h-4 w-4 mr-2" />
+            Configure
+          </button>
         </div>
       </div>
+
+      {/* Navigation Tabs */}
+      <div className="border-b border-admin-secondary-200">
+        <nav className="-mb-px flex space-x-8">
+          {[
+            { id: 'overview', name: 'Overview' },
+            { id: 'prometheus', name: 'Prometheus' },
+            { id: 'grafana', name: 'Grafana' },
+            { id: 'performance', name: 'Performance' },
+            { id: 'alerts', name: 'Alerts' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === tab.id
+                  ? 'border-admin-primary-500 text-admin-primary-600'
+                  : 'border-transparent text-admin-secondary-500 hover:text-admin-secondary-700 hover:border-admin-secondary-300'
+              }`}
+            >
+              {tab.name}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'overview' && (
+        <>
+          {/* Overall Health Status */}
+          <div className={`rounded-lg border-2 p-6 ${getStatusColor(healthStatus)}`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                {getStatusIcon(healthStatus)}
+                <div>
+                  <h3 className="text-lg font-semibold">System Health</h3>
+                  <p className="text-sm opacity-75">
+                    Overall system status: {healthStatus.charAt(0).toUpperCase() + healthStatus.slice(1)}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold">
+                  {healthChecks.filter(h => h.status === 'UP').length}/{healthChecks.length || services.length}
+                </div>
+                <div className="text-sm opacity-75">Services Healthy</div>
+              </div>
+            </div>
+          </div>
 
       {/* System Metrics Cards */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -331,16 +398,38 @@ export function SystemHealthDashboard() {
         </div>
       </div>
 
-      {/* Recent Alerts */}
-      <div className="bg-white shadow-sm ring-1 ring-admin-secondary-900/5 rounded-lg">
-        <div className="px-6 py-4 border-b border-admin-secondary-200">
-          <h3 className="text-lg font-medium text-admin-secondary-900">Recent Alerts</h3>
-          <p className="text-sm text-admin-secondary-500">Latest system alerts and notifications</p>
-        </div>
-        <div className="p-6">
-          <AlertsList limit={5} />
-        </div>
-      </div>
+          {/* Recent Alerts */}
+          <div className="bg-white shadow-sm ring-1 ring-admin-secondary-900/5 rounded-lg">
+            <div className="px-6 py-4 border-b border-admin-secondary-200">
+              <h3 className="text-lg font-medium text-admin-secondary-900">Recent Alerts</h3>
+              <p className="text-sm text-admin-secondary-500">Latest system alerts and notifications</p>
+            </div>
+            <div className="p-6">
+              <AlertsList limit={5} />
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Prometheus Tab */}
+      {activeTab === 'prometheus' && (
+        <PrometheusMetricsPanel />
+      )}
+
+      {/* Grafana Tab */}
+      {activeTab === 'grafana' && (
+        <GrafanaDashboardEmbed height={600} />
+      )}
+
+      {/* Performance Tab */}
+      {activeTab === 'performance' && (
+        <PerformanceMonitoringPanel />
+      )}
+
+      {/* Alerts Tab */}
+      {activeTab === 'alerts' && (
+        <AlertManagementPanel />
+      )}
     </div>
   );
 }
