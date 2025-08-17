@@ -3,88 +3,69 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 interface UIState {
   theme: 'light' | 'dark' | 'system';
   isOnline: boolean;
-  activeScreen: string;
-  isLoading: boolean;
-  loadingMessage: string;
-  bottomSheetVisible: boolean;
-  modalVisible: boolean;
-  sidebarVisible: boolean;
-  refreshing: boolean;
-  keyboardVisible: boolean;
-  orientation: 'portrait' | 'landscape';
-  safeAreaInsets: {
-    top: number;
-    bottom: number;
-    left: number;
-    right: number;
+  activeTab: string;
+  sidebarOpen: boolean;
+  notifications: {
+    id: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+    message: string;
+    duration?: number;
+  }[];
+  modals: {
+    [key: string]: boolean;
+  };
+  loading: {
+    [key: string]: boolean;
   };
 }
 
 const initialState: UIState = {
   theme: 'system',
   isOnline: true,
-  activeScreen: 'Dashboard',
-  isLoading: false,
-  loadingMessage: '',
-  bottomSheetVisible: false,
-  modalVisible: false,
-  sidebarVisible: false,
-  refreshing: false,
-  keyboardVisible: false,
-  orientation: 'portrait',
-  safeAreaInsets: {
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
+  activeTab: 'dashboard',
+  sidebarOpen: false,
+  notifications: [],
+  modals: {},
+  loading: {},
 };
 
 const uiSlice = createSlice({
   name: 'ui',
   initialState,
   reducers: {
-    setTheme: (state, action: PayloadAction<'light' | 'dark' | 'system'>) => {
+    setTheme: (state, action: PayloadAction<UIState['theme']>) => {
       state.theme = action.payload;
     },
     setOnlineStatus: (state, action: PayloadAction<boolean>) => {
       state.isOnline = action.payload;
     },
-    setActiveScreen: (state, action: PayloadAction<string>) => {
-      state.activeScreen = action.payload;
+    setActiveTab: (state, action: PayloadAction<string>) => {
+      state.activeTab = action.payload;
     },
-    setLoading: (state, action: PayloadAction<{ isLoading: boolean; message?: string }>) => {
-      state.isLoading = action.payload.isLoading;
-      state.loadingMessage = action.payload.message || '';
+    toggleSidebar: (state) => {
+      state.sidebarOpen = !state.sidebarOpen;
     },
-    setBottomSheetVisible: (state, action: PayloadAction<boolean>) => {
-      state.bottomSheetVisible = action.payload;
+    setSidebarOpen: (state, action: PayloadAction<boolean>) => {
+      state.sidebarOpen = action.payload;
     },
-    setModalVisible: (state, action: PayloadAction<boolean>) => {
-      state.modalVisible = action.payload;
+    addNotification: (state, action: PayloadAction<Omit<UIState['notifications'][0], 'id'>>) => {
+      const notification = {
+        ...action.payload,
+        id: `notification-${Date.now()}`,
+      };
+      state.notifications.push(notification);
     },
-    setSidebarVisible: (state, action: PayloadAction<boolean>) => {
-      state.sidebarVisible = action.payload;
+    removeNotification: (state, action: PayloadAction<string>) => {
+      state.notifications = state.notifications.filter(n => n.id !== action.payload);
     },
-    setRefreshing: (state, action: PayloadAction<boolean>) => {
-      state.refreshing = action.payload;
+    clearNotifications: (state) => {
+      state.notifications = [];
     },
-    setKeyboardVisible: (state, action: PayloadAction<boolean>) => {
-      state.keyboardVisible = action.payload;
+    setModalOpen: (state, action: PayloadAction<{ modalId: string; isOpen: boolean }>) => {
+      state.modals[action.payload.modalId] = action.payload.isOpen;
     },
-    setOrientation: (state, action: PayloadAction<'portrait' | 'landscape'>) => {
-      state.orientation = action.payload;
-    },
-    setSafeAreaInsets: (
-      state,
-      action: PayloadAction<{
-        top: number;
-        bottom: number;
-        left: number;
-        right: number;
-      }>
-    ) => {
-      state.safeAreaInsets = action.payload;
+    setLoading: (state, action: PayloadAction<{ key: string; isLoading: boolean }>) => {
+      state.loading[action.payload.key] = action.payload.isLoading;
     },
   },
 });
@@ -92,15 +73,14 @@ const uiSlice = createSlice({
 export const {
   setTheme,
   setOnlineStatus,
-  setActiveScreen,
+  setActiveTab,
+  toggleSidebar,
+  setSidebarOpen,
+  addNotification,
+  removeNotification,
+  clearNotifications,
+  setModalOpen,
   setLoading,
-  setBottomSheetVisible,
-  setModalVisible,
-  setSidebarVisible,
-  setRefreshing,
-  setKeyboardVisible,
-  setOrientation,
-  setSafeAreaInsets,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

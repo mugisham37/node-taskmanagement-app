@@ -106,3 +106,7 @@ export const isIOS = (): boolean => {
 export const isAndroid = (): boolean => {
   return require('react-native').Platform.OS === 'android';
 };
+// 
+Export mobile-specific utilities
+export * from './accessibility';
+export * from './platform';

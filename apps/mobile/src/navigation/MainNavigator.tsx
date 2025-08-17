@@ -3,15 +3,15 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 
-import { DashboardScreen } from '@screens/dashboard/DashboardScreen';
-import { NotificationsScreen } from '@screens/notifications/NotificationsScreen';
-import { ProfileScreen } from '@screens/profile/ProfileScreen';
-import { SettingsScreen } from '@screens/settings/SettingsScreen';
+import { DashboardScreen } from '../screens/dashboard/DashboardScreen';
+import { NotificationsScreen } from '../screens/notifications/NotificationsScreen';
+import { ProfileScreen } from '../screens/profile/ProfileScreen';
+import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { ProjectsNavigator } from './ProjectsNavigator';
 import { TasksNavigator } from './TasksNavigator';
 
-import { useAppSelector } from '@store/hooks';
-import { colors } from '@styles/colors';
+import { useAppSelector } from '../store/hooks';
+import { colors } from '../styles/colors';
 
 export type MainTabParamList = {
   Dashboard: undefined;

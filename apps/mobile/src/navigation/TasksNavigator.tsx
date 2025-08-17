@@ -5,13 +5,9 @@ import { TaskCreateScreen } from '@screens/tasks/TaskCreateScreen';
 import { TaskDetailScreen } from '@screens/tasks/TaskDetailScreen';
 import { TaskEditScreen } from '@screens/tasks/TaskEditScreen';
 import { TasksListScreen } from '@screens/tasks/TasksListScreen';
-
-export type TasksStackParamList = {
-  TasksList: undefined;
-  TaskDetail: { taskId: string };
-  TaskCreate: { projectId?: string };
-  TaskEdit: { taskId: string };
-};
+import { HeaderButton } from '../components/navigation/HeaderButton';
+import { colors } from '../styles/colors';
+import { TasksStackParamList } from '../types/navigation';
 
 const Stack = createNativeStackNavigator<TasksStackParamList>();
 
@@ -21,17 +17,46 @@ export const TasksNavigator: React.FC = () => {
       screenOptions={{
         headerBackTitleVisible: false,
         gestureEnabled: true,
+        headerStyle: {
+          backgroundColor: colors.surface,
+        },
+        headerTintColor: colors.text,
+        headerTitleStyle: {
+          fontWeight: '600',
+        },
       }}
     >
       <Stack.Screen 
-        name="TasksList" 
+        name="TaskList" 
         component={TasksListScreen}
-        options={{ title: 'Tasks' }}
+        options={({ navigation }) => ({
+          title: 'Tasks',
+          headerLeft: () => (
+            <HeaderButton
+              icon="menu"
+              onPress={() => navigation.openDrawer()}
+            />
+          ),
+          headerRight: () => (
+            <HeaderButton
+              icon="add"
+              onPress={() => navigation.navigate('TaskCreate')}
+            />
+          ),
+        })}
       />
       <Stack.Screen 
         name="TaskDetail" 
         component={TaskDetailScreen}
-        options={{ title: 'Task Details' }}
+        options={({ route, navigation }) => ({
+          title: 'Task Details',
+          headerRight: () => (
+            <HeaderButton
+              icon="create-outline"
+              onPress={() => navigation.navigate('TaskEdit', { taskId: route.params.taskId })}
+            />
+          ),
+        })}
       />
       <Stack.Screen 
         name="TaskCreate" 
@@ -39,6 +64,7 @@ export const TasksNavigator: React.FC = () => {
         options={{ 
           title: 'Create Task',
           presentation: 'modal',
+          headerLeft: () => null,
         }}
       />
       <Stack.Screen 
@@ -47,6 +73,7 @@ export const TasksNavigator: React.FC = () => {
         options={{ 
           title: 'Edit Task',
           presentation: 'modal',
+          headerLeft: () => null,
         }}
       />
     </Stack.Navigator>

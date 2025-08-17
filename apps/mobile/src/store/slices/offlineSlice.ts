@@ -6,7 +6,6 @@ interface OfflineAction {
   payload: any;
   timestamp: number;
   retryCount: number;
-  maxRetries: number;
 }
 
 interface OfflineState {
@@ -14,7 +13,6 @@ interface OfflineState {
   queue: OfflineAction[];
   syncing: boolean;
   lastSyncTime: number | null;
-  syncErrors: string[];
 }
 
 const initialState: OfflineState = {
@@ -22,7 +20,6 @@ const initialState: OfflineState = {
   queue: [],
   syncing: false,
   lastSyncTime: null,
-  syncErrors: [],
 };
 
 const offlineSlice = createSlice({
@@ -33,37 +30,31 @@ const offlineSlice = createSlice({
       state.isOnline = action.payload;
     },
     addToQueue: (state, action: PayloadAction<Omit<OfflineAction, 'id' | 'timestamp' | 'retryCount'>>) => {
-      const offlineAction: OfflineAction = {
+      const queueItem: OfflineAction = {
         ...action.payload,
-        id: `${Date.now()}-${Math.random()}`,
+        id: `offline-${Date.now()}-${Math.random()}`,
         timestamp: Date.now(),
         retryCount: 0,
       };
-      state.queue.push(offlineAction);
+      state.queue.push(queueItem);
     },
     removeFromQueue: (state, action: PayloadAction<string>) => {
-      state.queue = state.queue.filter(action => action.id !== action.payload);
+      state.queue = state.queue.filter(item => item.id !== action.payload);
     },
     incrementRetryCount: (state, action: PayloadAction<string>) => {
-      const actionItem = state.queue.find(item => item.id === action.payload);
-      if (actionItem) {
-        actionItem.retryCount += 1;
+      const item = state.queue.find(item => item.id === action.payload);
+      if (item) {
+        item.retryCount += 1;
       }
+    },
+    clearQueue: (state) => {
+      state.queue = [];
     },
     setSyncing: (state, action: PayloadAction<boolean>) => {
       state.syncing = action.payload;
     },
-    setSyncTime: (state, action: PayloadAction<number>) => {
+    setLastSyncTime: (state, action: PayloadAction<number>) => {
       state.lastSyncTime = action.payload;
-    },
-    addSyncError: (state, action: PayloadAction<string>) => {
-      state.syncErrors.push(action.payload);
-    },
-    clearSyncErrors: (state) => {
-      state.syncErrors = [];
-    },
-    clearQueue: (state) => {
-      state.queue = [];
     },
   },
 });
@@ -73,11 +64,9 @@ export const {
   addToQueue,
   removeFromQueue,
   incrementRetryCount,
-  setSyncing,
-  setSyncTime,
-  addSyncError,
-  clearSyncErrors,
   clearQueue,
+  setSyncing,
+  setLastSyncTime,
 } = offlineSlice.actions;
 
 export default offlineSlice.reducer;

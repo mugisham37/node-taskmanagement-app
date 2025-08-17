@@ -26,6 +26,9 @@ export default function App() {
   useEffect(() => {
     async function prepare() {
       try {
+        // Initialize mobile services first
+        await initializeMobileServices();
+
         // Pre-load fonts, make any API calls you need to do here
         await Font.loadAsync({
           // Add custom fonts here if needed
@@ -35,11 +38,9 @@ export default function App() {
           'Inter-Bold': require('./src/assets/fonts/Inter-Bold.ttf'),
         });
 
-        // Artificially delay for two seconds to simulate a slow loading
-        // experience. Please remove this if you copy and paste the code!
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log('Mobile app initialization completed successfully');
       } catch (e) {
-        console.warn(e);
+        console.warn('App initialization error:', e);
       } finally {
         // Tell the application to render
         setIsReady(true);
@@ -47,6 +48,11 @@ export default function App() {
     }
 
     prepare();
+
+    // Cleanup services when app is unmounted
+    return () => {
+      cleanupMobileServices().catch(console.error);
+    };
   }, []);
 
   const onLayoutRootView = React.useCallback(async () => {

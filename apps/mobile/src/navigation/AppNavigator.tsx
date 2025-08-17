@@ -2,10 +2,11 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 
-import { LoadingScreen } from '@components/common/LoadingScreen';
-import { useAppSelector } from '@store/hooks';
+import { LoadingScreen } from '../components/common/LoadingScreen';
+import { useAppSelector } from '../store/hooks';
 import { AuthNavigator } from './AuthNavigator';
 import { MainNavigator } from './MainNavigator';
+import { linking } from './linking';
 
 const Stack = createNativeStackNavigator();
 
@@ -17,7 +18,7 @@ export const AppNavigator: React.FC = () => {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isAuthenticated ? (
           <Stack.Screen name="Main" component={MainNavigator} />
