@@ -44,8 +44,9 @@ The monitoring stack includes:
 - Docker and Docker Compose
 - PowerShell (Windows) or Bash (Linux/macOS)
 - At least 4GB RAM available for monitoring stack
+- Network access to pull Docker images
 
-### Setup
+### Automated Setup
 
 1. **Run the setup script:**
 
@@ -59,14 +60,29 @@ The monitoring stack includes:
    ./monitoring/scripts/setup-monitoring.sh
    ```
 
-2. **Configure environment variables:**
-   
-   Update the database connection string in `docker-compose.yml`:
-   ```yaml
-   postgres-exporter:
-     environment:
-       - DATA_SOURCE_NAME=postgresql://your_user:your_password@your_host:5432/taskmanagement?sslmode=disable
+   The setup script will:
+   - Check prerequisites
+   - Create environment configuration
+   - Set up directories and permissions
+   - Pull required Docker images
+   - Start the monitoring stack
+   - Verify service health
+
+### Manual Setup
+
+If you prefer manual setup:
+
+1. **Copy environment configuration:**
+   ```bash
+   cp monitoring/.env.example monitoring/.env
    ```
+
+2. **Update environment variables:**
+   Edit `monitoring/.env` with your specific configuration:
+   - SMTP settings for email alerts
+   - Slack webhook URLs for notifications
+   - PagerDuty routing keys
+   - Database credentials
 
 3. **Start the monitoring stack:**
    ```bash
