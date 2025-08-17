@@ -42,7 +42,7 @@ jobs:
         environment: [production, staging]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
@@ -125,7 +125,7 @@ jobs:
         environment: [production, staging]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup AWS CLI
         uses: aws-actions/configure-aws-credentials@v4
@@ -175,7 +175,7 @@ jobs:
         environment: [production, staging]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
@@ -228,7 +228,7 @@ jobs:
     needs: [database-backup, file-storage-backup, configuration-backup]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup test environment
         run: |
@@ -308,7 +308,7 @@ jobs:
     if: github.event.inputs.restore_point != ''
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
