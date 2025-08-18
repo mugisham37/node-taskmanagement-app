@@ -1,15 +1,16 @@
-import { BackupInfo } from '../types/migration.types';
-import * as fs from 'fs/promises';
+import { createHash } from 'crypto';
+import { promises as fs } from 'fs';
 import * as path from 'path';
-import * as crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
+import { BackupInfo } from '../types/migration.types';
+
+// Type declaration for Node.js globals
+declare const process: {
+  cwd: () => string;
+};
 
 export class BackupService {
-  private readonly backupBasePath = path.join(
-    process.cwd(),
-    '.migration',
-    'backups'
-  );
+  private readonly backupBasePath = path.join(process.cwd(), '.migration', 'backups');
 
   async createBackup(targetPath: string): Promise<BackupInfo> {
     const backupId = uuidv4();
@@ -29,10 +30,7 @@ export class BackupService {
 
       // Calculate checksum
       const content = await fs.readFile(backupPath);
-      const checksum = crypto
-        .createHash('sha256')
-        .update(content)
-        .digest('hex');
+      const checksum = createHash('sha256').update(content).digest('hex');
 
       const backupInfo: BackupInfo = {
         backupId,
@@ -43,10 +41,7 @@ export class BackupService {
       };
 
       // Save backup metadata
-      const metadataPath = path.join(
-        this.backupBasePath,
-        `${backupId}.metadata.json`
-      );
+      const metadataPath = path.join(this.backupBasePath, `${backupId}.metadata.json`);
       await fs.writeFile(metadataPath, JSON.stringify(backupInfo, null, 2));
 
       return backupInfo;
@@ -60,10 +55,7 @@ export class BackupService {
         checksum: '',
       };
 
-      const metadataPath = path.join(
-        this.backupBasePath,
-        `${backupId}.metadata.json`
-      );
+      const metadataPath = path.join(this.backupBasePath, `${backupId}.metadata.json`);
       await fs.writeFile(metadataPath, JSON.stringify(backupInfo, null, 2));
 
       return backupInfo;
@@ -84,9 +76,7 @@ export class BackupService {
     // Verify backup integrity
     const isValid = await this.validateBackup(backupInfo);
     if (!isValid) {
-      throw new Error(
-        `Backup integrity check failed for ${backupInfo.backupId}`
-      );
+      throw new Error(`Backup integrity check failed for ${backupInfo.backupId}`);
     }
 
     // Restore file
@@ -100,10 +90,7 @@ export class BackupService {
 
     try {
       const content = await fs.readFile(backupInfo.backupPath);
-      const checksum = crypto
-        .createHash('sha256')
-        .update(content)
-        .digest('hex');
+      const checksum = createHash('sha256').update(content).digest('hex');
       return checksum === backupInfo.checksum;
     } catch (error) {
       return false;
@@ -120,7 +107,7 @@ export class BackupService {
       for (const file of files) {
         if (file.endsWith('.metadata.json')) {
           const metadataPath = path.join(this.backupBasePath, file);
-          const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf-8'));
+          const metadata = JSON.parse((await fs.readFile(metadataPath, 'utf-8')) as string);
           const backupDate = new Date(metadata.timestamp);
 
           if (backupDate < cutoffDate) {
@@ -150,7 +137,7 @@ export class BackupService {
       for (const file of files) {
         if (file.endsWith('.metadata.json')) {
           const metadataPath = path.join(this.backupBasePath, file);
-          const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf-8'));
+          const metadata = JSON.parse((await fs.readFile(metadataPath, 'utf-8')) as string);
           backups.push(metadata);
         }
       }
@@ -159,8 +146,7 @@ export class BackupService {
     }
 
     return backups.sort(
-      (a, b) =>
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
   }
 
@@ -168,4 +154,3 @@ export class BackupService {
     return filePath.replace(/[^a-zA-Z0-9.-]/g, '_');
   }
 }
-

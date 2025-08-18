@@ -1,20 +1,38 @@
 #!/usr/bin/env node
 
-import { MigrationTrackerService } from '../services/migration-tracker.service';
-import { FileAnalysisService } from '../services/file-analysis.service';
-import { CurrentSystemMapperService } from '../services/current-system-mapper.service';
+import { createInterface, Interface } from 'readline';
 import { BackupService } from '../services/backup.service';
-import * as readline from 'readline';
+import { CurrentSystemMapperService } from '../services/current-system-mapper.service';
+import { FileAnalysisService } from '../services/file-analysis.service';
+import { MigrationTrackerService } from '../services/migration-tracker.service';
+
+// Type declarations for Node.js globals
+declare const process: {
+  stdin: any;
+  stdout: any;
+  argv: string[];
+  exit: (code?: number) => never;
+  on: (event: string, listener: (...args: any[]) => void) => void;
+};
+
+declare const require: {
+  (id: string): any;
+  main?: any;
+};
+
+declare const module: {
+  require: typeof require;
+};
 
 class MigrationCLI {
   private migrationTracker: MigrationTrackerService;
   private fileAnalysis: FileAnalysisService;
   private systemMapper: CurrentSystemMapperService;
   private backupService: BackupService;
-  private rl: readline.Interface;
+  private rl: Interface;
 
   constructor() {
-    this.rl = readline.createInterface({
+    this.rl = createInterface({
       input: process.stdin,
       output: process.stdout,
     });
@@ -82,7 +100,7 @@ class MigrationCLI {
       case '8':
         console.log('👋 Goodbye!');
         process.exit(0);
-        break;
+        // No break needed after process.exit(0)
       default:
         console.log('❌ Invalid option. Please try again.');
     }

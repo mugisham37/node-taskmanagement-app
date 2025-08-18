@@ -1,7 +1,12 @@
-import { DIContainer } from '../shared/container';
-import { FastifyInstance } from 'fastify';
+import { DIContainer } from '../../shared/container';
 import { MigrationController } from './fastify-migration.controller';
 import { setupMigrationRoutes } from './migration-routes';
+
+// Type definitions for Fastify (since fastify module may not be available)
+interface FastifyInstance {
+  get: (path: string, handler: (request: any, reply: any) => Promise<any>) => void;
+  post: (path: string, handler: (request: any, reply: any) => Promise<any>) => void;
+}
 
 /**
  * Migration Module
@@ -20,7 +25,7 @@ export class MigrationModule {
   async register(app: FastifyInstance): Promise<void> {
     // Register controller routes
     await this.migrationController.registerRoutes(app);
-    
+
     // Register additional migration routes
     await setupMigrationRoutes(app, this.container);
   }
@@ -51,4 +56,3 @@ export async function setupMigrationModule(
   await migrationModule.register(app);
   return migrationModule;
 }
-

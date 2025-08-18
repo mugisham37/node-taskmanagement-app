@@ -4,9 +4,14 @@ import {
   LoggingService,
   MetricsService,
 } from '@taskmanagement/observability';
-import { FastifyInstance } from 'fastify';
-import { DIContainer } from '../shared/container';
+import { DIContainer } from '../../shared/container';
 import { setupMigrationModule } from '../migration/migration.module';
+
+// Type definitions for Fastify
+interface FastifyInstance {
+  get: (path: string, handler: (request: any, reply: any) => Promise<any>) => void;
+  post: (path: string, handler: (request: any, reply: any) => Promise<any>) => void;
+}
 
 /**
  * Integration example showing how to use the fixed migration and alerting services
@@ -38,7 +43,7 @@ export async function setupInfrastructureIntegration(
   container.registerInstance('AlertingService', alertingService);
 
   // Setup alerting endpoints
-  app.get('/api/monitoring/alerts', async (_, reply) => {
+  app.get('/api/monitoring/alerts', async (_: any, reply: any) => {
     try {
       const alerts = alertingService.getActiveAlerts();
       return {
@@ -54,7 +59,7 @@ export async function setupInfrastructureIntegration(
     }
   });
 
-  app.post('/api/monitoring/alerts/:alertId/acknowledge', async (request, reply) => {
+  app.post('/api/monitoring/alerts/:alertId/acknowledge', async (request: any, reply: any) => {
     try {
       const { alertId } = request.params as { alertId: string };
       const { acknowledgedBy } = request.body as { acknowledgedBy: string };
@@ -81,7 +86,7 @@ export async function setupInfrastructureIntegration(
     }
   });
 
-  app.post('/api/monitoring/alerts/:alertId/resolve', async (request, reply) => {
+  app.post('/api/monitoring/alerts/:alertId/resolve', async (request: any, reply: any) => {
     try {
       const { alertId } = request.params as { alertId: string };
       const { resolvedBy } = request.body as { resolvedBy?: string };
@@ -130,7 +135,7 @@ export async function setupInfrastructureIntegration(
   });
 
   // Setup health check endpoint
-  app.get('/api/health', async (_, reply) => {
+  app.get('/api/health', async (_: any, reply: any) => {
     try {
       const alertingStats = {
         activeAlerts: alertingService.getActiveAlerts().length,

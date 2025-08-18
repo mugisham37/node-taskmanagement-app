@@ -1,28 +1,31 @@
-import { FastifyInstance } from 'fastify';
-import { DIContainer } from '../shared/container';
+import { DIContainer } from '../../shared/container';
 import { MIGRATION_SERVICE_TOKENS } from './migration-service-registration';
-import { MigrationTrackerService } from './services/migration-tracker.service';
 import { BackupService } from './services/backup.service';
-import { ErrorRecoveryService } from './services/error-recovery.service';
-import { VerificationService } from './services/verification.service';
-import { FileAnalysisService } from './services/file-analysis.service';
 import { CurrentSystemMapperService } from './services/current-system-mapper.service';
+import { ErrorRecoveryService } from './services/error-recovery.service';
+import { FileAnalysisService } from './services/file-analysis.service';
+import { MigrationTrackerService } from './services/migration-tracker.service';
+import { VerificationService } from './services/verification.service';
+
+// Type definitions for Fastify
+interface FastifyInstance {
+  get: (path: string, handler: (request: any, reply: any) => Promise<any>) => void;
+  post: (path: string, handler: (request: any, reply: any) => Promise<any>) => void;
+}
 
 /**
  * Migration Controller using Fastify instead of NestJS
  * Provides API endpoints for migration functionality
  */
 export class MigrationController {
-  constructor(
-    private readonly container: DIContainer
-  ) {}
+  constructor(private readonly container: DIContainer) {}
 
   /**
    * Register all migration routes with Fastify instance
    */
   async registerRoutes(app: FastifyInstance): Promise<void> {
     // Initialize migration session
-    app.post('/api/migration/initialize', async (_, reply) => {
+    app.post('/api/migration/initialize', async (_: any, reply: any) => {
       try {
         const migrationTracker = this.container.resolve<MigrationTrackerService>(
           MIGRATION_SERVICE_TOKENS.MIGRATION_TRACKER
@@ -45,7 +48,7 @@ export class MigrationController {
     });
 
     // Get migration status
-    app.get('/api/migration/status', async (_, reply) => {
+    app.get('/api/migration/status', async (_: any, reply: any) => {
       try {
         const migrationTracker = this.container.resolve<MigrationTrackerService>(
           MIGRATION_SERVICE_TOKENS.MIGRATION_TRACKER
@@ -82,7 +85,7 @@ export class MigrationController {
     });
 
     // Generate migration report
-    app.get('/api/migration/report', async (_, reply) => {
+    app.get('/api/migration/report', async (_: any, reply: any) => {
       try {
         const migrationTracker = this.container.resolve<MigrationTrackerService>(
           MIGRATION_SERVICE_TOKENS.MIGRATION_TRACKER
@@ -103,7 +106,7 @@ export class MigrationController {
     });
 
     // Get system structure
-    app.get('/api/migration/system-structure', async (_, reply) => {
+    app.get('/api/migration/system-structure', async (_: any, reply: any) => {
       try {
         const systemMapper = this.container.resolve<CurrentSystemMapperService>(
           MIGRATION_SERVICE_TOKENS.SYSTEM_MAPPER
@@ -124,7 +127,7 @@ export class MigrationController {
     });
 
     // Analyze file
-    app.post('/api/migration/analyze-file', async (request, reply) => {
+    app.post('/api/migration/analyze-file', async (request: any, reply: any) => {
       try {
         const { filePath } = request.body as { filePath: string };
 
@@ -160,7 +163,7 @@ export class MigrationController {
     });
 
     // Find equivalent functionality
-    app.post('/api/migration/find-equivalent', async (request, reply) => {
+    app.post('/api/migration/find-equivalent', async (request: any, reply: any) => {
       try {
         const { functionality } = request.body as { functionality: any };
 
@@ -193,7 +196,7 @@ export class MigrationController {
     });
 
     // Verify integration
-    app.post('/api/migration/verify-integration', async (request, reply) => {
+    app.post('/api/migration/verify-integration', async (request: any, reply: any) => {
       try {
         const { component, integrationPoints } = request.body as {
           component: string;
@@ -226,7 +229,7 @@ export class MigrationController {
     });
 
     // List backups
-    app.get('/api/migration/backups', async (_, reply) => {
+    app.get('/api/migration/backups', async (_: any, reply: any) => {
       try {
         const backupService = this.container.resolve<BackupService>(
           MIGRATION_SERVICE_TOKENS.BACKUP_SERVICE
@@ -247,7 +250,7 @@ export class MigrationController {
     });
 
     // Create backup
-    app.post('/api/migration/backup/:filePath', async (request, reply) => {
+    app.post('/api/migration/backup/:filePath', async (request: any, reply: any) => {
       try {
         const { filePath } = request.params as { filePath: string };
 
@@ -270,7 +273,7 @@ export class MigrationController {
     });
 
     // Get error summary
-    app.get('/api/migration/errors', async (_, reply) => {
+    app.get('/api/migration/errors', async (_: any, reply: any) => {
       try {
         const errorRecovery = this.container.resolve<ErrorRecoveryService>(
           MIGRATION_SERVICE_TOKENS.ERROR_RECOVERY
@@ -291,7 +294,7 @@ export class MigrationController {
     });
 
     // Complete migration
-    app.post('/api/migration/complete', async (_, reply) => {
+    app.post('/api/migration/complete', async (_: any, reply: any) => {
       try {
         const migrationTracker = this.container.resolve<MigrationTrackerService>(
           MIGRATION_SERVICE_TOKENS.MIGRATION_TRACKER
@@ -312,7 +315,7 @@ export class MigrationController {
     });
 
     // Cleanup backups
-    app.post('/api/migration/cleanup-backups', async (request, reply) => {
+    app.post('/api/migration/cleanup-backups', async (request: any, reply: any) => {
       try {
         const { olderThanDays } = request.body as { olderThanDays?: number };
 
@@ -335,9 +338,12 @@ export class MigrationController {
     });
 
     // Recovery endpoints
-    app.post('/api/migration/recover-from-error', async (request, reply) => {
+    app.post('/api/migration/recover-from-error', async (request: any, reply: any) => {
       try {
-        const { errorId, migrationError } = request.body as { errorId: string; migrationError?: any };
+        const { errorId, migrationError } = request.body as {
+          errorId: string;
+          migrationError?: any;
+        };
 
         if (!errorId) {
           return reply.status(400).send({
@@ -374,4 +380,3 @@ export class MigrationController {
     });
   }
 }
-

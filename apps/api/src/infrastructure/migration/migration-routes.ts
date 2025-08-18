@@ -1,12 +1,17 @@
-import { FastifyInstance } from 'fastify';
-import { DIContainer } from '../shared/container';
+import { DIContainer } from '../../shared/container';
 import { MIGRATION_SERVICE_TOKENS } from './migration-service-registration';
-import { MigrationTrackerService } from './services/migration-tracker.service';
 import { BackupService } from './services/backup.service';
-import { ErrorRecoveryService } from './services/error-recovery.service';
-import { VerificationService } from './services/verification.service';
-import { FileAnalysisService } from './services/file-analysis.service';
 import { CurrentSystemMapperService } from './services/current-system-mapper.service';
+import { ErrorRecoveryService } from './services/error-recovery.service';
+import { FileAnalysisService } from './services/file-analysis.service';
+import { MigrationTrackerService } from './services/migration-tracker.service';
+import { VerificationService } from './services/verification.service';
+
+// Type definitions for Fastify
+interface FastifyInstance {
+  get: (path: string, handler: (request: any, reply: any) => Promise<any>) => void;
+  post: (path: string, handler: (request: any, reply: any) => Promise<any>) => void;
+}
 
 /**
  * Setup migration routes
@@ -16,7 +21,7 @@ export async function setupMigrationRoutes(
   container: DIContainer
 ): Promise<void> {
   // Initialize migration session
-  app.post('/migration/initialize', async (_, reply) => {
+  app.post('/migration/initialize', async (_: any, reply: any) => {
     try {
       const migrationTracker = container.resolve<MigrationTrackerService>(
         MIGRATION_SERVICE_TOKENS.MIGRATION_TRACKER
@@ -172,10 +177,8 @@ export async function setupMigrationRoutes(
         MIGRATION_SERVICE_TOKENS.SYSTEM_MAPPER
       );
 
-      const equivalent =
-        await systemMapper.findEquivalentFunctionality(functionality);
-      const integrationPoints =
-        await systemMapper.identifyIntegrationPoints(functionality);
+      const equivalent = await systemMapper.findEquivalentFunctionality(functionality);
+      const integrationPoints = await systemMapper.identifyIntegrationPoints(functionality);
 
       return {
         success: true,
@@ -210,10 +213,7 @@ export async function setupMigrationRoutes(
         MIGRATION_SERVICE_TOKENS.VERIFICATION_SERVICE
       );
 
-      const result = await verification.verifyIntegration(
-        component,
-        integrationPoints
-      );
+      const result = await verification.verifyIntegration(component, integrationPoints);
 
       return {
         success: true,
@@ -342,4 +342,3 @@ export async function setupMigrationRoutes(
     }
   });
 }
-

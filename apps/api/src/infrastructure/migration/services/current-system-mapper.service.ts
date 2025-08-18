@@ -1,9 +1,11 @@
-import {
-  ExtractedFunctionality,
-  IntegrationPoint,
-} from '../types/migration.types';
-import * as fs from 'fs/promises';
+import { promises as fs } from 'fs';
 import * as path from 'path';
+import { ExtractedFunctionality, IntegrationPoint } from '../types/migration.types';
+
+// Type declarations for Node.js globals
+declare const process: {
+  cwd: () => string;
+};
 
 export interface SystemStructure {
   directories: DirectoryInfo[];
@@ -15,13 +17,7 @@ export interface SystemStructure {
 export interface DirectoryInfo {
   path: string;
   name: string;
-  layer:
-    | 'domain'
-    | 'application'
-    | 'infrastructure'
-    | 'presentation'
-    | 'shared'
-    | 'other';
+  layer: 'domain' | 'application' | 'infrastructure' | 'presentation' | 'shared' | 'other';
   fileCount: number;
   subdirectories: string[];
 }
@@ -55,11 +51,7 @@ export interface ExistingFunctionality {
 export interface QualityComparison {
   existing: ExistingFunctionality;
   new: ExtractedFunctionality;
-  recommendation:
-    | 'keep_existing'
-    | 'replace_with_new'
-    | 'merge_both'
-    | 'enhance_existing';
+  recommendation: 'keep_existing' | 'replace_with_new' | 'merge_both' | 'enhance_existing';
   reasons: string[];
 }
 
@@ -125,7 +117,7 @@ export class CurrentSystemMapperService {
 
     // Search by functionality type and location
     const expectedLayer = this.determineExpectedLayer(functionality);
-    const layerFiles = structure.files.filter(f => f.layer === expectedLayer);
+    const layerFiles = structure.files.filter((f) => f.layer === expectedLayer);
 
     for (const file of layerFiles) {
       const existing = await this.analyzeExistingFile(file);
@@ -153,9 +145,7 @@ export class CurrentSystemMapperService {
     // Determine integration points based on functionality type and dependencies
     switch (functionality.type) {
       case 'class':
-        integrationPoints.push(
-          ...(await this.identifyClassIntegrations(functionality, structure))
-        );
+        integrationPoints.push(...(await this.identifyClassIntegrations(functionality, structure)));
         break;
       case 'function':
         integrationPoints.push(
@@ -164,10 +154,7 @@ export class CurrentSystemMapperService {
         break;
       case 'interface':
         integrationPoints.push(
-          ...(await this.identifyInterfaceIntegrations(
-            functionality,
-            structure
-          ))
+          ...(await this.identifyInterfaceIntegrations(functionality, structure))
         );
         break;
       case 'configuration':
@@ -179,10 +166,7 @@ export class CurrentSystemMapperService {
 
     // Add dependency-based integration points
     for (const dependency of functionality.dependencies) {
-      const depIntegration = await this.findDependencyIntegration(
-        dependency,
-        structure
-      );
+      const depIntegration = await this.findDependencyIntegration(dependency, structure);
       if (depIntegration) {
         integrationPoints.push(depIntegration);
       }
@@ -207,15 +191,13 @@ export class CurrentSystemMapperService {
     // Compare capabilities
     const newCapabilities = this.estimateCapabilities(newFunc);
     const missingCapabilities = newCapabilities.filter(
-      cap => !existing.capabilities.includes(cap)
+      (cap) => !existing.capabilities.includes(cap)
     );
 
     if (missingCapabilities.length > 0) {
       if (existing.quality === 'excellent') {
         recommendation = 'enhance_existing';
-        reasons.push(
-          `Add missing capabilities: ${missingCapabilities.join(', ')}`
-        );
+        reasons.push(`Add missing capabilities: ${missingCapabilities.join(', ')}`);
       } else {
         recommendation = 'merge_both';
         reasons.push(`Merge to combine capabilities`);
@@ -239,9 +221,7 @@ export class CurrentSystemMapperService {
 
     if (expectedLayer !== currentLayer) {
       recommendation = 'replace_with_new';
-      reasons.push(
-        `Move from ${currentLayer} to ${expectedLayer} layer for better architecture`
-      );
+      reasons.push(`Move from ${currentLayer} to ${expectedLayer} layer for better architecture`);
     }
 
     return {
@@ -258,16 +238,13 @@ export class CurrentSystemMapperService {
     files: FileInfo[]
   ): Promise<void> {
     try {
-      const entries = await fs.readdir(dirPath, { withFileTypes: true });
-      const relativePath = path.relative(
-        path.join(process.cwd(), 'src'),
-        dirPath
-      );
+      const entries = (await fs.readdir(dirPath, { withFileTypes: true })) as any[];
+      const relativePath = path.relative(path.join(process.cwd(), 'src'), dirPath);
 
       if (relativePath) {
         // Don't include root src directory
-        const subdirs = entries.filter(e => e.isDirectory()).map(e => e.name);
-        const fileCount = entries.filter(e => e.isFile()).length;
+        const subdirs = entries.filter((e: any) => e.isDirectory()).map((e: any) => e.name);
+        const fileCount = entries.filter((e: any) => e.isFile()).length;
 
         directories.push({
           path: relativePath,
@@ -279,24 +256,21 @@ export class CurrentSystemMapperService {
       }
 
       for (const entry of entries) {
-        const fullPath = path.join(dirPath, entry.name);
+        const fullPath = path.join(dirPath, (entry as any).name);
 
-        if (entry.isDirectory()) {
+        if ((entry as any).isDirectory()) {
           await this.scanDirectory(fullPath, directories, files);
         } else {
           const stats = await fs.stat(fullPath);
-          const relativeFilePath = path.relative(
-            path.join(process.cwd(), 'src'),
-            fullPath
-          );
+          const relativeFilePath = path.relative(path.join(process.cwd(), 'src'), fullPath);
 
           files.push({
             path: relativeFilePath,
-            name: entry.name,
-            extension: path.extname(entry.name),
+            name: (entry as any).name,
+            extension: path.extname((entry as any).name),
             size: stats.size,
             layer: this.determineLayer(path.dirname(relativeFilePath)),
-            type: this.determineFileType(entry.name),
+            type: this.determineFileType((entry as any).name),
           });
         }
       }
@@ -325,16 +299,14 @@ export class CurrentSystemMapperService {
     if (nameLower.includes('entity')) return 'entity';
     if (nameLower.includes('repository')) return 'repository';
     if (nameLower.includes('dto')) return 'dto';
-    if (nameLower.includes('interface') || nameLower.endsWith('.interface.ts'))
-      return 'interface';
+    if (nameLower.includes('interface') || nameLower.endsWith('.interface.ts')) return 'interface';
     if (nameLower.includes('config')) return 'config';
 
     return 'other';
   }
 
   private isNameSimilar(name1: string, name2: string): boolean {
-    const normalize = (name: string) =>
-      name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const normalize = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
     const n1 = normalize(name1);
     const n2 = normalize(name2);
 
@@ -363,7 +335,7 @@ export class CurrentSystemMapperService {
     const mapped1 = typeMap[type1] || [type1];
     const mapped2 = typeMap[type2] || [type2];
 
-    return mapped1.some(t1 => mapped2.includes(t1));
+    return mapped1.some((t1) => mapped2.includes(t1));
   }
 
   private isFunctionalitySimilar(
@@ -385,28 +357,21 @@ export class CurrentSystemMapperService {
     if (nameLower.includes('task')) return 'task_management';
     if (nameLower.includes('notification')) return 'notification';
     if (nameLower.includes('email')) return 'email';
-    if (nameLower.includes('database') || nameLower.includes('db'))
-      return 'database';
+    if (nameLower.includes('database') || nameLower.includes('db')) return 'database';
     if (nameLower.includes('api')) return 'api';
     if (nameLower.includes('config')) return 'configuration';
 
     return 'general';
   }
 
-  private determineExpectedLayer(
-    functionality: ExtractedFunctionality
-  ): string {
+  private determineExpectedLayer(functionality: ExtractedFunctionality): string {
     const name = functionality.name.toLowerCase();
     const description = functionality.description.toLowerCase();
 
-    if (name.includes('entity') || description.includes('domain'))
-      return 'domain';
-    if (name.includes('service') && !name.includes('controller'))
-      return 'application';
-    if (name.includes('repository') || name.includes('database'))
-      return 'infrastructure';
-    if (name.includes('controller') || name.includes('dto'))
-      return 'presentation';
+    if (name.includes('entity') || description.includes('domain')) return 'domain';
+    if (name.includes('service') && !name.includes('controller')) return 'application';
+    if (name.includes('repository') || name.includes('database')) return 'infrastructure';
+    if (name.includes('controller') || name.includes('dto')) return 'presentation';
     if (name.includes('util') || name.includes('helper')) return 'shared';
 
     return 'other';
@@ -416,9 +381,7 @@ export class CurrentSystemMapperService {
     return this.determineLayer(filePath);
   }
 
-  private async analyzeExistingFile(
-    file: FileInfo
-  ): Promise<ExistingFunctionality | null> {
+  private async analyzeExistingFile(file: FileInfo): Promise<ExistingFunctionality | null> {
     try {
       const fullPath = path.join(process.cwd(), 'src', file.path);
       const stats = await fs.stat(fullPath);
@@ -453,10 +416,8 @@ export class CurrentSystemMapperService {
     const capabilities: string[] = [];
     const name = file.name.toLowerCase();
 
-    if (name.includes('crud'))
-      capabilities.push('create', 'read', 'update', 'delete');
-    if (name.includes('auth'))
-      capabilities.push('authentication', 'authorization');
+    if (name.includes('crud')) capabilities.push('create', 'read', 'update', 'delete');
+    if (name.includes('auth')) capabilities.push('authentication', 'authorization');
     if (name.includes('validation')) capabilities.push('validation');
     if (name.includes('cache')) capabilities.push('caching');
     if (name.includes('email')) capabilities.push('email_sending');
@@ -465,29 +426,18 @@ export class CurrentSystemMapperService {
     return capabilities;
   }
 
-  private estimateCapabilities(
-    functionality: ExtractedFunctionality
-  ): string[] {
+  private estimateCapabilities(functionality: ExtractedFunctionality): string[] {
     const capabilities: string[] = [];
     const name = functionality.name.toLowerCase();
     const description = functionality.description.toLowerCase();
 
-    if (name.includes('create') || description.includes('create'))
-      capabilities.push('create');
-    if (
-      name.includes('read') ||
-      name.includes('get') ||
-      description.includes('read')
-    )
+    if (name.includes('create') || description.includes('create')) capabilities.push('create');
+    if (name.includes('read') || name.includes('get') || description.includes('read'))
       capabilities.push('read');
-    if (name.includes('update') || description.includes('update'))
-      capabilities.push('update');
-    if (name.includes('delete') || description.includes('delete'))
-      capabilities.push('delete');
-    if (name.includes('auth') || description.includes('auth'))
-      capabilities.push('authentication');
-    if (name.includes('valid') || description.includes('valid'))
-      capabilities.push('validation');
+    if (name.includes('update') || description.includes('update')) capabilities.push('update');
+    if (name.includes('delete') || description.includes('delete')) capabilities.push('delete');
+    if (name.includes('auth') || description.includes('auth')) capabilities.push('authentication');
+    if (name.includes('valid') || description.includes('valid')) capabilities.push('validation');
 
     return capabilities;
   }
@@ -499,9 +449,9 @@ export class CurrentSystemMapperService {
     if (candidates.length === 0) {
       throw new Error('No candidates provided for matching');
     }
-    
+
     // Score each candidate
-    const scored = candidates.map(candidate => ({
+    const scored = candidates.map((candidate) => ({
       candidate,
       score: this.calculateMatchScore(functionality, candidate),
     }));
@@ -541,9 +491,7 @@ export class CurrentSystemMapperService {
 
     // Capability overlap
     const newCapabilities = this.estimateCapabilities(functionality);
-    const overlap = existing.capabilities.filter(cap =>
-      newCapabilities.includes(cap)
-    );
+    const overlap = existing.capabilities.filter((cap) => newCapabilities.includes(cap));
     score += overlap.length * 2;
 
     return score;
@@ -658,7 +606,7 @@ export class CurrentSystemMapperService {
   ): Promise<IntegrationPoint | null> {
     // Check if dependency exists in current system
     const dependencyFile = structure.files.find(
-      f => f.name.includes(dependency) || f.path.includes(dependency)
+      (f) => f.name.includes(dependency) || f.path.includes(dependency)
     );
 
     if (dependencyFile) {
@@ -673,4 +621,3 @@ export class CurrentSystemMapperService {
     return null;
   }
 }
-

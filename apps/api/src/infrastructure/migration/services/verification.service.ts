@@ -1,10 +1,15 @@
+import { promises as fs } from 'fs';
+import * as path from 'path';
 import {
-  IntegrationPoint,
   ExtractedFunctionality,
+  IntegrationPoint,
   MigrationAction,
 } from '../types/migration.types';
-import * as fs from 'fs/promises';
-import * as path from 'path';
+
+// Type declarations for Node.js globals
+declare const process: {
+  cwd: () => string;
+};
 
 export interface VerificationResult {
   success: boolean;
@@ -50,13 +55,9 @@ export class VerificationService {
 
         if (!result.success) {
           if (point.required) {
-            errors.push(
-              `Required integration failed: ${point.component} - ${result.error}`
-            );
+            errors.push(`Required integration failed: ${point.component} - ${result.error}`);
           } else {
-            warnings.push(
-              `Optional integration failed: ${point.component} - ${result.error}`
-            );
+            warnings.push(`Optional integration failed: ${point.component} - ${result.error}`);
           }
         }
 
@@ -66,9 +67,7 @@ export class VerificationService {
       // Verify component exists and is accessible
       const componentExists = await this.verifyComponentExists(component);
       if (!componentExists) {
-        errors.push(
-          `Component ${component} does not exist or is not accessible`
-        );
+        errors.push(`Component ${component} does not exist or is not accessible`);
       }
 
       return {
@@ -87,9 +86,7 @@ export class VerificationService {
     }
   }
 
-  async validateFunctionality(
-    functionality: ExtractedFunctionality
-  ): Promise<ValidationResult> {
+  async validateFunctionality(functionality: ExtractedFunctionality): Promise<ValidationResult> {
     const errors: string[] = [];
     const warnings: string[] = [];
     const suggestions: string[] = [];
@@ -97,13 +94,9 @@ export class VerificationService {
     try {
       // Check if target location exists
       if (functionality.targetLocation) {
-        const targetExists = await this.checkFileExists(
-          functionality.targetLocation
-        );
+        const targetExists = await this.checkFileExists(functionality.targetLocation);
         if (!targetExists) {
-          errors.push(
-            `Target location does not exist: ${functionality.targetLocation}`
-          );
+          errors.push(`Target location does not exist: ${functionality.targetLocation}`);
         }
       }
 
@@ -112,16 +105,12 @@ export class VerificationService {
         const depExists = await this.validateDependency(dependency);
         if (!depExists) {
           errors.push(`Dependency not found: ${dependency}`);
-          suggestions.push(
-            `Consider installing or implementing: ${dependency}`
-          );
+          suggestions.push(`Consider installing or implementing: ${dependency}`);
         }
       }
 
       // Check naming conventions
-      if (
-        !this.validateNamingConvention(functionality.name, functionality.type)
-      ) {
+      if (!this.validateNamingConvention(functionality.name, functionality.type)) {
         warnings.push(`Naming convention issue: ${functionality.name}`);
         suggestions.push(`Consider renaming to follow TypeScript conventions`);
       }
@@ -147,9 +136,7 @@ export class VerificationService {
     }
   }
 
-  async checkPerformanceImpact(
-    actions: MigrationAction[]
-  ): Promise<PerformanceReport> {
+  async checkPerformanceImpact(actions: MigrationAction[]): Promise<PerformanceReport> {
     const recommendations: string[] = [];
     let estimatedResponseTime = 0;
     let estimatedMemoryUsage = 0;
@@ -173,9 +160,7 @@ export class VerificationService {
             estimatedResponseTime += 15;
             estimatedMemoryUsage += 2048;
             estimatedCpuUsage += 8;
-            recommendations.push(
-              `Consider optimizing merged logic in ${action.targetPath}`
-            );
+            recommendations.push(`Consider optimizing merged logic in ${action.targetPath}`);
             break;
           case 'enhance_existing':
             estimatedResponseTime += 8;
@@ -201,15 +186,11 @@ export class VerificationService {
 
       // Add general recommendations
       if (estimatedResponseTime > 100) {
-        recommendations.push(
-          'Consider implementing caching for improved response times'
-        );
+        recommendations.push('Consider implementing caching for improved response times');
       }
 
       if (estimatedMemoryUsage > 10240) {
-        recommendations.push(
-          'Monitor memory usage and consider lazy loading for large components'
-        );
+        recommendations.push('Monitor memory usage and consider lazy loading for large components');
       }
 
       return {
@@ -228,9 +209,7 @@ export class VerificationService {
     }
   }
 
-  async validateArchitecture(
-    targetPath: string
-  ): Promise<ArchitectureCompliance> {
+  async validateArchitecture(targetPath: string): Promise<ArchitectureCompliance> {
     const violations: string[] = [];
 
     try {
@@ -241,8 +220,7 @@ export class VerificationService {
       }
 
       // Check dependency direction
-      const dependencyDirection =
-        await this.checkDependencyDirection(targetPath);
+      const dependencyDirection = await this.checkDependencyDirection(targetPath);
       if (!dependencyDirection.valid) {
         violations.push(...dependencyDirection.violations);
       }
@@ -332,9 +310,7 @@ export class VerificationService {
     // Check if it's in package.json
     try {
       const packageJsonPath = path.join(process.cwd(), 'package.json');
-      const packageJson = JSON.parse(
-        await fs.readFile(packageJsonPath, 'utf-8')
-      );
+      const packageJson = JSON.parse((await fs.readFile(packageJsonPath, 'utf-8')) as string);
 
       return !!(
         packageJson.dependencies?.[dependency] ||
@@ -363,9 +339,7 @@ export class VerificationService {
     }
   }
 
-  private validateTypeAppropriate(
-    functionality: ExtractedFunctionality
-  ): boolean {
+  private validateTypeAppropriate(functionality: ExtractedFunctionality): boolean {
     // Basic validation - could be enhanced with more sophisticated analysis
     const name = functionality.name.toLowerCase();
 
@@ -388,22 +362,12 @@ export class VerificationService {
     const violations: string[] = [];
 
     // Check if file is in correct layer based on path
-    if (
-      targetPath.includes('/domain/') &&
-      targetPath.includes('infrastructure')
-    ) {
-      violations.push(
-        'Domain layer should not contain infrastructure concerns'
-      );
+    if (targetPath.includes('/domain/') && targetPath.includes('infrastructure')) {
+      violations.push('Domain layer should not contain infrastructure concerns');
     }
 
-    if (
-      targetPath.includes('/application/') &&
-      targetPath.includes('presentation')
-    ) {
-      violations.push(
-        'Application layer should not contain presentation concerns'
-      );
+    if (targetPath.includes('/application/') && targetPath.includes('presentation')) {
+      violations.push('Application layer should not contain presentation concerns');
     }
 
     return { valid: violations.length === 0, violations };
@@ -421,10 +385,7 @@ export class VerificationService {
   ): Promise<{ valid: boolean; violations: string[] }> {
     const violations: string[] = [];
 
-    if (
-      targetPath.includes('repository') ||
-      targetPath.includes('persistence')
-    ) {
+    if (targetPath.includes('repository') || targetPath.includes('persistence')) {
       try {
         const content = await fs.readFile(targetPath, 'utf-8');
         if (!content.includes('drizzle') && content.includes('database')) {
@@ -473,4 +434,3 @@ export class VerificationService {
     return { success: true };
   }
 }
-

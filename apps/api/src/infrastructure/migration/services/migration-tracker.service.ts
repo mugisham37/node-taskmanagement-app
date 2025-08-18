@@ -1,11 +1,12 @@
-import {
-  MigrationSession,
-  MigrationError,
-  FileMigrationProcess,
-} from '../types/migration.types';
-import * as fs from 'fs/promises';
+import { promises as fs } from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { FileMigrationProcess, MigrationError, MigrationSession } from '../types/migration.types';
+
+// Type declarations for Node.js globals
+declare const process: {
+  cwd: () => string;
+};
 
 export class MigrationTrackerService {
   private readonly migrationDataPath = path.join(process.cwd(), '.migration');
@@ -41,11 +42,8 @@ export class MigrationTrackerService {
     }
 
     try {
-      const sessionPath = path.join(
-        this.migrationDataPath,
-        'current-session.json'
-      );
-      const sessionData = await fs.readFile(sessionPath, 'utf-8');
+      const sessionPath = path.join(this.migrationDataPath, 'current-session.json');
+      const sessionData = (await fs.readFile(sessionPath, 'utf-8')) as string;
       this.currentSession = JSON.parse(sessionData);
       return this.currentSession;
     } catch (error) {
@@ -53,10 +51,7 @@ export class MigrationTrackerService {
     }
   }
 
-  async updateProgress(
-    processedFile: string,
-    functionalities: number = 0
-  ): Promise<void> {
+  async updateProgress(processedFile: string, functionalities: number = 0): Promise<void> {
     if (!this.currentSession) {
       throw new Error('No active migration session');
     }
@@ -64,8 +59,7 @@ export class MigrationTrackerService {
     this.currentSession.processedFiles++;
     this.currentSession.migratedFunctionalities += functionalities;
     this.currentSession.progress =
-      (this.currentSession.processedFiles / this.currentSession.totalFiles) *
-      100;
+      (this.currentSession.processedFiles / this.currentSession.totalFiles) * 100;
     this.currentSession.currentFile = processedFile;
 
     await this.saveSession();
@@ -84,10 +78,7 @@ export class MigrationTrackerService {
     await this.saveSession();
   }
 
-  async recordFileProcessed(
-    filePath: string,
-    process: FileMigrationProcess
-  ): Promise<void> {
+  async recordFileProcessed(filePath: string, process: FileMigrationProcess): Promise<void> {
     if (!this.currentSession) {
       throw new Error('No active migration session');
     }
@@ -209,14 +200,8 @@ export class MigrationTrackerService {
   private async saveSession(): Promise<void> {
     if (!this.currentSession) return;
 
-    const sessionPath = path.join(
-      this.migrationDataPath,
-      'current-session.json'
-    );
-    await fs.writeFile(
-      sessionPath,
-      JSON.stringify(this.currentSession, null, 2)
-    );
+    const sessionPath = path.join(this.migrationDataPath, 'current-session.json');
+    await fs.writeFile(sessionPath, JSON.stringify(this.currentSession, null, 2));
   }
 
   private sanitizeFileName(filePath: string): string {
@@ -238,8 +223,7 @@ export class MigrationTrackerService {
       summary: {
         totalDuration: Date.now() - this.currentSession.startTime.getTime(),
         successRate:
-          ((this.currentSession.processedFiles -
-            this.currentSession.errors.length) /
+          ((this.currentSession.processedFiles - this.currentSession.errors.length) /
             this.currentSession.totalFiles) *
           100,
         averageTimePerFile:
@@ -251,4 +235,3 @@ export class MigrationTrackerService {
     await fs.writeFile(reportPath, JSON.stringify(report, null, 2));
   }
 }
-

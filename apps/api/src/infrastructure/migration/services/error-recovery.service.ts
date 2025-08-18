@@ -1,7 +1,7 @@
-import { MigrationError, BackupInfo } from '../types/migration.types';
+import { promises as fs } from 'fs';
+import { BackupInfo, MigrationError } from '../types/migration.types';
 import { BackupService } from './backup.service';
 import { MigrationTrackerService } from './migration-tracker.service';
-import * as fs from 'fs/promises';
 
 export interface ErrorRecoveryStrategy {
   errorType:
@@ -9,11 +9,7 @@ export interface ErrorRecoveryStrategy {
     | 'integration_error'
     | 'verification_error'
     | 'architecture_violation';
-  recoveryAction:
-    | 'skip_file'
-    | 'manual_intervention'
-    | 'alternative_approach'
-    | 'rollback';
+  recoveryAction: 'skip_file' | 'manual_intervention' | 'alternative_approach' | 'rollback';
   fallbackStrategy: string;
   requiresUserInput: boolean;
 }
@@ -57,9 +53,7 @@ export class ErrorRecoveryService {
     return strategy;
   }
 
-  private determineRecoveryStrategy(
-    error: MigrationError
-  ): ErrorRecoveryStrategy {
+  private determineRecoveryStrategy(error: MigrationError): ErrorRecoveryStrategy {
     // Determine strategy based on error type and content
     if (error.error.includes('parsing') || error.error.includes('syntax')) {
       return {
@@ -70,10 +64,7 @@ export class ErrorRecoveryService {
       };
     }
 
-    if (
-      error.error.includes('integration') ||
-      error.error.includes('dependency')
-    ) {
+    if (error.error.includes('integration') || error.error.includes('dependency')) {
       return {
         errorType: 'integration_error',
         recoveryAction: 'manual_intervention',
@@ -112,9 +103,7 @@ export class ErrorRecoveryService {
   private async executeRollback(backupInfo: BackupInfo): Promise<void> {
     try {
       await this.backupService.restoreBackup(backupInfo);
-      console.log(
-        `Successfully rolled back changes for ${backupInfo.originalPath}`
-      );
+      console.log(`Successfully rolled back changes for ${backupInfo.originalPath}`);
     } catch (error: unknown) {
       console.error(`Failed to rollback ${backupInfo.originalPath}:`, error);
       throw new Error(`Rollback failed: ${(error as Error).message}`);
@@ -137,7 +126,7 @@ export class ErrorRecoveryService {
     let skippedFiles = [];
 
     try {
-      const existingData = await fs.readFile(skipPath, 'utf-8');
+      const existingData = (await fs.readFile(skipPath, 'utf-8')) as string;
       skippedFiles = JSON.parse(existingData);
     } catch (error) {
       // File doesn't exist yet
@@ -148,9 +137,7 @@ export class ErrorRecoveryService {
   }
 
   private async tryAlternativeApproach(error: MigrationError): Promise<void> {
-    console.log(
-      `Trying alternative approach for ${error.file}: ${error.functionality}`
-    );
+    console.log(`Trying alternative approach for ${error.file}: ${error.functionality}`);
 
     // Record the alternative approach attempt
     const alternativeRecord = {
@@ -166,7 +153,7 @@ export class ErrorRecoveryService {
     let attempts = [];
 
     try {
-      const existingData = await fs.readFile(altPath, 'utf-8');
+      const existingData = (await fs.readFile(altPath, 'utf-8')) as string;
       attempts = JSON.parse(existingData);
     } catch (error) {
       // File doesn't exist yet
@@ -176,12 +163,8 @@ export class ErrorRecoveryService {
     await fs.writeFile(altPath, JSON.stringify(attempts, null, 2));
   }
 
-  private async requestManualIntervention(
-    error: MigrationError
-  ): Promise<void> {
-    console.error(
-      `Manual intervention required for ${error.file}: ${error.functionality}`
-    );
+  private async requestManualIntervention(error: MigrationError): Promise<void> {
+    console.error(`Manual intervention required for ${error.file}: ${error.functionality}`);
     console.error(`Error: ${error.error}`);
 
     // Create manual intervention record
@@ -199,17 +182,14 @@ export class ErrorRecoveryService {
     let interventions = [];
 
     try {
-      const existingData = await fs.readFile(interventionPath, 'utf-8');
+      const existingData = (await fs.readFile(interventionPath, 'utf-8')) as string;
       interventions = JSON.parse(existingData);
     } catch (error) {
       // File doesn't exist yet
     }
 
     interventions.push(interventionRecord);
-    await fs.writeFile(
-      interventionPath,
-      JSON.stringify(interventions, null, 2)
-    );
+    await fs.writeFile(interventionPath, JSON.stringify(interventions, null, 2));
   }
 
   private generateInterventionInstructions(error: MigrationError): string {
@@ -257,9 +237,8 @@ Resolution format:
     return {
       totalErrors: session.errors.length,
       errorsByType,
-      resolvedErrors: session.errors.filter(e => e.resolved).length,
-      pendingErrors: session.errors.filter(e => !e.resolved).length,
+      resolvedErrors: session.errors.filter((e) => e.resolved).length,
+      pendingErrors: session.errors.filter((e) => !e.resolved).length,
     };
   }
 }
-

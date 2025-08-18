@@ -1,47 +1,37 @@
-import {
-  ExtractedFunctionality,
-  LogicClassification,
-  ComplexityLevel,
-} from '../types/migration.types';
-import * as fs from 'fs/promises';
+import { promises as fs } from 'fs';
 import * as path from 'path';
 import * as ts from 'typescript';
+import {
+  ComplexityLevel,
+  ExtractedFunctionality,
+  LogicClassification,
+} from '../types/migration.types';
 
 export class FileAnalysisService {
   async analyzeFile(filePath: string): Promise<ExtractedFunctionality[]> {
     const functionalities: ExtractedFunctionality[] = [];
 
     try {
-      const content = await fs.readFile(filePath, 'utf-8');
+      const content = (await fs.readFile(filePath, 'utf-8')) as string;
       const extension = path.extname(filePath).toLowerCase();
 
       switch (extension) {
         case '.ts':
         case '.js':
-          functionalities.push(
-            ...(await this.analyzeTypeScriptFile(filePath, content))
-          );
+          functionalities.push(...(await this.analyzeTypeScriptFile(filePath, content)));
           break;
         case '.json':
-          functionalities.push(
-            ...(await this.analyzeJsonFile(filePath, content))
-          );
+          functionalities.push(...(await this.analyzeJsonFile(filePath, content)));
           break;
         case '.yml':
         case '.yaml':
-          functionalities.push(
-            ...(await this.analyzeYamlFile(filePath, content))
-          );
+          functionalities.push(...(await this.analyzeYamlFile(filePath, content)));
           break;
         case '.md':
-          functionalities.push(
-            ...(await this.analyzeMarkdownFile(filePath, content))
-          );
+          functionalities.push(...(await this.analyzeMarkdownFile(filePath, content)));
           break;
         default:
-          functionalities.push(
-            ...(await this.analyzeGenericFile(filePath, content))
-          );
+          functionalities.push(...(await this.analyzeGenericFile(filePath, content)));
       }
 
       return functionalities;
@@ -55,7 +45,7 @@ export class FileAnalysisService {
     const dependencies: string[] = [];
 
     try {
-      const content = await fs.readFile(filePath, 'utf-8');
+      const content = (await fs.readFile(filePath, 'utf-8')) as string;
       const extension = path.extname(filePath).toLowerCase();
 
       if (extension === '.ts' || extension === '.js') {
@@ -66,10 +56,7 @@ export class FileAnalysisService {
 
       return [...new Set(dependencies)]; // Remove duplicates
     } catch (error: unknown) {
-      console.warn(
-        `Failed to extract dependencies from ${filePath}:`,
-        (error as Error).message
-      );
+      console.warn(`Failed to extract dependencies from ${filePath}:`, (error as Error).message);
       return [];
     }
   }
@@ -79,19 +66,11 @@ export class FileAnalysisService {
     const description = functionality.description.toLowerCase();
 
     // Critical functionality patterns
-    if (
-      name.includes('auth') ||
-      name.includes('security') ||
-      name.includes('password')
-    ) {
+    if (name.includes('auth') || name.includes('security') || name.includes('password')) {
       return 'critical';
     }
 
-    if (
-      name.includes('payment') ||
-      name.includes('billing') ||
-      name.includes('transaction')
-    ) {
+    if (name.includes('payment') || name.includes('billing') || name.includes('transaction')) {
       return 'critical';
     }
 
@@ -147,19 +126,11 @@ export class FileAnalysisService {
 
     // Name-based complexity indicators
     const name = functionality.name.toLowerCase();
-    if (
-      name.includes('manager') ||
-      name.includes('service') ||
-      name.includes('controller')
-    ) {
+    if (name.includes('manager') || name.includes('service') || name.includes('controller')) {
       complexityScore += 2;
     }
 
-    if (
-      name.includes('factory') ||
-      name.includes('builder') ||
-      name.includes('strategy')
-    ) {
+    if (name.includes('factory') || name.includes('builder') || name.includes('strategy')) {
       complexityScore += 3;
     }
 
@@ -169,10 +140,7 @@ export class FileAnalysisService {
       complexityScore += 2;
     }
 
-    if (
-      description.includes('integration') ||
-      description.includes('external')
-    ) {
+    if (description.includes('integration') || description.includes('external')) {
       complexityScore += 2;
     }
 
@@ -191,20 +159,13 @@ export class FileAnalysisService {
 
     try {
       // Create TypeScript source file
-      const sourceFile = ts.createSourceFile(
-        filePath,
-        content,
-        ts.ScriptTarget.Latest,
-        true
-      );
+      const sourceFile = ts.createSourceFile(filePath, content, ts.ScriptTarget.Latest, true);
 
       // Visit all nodes in the AST
       const visit = (node: ts.Node) => {
         switch (node.kind) {
           case ts.SyntaxKind.ClassDeclaration:
-            functionalities.push(
-              this.extractClassInfo(node as ts.ClassDeclaration, filePath)
-            );
+            functionalities.push(this.extractClassInfo(node as ts.ClassDeclaration, filePath));
             break;
           case ts.SyntaxKind.FunctionDeclaration:
             functionalities.push(
@@ -213,29 +174,19 @@ export class FileAnalysisService {
             break;
           case ts.SyntaxKind.InterfaceDeclaration:
             functionalities.push(
-              this.extractInterfaceInfo(
-                node as ts.InterfaceDeclaration,
-                filePath
-              )
+              this.extractInterfaceInfo(node as ts.InterfaceDeclaration, filePath)
             );
             break;
           case ts.SyntaxKind.TypeAliasDeclaration:
-            functionalities.push(
-              this.extractTypeInfo(node as ts.TypeAliasDeclaration, filePath)
-            );
+            functionalities.push(this.extractTypeInfo(node as ts.TypeAliasDeclaration, filePath));
             break;
           case ts.SyntaxKind.VariableStatement:
             functionalities.push(
-              ...this.extractVariableInfo(
-                node as ts.VariableStatement,
-                filePath
-              )
+              ...this.extractVariableInfo(node as ts.VariableStatement, filePath)
             );
             break;
           case ts.SyntaxKind.EnumDeclaration:
-            functionalities.push(
-              this.extractEnumInfo(node as ts.EnumDeclaration, filePath)
-            );
+            functionalities.push(this.extractEnumInfo(node as ts.EnumDeclaration, filePath));
             break;
         }
 
@@ -244,10 +195,7 @@ export class FileAnalysisService {
 
       visit(sourceFile);
     } catch (error: unknown) {
-      console.warn(
-        `Failed to parse TypeScript file ${filePath}:`,
-        (error as Error).message
-      );
+      console.warn(`Failed to parse TypeScript file ${filePath}:`, (error as Error).message);
       // Fallback to simple text analysis
       functionalities.push(...(await this.analyzeGenericFile(filePath, content)));
     }
@@ -255,16 +203,15 @@ export class FileAnalysisService {
     return functionalities;
   }
 
-  private extractClassInfo(
-    node: ts.ClassDeclaration,
-    filePath: string
-  ): ExtractedFunctionality {
+  private extractClassInfo(node: ts.ClassDeclaration, filePath: string): ExtractedFunctionality {
     const name = node.name?.text || 'UnnamedClass';
-    
+
     // Use getDecorators() for newer TypeScript versions
-    const decorators = ts.getDecorators?.(node)?.map((d: any) => d.getText()) || 
-                      (node as any).decorators?.map((d: any) => d.getText()) || [];
-    
+    const decorators =
+      ts.getDecorators?.(node)?.map((d: any) => d.getText()) ||
+      (node as any).decorators?.map((d: any) => d.getText()) ||
+      [];
+
     const isService = decorators.some(
       (d: string) => d.includes('Injectable') || d.includes('Service')
     );
@@ -287,10 +234,9 @@ export class FileAnalysisService {
   ): ExtractedFunctionality {
     const name = node.name?.text || 'UnnamedFunction';
     const isAsync =
-      node.modifiers?.some(m => m.kind === ts.SyntaxKind.AsyncKeyword) || false;
+      node.modifiers?.some((m: any) => m.kind === ts.SyntaxKind.AsyncKeyword) || false;
     const isExported =
-      node.modifiers?.some(m => m.kind === ts.SyntaxKind.ExportKeyword) ||
-      false;
+      node.modifiers?.some((m: any) => m.kind === ts.SyntaxKind.ExportKeyword) || false;
 
     return {
       name,
@@ -321,10 +267,7 @@ export class FileAnalysisService {
     };
   }
 
-  private extractTypeInfo(
-    node: ts.TypeAliasDeclaration,
-    filePath: string
-  ): ExtractedFunctionality {
+  private extractTypeInfo(node: ts.TypeAliasDeclaration, filePath: string): ExtractedFunctionality {
     const name = node.name.text;
 
     return {
@@ -344,7 +287,7 @@ export class FileAnalysisService {
   ): ExtractedFunctionality[] {
     const functionalities: ExtractedFunctionality[] = [];
 
-    node.declarationList.declarations.forEach(declaration => {
+    node.declarationList.declarations.forEach((declaration: any) => {
       if (ts.isIdentifier(declaration.name)) {
         const name = declaration.name.text;
         const isConst = node.declarationList.flags & ts.NodeFlags.Const;
@@ -353,9 +296,7 @@ export class FileAnalysisService {
           name,
           type: 'constant',
           description: `${isConst ? 'Constant' : 'Variable'}: ${name}`,
-          dependencies: this.extractTypeScriptDependencies(
-            declaration.getFullText()
-          ),
+          dependencies: this.extractTypeScriptDependencies(declaration.getFullText()),
           currentStatus: 'missing',
           migrationAction: 'migrate',
           sourceLocation: filePath,
@@ -366,10 +307,7 @@ export class FileAnalysisService {
     return functionalities;
   }
 
-  private extractEnumInfo(
-    node: ts.EnumDeclaration,
-    filePath: string
-  ): ExtractedFunctionality {
+  private extractEnumInfo(node: ts.EnumDeclaration, filePath: string): ExtractedFunctionality {
     const name = node.name.text;
     const memberCount = node.members.length;
 
@@ -388,8 +326,7 @@ export class FileAnalysisService {
     const dependencies: string[] = [];
 
     // Extract import statements
-    const importRegex =
-      /import\s+(?:{[^}]+}|\*\s+as\s+\w+|\w+)\s+from\s+['"]([^'"]+)['"]/g;
+    const importRegex = /import\s+(?:{[^}]+}|\*\s+as\s+\w+|\w+)\s+from\s+['"]([^'"]+)['"]/g;
     let match;
 
     while ((match = importRegex.exec(content)) !== null) {
@@ -531,4 +468,3 @@ export class FileAnalysisService {
     }
   }
 }
-
