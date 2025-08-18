@@ -1,4 +1,4 @@
-import { ConfigLoader } from '../config';
+import { ConfigLoader } from '@taskmanagement/config';
 import { Container, SERVICE_TOKENS, ServiceLifetime } from './types';
 
 // Domain Services
@@ -195,7 +195,7 @@ export function registerServices(container: Container): void {
   registerEventHandling(container);
 
   // Register migration services
-  registerMigrationServices(container);
+  // registerMigrationServices(container); // TODO: Implement or import from database package
 
   // Validate all dependencies
   container.validateDependencies();

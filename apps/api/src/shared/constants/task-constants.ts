@@ -2,7 +2,7 @@
  * Task-related constants and enums
  */
 
-import { TaskStatus, Priority } from '../enums/common.enums';
+import { Priority, TaskStatus } from '../enums/common.enums';
 
 // Re-export enums for convenience
 export { TaskStatus };
@@ -15,15 +15,13 @@ export const TASK_STATUS_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   [TaskStatus.TODO]: [TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED],
   [TaskStatus.IN_PROGRESS]: [
     TaskStatus.IN_REVIEW,
+    TaskStatus.REVIEW,
     TaskStatus.TODO,
     TaskStatus.CANCELLED,
     TaskStatus.ON_HOLD,
   ],
-  [TaskStatus.IN_REVIEW]: [
-    TaskStatus.COMPLETED,
-    TaskStatus.IN_PROGRESS,
-    TaskStatus.CANCELLED,
-  ],
+  [TaskStatus.IN_REVIEW]: [TaskStatus.COMPLETED, TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED],
+  [TaskStatus.REVIEW]: [TaskStatus.COMPLETED, TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED],
   [TaskStatus.COMPLETED]: [], // Completed tasks cannot transition to other states
   [TaskStatus.CANCELLED]: [TaskStatus.TODO], // Cancelled tasks can be reopened
   [TaskStatus.ON_HOLD]: [TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED],
@@ -44,7 +42,6 @@ export const TASK_PRIORITY_WEIGHTS: Record<Priority, number> = {
  * Task validation constants
  */
 
-
 /**
  * Task business rules
  */
@@ -53,5 +50,3 @@ export const TASK_BUSINESS_RULES = {
   MAX_TASKS_PER_PROJECT: 1000,
   OVERDUE_THRESHOLD_DAYS: 1,
 } as const;
-
-

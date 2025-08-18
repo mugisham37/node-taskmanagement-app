@@ -19,11 +19,8 @@ export const TASK_STATUS_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
     TaskStatus.CANCELLED,
     TaskStatus.ON_HOLD,
   ],
-  [TaskStatus.IN_REVIEW]: [
-    TaskStatus.COMPLETED,
-    TaskStatus.IN_PROGRESS,
-    TaskStatus.CANCELLED,
-  ],
+  [TaskStatus.IN_REVIEW]: [TaskStatus.COMPLETED, TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED],
+  [TaskStatus.REVIEW]: [TaskStatus.COMPLETED, TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED],
   [TaskStatus.COMPLETED]: [], // Completed tasks cannot transition to other states
   [TaskStatus.CANCELLED]: [TaskStatus.TODO], // Cancelled tasks can be reopened
   [TaskStatus.ON_HOLD]: [TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED],

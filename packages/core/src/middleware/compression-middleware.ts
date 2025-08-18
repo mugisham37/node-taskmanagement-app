@@ -6,15 +6,15 @@ import { constants, createBrotliCompress, createGzip } from 'zlib';
 const pipelineAsync = promisify(pipeline);
 
 export interface CompressionOptions {
-  threshold?: number;           // Minimum response size to compress (bytes)
-  level?: number;              // Compression level (1-9)
-  chunkSize?: number;          // Chunk size for streaming
-  windowBits?: number;         // Window size for gzip
-  memLevel?: number;           // Memory level for gzip
-  strategy?: number;           // Compression strategy
-  brotliQuality?: number;      // Brotli quality (0-11)
-  enableBrotli?: boolean;      // Enable Brotli compression
-  mimeTypes?: string[];        // MIME types to compress
+  threshold?: number; // Minimum response size to compress (bytes)
+  level?: number; // Compression level (1-9)
+  chunkSize?: number; // Chunk size for streaming
+  windowBits?: number; // Window size for gzip
+  memLevel?: number; // Memory level for gzip
+  strategy?: number; // Compression strategy
+  brotliQuality?: number; // Brotli quality (0-11)
+  enableBrotli?: boolean; // Enable Brotli compression
+  mimeTypes?: string[]; // MIME types to compress
 }
 
 const DEFAULT_MIME_TYPES = [
@@ -73,12 +73,12 @@ export class CompressionMiddleware {
 
       // Hook into the response to compress data
       reply.hijack();
-      
+
       const originalSend = reply.send.bind(reply);
       reply.send = async (payload: any) => {
         try {
           const data = this.serializePayload(payload);
-          
+
           if (data.length < this.options.threshold) {
             // Don't compress small responses
             reply.header('content-length', data.length);
@@ -93,11 +93,11 @@ export class CompressionMiddleware {
           }
 
           const compressedData = await this.compressData(data, compressionType);
-          
+
           reply.header('content-encoding', compressionType);
           reply.header('content-length', compressedData.length);
           reply.removeHeader('content-length'); // Let the server calculate
-          
+
           reply.raw.end(compressedData);
           return reply;
         } catch (error) {
@@ -142,7 +142,7 @@ export class CompressionMiddleware {
       return false;
     }
 
-    const mimeType = contentType.split(';')[0].trim().toLowerCase();
+    const mimeType = contentType?.split(';')[0]?.trim().toLowerCase() || '';
     return this.options.mimeTypes.includes(mimeType);
   }
 
@@ -176,7 +176,7 @@ export class CompressionMiddleware {
             },
           });
           break;
-        
+
         case 'gzip':
           compressor = createGzip({
             level: this.options.level,
@@ -186,7 +186,7 @@ export class CompressionMiddleware {
             strategy: this.options.strategy,
           });
           break;
-        
+
         case 'deflate':
           compressor = createGzip({
             level: this.options.level,
@@ -196,7 +196,7 @@ export class CompressionMiddleware {
             strategy: this.options.strategy,
           });
           break;
-        
+
         default:
           return reject(new Error(`Unsupported compression type: ${type}`));
       }
@@ -231,14 +231,14 @@ export class CompressionMiddleware {
           },
         });
         break;
-      
+
       case 'gzip':
         compressor = createGzip({
           level: this.options.level,
           chunkSize: this.options.chunkSize,
         });
         break;
-      
+
       case 'deflate':
         compressor = createGzip({
           level: this.options.level,
@@ -246,7 +246,7 @@ export class CompressionMiddleware {
           windowBits: -this.options.windowBits,
         });
         break;
-      
+
       default:
         throw new Error(`Unsupported compression type: ${type}`);
     }

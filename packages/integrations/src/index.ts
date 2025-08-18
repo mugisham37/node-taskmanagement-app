@@ -1,5 +1,20 @@
 // Email exports
 export * from './email';
+export { EmailService } from './email-service';
+export * from './email-types';
+
+// WebSocket exports
+export { WebSocketService } from './websocket-service';
+
+// Circuit Breaker
+export { CircuitBreaker } from './circuit-breaker';
+
+// Collaboration Service
+export { CollaborationService } from './collaboration-service';
+
+// Realtime Services
+export { RealtimeDashboardService } from './realtime-dashboard-service';
+export { RealtimeEventService } from './realtime-event-service';
 
 // SMS exports
 export * from './sms';

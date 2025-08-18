@@ -16,9 +16,9 @@ export interface PerformanceConfig {
 }
 
 export class PerformanceMiddleware {
-  private cache: MultiLayerCache;
-  private compression: CompressionMiddleware;
-  private batching: RequestBatchingMiddleware;
+  private cache?: MultiLayerCache;
+  private compression?: CompressionMiddleware;
+  private batching?: RequestBatchingMiddleware;
   private metrics: Map<string, number[]> = new Map();
 
   constructor(
@@ -50,7 +50,7 @@ export class PerformanceMiddleware {
 
   // Main performance middleware
   middleware() {
-    return async (request: FastifyRequest, reply: FastifyReply) => {
+    return async (request: FastifyRequest, reply: FastifyReply, done: () => void) => {
       const startTime = performance.now();
 
       // Add performance tracking
@@ -66,8 +66,9 @@ export class PerformanceMiddleware {
       // Add response time header
       reply.header('X-Response-Time-Start', startTime.toString());
 
-      // Hook into response to measure total time
-      reply.addHook('onSend', async (request, reply, payload) => {
+      // Override reply.send to measure total time
+      const originalSend = reply.send.bind(reply);
+      reply.send = (payload: any) => {
         const endTime = performance.now();
         const duration = endTime - startTime;
 
@@ -89,20 +90,25 @@ export class PerformanceMiddleware {
           }
         }
 
-        return payload;
-      });
+        return originalSend(payload);
+      };
+
+      done();
     };
   }
 
   // Caching middleware
   cacheMiddleware(options: { ttl?: number; keyGenerator?: (req: FastifyRequest) => string } = {}) {
     if (!this.cache) {
-      return async (request: FastifyRequest, reply: FastifyReply) => {};
+      return async (request: FastifyRequest, reply: FastifyReply, done: () => void) => {
+        done();
+      };
     }
 
-    return async (request: FastifyRequest, reply: FastifyReply) => {
+    return async (request: FastifyRequest, reply: FastifyReply, done: () => void) => {
       // Only cache GET requests
       if (request.method !== 'GET') {
+        done();
         return;
       }
 
@@ -128,22 +134,31 @@ export class PerformanceMiddleware {
       reply.header('X-Cache', 'MISS');
       reply.header('X-Cache-Key', cacheKey);
 
-      // Hook to cache the response
-      reply.addHook('onSend', async (request, reply, payload) => {
+      // Override reply.send to cache the response
+      const originalSend = reply.send.bind(reply);
+      reply.send = (payload: any) => {
         if (reply.statusCode === 200 && payload) {
           this.mark(request, 'cache-set-start');
-          await this.cache.set(cacheKey, payload, options.ttl);
-          this.mark(request, 'cache-set-end');
-          this.measure(request, 'cache-set', 'cache-set-start', 'cache-set-end');
+          this.cache
+            .set(cacheKey, payload, options.ttl)
+            .then(() => {
+              this.mark(request, 'cache-set-end');
+              this.measure(request, 'cache-set', 'cache-set-start', 'cache-set-end');
+            })
+            .catch((error: Error) => {
+              this.logger.warn('Cache set failed', { cacheKey, error: error.message });
+            });
         }
-        return payload;
-      });
+        return originalSend(payload);
+      };
+
+      done();
     };
   }
 
   // Database query optimization middleware
   queryOptimizationMiddleware() {
-    return async (request: FastifyRequest, reply: FastifyReply) => {
+    return async (request: FastifyRequest, reply: FastifyReply, done: () => void) => {
       // Add query tracking to request context
       request.queryMetrics = {
         queries: [],
@@ -151,8 +166,9 @@ export class PerformanceMiddleware {
         slowQueries: [],
       };
 
-      // Hook to analyze queries after response
-      reply.addHook('onSend', async (request, reply, payload) => {
+      // Override reply.send to analyze queries after response
+      const originalSend = reply.send.bind(reply);
+      reply.send = (payload: any) => {
         const queryMetrics = request.queryMetrics;
 
         if (queryMetrics && queryMetrics.queries.length > 0) {
@@ -168,8 +184,10 @@ export class PerformanceMiddleware {
           }
         }
 
-        return payload;
-      });
+        return originalSend(payload);
+      };
+
+      done();
     };
   }
 
@@ -225,10 +243,12 @@ export class PerformanceMiddleware {
 
   // Memory usage monitoring
   memoryMonitoringMiddleware() {
-    return async (request: FastifyRequest, reply: FastifyReply) => {
+    return async (request: FastifyRequest, reply: FastifyReply, done: () => void) => {
       const memBefore = process.memoryUsage();
 
-      reply.addHook('onSend', async (request, reply, payload) => {
+      // Override reply.send to monitor memory usage
+      const originalSend = reply.send.bind(reply);
+      reply.send = (payload: any) => {
         const memAfter = process.memoryUsage();
         const memDiff = {
           rss: memAfter.rss - memBefore.rss,
@@ -253,8 +273,10 @@ export class PerformanceMiddleware {
           });
         }
 
-        return payload;
-      });
+        return originalSend(payload);
+      };
+
+      done();
     };
   }
 

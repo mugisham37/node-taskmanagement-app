@@ -32,7 +32,7 @@ export class InMemoryEventStore implements EventStore {
 
   async getEvents(streamId: string, fromVersion?: number): Promise<DomainEvent[]> {
     const streamEvents = this.events.get(streamId) || [];
-    
+
     if (fromVersion === undefined) {
       return [...streamEvents];
     }
@@ -50,7 +50,7 @@ export class InMemoryEventStore implements EventStore {
 
   async getStreamInfo(streamId: string): Promise<EventStreamInfo | null> {
     const streamEvents = this.events.get(streamId);
-    
+
     if (!streamEvents || streamEvents.length === 0) {
       return null;
     }
@@ -59,8 +59,8 @@ export class InMemoryEventStore implements EventStore {
       streamId,
       version: streamEvents.length,
       eventCount: streamEvents.length,
-      firstEventTimestamp: streamEvents[0].occurredOn,
-      lastEventTimestamp: streamEvents[streamEvents.length - 1].occurredOn,
+      firstEventTimestamp: streamEvents[0]?.occurredOn || new Date(),
+      lastEventTimestamp: streamEvents[streamEvents.length - 1]?.occurredOn || new Date(),
     };
   }
 
@@ -100,6 +100,6 @@ export class InMemoryEventStore implements EventStore {
    * Get events by type across all streams
    */
   async getEventsByType(eventType: string): Promise<DomainEvent[]> {
-    return this.globalEvents.filter(event => event.constructor.name === eventType);
+    return this.globalEvents.filter((event) => event.constructor.name === eventType);
   }
 }

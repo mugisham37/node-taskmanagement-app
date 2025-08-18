@@ -1,34 +1,48 @@
 // Base error classes
 export { AppError } from './app-error';
-export { BusinessRuleViolationError } from './business-rule-violation-error';
 
 // Domain errors
 export {
-    BusinessRuleViolationError, DomainError, InvalidStateTransitionError, InvariantViolationError, OperationNotAllowedError
+  BusinessRuleViolationError,
+  DomainError,
+  InvalidStateTransitionError,
+  InvariantViolationError,
+  OperationNotAllowedError,
 } from './domain-error';
 
 // Validation errors
-export {
-    ValidationError,
-    type ValidationErrorDetail
-} from './validation-error';
+export { ValidationError, type ValidationErrorDetail } from './validation-error';
 
 // Not found errors
 export {
-    NotFoundError, ProjectNotFoundError, TaskNotFoundError, UserNotFoundError, WorkspaceNotFoundError
+  NotFoundError,
+  ProjectNotFoundError,
+  TaskNotFoundError,
+  UserNotFoundError,
+  WorkspaceNotFoundError,
 } from './not-found-error';
 
 // Authorization errors
 export {
-    AuthenticationError,
-    AuthorizationError,
-    InsufficientPermissionsError,
-    InvalidTokenError, MissingTokenError, TokenExpiredError
+  AuthenticationError,
+  AuthorizationError,
+  InsufficientPermissionsError,
+  InvalidTokenError,
+  MissingTokenError,
+  TokenExpiredError,
 } from './authorization-error';
 
 // Infrastructure errors
 export {
-    CacheError, ConfigurationError, DatabaseConnectionError, DatabaseError, EmailError, ExternalServiceError, FileSystemError, InfrastructureError, TransactionError
+  CacheError,
+  ConfigurationError,
+  DatabaseConnectionError,
+  DatabaseError,
+  EmailError,
+  ExternalServiceError,
+  FileSystemError,
+  InfrastructureError,
+  TransactionError,
 } from './infrastructure-error';
 
 // Import AppError for type guards

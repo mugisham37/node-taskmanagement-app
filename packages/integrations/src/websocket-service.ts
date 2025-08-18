@@ -1,6 +1,6 @@
+import { CacheService } from '@taskmanagement/cache';
+import { LoggingService } from '@taskmanagement/observability';
 import { EventEmitter } from 'events';
-import { LoggingService } from '../monitoring/logging-service';
-import { CacheService } from '../caching/cache-service';
 
 export interface WebSocketConnection {
   id: string;
@@ -91,7 +91,7 @@ export class WebSocketService extends EventEmitter {
     }
 
     // Remove from channel subscriptions
-    connection.subscriptions.forEach(channel => {
+    connection.subscriptions.forEach((channel) => {
       this.unsubscribeFromChannel(connectionId, channel);
     });
 
@@ -158,15 +158,11 @@ export class WebSocketService extends EventEmitter {
       connection.lastActivity = new Date();
       return true;
     } catch (error) {
-      this.logger.error(
-        'Failed to send message to connection',
-        error as Error,
-        {
-          connectionId,
-          userId: connection.userId,
-          messageType: message.type,
-        }
-      );
+      this.logger.error('Failed to send message to connection', error as Error, {
+        connectionId,
+        userId: connection.userId,
+        messageType: message.type,
+      });
       return false;
     }
   }
@@ -176,7 +172,7 @@ export class WebSocketService extends EventEmitter {
     if (!userConnections) return 0;
 
     let sentCount = 0;
-    userConnections.forEach(connectionId => {
+    userConnections.forEach((connectionId) => {
       if (this.sendToConnection(connectionId, message)) {
         sentCount++;
       }
@@ -190,7 +186,7 @@ export class WebSocketService extends EventEmitter {
     if (!channelSubs) return 0;
 
     let sentCount = 0;
-    channelSubs.forEach(connectionId => {
+    channelSubs.forEach((connectionId) => {
       if (this.sendToConnection(connectionId, message)) {
         sentCount++;
       }
@@ -261,9 +257,9 @@ export class WebSocketService extends EventEmitter {
     if (!subs) return [];
 
     return Array.from(subs)
-      .map(connectionId => this.connections.get(connectionId))
-      .filter(conn => conn !== undefined)
-      .map(conn => conn!.userId);
+      .map((connectionId) => this.connections.get(connectionId))
+      .filter((conn) => conn !== undefined)
+      .map((conn) => conn!.userId);
   }
 
   getConnectionStats(): {
@@ -282,9 +278,7 @@ export class WebSocketService extends EventEmitter {
       uniqueUsers: this.userConnections.size,
       channels: this.channelSubscriptions.size,
       averageSubscriptionsPerConnection:
-        this.connections.size > 0
-          ? totalSubscriptions / this.connections.size
-          : 0,
+        this.connections.size > 0 ? totalSubscriptions / this.connections.size : 0,
     };
   }
 
@@ -297,8 +291,8 @@ export class WebSocketService extends EventEmitter {
     if (!connectionIds) return [];
 
     return Array.from(connectionIds)
-      .map(id => this.connections.get(id))
-      .filter(conn => conn !== undefined) as WebSocketConnection[];
+      .map((id) => this.connections.get(id))
+      .filter((conn) => conn !== undefined) as WebSocketConnection[];
   }
 
   private generateMessageId(): string {
@@ -313,10 +307,7 @@ export class WebSocketService extends EventEmitter {
         const staleThreshold = 30 * 60 * 1000; // 30 minutes
 
         this.connections.forEach((connection, connectionId) => {
-          if (
-            now.getTime() - connection.lastActivity.getTime() >
-            staleThreshold
-          ) {
+          if (now.getTime() - connection.lastActivity.getTime() > staleThreshold) {
             this.logger.warn('Removing stale WebSocket connection', {
               connectionId,
               userId: connection.userId,

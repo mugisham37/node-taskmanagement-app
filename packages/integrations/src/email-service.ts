@@ -1,6 +1,6 @@
+import { LoggingService } from '@taskmanagement/observability';
 import * as nodemailer from 'nodemailer';
 import { CircuitBreaker } from './circuit-breaker';
-import { LoggingService } from '../monitoring/logging-service';
 import { EmailDeliveryStatus, EmailTemplate } from './email-types';
 
 export interface SendEmailData {
@@ -174,9 +174,7 @@ export class EmailService {
       dueDate: data.dueDate || undefined,
     });
 
-    const text = template.textContent
-      ? this.renderTemplate(template.textContent, data)
-      : '';
+    const text = template.textContent ? this.renderTemplate(template.textContent, data) : '';
 
     return this.sendEmail({
       to: assigneeEmail,
@@ -208,9 +206,7 @@ export class EmailService {
       dueDate: data.dueDate || undefined,
     });
 
-    const text = template.textContent
-      ? this.renderTemplate(template.textContent, data)
-      : '';
+    const text = template.textContent ? this.renderTemplate(template.textContent, data) : '';
 
     return this.sendEmail({
       to: recipientEmail,
@@ -238,9 +234,7 @@ export class EmailService {
       activationLink: data.activationLink || undefined,
     });
 
-    const text = template.textContent
-      ? this.renderTemplate(template.textContent, data)
-      : '';
+    const text = template.textContent ? this.renderTemplate(template.textContent, data) : '';
 
     return this.sendEmail({
       to: userEmail,
@@ -335,7 +329,7 @@ export class EmailService {
     try {
       const now = new Date();
       const itemsToProcess = this.emailQueue.filter(
-        item => !item.scheduledAt || item.scheduledAt <= now
+        (item) => !item.scheduledAt || item.scheduledAt <= now
       );
 
       for (const item of itemsToProcess) {
@@ -343,7 +337,7 @@ export class EmailService {
           await this.sendEmail(item.data);
 
           // Remove successfully sent email from queue
-          this.emailQueue = this.emailQueue.filter(queueItem => queueItem.id !== item.id);
+          this.emailQueue = this.emailQueue.filter((queueItem) => queueItem.id !== item.id);
           this.logger.info('Email sent successfully and removed from queue', {
             emailId: item.id,
           });
@@ -353,9 +347,7 @@ export class EmailService {
 
           if (item.attempts >= item.maxAttempts) {
             // Remove failed email after max attempts
-            this.emailQueue = this.emailQueue.filter(
-              queueItem => queueItem.id !== item.id
-            );
+            this.emailQueue = this.emailQueue.filter((queueItem) => queueItem.id !== item.id);
             this.logger.error('Email failed after max attempts', undefined, {
               emailId: item.id,
               maxAttempts: item.maxAttempts,
@@ -444,10 +436,8 @@ export class EmailService {
 
     // Validate attachments
     if (message.attachments) {
-      const maxAttachmentSize =
-        this.config.maxAttachmentSize || 25 * 1024 * 1024; // 25MB
-      const maxTotalSize =
-        this.config.maxTotalAttachmentSize || 50 * 1024 * 1024; // 50MB
+      const maxAttachmentSize = this.config.maxAttachmentSize || 25 * 1024 * 1024; // 25MB
+      const maxTotalSize = this.config.maxTotalAttachmentSize || 50 * 1024 * 1024; // 50MB
       let totalSize = 0;
 
       for (const attachment of message.attachments) {
@@ -458,9 +448,7 @@ export class EmailService {
             : attachment.content.length);
 
         if (size > maxAttachmentSize) {
-          throw new Error(
-            `Attachment ${attachment.filename} exceeds maximum size limit`
-          );
+          throw new Error(`Attachment ${attachment.filename} exceeds maximum size limit`);
         }
 
         totalSize += size;
@@ -633,10 +621,7 @@ Please activate your account by clicking the link below:
   /**
    * Update email template
    */
-  async updateTemplate(
-    templateId: string,
-    template: Partial<EmailTemplate>
-  ): Promise<void> {
+  async updateTemplate(templateId: string, template: Partial<EmailTemplate>): Promise<void> {
     const existing = this.templates.get(templateId);
     if (!existing) {
       throw new Error(`Email template not found: ${templateId}`);
@@ -954,10 +939,7 @@ This is an automated message, please do not reply to this email.
   /**
    * Send welcome email to new user
    */
-  async sendWelcomeEmail(
-    recipientEmail: string,
-    recipientName: string
-  ): Promise<boolean> {
+  async sendWelcomeEmail(recipientEmail: string, recipientName: string): Promise<boolean> {
     try {
       const subject = 'Welcome to Task Management System';
       const html = `
@@ -1034,8 +1016,10 @@ This is an automated message, please do not reply to this email.
   }): Promise<boolean> {
     try {
       const subject = `Calendar Invitation: ${data.eventTitle}`;
-      const locationText = data.location ? `<li><strong>Location:</strong> ${data.location}</li>` : '';
-      
+      const locationText = data.location
+        ? `<li><strong>Location:</strong> ${data.location}</li>`
+        : '';
+
       const html = `
         <h2>Calendar Invitation</h2>
         <p>Hello ${data.recipientName},</p>
@@ -1081,8 +1065,8 @@ ${data.organizerName}
           type: 'calendar_invitation',
           eventTitle: data.eventTitle,
           startTime: data.startTime.toISOString(),
-          endTime: data.endTime.toISOString()
-        }
+          endTime: data.endTime.toISOString(),
+        },
       });
     } catch (error) {
       this.logger.error('Failed to send calendar invitation', error as Error);
@@ -1100,7 +1084,7 @@ ${data.organizerName}
   }): Promise<boolean> {
     try {
       const subject = 'Verify Your Email Address';
-      
+
       const html = `
         <h2>Email Verification</h2>
         <p>Hello ${data.recipientName},</p>
@@ -1135,8 +1119,8 @@ Task Management Team
         tags: ['authentication', 'verification'],
         metadata: {
           type: 'email_verification',
-          recipientEmail: data.recipientEmail
-        }
+          recipientEmail: data.recipientEmail,
+        },
       });
     } catch (error) {
       this.logger.error('Failed to send email verification', error as Error);
@@ -1154,7 +1138,7 @@ Task Management Team
   }): Promise<boolean> {
     try {
       const subject = 'Password Reset Request';
-      
+
       const html = `
         <h2>Password Reset</h2>
         <p>Hello ${data.recipientName},</p>
@@ -1192,8 +1176,8 @@ Task Management Team
         tags: ['authentication', 'password-reset'],
         metadata: {
           type: 'password_reset',
-          recipientEmail: data.recipientEmail
-        }
+          recipientEmail: data.recipientEmail,
+        },
       });
     } catch (error) {
       this.logger.error('Failed to send password reset email', error as Error);

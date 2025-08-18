@@ -76,7 +76,9 @@ export class DocumentationIntegration {
 
       // Log available locales
       const availableLocales = i18nManager.getAvailableLocales();
-      console.log(`📍 Available locales: ${availableLocales.map((l) => l.code).join(', ')}`);
+      console.log(
+        `📍 Available locales: ${availableLocales.map((locale: any) => locale.code).join(', ')}`
+      );
       console.log(`🎯 Default locale: ${this.config.localization.defaultLocale}`);
 
       // Test translation system
@@ -291,4 +293,3 @@ export class DocumentationIntegration {
 
 // Export singleton instance
 export const documentationIntegration = new DocumentationIntegration();
-
