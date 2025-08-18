@@ -1,10 +1,7 @@
 module.exports = {
   extends: [
+    '../../.eslintrc.js',
     'next/core-web-vitals',
-    '@typescript-eslint/recommended',
-    'plugin:react/recommended',
-    'plugin:react-hooks/recommended',
-    'plugin:jsx-a11y/recommended',
   ],
   parser: '@typescript-eslint/parser',
   parserOptions: {
