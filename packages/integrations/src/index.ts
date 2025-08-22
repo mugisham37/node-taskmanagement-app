@@ -1,13 +1,13 @@
 // Email exports
 export * from './email';
-export { EmailService } from './email-service';
+export { EmailConfig, EmailService, SendEmailData } from './email-service';
 export * from './email-types';
 
 // WebSocket exports
 export { WebSocketService } from './websocket-service';
 
 // Circuit Breaker
-export { CircuitBreaker } from './circuit-breaker';
+export { CircuitBreaker, CircuitBreakerRegistry, circuitBreakerRegistry } from './circuit-breaker';
 
 // Collaboration Service
 export { CollaborationService } from './collaboration-service';

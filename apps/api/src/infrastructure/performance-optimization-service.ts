@@ -1,5 +1,7 @@
-import { PerformanceCacheStrategies } from '@taskmanagement/cache';
-import { DatabasePerformanceOptimizer } from '@taskmanagement/database';
+// TODO: Re-enable cache import when package is built
+// import { PerformanceCacheStrategies } from '@taskmanagement/cache';
+// TODO: Re-enable database import when package is built
+// import { DatabasePerformanceOptimizer } from '@taskmanagement/database';
 import {
   APIPerformanceMonitor,
   ComprehensiveMonitoring,
@@ -7,6 +9,25 @@ import {
   MetricsService,
 } from '@taskmanagement/observability';
 import { InfrastructureError } from '../shared/errors/infrastructure-error';
+
+// Temporary interfaces until packages are built
+interface PerformanceCacheStrategies {
+  optimize(): Promise<void>;
+  executeStrategy(strategy: string): Promise<void>;
+  executeAllStrategies(): Promise<void>;
+  optimizeCache(): Promise<void>;
+  getPerformanceMetrics(): Promise<any>;
+}
+
+interface DatabasePerformanceOptimizer {
+  optimize(): Promise<void>;
+  optimizeConnectionPool(): Promise<void>;
+  createOptimizedIndexes(): Promise<void>;
+  removeUnusedIndexes(): Promise<void>;
+  optimizeQueryPlans(): Promise<void>;
+  runPerformanceMaintenance(): Promise<void>;
+  getConnectionPoolMetrics(): Promise<any>;
+}
 
 export interface PerformanceOptimizationConfig {
   caching: {

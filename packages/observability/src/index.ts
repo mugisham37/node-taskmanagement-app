@@ -3,14 +3,20 @@ export { AlertingService } from './alerting-service';
 export { LoggingService } from './logging-service';
 export { MetricsService } from './metrics-service';
 
+// Enhanced Monitoring Service
+export {
+  EnhancedMonitoringService,
+  enhancedMonitoringService,
+} from './enhanced-monitoring-service';
+
 // Core types needed by consumers
 export type {
   Alert,
   AlertAction,
   AlertCondition,
-  AlertingConfig,
   AlertRule,
   AlertSeverity,
+  AlertingConfig,
 } from './alerting-service';
 
 // Additional services

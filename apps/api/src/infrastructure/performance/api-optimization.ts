@@ -1,7 +1,14 @@
-import { CacheService } from '@taskmanagement/cache';
+// TODO: Re-enable cache import when package is built
+// import { CacheService } from '@taskmanagement/cache';
 import { NextFunction, Request, Response } from 'express';
 import { RequestBatchingService } from './request-batching';
 import { ResponseCompressionService } from './response-compression';
+
+// Temporary interface until cache package is built
+interface CacheService {
+  get(key: string): Promise<any>;
+  set(key: string, value: any, options?: { ttl?: number; tags?: string[] }): Promise<void>;
+}
 
 export interface APIOptimizationConfig {
   caching: {
@@ -471,4 +478,3 @@ export function createAPIOptimizationService(
     batchingService
   );
 }
-

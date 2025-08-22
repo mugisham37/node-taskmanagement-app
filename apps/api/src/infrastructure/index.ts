@@ -2,16 +2,17 @@
 // export * from './database';
 
 // Caching
-export * from './caching';
+export * from './caching/index';
 
 // External Services - now from integrations package
-export * from '@taskmanagement/integrations';
+// TODO: Replace with actual package when built
+// export * from '@taskmanagement/integrations';
 
 // Security
-export * from './security';
+export * from './security/index';
 
-// Monitoring - now from observability package
-export * from '@taskmanagement/observability';
+// Monitoring - temporarily comment out until packages are built
+// export * from '@taskmanagement/observability';
 
 // Migration
 export * from './migration/fastify-migration.controller';
@@ -25,7 +26,8 @@ export * from './integration/infrastructure-integration';
 export * from './performance-optimization-service';
 
 // Jobs and Background Processing - now from jobs package
-export * from '@taskmanagement/jobs';
+// TODO: Replace with actual package when built
+// export * from '@taskmanagement/jobs';
 
 // Enhanced services from migration
 // Database exports moved to @taskmanagement/database package
@@ -33,15 +35,18 @@ export * from '@taskmanagement/jobs';
 // export { DrizzleTransactionManager, drizzleTransactionManager } from './database/drizzle-transaction-manager';
 // export { BaseDrizzleRepository } from './database/repositories/base-drizzle-repository';
 // Enhanced services now from packages
+// TODO: Replace with actual package exports when built
 export {
   CircuitBreaker,
   CircuitBreakerRegistry,
+  circuitBreakerRegistry,
   EmailConfig,
   EmailService,
   SendEmailData,
-  circuitBreakerRegistry,
-} from '@taskmanagement/integrations';
-export {
-  EnhancedMonitoringService,
-  enhancedMonitoringService,
-} from '@taskmanagement/observability';
+} from './stubs';
+
+// TODO: Uncomment when observability package is built
+// export {
+//   EnhancedMonitoringService,
+//   enhancedMonitoringService,
+// } from '@taskmanagement/observability';
